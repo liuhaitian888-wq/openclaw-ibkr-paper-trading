@@ -101,6 +101,17 @@ Check read-only IBKR quotes without placing orders:
 .venv313/bin/python scripts/check_ibkr_quotes.py --symbols AAPL,MSFT,QQQ --market-data-type 1 --exchange IEX
 ```
 
+Record account-level P&L over time without placing orders:
+
+```bash
+.venv313/bin/python scripts/record_account_pnl.py --samples 60 --interval-seconds 60
+```
+
+This appends read-only snapshots to `reports/pnl_timeseries.csv` and
+`reports/pnl_timeseries.jsonl`. The main unrealized P&L field is calculated from
+TWS portfolio updates, which matches the Portfolio panel more closely than the
+raw account P&L stream.
+
 Generate a local static dashboard:
 
 ```bash
