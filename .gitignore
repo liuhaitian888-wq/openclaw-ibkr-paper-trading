@@ -1,0 +1,16 @@
+.venv/
+.venv*/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pip-cache/
+.DS_Store
+.env
+.idea/
+.runtime/
+.secrets/
+trading_audit.sqlite3*
+handbook/
+logs/
+reports/
+dashboard/*.html
