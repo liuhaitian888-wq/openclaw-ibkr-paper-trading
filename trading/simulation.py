@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from trading.config import Settings
-from trading.ibkr_readonly import IbkrReadOnlyQuoteSource
+from trading.ibkr_readonly import IbkrReadOnlyQuoteSource, ParallelIbkrReadOnlyQuoteSource
 from trading.market_data import (
     QuoteSource,
     SimulatedQuoteSource,
@@ -34,6 +34,8 @@ class StrategySimulationConfig:
     ibkr_timeout: float = 5.0
     ibkr_market_data_type: int = 3
     ibkr_exchange: str = "SMART"
+    ibkr_workers: int = 1
+    ibkr_symbols_per_worker: int = 8
 
 
 def run_strategy_simulation(config: StrategySimulationConfig) -> Dict[str, object]:
@@ -127,6 +129,18 @@ def quote_source(config: StrategySimulationConfig) -> QuoteSource:
             or config.ibkr_client_id is None
         ):
             settings = Settings.load()
+        if config.ibkr_workers > 1:
+            return ParallelIbkrReadOnlyQuoteSource(
+                host=config.ibkr_host or settings.tws_host,
+                port=config.ibkr_port or settings.tws_port,
+                client_id=config.ibkr_client_id or settings.tws_client_id + 100,
+                timeout=config.ibkr_timeout,
+                snapshot=True,
+                market_data_type=config.ibkr_market_data_type,
+                exchange=config.ibkr_exchange,
+                workers=config.ibkr_workers,
+                symbols_per_worker=config.ibkr_symbols_per_worker,
+            )
         return IbkrReadOnlyQuoteSource(
             host=config.ibkr_host or settings.tws_host,
             port=config.ibkr_port or settings.tws_port,

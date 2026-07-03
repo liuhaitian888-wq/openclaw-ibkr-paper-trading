@@ -7,6 +7,8 @@ most useful chart types here are:
 - Sequence diagram: how a request moves through the system.
 - State machine: which lock state allows which action.
 - File dependency map: where to look before changing code.
+- Strategy flow: `docs/STRATEGY_FLOW.md` is the maintained flow chart for
+  pool scanning, filters, module decisions, and paper execution.
 
 ## C4 Container Map
 
@@ -200,7 +202,9 @@ Dashboard:
 Research and strategy modules:
 
 - `trading/strategy.py`
+- `trading/strategy_modules.py`
 - `trading/simulation.py`
+- `docs/STRATEGY_FLOW.md`
 - `VALUE_POOL.md`
 - `DATA_FEEDS.md`
 

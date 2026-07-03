@@ -8,6 +8,7 @@ import argparse
 import copy
 import json
 import os
+import random
 import sys
 import threading
 import time
@@ -43,6 +44,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ibkr-timeout", type=float, default=12.0)
     parser.add_argument("--ibkr-exchange", default="SMART")
     parser.add_argument("--ibkr-market-data-type", type=int, default=3)
+    parser.add_argument("--ibkr-workers", type=int, default=1)
+    parser.add_argument("--ibkr-symbols-per-worker", type=int, default=8)
+    parser.add_argument(
+        "--quote-fallback-source",
+        choices=("off", "simulated", "yahoo", "yahoo-replay", "stooq"),
+        default="off",
+        help="Source used for dashboard quotes when IBKR market data returns no quotes.",
+    )
     parser.add_argument(
         "--trading-api-url",
         default="http://192.168.64.1:8787",
@@ -102,7 +111,7 @@ class LiveDataCache:
 
 def fetch_data(args: argparse.Namespace, symbols: list[str]) -> dict[str, object]:
     client_id = next_client_id(args.ibkr_client_id)
-    data = run_strategy_simulation(
+    primary_data = run_strategy_simulation(
         StrategySimulationConfig(
             symbols=symbols,
             steps=1,
@@ -113,9 +122,44 @@ def fetch_data(args: argparse.Namespace, symbols: list[str]) -> dict[str, object
             ibkr_timeout=args.ibkr_timeout,
             ibkr_market_data_type=args.ibkr_market_data_type,
             ibkr_exchange=args.ibkr_exchange,
+            ibkr_workers=args.ibkr_workers,
+            ibkr_symbols_per_worker=args.ibkr_symbols_per_worker,
         )
     )
-    data["system_status"] = build_system_status(data, client_id, args.trading_api_url)
+    primary_returned_symbols = list(primary_data.get("returned_symbols", []))
+    primary_feed_errors = [str(error) for error in primary_data.get("feed_errors", [])]
+    data = primary_data
+    fallback_active = False
+    fallback_source = None
+
+    if not primary_returned_symbols and args.quote_fallback_source != "off":
+        fallback_source = args.quote_fallback_source
+        fallback_data = run_strategy_simulation(
+            StrategySimulationConfig(
+                symbols=symbols,
+                steps=1,
+                source=fallback_source,
+            )
+        )
+        fallback_data["primary_source"] = primary_data.get("source", "ibkr-readonly")
+        fallback_data["source"] = f"{fallback_source} fallback"
+        fallback_data["primary_returned_symbols"] = primary_returned_symbols
+        fallback_data["primary_feed_errors"] = primary_feed_errors
+        fallback_data["feed_errors"] = primary_feed_errors + [
+            f"dashboard quote fallback active: {fallback_source}"
+        ]
+        data = fallback_data
+        fallback_active = True
+
+    data["system_status"] = build_system_status(
+        data,
+        client_id,
+        args.trading_api_url,
+        primary_returned_symbols=primary_returned_symbols,
+        primary_feed_errors=primary_feed_errors,
+        fallback_active=fallback_active,
+        fallback_source=fallback_source,
+    )
     return data
 
 
@@ -124,17 +168,31 @@ def next_client_id(base_client_id: int) -> int:
     with _CLIENT_ID_LOCK:
         _CLIENT_ID_COUNTER += 1
         # Separate server processes and overlapping browser refreshes should not
-        # collide on the same TWS API client id.
-        return base_client_id + (os.getpid() % 10_000) * 100 + _CLIENT_ID_COUNTER
+        # collide on the same TWS API client id. Keep the value comfortably below
+        # a signed 32-bit integer for TWS.
+        entropy = random.SystemRandom().randint(1_000, 1_900_000_000)
+        return base_client_id + entropy + _CLIENT_ID_COUNTER
 
 
 def build_system_status(
     data: dict[str, object],
     client_id: int,
     trading_api_url: str,
+    primary_returned_symbols: list[str] | None = None,
+    primary_feed_errors: list[str] | None = None,
+    fallback_active: bool = False,
+    fallback_source: str | None = None,
 ) -> dict[str, object]:
-    feed_errors = [str(error) for error in data.get("feed_errors", [])]
-    returned_symbols = data.get("returned_symbols", [])
+    feed_errors = (
+        primary_feed_errors
+        if primary_feed_errors is not None
+        else [str(error) for error in data.get("feed_errors", [])]
+    )
+    returned_symbols = (
+        primary_returned_symbols
+        if primary_returned_symbols is not None
+        else data.get("returned_symbols", [])
+    )
     gateway_health = fetch_trading_api_health(trading_api_url)
     market_data_ok = bool(returned_symbols)
     tws_connected = not any(
@@ -145,6 +203,13 @@ def build_system_status(
     )
     client_id_conflict = any("client id is already in use" in error for error in feed_errors)
     subscription_blocked = any("subscription" in error.lower() for error in feed_errors)
+    competing_live_session = any(
+        "competing live session" in error.lower() for error in feed_errors
+    )
+    market_data_farm_broken = any(
+        "market data farm connection is broken" in error.lower()
+        for error in feed_errors
+    )
 
     if client_id_conflict:
         python_to_tws = "blocked: TWS client id conflict"
@@ -152,10 +217,16 @@ def build_system_status(
         python_to_tws = "blocked: TWS API unreachable or not logged in"
     elif market_data_ok:
         python_to_tws = "ok: IBKR read-only quotes returned"
+    elif competing_live_session:
+        python_to_tws = "connected: market data blocked by competing live session"
+    elif market_data_farm_broken:
+        python_to_tws = "connected: IBKR market data farm disconnected"
     elif subscription_blocked:
         python_to_tws = "blocked: market data subscription/API permission"
     else:
-        python_to_tws = "blocked: no quotes returned"
+        python_to_tws = "connected: no market data quotes returned"
+    if fallback_active and not market_data_ok:
+        python_to_tws = f"{python_to_tws}; dashboard using {fallback_source} fallback"
 
     token_status = {
         "OPENCLAW_API_KEY": token_present(
@@ -178,6 +249,12 @@ def build_system_status(
         "python_to_tws": python_to_tws,
         "tws_connected": tws_connected,
         "market_data_ok": market_data_ok,
+        "market_data_errors": feed_errors,
+        "quote_fallback": {
+            "active": fallback_active,
+            "source": fallback_source,
+            "dashboard_quotes_returned": bool(data.get("returned_symbols", [])),
+        },
         "client_id": client_id,
         "dashboard_to_trading_api": (
             f"ok: {lock_state}"

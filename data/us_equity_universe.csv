@@ -1,0 +1,72 @@
+symbol,name,exchange,sector,enabled,tags,average_volume,pe_ratio,forward_pe,peg_ratio,debt_to_equity,revenue_growth_yoy,gross_margin,operating_margin,return_on_invested_capital,free_cash_flow_positive,earnings_positive,analyst_revision_positive
+AAPL,Apple,NASDAQ,Technology,true,mega;liquid,55000000,28,26,1.9,1.7,0.02,0.46,0.31,0.45,true,true,true
+MSFT,Microsoft,NASDAQ,Technology,true,mega;liquid,25000000,29,27,1.9,0.3,0.12,0.69,0.44,0.32,true,true,true
+NVDA,NVIDIA,NASDAQ,Technology,true,mega;semiconductor,45000000,50,35,1.5,0.2,0.80,0.75,0.55,0.50,true,true,true
+AMZN,Amazon,NASDAQ,Consumer Cyclical,true,mega;liquid,40000000,55,38,1.8,0.8,0.10,0.48,0.10,0.14,true,true,true
+GOOGL,Alphabet,NASDAQ,Communication Services,true,mega;liquid,30000000,25,22,1.3,0.1,0.13,0.57,0.31,0.28,true,true,true
+META,Meta Platforms,NASDAQ,Communication Services,true,mega;liquid,18000000,27,23,1.2,0.2,0.20,0.81,0.39,0.31,true,true,true
+TSLA,Tesla,NASDAQ,Consumer Cyclical,true,mega;volatile,90000000,60,45,3.0,0.2,0.18,0.09,0.11,true,true,false
+AVGO,Broadcom,NASDAQ,Technology,true,semiconductor,4000000,32,25,1.5,1.6,0.25,0.63,0.45,0.22,true,true,true
+AMD,Advanced Micro Devices,NASDAQ,Technology,true,semiconductor,50000000,45,32,1.9,0.1,0.15,0.50,0.08,0.09,true,true,true
+INTC,Intel,NASDAQ,Technology,true,semiconductor,45000000,28,22,1.8,0.5,-0.03,0.40,0.03,0.04,true,true,false
+QCOM,Qualcomm,NASDAQ,Technology,true,semiconductor,8000000,21,18,1.4,0.7,0.05,0.56,0.28,0.24,true,true,true
+TXN,Texas Instruments,NASDAQ,Technology,true,semiconductor,6000000,25,23,2.0,0.7,-0.05,0.62,0.38,0.30,true,true,false
+MU,Micron Technology,NASDAQ,Technology,true,semiconductor,20000000,30,20,1.3,0.4,0.18,0.35,0.08,0.09,true,true,true
+ADBE,Adobe,NASDAQ,Technology,true,software,3500000,32,28,1.7,0.3,0.10,0.88,0.35,0.29,true,true,true
+CRM,Salesforce,NYSE,Technology,true,software,6000000,35,28,1.6,0.2,0.10,0.76,0.18,0.16,true,true,true
+ORCL,Oracle,NYSE,Technology,true,software,9000000,30,24,1.8,8.0,0.07,0.72,0.31,0.18,true,true,true
+NOW,ServiceNow,NYSE,Technology,true,software,1500000,65,45,2.0,0.3,0.22,0.79,0.09,0.10,true,true,true
+PANW,Palo Alto Networks,NASDAQ,Technology,true,cybersecurity,4000000,55,42,1.9,1.5,0.18,0.74,0.10,0.12,true,true,true
+CSCO,Cisco,NASDAQ,Technology,true,networking,18000000,18,15,2.0,0.2,0.02,0.64,0.25,0.22,true,true,false
+IBM,IBM,NYSE,Technology,true,enterprise,4500000,22,19,2.0,2.5,0.03,0.55,0.16,0.14,true,true,true
+JPM,JPMorgan Chase,NYSE,Financial Services,true,bank,10000000,13,12,1.3,1.8,0.05,0.00,0.00,0.12,true,true,true
+BAC,Bank of America,NYSE,Financial Services,true,bank,35000000,14,12,1.4,1.9,0.02,0.00,0.00,0.09,true,true,false
+WFC,Wells Fargo,NYSE,Financial Services,true,bank,18000000,13,11,1.2,1.7,0.03,0.00,0.00,0.10,true,true,true
+GS,Goldman Sachs,NYSE,Financial Services,true,bank,2500000,15,13,1.4,2.0,0.04,0.00,0.00,0.11,true,true,true
+MS,Morgan Stanley,NYSE,Financial Services,true,bank,7000000,16,14,1.5,2.1,0.04,0.00,0.00,0.10,true,true,true
+V,Visa,NYSE,Financial Services,true,payments,6000000,32,27,1.8,0.6,0.10,0.80,0.64,0.35,true,true,true
+MA,Mastercard,NYSE,Financial Services,true,payments,3000000,35,30,1.9,1.8,0.12,0.77,0.58,0.40,true,true,true
+UNH,UnitedHealth,NYSE,Healthcare,true,managed-care,4000000,22,18,1.5,0.7,0.08,0.24,0.08,0.16,true,true,true
+LLY,Eli Lilly,NYSE,Healthcare,true,pharma,3500000,60,45,2.5,1.5,0.25,0.80,0.32,0.25,true,true,true
+JNJ,Johnson & Johnson,NYSE,Healthcare,true,pharma,7000000,18,16,2.0,0.5,0.03,0.69,0.25,0.18,true,true,false
+PFE,Pfizer,NYSE,Healthcare,true,pharma,35000000,16,13,1.2,0.7,-0.08,0.60,0.18,0.11,true,true,false
+MRK,Merck,NYSE,Healthcare,true,pharma,9000000,18,15,1.4,0.8,0.09,0.73,0.30,0.20,true,true,true
+ABBV,AbbVie,NYSE,Healthcare,true,pharma,6000000,17,15,1.5,5.0,0.02,0.70,0.34,0.18,true,true,true
+TMO,Thermo Fisher Scientific,NYSE,Healthcare,true,tools,1500000,28,24,1.7,0.8,0.03,0.41,0.20,0.13,true,true,true
+ABT,Abbott Laboratories,NYSE,Healthcare,true,devices,6000000,27,23,1.8,0.4,0.05,0.55,0.18,0.14,true,true,true
+XOM,Exxon Mobil,NYSE,Energy,true,energy,15000000,13,12,1.8,0.2,0.02,0.31,0.16,0.18,true,true,false
+CVX,Chevron,NYSE,Energy,true,energy,8000000,14,13,1.9,0.2,0.01,0.28,0.14,0.15,true,true,false
+COP,ConocoPhillips,NYSE,Energy,true,energy,6000000,13,12,1.7,0.4,0.02,0.36,0.22,0.17,true,true,false
+SLB,Schlumberger,NYSE,Energy,true,services,12000000,18,15,1.2,0.6,0.08,0.21,0.15,0.12,true,true,true
+WMT,Walmart,NYSE,Consumer Defensive,true,retail,16000000,28,24,2.3,0.8,0.05,0.25,0.04,0.10,true,true,true
+COST,Costco,NASDAQ,Consumer Defensive,true,retail,2000000,50,42,3.0,0.5,0.07,0.13,0.04,0.18,true,true,true
+PG,Procter & Gamble,NYSE,Consumer Defensive,true,staples,7000000,26,23,2.8,0.7,0.03,0.51,0.23,0.17,true,true,false
+KO,Coca-Cola,NYSE,Consumer Defensive,true,staples,15000000,24,22,2.5,1.6,0.04,0.60,0.29,0.15,true,true,false
+PEP,PepsiCo,NASDAQ,Consumer Defensive,true,staples,6000000,25,22,2.6,2.2,0.05,0.54,0.16,0.14,true,true,false
+MCD,McDonald's,NYSE,Consumer Cyclical,true,restaurants,3000000,25,22,2.4,0.0,0.05,0.57,0.45,0.25,true,true,false
+HD,Home Depot,NYSE,Consumer Cyclical,true,retail,4000000,23,20,2.2,0.0,0.02,0.33,0.15,0.30,true,true,false
+NKE,Nike,NYSE,Consumer Cyclical,true,apparel,9000000,30,25,2.0,0.7,0.02,0.44,0.11,0.13,true,true,false
+SBUX,Starbucks,NASDAQ,Consumer Cyclical,true,restaurants,9000000,28,23,1.8,0.0,0.03,0.27,0.15,0.16,true,true,false
+DIS,Disney,NYSE,Communication Services,true,media,11000000,35,25,1.5,0.5,0.04,0.35,0.08,0.08,true,true,true
+NFLX,Netflix,NASDAQ,Communication Services,true,media,4000000,36,30,1.7,0.7,0.14,0.45,0.22,0.19,true,true,true
+CMCSA,Comcast,NASDAQ,Communication Services,true,media,18000000,12,11,1.4,1.2,0.01,0.68,0.19,0.11,true,true,false
+T,AT&T,NYSE,Communication Services,true,telecom,35000000,9,8,2.0,1.4,0.01,0.58,0.21,0.08,true,true,false
+VZ,Verizon,NYSE,Communication Services,true,telecom,23000000,10,9,2.1,1.5,0.00,0.57,0.22,0.08,true,true,false
+BA,Boeing,NYSE,Industrials,true,aerospace,8000000,0,32,2.5,0.0,0.06,0.11,-0.02,0.00,false,false,false
+CAT,Caterpillar,NYSE,Industrials,true,machinery,3000000,18,16,1.4,1.6,0.06,0.36,0.20,0.24,true,true,true
+DE,Deere,NYSE,Industrials,true,machinery,2000000,14,13,1.2,1.8,0.03,0.34,0.22,0.18,true,true,false
+GE,GE Aerospace,NYSE,Industrials,true,aerospace,7000000,36,28,1.6,0.9,0.12,0.30,0.18,0.12,true,true,true
+HON,Honeywell,NASDAQ,Industrials,true,industrial,3000000,23,20,2.0,1.2,0.04,0.37,0.22,0.16,true,true,false
+UPS,UPS,NYSE,Industrials,true,logistics,5000000,20,18,2.0,1.1,-0.02,0.21,0.10,0.13,true,true,false
+LMT,Lockheed Martin,NYSE,Industrials,true,defense,1000000,19,17,1.8,3.0,0.03,0.12,0.12,0.18,true,true,false
+RTX,RTX,NYSE,Industrials,true,defense,7000000,21,18,1.6,0.8,0.04,0.20,0.10,0.10,true,true,true
+NEE,NextEra Energy,NYSE,Utilities,true,utility,9000000,22,19,2.1,1.4,0.06,0.55,0.26,0.08,true,true,true
+DUK,Duke Energy,NYSE,Utilities,true,utility,3500000,18,16,2.0,1.5,0.03,0.49,0.25,0.07,true,true,false
+SO,Southern Company,NYSE,Utilities,true,utility,5000000,19,17,2.1,1.6,0.03,0.50,0.27,0.07,true,true,false
+LIN,Linde,NASDAQ,Materials,true,chemicals,2000000,32,28,2.2,0.4,0.05,0.47,0.27,0.16,true,true,true
+APD,Air Products and Chemicals,NYSE,Materials,true,chemicals,1500000,24,21,2.0,0.8,0.04,0.32,0.24,0.11,true,true,false
+SHW,Sherwin-Williams,NYSE,Materials,true,materials,1500000,30,25,2.0,2.4,0.05,0.48,0.17,0.20,true,true,true
+FCX,Freeport-McMoRan,NYSE,Materials,true,copper,12000000,28,20,1.3,0.6,0.08,0.33,0.20,0.13,true,true,true
+SPY,SPDR S&P 500 ETF,NYSE,ETF,true,index-etf,70000000,,,,,,,,,,true,true,true
+QQQ,Invesco QQQ Trust,NASDAQ,ETF,true,index-etf,45000000,,,,,,,,,,true,true,true
+IWM,iShares Russell 2000 ETF,NYSE,ETF,true,index-etf,30000000,,,,,,,,,,true,true,true

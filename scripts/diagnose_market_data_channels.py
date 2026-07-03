@@ -33,6 +33,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int)
     parser.add_argument("--client-id-base", type=int, default=80)
     parser.add_argument("--timeout", type=float, default=8.0)
+    parser.add_argument(
+        "--streaming",
+        action="store_true",
+        help="Use streaming reqMktData instead of snapshot requests.",
+    )
     return parser.parse_args()
 
 
@@ -48,7 +53,7 @@ def main() -> int:
             port=args.port or settings.tws_port,
             client_id=args.client_id_base + index,
             timeout=args.timeout,
-            snapshot=True,
+            snapshot=not args.streaming,
             market_data_type=market_data_type,
             exchange=exchange,
         )
@@ -62,6 +67,7 @@ def main() -> int:
                 "channel": name,
                 "exchange": exchange,
                 "market_data_type": market_data_type,
+                "snapshot": not args.streaming,
                 "ok": bool(quotes),
                 "quote_count": len(quotes),
                 "returned_symbols": returned_symbols,

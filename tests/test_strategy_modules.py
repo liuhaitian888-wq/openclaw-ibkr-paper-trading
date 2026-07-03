@@ -2,7 +2,14 @@ from datetime import datetime, timedelta, timezone
 import unittest
 
 from trading.market_data import Bar, Quote
-from trading.strategy_modules import ConservativeTrendConfig, ConservativeTrendModule
+from trading.strategy_modules import (
+    ConservativeTrendConfig,
+    ConservativeTrendModule,
+    ModuleDecision,
+    ModulePosition,
+    PortfolioRiskConfig,
+    PortfolioRiskGate,
+)
 
 
 class ConservativeTrendModuleTests(unittest.TestCase):
@@ -76,6 +83,54 @@ class ConservativeTrendModuleTests(unittest.TestCase):
 
         self.assertEqual(decision.action, "HOLD")
         self.assertEqual(decision.reason, "symbol is not in the approved pool")
+
+    def test_portfolio_risk_gate_blocks_extra_entry_after_position_limit(self) -> None:
+        gate = PortfolioRiskGate(PortfolioRiskConfig(max_open_positions=1))
+        now = datetime.now(timezone.utc)
+        decision = ModuleDecision(
+            "BUY",
+            "MSFT",
+            "test",
+            side="BUY",
+            quantity=1,
+            limit_price=100.0,
+        )
+
+        result = gate.evaluate(
+            decision,
+            positions={"AAPL": ModulePosition("AAPL", 1, 100.0, 1)},
+            latest_quotes={"AAPL": Quote("AAPL", 100.0, now, "test")},
+            realized_pnl=0.0,
+            consecutive_losses=0,
+            now=now.replace(hour=14, minute=0),
+        )
+
+        self.assertFalse(result.approved)
+        self.assertEqual(result.reason, "max open positions reached")
+
+    def test_portfolio_risk_gate_blocks_daily_loss(self) -> None:
+        gate = PortfolioRiskGate(PortfolioRiskConfig(max_daily_loss=10.0))
+        now = datetime.now(timezone.utc).replace(hour=14, minute=0)
+        decision = ModuleDecision(
+            "BUY",
+            "MSFT",
+            "test",
+            side="BUY",
+            quantity=1,
+            limit_price=100.0,
+        )
+
+        result = gate.evaluate(
+            decision,
+            positions={},
+            latest_quotes={},
+            realized_pnl=-10.0,
+            consecutive_losses=0,
+            now=now,
+        )
+
+        self.assertFalse(result.approved)
+        self.assertEqual(result.reason, "daily loss limit reached")
 
 
 def bars_for(symbol: str, closes: list[float], now: datetime) -> list[Bar]:

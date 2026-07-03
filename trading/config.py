@@ -41,6 +41,42 @@ def _load_optional_file_value(path: Optional[str]) -> str:
     return file_path.read_text(encoding="utf-8").strip()
 
 
+def _load_allowed_symbols() -> FrozenSet[str]:
+    configured = os.getenv("ALLOWED_SYMBOLS")
+    if configured:
+        return frozenset(
+            item.strip().upper()
+            for item in configured.split(",")
+            if item.strip()
+        )
+
+    configured_file = os.getenv("ALLOWED_SYMBOLS_FILE")
+    candidate_files = [
+        Path(configured_file).expanduser() if configured_file else None,
+        PROJECT_ROOT / "data" / "us_equity_universe.csv",
+    ]
+    for path in candidate_files:
+        if path is None or not path.exists():
+            continue
+        symbols = _symbols_from_file(path)
+        if symbols:
+            return frozenset(symbols)
+    return frozenset({"AAPL", "MSFT", "SPY"})
+
+
+def _symbols_from_file(path: Path) -> FrozenSet[str]:
+    symbols = []
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+        if not line.strip():
+            continue
+        first = line.split(",", 1)[0].strip().upper()
+        if line_number == 0 and first == "SYMBOL":
+            continue
+        if first and first.replace(".", "").replace("-", "").isalnum():
+            symbols.append(first)
+    return frozenset(symbols)
+
+
 @dataclass(frozen=True)
 class Settings:
     api_key: str
@@ -68,11 +104,7 @@ class Settings:
         if mode not in {"DRY_RUN", "PAPER"}:
             raise RuntimeError("TRADING_MODE must be DRY_RUN or PAPER")
 
-        symbols = frozenset(
-            item.strip().upper()
-            for item in os.getenv("ALLOWED_SYMBOLS", "AAPL,MSFT,SPY").split(",")
-            if item.strip()
-        )
+        symbols = _load_allowed_symbols()
         return cls(
             api_key=_load_or_create_api_key(),
             api_host=os.getenv("TRADING_API_HOST", "127.0.0.1"),

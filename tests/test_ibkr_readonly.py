@@ -10,7 +10,9 @@ from trading.ibkr_readonly import (
     IbkrReadOnlyQuoteClient,
     IbkrReadOnlyQuoteSource,
     LAST_PRICE_TICK,
+    ParallelIbkrReadOnlyQuoteSource,
     VOLUME_SIZE_TICK,
+    _chunks,
 )
 from trading.simulation import StrategySimulationConfig, quote_source
 
@@ -78,6 +80,16 @@ class IbkrReadOnlyQuoteClientTests(unittest.TestCase):
         self.assertEqual(contract.symbol, "MSFT")
         self.assertEqual(contract.exchange, "IEX")
         self.assertEqual(contract.secType, "STK")
+
+    def test_parallel_source_chunks_symbols_without_tws_connection(self) -> None:
+        source = ParallelIbkrReadOnlyQuoteSource(
+            client_id=900,
+            workers=3,
+            symbols_per_worker=2,
+        )
+
+        self.assertEqual(_chunks(["AAPL", "MSFT", "NVDA"], 2), [["AAPL", "MSFT"], ["NVDA"]])
+        self.assertEqual(source._source_for(1)._client_id, 910)
 
 
 if __name__ == "__main__":

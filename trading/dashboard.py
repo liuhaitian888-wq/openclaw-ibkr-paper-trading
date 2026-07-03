@@ -231,7 +231,16 @@ def render_dashboard_html(
         : 'n/a';
       const rows = [
         ['Dashboard data cache', cacheLabel, Boolean(dashboardCache.single_flight)],
-        ['Python -> TWS', systemStatus.python_to_tws || 'unknown', systemStatus.market_data_ok],
+        ['Python -> TWS market data', systemStatus.python_to_tws || 'unknown', systemStatus.market_data_ok],
+        [
+          'Dashboard quote fallback',
+          systemStatus.quote_fallback?.active
+            ? `${{systemStatus.quote_fallback.source}} active`
+            : 'off',
+          systemStatus.quote_fallback?.active
+            ? Boolean(systemStatus.quote_fallback.dashboard_quotes_returned)
+            : true
+        ],
         ['Dashboard -> Trading API', systemStatus.dashboard_to_trading_api || 'unknown', Boolean(tradingApi.reachable)],
         ['Trading lock state', tradingApi.lock_state || 'unknown', tradingApi.lock_state === 'TRADE_LOCK'],
         ['Paper transmit', tradingApi.paper_transmit_enabled === true ? 'enabled' : 'disabled', tradingApi.paper_transmit_enabled === true],

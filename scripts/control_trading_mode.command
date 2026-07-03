@@ -7,7 +7,12 @@ TOKEN_FILE="$SHARED_DIR/trade_session_token"
 RUNTIME_DIR="$PROJECT_DIR/.runtime"
 LOG_DIR="$PROJECT_DIR/logs"
 PID_FILE="$RUNTIME_DIR/trading_api.pid"
+POOL_PID_FILE="$RUNTIME_DIR/pool_strategy.pid"
+AGENT_PID_FILE="$RUNTIME_DIR/autonomous_agent.pid"
 API_LOG_FILE="$LOG_DIR/trading_api.log"
+POOL_LOG_FILE="$LOG_DIR/pool_strategy.log"
+AGENT_LOG_FILE="$LOG_DIR/autonomous_agent.log"
+DEFAULT_UNIVERSE_FILE="$PROJECT_DIR/data/us_equity_universe.csv"
 VM_HOST="${OPENCLAW_VM_HOST:-192.168.64.2}"
 VM_USER="${OPENCLAW_VM_USER:-nbhsbgnb}"
 VM_KEY="${OPENCLAW_VM_KEY:-$HOME/.ssh/openclaw_vm_ed25519}"
@@ -78,6 +83,46 @@ stop_api_if_running() {
     sleep 1
     echo "Stopped existing api_service.py process before switching mode."
   fi
+}
+
+stop_pool_strategy_if_running() {
+  if [[ -f "$POOL_PID_FILE" ]]; then
+    local pid
+    pid="$(cat "$POOL_PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" || true
+      sleep 1
+      echo "Stopped existing pool strategy process: $pid"
+    fi
+    : > "$POOL_PID_FILE"
+  fi
+  if pgrep -f "scripts/run_pool_strategy_module.py" >/dev/null 2>&1; then
+    pkill -f "scripts/run_pool_strategy_module.py" || true
+    sleep 1
+    echo "Stopped remaining pool strategy processes."
+  fi
+}
+
+stop_autonomous_agent_if_running() {
+  if [[ -f "$AGENT_PID_FILE" ]]; then
+    local pid
+    pid="$(cat "$AGENT_PID_FILE" 2>/dev/null || true)"
+    if [[ -n "$pid" ]] && kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" || true
+      sleep 1
+      echo "Stopped existing autonomous agent process: $pid"
+    fi
+    : > "$AGENT_PID_FILE"
+  fi
+  if pgrep -f "scripts/run_autonomous_trading_agent.py" >/dev/null 2>&1; then
+    pkill -f "scripts/run_autonomous_trading_agent.py" || true
+    sleep 1
+    echo "Stopped remaining autonomous agent processes."
+  fi
+}
+
+default_universe_symbols() {
+  .venv313/bin/python -c 'from trading.universe import default_universe_symbols, symbols_csv; print(symbols_csv(default_universe_symbols()))'
 }
 
 api_health_ok() {
@@ -196,16 +241,97 @@ run_pool_strategy_module() {
   echo "Trading API: $url"
   .venv313/bin/python scripts/run_pool_strategy_module.py \
     --mode "$mode" \
-    --source "${POOL_STRATEGY_SOURCE:-simulated-scenario}" \
-    --symbols "${POOL_STRATEGY_SYMBOLS:-AAPL,MSFT,AMD,INTC,KO,PFE,T,F}" \
+    --source "${POOL_STRATEGY_SOURCE:-ibkr-readonly}" \
+    --universe-file "${POOL_STRATEGY_UNIVERSE_FILE:-$DEFAULT_UNIVERSE_FILE}" \
+    --symbols "${POOL_STRATEGY_SYMBOLS:-}" \
+    --max-universe-symbols "${POOL_STRATEGY_MAX_UNIVERSE_SYMBOLS:-60}" \
+    --min-value-score "${POOL_STRATEGY_MIN_VALUE_SCORE:-45}" \
     --steps "${POOL_STRATEGY_STEPS:-24}" \
-    --batch-size "${POOL_STRATEGY_BATCH_SIZE:-3}" \
-    --max-orders "${POOL_STRATEGY_MAX_ORDERS:-12}" \
+    --batch-size "${POOL_STRATEGY_BATCH_SIZE:-12}" \
+    ${POOL_STRATEGY_FULL_POOL_EACH_STEP:+--full-pool-each-step} \
+    --max-orders "${POOL_STRATEGY_MAX_ORDERS:-4}" \
     --api-url "$url" \
-    --market-data-type "${POOL_STRATEGY_MARKET_DATA_TYPE:-3}" \
+    --market-data-type "${POOL_STRATEGY_MARKET_DATA_TYPE:-1}" \
     --exchange "${POOL_STRATEGY_EXCHANGE:-SMART}" \
+    --ibkr-workers "${POOL_STRATEGY_IBKR_WORKERS:-3}" \
+    --ibkr-symbols-per-worker "${POOL_STRATEGY_IBKR_SYMBOLS_PER_WORKER:-6}" \
     --quote-timeout "${POOL_STRATEGY_QUOTE_TIMEOUT:-8}" \
     --api-timeout "${POOL_STRATEGY_API_TIMEOUT:-30}"
+}
+
+start_pool_strategy_background() {
+  local key
+  local url
+  load_trade_token_env
+  key="$(cat .secrets/openclaw_api_key)"
+  if ! url="$(detect_api_url "$key")"; then
+    echo "No running Trading API found for background pool strategy."
+    echo "Choose 2) TRADE_LOCK background first, then choose this option."
+    return 1
+  fi
+  mkdir -p "$RUNTIME_DIR" "$LOG_DIR"
+  stop_pool_strategy_if_running
+  nohup .venv313/bin/python scripts/run_pool_strategy_module.py \
+    --mode "${POOL_STRATEGY_MODE:-paper}" \
+    --source "${POOL_STRATEGY_SOURCE:-ibkr-readonly}" \
+    --universe-file "${POOL_STRATEGY_UNIVERSE_FILE:-$DEFAULT_UNIVERSE_FILE}" \
+    --symbols "${POOL_STRATEGY_SYMBOLS:-}" \
+    --max-universe-symbols "${POOL_STRATEGY_MAX_UNIVERSE_SYMBOLS:-60}" \
+    --min-value-score "${POOL_STRATEGY_MIN_VALUE_SCORE:-45}" \
+    --steps "${POOL_STRATEGY_STEPS:-390}" \
+    --batch-size "${POOL_STRATEGY_BATCH_SIZE:-12}" \
+    --full-pool-each-step \
+    --poll-seconds "${POOL_STRATEGY_POLL_SECONDS:-60}" \
+    --max-orders "${POOL_STRATEGY_MAX_ORDERS:-4}" \
+    --api-url "$url" \
+    --market-data-type "${POOL_STRATEGY_MARKET_DATA_TYPE:-1}" \
+    --exchange "${POOL_STRATEGY_EXCHANGE:-SMART}" \
+    --ibkr-workers "${POOL_STRATEGY_IBKR_WORKERS:-3}" \
+    --ibkr-symbols-per-worker "${POOL_STRATEGY_IBKR_SYMBOLS_PER_WORKER:-6}" \
+    --quote-timeout "${POOL_STRATEGY_QUOTE_TIMEOUT:-8}" \
+    --api-timeout "${POOL_STRATEGY_API_TIMEOUT:-30}" \
+    >> "$POOL_LOG_FILE" 2>&1 &
+  local pid="$!"
+  printf '%s\n' "$pid" > "$POOL_PID_FILE"
+  echo "Started pool strategy in background."
+  echo "PID: $pid"
+  echo "Log: $POOL_LOG_FILE"
+}
+
+start_autonomous_agent_background() {
+  local key
+  local url
+  load_trade_token_env
+  key="$(cat .secrets/openclaw_api_key)"
+  if ! url="$(detect_api_url "$key")"; then
+    echo "No running Trading API found for autonomous agent."
+    echo "Choose 2) TRADE_LOCK background first, then choose this option."
+    return 1
+  fi
+  mkdir -p "$RUNTIME_DIR" "$LOG_DIR"
+  stop_autonomous_agent_if_running
+  nohup .venv313/bin/python scripts/run_autonomous_trading_agent.py \
+    --api-url "$url" \
+    --universe-file "${AGENT_UNIVERSE_FILE:-$DEFAULT_UNIVERSE_FILE}" \
+    --max-universe-symbols "${AGENT_MAX_UNIVERSE_SYMBOLS:-60}" \
+    --min-value-score "${AGENT_MIN_VALUE_SCORE:-45}" \
+    --cycle-seconds "${AGENT_CYCLE_SECONDS:-30}" \
+    --strategy-every-cycles "${AGENT_STRATEGY_EVERY_CYCLES:-2}" \
+    --strategy-mode "${AGENT_STRATEGY_MODE:-paper}" \
+    --strategy-steps "${AGENT_STRATEGY_STEPS:-1}" \
+    --strategy-max-orders "${AGENT_STRATEGY_MAX_ORDERS:-4}" \
+    --ibkr-workers "${AGENT_IBKR_WORKERS:-8}" \
+    --ibkr-symbols-per-worker "${AGENT_IBKR_SYMBOLS_PER_WORKER:-8}" \
+    --quote-timeout "${AGENT_QUOTE_TIMEOUT:-8}" \
+    --market-data-type "${AGENT_MARKET_DATA_TYPE:-1}" \
+    ${AGENT_AUTO_APPROVE_CANDIDATES:+--candidate-auto-approve} \
+    >> "$AGENT_LOG_FILE" 2>&1 &
+  local pid="$!"
+  printf '%s\n' "$pid" > "$AGENT_PID_FILE"
+  echo "Started autonomous agent in background."
+  echo "PID: $pid"
+  echo "Log: $AGENT_LOG_FILE"
+  echo "Latest state: $PROJECT_DIR/reports/autonomous_agent/latest.json"
 }
 
 set_dev_lock_env() {
@@ -216,7 +342,7 @@ set_dev_lock_env() {
   export ALLOW_PAPER_TRANSMIT=false
   export ALLOW_OUTSIDE_RTH=false
   export TRADING_KILL_SWITCH=true
-  export ALLOWED_SYMBOLS="${ALLOWED_SYMBOLS:-AAPL,MSFT,SPY,QQQ,AMD,INTC,NVDA,TSLA,META,GOOGL,AMZN,KO,PFE,T,F}"
+  export ALLOWED_SYMBOLS="${ALLOWED_SYMBOLS:-$(default_universe_symbols)}"
   export MAX_ORDER_VALUE=200
   export MAX_QUANTITY=1
   export MAX_RISK_PER_ORDER=10
@@ -230,7 +356,7 @@ set_trade_lock_env() {
   export ALLOW_PAPER_TRANSMIT=true
   export ALLOW_OUTSIDE_RTH=true
   export TRADING_KILL_SWITCH=false
-  export ALLOWED_SYMBOLS="${ALLOWED_SYMBOLS:-AAPL,MSFT,SPY,QQQ,AMD,INTC,NVDA,TSLA,META,GOOGL,AMZN,KO,PFE,T,F}"
+  export ALLOWED_SYMBOLS="${ALLOWED_SYMBOLS:-$(default_universe_symbols)}"
   export MAX_ORDER_VALUE=400
   export MAX_QUANTITY=1
   export MAX_RISK_PER_ORDER=10
@@ -283,8 +409,10 @@ echo "4) AUTO_VALIDATE_SEQ   - requires TRADE_LOCK; validate automatic order seq
 echo "5) AUTO_STAGE_SEQ      - requires TRADE_LOCK; create NEW untransmitted TWS orders"
 echo "6) AUTO_PAPER_SEQ      - requires TRADE_LOCK; create NEW transmitted paper orders"
 echo "7) POOL_STRATEGY_PAPER - run classic conservative pool module automatically"
+echo "8) POOL_STRATEGY_BG    - start long paper pool strategy in background"
+echo "9) AUTONOMOUS_AGENT_BG - AI supervisor: research tasks + full-pool strategy"
 echo
-read -r -p "Choose mode [0/1/2/3/4/5/6/7]: " choice
+read -r -p "Choose mode [0/1/2/3/4/5/6/7/8/9]: " choice
 
 case "$choice" in
   0|STOP|stop)
@@ -292,6 +420,8 @@ case "$choice" in
     unset TRADE_SESSION_TOKEN_FILE
     clear_trade_token_file
 
+    stop_pool_strategy_if_running
+    stop_autonomous_agent_if_running
     stop_api_if_running
     echo "STOP complete."
     exit 0
@@ -301,6 +431,8 @@ case "$choice" in
     unset TRADE_SESSION_TOKEN
     unset TRADE_SESSION_TOKEN_FILE
     clear_trade_token_file
+    stop_pool_strategy_if_running
+    stop_autonomous_agent_if_running
     stop_api_if_running
 
     set_dev_lock_env
@@ -357,6 +489,16 @@ case "$choice" in
 
   7|POOL_STRATEGY_PAPER|pool_strategy_paper|pool-paper|pool_paper)
     run_pool_strategy_module "${POOL_STRATEGY_MODE:-paper}"
+    exit 0
+    ;;
+
+  8|POOL_STRATEGY_BG|pool_strategy_bg|pool-bg|pool_bg)
+    start_pool_strategy_background
+    exit 0
+    ;;
+
+  9|AUTONOMOUS_AGENT_BG|autonomous_agent_bg|agent-bg|agent_bg)
+    start_autonomous_agent_background
     exit 0
     ;;
 

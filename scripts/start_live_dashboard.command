@@ -8,4 +8,5 @@ cd "$(dirname "$0")/.."
   --refresh-seconds 10 \
   --ibkr-market-data-type 3 \
   --ibkr-exchange SMART \
-  --ibkr-timeout 12
+  --ibkr-timeout 5 \
+  --quote-fallback-source off

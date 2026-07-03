@@ -31,6 +31,16 @@ def parse_args() -> argparse.Namespace:
         help="IBKR contract exchange, for example SMART or IEX.",
     )
     parser.add_argument(
+        "--primary-exchange",
+        default="",
+        help="Optional IBKR primaryExchange, for example NASDAQ or NYSE.",
+    )
+    parser.add_argument(
+        "--streaming",
+        action="store_true",
+        help="Use a streaming reqMktData request instead of a snapshot request.",
+    )
+    parser.add_argument(
         "--market-data-type",
         type=int,
         default=1,
@@ -47,9 +57,10 @@ def main() -> int:
         port=args.port or settings.tws_port,
         client_id=args.client_id,
         timeout=args.timeout,
-        snapshot=True,
+        snapshot=not args.streaming,
         market_data_type=args.market_data_type,
         exchange=args.exchange,
+        primary_exchange=args.primary_exchange,
     )
     symbols = [symbol.strip().upper() for symbol in args.symbols.split(",") if symbol.strip()]
     cache = InMemoryQuoteCache()
@@ -60,6 +71,8 @@ def main() -> int:
         "requested_symbols": symbols,
         "quote_count": len(quotes),
         "exchange": args.exchange,
+        "primary_exchange": args.primary_exchange,
+        "snapshot": not args.streaming,
         "errors": source.last_errors,
         "quotes": [
             {

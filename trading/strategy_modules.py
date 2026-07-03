@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from statistics import mean
 from typing import Dict, Literal, Optional, Sequence, Tuple
 
@@ -45,6 +46,75 @@ class ModuleDecision:
     @property
     def is_order(self) -> bool:
         return self.side is not None and self.limit_price is not None and self.quantity > 0
+
+
+@dataclass(frozen=True)
+class PortfolioRiskConfig:
+    max_open_positions: int = 4
+    max_symbol_market_value: float = 400.0
+    max_gross_market_value: float = 1200.0
+    max_daily_loss: float = 25.0
+    max_consecutive_losses: int = 3
+    allow_new_entries_outside_rth: bool = False
+    regular_session_start: str = "09:30"
+    regular_session_end: str = "16:00"
+
+
+@dataclass(frozen=True)
+class PortfolioRiskDecision:
+    approved: bool
+    reason: str
+
+
+class PortfolioRiskGate:
+    def __init__(self, config: PortfolioRiskConfig) -> None:
+        self._config = config
+
+    def evaluate(
+        self,
+        decision: ModuleDecision,
+        *,
+        positions: Dict[str, ModulePosition],
+        latest_quotes: Dict[str, Quote],
+        realized_pnl: float,
+        consecutive_losses: int,
+        now: Optional[datetime] = None,
+    ) -> PortfolioRiskDecision:
+        if not decision.is_order or decision.side is None or decision.limit_price is None:
+            return PortfolioRiskDecision(True, "not an order")
+        if decision.side == "SELL":
+            if decision.symbol not in positions:
+                return PortfolioRiskDecision(False, "sell requires an in-memory position")
+            return PortfolioRiskDecision(True, "sell exits existing position")
+        if realized_pnl <= -abs(self._config.max_daily_loss):
+            return PortfolioRiskDecision(False, "daily loss limit reached")
+        if consecutive_losses >= self._config.max_consecutive_losses:
+            return PortfolioRiskDecision(False, "consecutive loss limit reached")
+        if not self._config.allow_new_entries_outside_rth and not _is_regular_session(
+            now or datetime.now(),
+            self._config.regular_session_start,
+            self._config.regular_session_end,
+        ):
+            return PortfolioRiskDecision(False, "new entries are blocked outside regular session")
+        if decision.symbol not in positions and len(positions) >= self._config.max_open_positions:
+            return PortfolioRiskDecision(False, "max open positions reached")
+
+        order_value = decision.quantity * decision.limit_price
+        current_symbol_value = _position_market_value(
+            decision.symbol,
+            positions,
+            latest_quotes,
+        )
+        if current_symbol_value + order_value > self._config.max_symbol_market_value:
+            return PortfolioRiskDecision(False, "symbol market value limit reached")
+
+        gross_value = sum(
+            _position_market_value(symbol, positions, latest_quotes)
+            for symbol in positions
+        )
+        if gross_value + order_value > self._config.max_gross_market_value:
+            return PortfolioRiskDecision(False, "gross market value limit reached")
+        return PortfolioRiskDecision(True, "portfolio risk checks passed")
 
 
 class ConservativeTrendModule:
@@ -209,3 +279,23 @@ class ConservativeTrendModule:
             mean(closes[-self._config.fast_window :]),
             mean(closes[-self._config.slow_window :]),
         )
+
+
+def _position_market_value(
+    symbol: str,
+    positions: Dict[str, ModulePosition],
+    latest_quotes: Dict[str, Quote],
+) -> float:
+    position = positions.get(symbol)
+    if position is None:
+        return 0.0
+    quote = latest_quotes.get(symbol)
+    price = quote.last if quote is not None else position.entry_price
+    return position.quantity * price
+
+
+def _is_regular_session(now: datetime, start: str, end: str) -> bool:
+    current = now.time()
+    start_time = datetime.strptime(start, "%H:%M").time()
+    end_time = datetime.strptime(end, "%H:%M").time()
+    return start_time <= current <= end_time

@@ -1,5 +1,6 @@
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Sequence
@@ -139,6 +140,7 @@ class IbkrReadOnlyQuoteSource:
         snapshot: bool = True,
         market_data_type: int = 1,
         exchange: str = "SMART",
+        primary_exchange: str = "",
     ) -> None:
         self._host = host
         self._port = port
@@ -147,6 +149,7 @@ class IbkrReadOnlyQuoteSource:
         self._snapshot = snapshot
         self._market_data_type = market_data_type
         self._exchange = exchange.strip().upper() or "SMART"
+        self._primary_exchange = primary_exchange.strip().upper()
         self.last_errors: List[str] = []
 
     def get_quotes(self, symbols: Sequence[str]) -> List[Quote]:
@@ -169,7 +172,7 @@ class IbkrReadOnlyQuoteSource:
             for req_id, symbol in req_id_to_symbol.items():
                 client.reqMktData(
                     req_id,
-                    self._stock_contract(symbol, self._exchange),
+                    self._stock_contract(symbol, self._exchange, self._primary_exchange),
                     "",
                     self._snapshot,
                     False,
@@ -200,12 +203,18 @@ class IbkrReadOnlyQuoteSource:
                 client.disconnect()
 
     @staticmethod
-    def _stock_contract(symbol: str, exchange: str = "SMART") -> Contract:
+    def _stock_contract(
+        symbol: str,
+        exchange: str = "SMART",
+        primary_exchange: str = "",
+    ) -> Contract:
         contract = Contract()
         contract.symbol = symbol
         contract.secType = "STK"
         contract.exchange = exchange
         contract.currency = "USD"
+        if primary_exchange:
+            contract.primaryExchange = primary_exchange
         return contract
 
     def _wait_for_quotes(self, client: IbkrReadOnlyQuoteClient, expected_count: int) -> None:
@@ -219,3 +228,86 @@ class IbkrReadOnlyQuoteSource:
             if quote_count >= expected_count:
                 return
             time.sleep(0.05)
+
+
+class ParallelIbkrReadOnlyQuoteSource:
+    """Split quote batches across multiple read-only TWS client ids.
+
+    TWS can reject duplicate client ids and market-data subscriptions are still
+    governed by the account's IBKR limits, so this class is deliberately simple:
+    bounded workers, deterministic chunks, no order methods.
+    """
+
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 7497,
+        client_id: int = 31,
+        timeout: float = 5.0,
+        snapshot: bool = True,
+        market_data_type: int = 1,
+        exchange: str = "SMART",
+        primary_exchange: str = "",
+        workers: int = 2,
+        symbols_per_worker: int = 8,
+        client_id_stride: int = 10,
+    ) -> None:
+        self._host = host
+        self._port = port
+        self._client_id = client_id
+        self._timeout = timeout
+        self._snapshot = snapshot
+        self._market_data_type = market_data_type
+        self._exchange = exchange
+        self._primary_exchange = primary_exchange
+        self._workers = max(1, workers)
+        self._symbols_per_worker = max(1, symbols_per_worker)
+        self._client_id_stride = max(1, client_id_stride)
+        self.last_errors: List[str] = []
+
+    def get_quotes(self, symbols: Sequence[str]) -> List[Quote]:
+        clean_symbols = list(dict.fromkeys(symbol.strip().upper() for symbol in symbols if symbol.strip()))
+        if not clean_symbols:
+            return []
+
+        chunks = _chunks(clean_symbols, self._symbols_per_worker)
+        worker_count = min(self._workers, len(chunks))
+        quotes: List[Quote] = []
+        errors: List[str] = []
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            futures = {
+                executor.submit(self._source_for(index).get_quotes, chunk): index
+                for index, chunk in enumerate(chunks)
+            }
+            for future in as_completed(futures):
+                index = futures[future]
+                try:
+                    quotes.extend(future.result())
+                except Exception as exc:
+                    errors.append(f"parallel IBKR worker {index} failed: {exc}")
+        for index in range(len(chunks)):
+            errors.extend(self._source_for(index).last_errors)
+        self.last_errors = list(dict.fromkeys(errors))
+        ranks = {symbol: index for index, symbol in enumerate(clean_symbols)}
+        return sorted(quotes, key=lambda quote: ranks.get(quote.symbol, len(ranks)))
+
+    def _source_for(self, index: int) -> IbkrReadOnlyQuoteSource:
+        source = getattr(self, "_sources", None)
+        if source is None:
+            self._sources: Dict[int, IbkrReadOnlyQuoteSource] = {}
+        if index not in self._sources:
+            self._sources[index] = IbkrReadOnlyQuoteSource(
+                host=self._host,
+                port=self._port,
+                client_id=self._client_id + index * self._client_id_stride,
+                timeout=self._timeout,
+                snapshot=self._snapshot,
+                market_data_type=self._market_data_type,
+                exchange=self._exchange,
+                primary_exchange=self._primary_exchange,
+            )
+        return self._sources[index]
+
+
+def _chunks(values: Sequence[str], size: int) -> List[List[str]]:
+    return [list(values[index : index + size]) for index in range(0, len(values), size)]
