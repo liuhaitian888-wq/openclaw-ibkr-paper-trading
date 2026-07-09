@@ -18,7 +18,7 @@ flowchart LR
     DASH["Dashboard\nscripts/serve_live_dashboard.py\ntrading/dashboard.py"]
     CTRL["Mode control\nscripts/control_trading_mode.command"]
     OC["OpenClaw VM\nopenclaw/openclaw_trading_client.py"]
-    DIS["Discord handbook\nmain.py\ndiscord_handbook/"]
+    DIS["External Discord handbook project"]
     API["Mac Python API\napi_service.py"]
     CORE["Trading core\ntrading/service.py\ntrading/risk.py\ntrading/workflow.py"]
     DATA["Market data adapters\ntrading/ibkr_readonly.py\ntrading/market_data.py"]
@@ -138,7 +138,7 @@ flowchart TD
     subgraph AI["AI and handbook"]
         OC["openclaw/openclaw_trading_client.py"]
         SKILL["openclaw/SKILL.md"]
-        DISBOT["discord_handbook/"]
+        DISBOT["/Users/nbhsbgnb/Documents/discord_handbook_project"]
     end
 
     subgraph OUTPUT["Generated/runtime data"]
@@ -208,8 +208,8 @@ Research and strategy modules:
 - `VALUE_POOL.md`
 - `DATA_FEEDS.md`
 
-Discord handbook:
+External related projects:
 
-- `discord_handbook/`
-- `requirements-discord.txt`
-- `handbook/`
+- Discord handbook: `/Users/nbhsbgnb/Documents/discord_handbook_project`
+- Croatian A1 Anki deck: `/Users/nbhsbgnb/Documents/Hrvatski/anki_a1_project`
+- Wind/storage MPC model: `/Users/nbhsbgnb/Documents/wind_storage_mpc_project`

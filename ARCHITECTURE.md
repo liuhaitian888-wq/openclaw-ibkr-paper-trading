@@ -10,10 +10,9 @@ IBKR directly. All broker actions go through the local Python gateway.
 flowchart TD
     subgraph DISCORD["Discord Handbook Zone"]
         D["Discord"]
-        DB["discord_handbook bot"]
-        HB["handbook/*.md + assets"]
+        DB["external Discord handbook project"]
         D -->|"messages / images"| DB
-        DB -->|"summaries / saved images"| HB
+        DB -->|"summaries / saved images"| EXT["external handbook files"]
     end
 
     subgraph DATA["External Data Zone"]
@@ -119,11 +118,11 @@ sequenceDiagram
 
 ## Tool Responsibilities
 
-`discord_handbook/`:
+Discord handbook project:
 
-- Discord handbook assistant.
+- Moved out of this trading gateway to
+  `/Users/nbhsbgnb/Documents/discord_handbook_project`.
 - No trading permissions.
-- Writes `handbook/` markdown and asset files.
 
 `openclaw/`:
 

@@ -267,47 +267,11 @@ OpenClaw channel message to the moment the OpenClaw client process starts. To
 measure true channel-to-order latency, pass the original message timestamp into
 the client and compare it with `openclaw_command_started_at`.
 
-## Discord handbook bot
+## Related projects
 
-The optional Discord handbook bot listens to selected Discord channels and
-writes rolling markdown summaries into `handbook/`. It is separate from the
-trading execution gateway and does not place orders.
+Non-trading projects were split out of this gateway so this folder stays focused
+on IBKR paper-trading automation:
 
-Install the Discord dependency:
-
-```bash
-.venv313/bin/python -m pip install -r requirements-discord.txt
-```
-
-Required environment:
-
-```bash
-export DISCORD_BOT_TOKEN="..."
-export DISCORD_CHANNEL_IDS="1514270735638593616"
-export HANDBOOK_ADMIN_USER_IDS="your_discord_user_id"
-```
-
-For the current Discord channel URL:
-
-```text
-https://discord.com/channels/1297628173898481735/1514270735638593616
-```
-
-the server ID is `1297628173898481735` and the channel ID to configure is
-`1514270735638593616`.
-
-Run:
-
-```bash
-scripts/start_discord_handbook_bot.command
-```
-
-In the selected Discord channel, send `!handbook summarize` to flush the current
-buffer immediately. The bot needs Discord's bot scope, channel read/send
-permissions, and the message content intent enabled in the Discord Developer
-Portal.
-
-Use `!handbook status` to check the bot and copy your Discord user ID. Add that
-ID to `HANDBOOK_ADMIN_USER_IDS` to restrict summary-writing commands. If
-`HANDBOOK_ADMIN_USER_IDS` is empty, any member in the configured channel can run
-`!handbook summarize`.
+- Discord handbook bot: `/Users/nbhsbgnb/Documents/discord_handbook_project`
+- Croatian A1 Anki deck: `/Users/nbhsbgnb/Documents/Hrvatski/anki_a1_project`
+- Wind/storage MPC model: `/Users/nbhsbgnb/Documents/wind_storage_mpc_project`
