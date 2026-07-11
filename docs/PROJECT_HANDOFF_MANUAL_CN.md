@@ -1,6 +1,6 @@
-# der 美股自动交易系统工程手册
+# der哥 美股自动交易系统工程手册
 
-版权声明：Copyright (c) 2026 der. All rights reserved. 本项目为内部测试项目，仅供授权阅读、审阅和协作。未经 der 事先书面许可，任何人不得复制、转发、公开发布、修改、商用、再授权或分享给第三方。完整条款见根目录 `LICENSE`。
+版权声明：Copyright (c) 2026 der哥. All rights reserved. 本项目为内部测试项目，仅供授权阅读、审阅和协作。未经 der哥 事先书面许可，任何人不得复制、转发、公开发布、修改、商用、再授权或分享给第三方。完整条款见根目录 `LICENSE`。
 
 本文面向项目用户、维护者和策略开发者，目标是按软件工程方式说明系统边界、运行模式、文件职责、API/安全约束和专业术语。本文不是法律意见，也不是投资建议。
 
@@ -17,8 +17,8 @@
 ## 1. 项目定义和权利说明
 | 项 | 说明 |
 |---|---|
-| 项目名 | `der`，本手册中作为项目名和版权声明中的权利标识使用。 |
-| 法律身份 | `der` 这个写法本身不自动等于公司、个人实名或注册商标；如果要做更强权利保护，应把 `LICENSE` 中的主体改成个人法定姓名或公司主体，并按目标司法辖区申请版权登记/商标注册。 |
+| 项目名 | `der哥`，本手册中作为项目名和版权声明中的权利标识使用。 |
+| 法律身份 | `der哥` 这个写法本身不自动等于公司、个人实名或注册商标；如果要做更强权利保护，应把 `LICENSE` 中的主体改成个人法定姓名或公司主体，并按目标司法辖区申请版权登记/商标注册。 |
 | 授权方式 | 当前采用 proprietary / all rights reserved：未获书面许可，不得复制、转发、公开、修改、商用或再授权。 |
 | 协作边界 | 给用户或协作者访问仓库，只代表授权阅读或协作，不代表开源许可。贡献代码的归属和使用权建议另签简单贡献协议。 |
 | 投资边界 | 本项目是 IBKR paper trading 自动化实验系统，不是实盘投资建议系统。live trading 当前没有安全启用路径。 |
@@ -124,7 +124,7 @@
 | `docs/BOOK_BASED_RESEARCH_ROADMAP.md` | Book-Based Quant Research Roadmap | 无函数；作为文档、配置或数据输入使用 |
 | `docs/HARDWARE_SOFTWARE_ROADMAP.md` | Hardware And Software Roadmap | 无函数；作为文档、配置或数据输入使用 |
 | `docs/NEXT_PHASE_AUTONOMOUS_PAPER_TRADING_PROMPT.md` | Next Phase Prompt: Autonomous IBKR Paper Trading Runtime | 无函数；作为文档、配置或数据输入使用 |
-| `docs/PROJECT_HANDOFF_MANUAL_CN.md` | der 美股自动交易系统工程手册 | 无函数；作为文档、配置或数据输入使用 |
+| `docs/PROJECT_HANDOFF_MANUAL_CN.md` | der哥 美股自动交易系统工程手册 | 无函数；作为文档、配置或数据输入使用 |
 | `docs/PROJECT_MAP.md` | Project Map | 无函数；作为文档、配置或数据输入使用 |
 | `docs/RESEARCH_CANDIDATE_PIPELINE.md` | Research Candidate Pipeline | 无函数；作为文档、配置或数据输入使用 |
 | `docs/STRATEGY_DEBT.md` | Strategy Debt | 无函数；作为文档、配置或数据输入使用 |

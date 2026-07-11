@@ -1,10 +1,10 @@
 # IBKR Paper Trading Gateway
 
-Copyright (c) 2026 der. All rights reserved.
+Copyright (c) 2026 der哥. All rights reserved.
 
 This project is for internal testing and authorized collaboration. No part of this repository may be
 copied, redistributed, modified, published, sublicensed, used commercially, or
-shared with third parties without prior written permission from der. See
+shared with third parties without prior written permission from der哥. See
 [LICENSE](LICENSE).
 
 This project is the controlled execution layer between OpenClaw and an IBKR
