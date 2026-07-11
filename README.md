@@ -2,7 +2,7 @@
 
 Copyright (c) 2026 der. All rights reserved.
 
-This project is proprietary and confidential. No part of this repository may be
+This project is for internal testing and authorized collaboration. No part of this repository may be
 copied, redistributed, modified, published, sublicensed, used commercially, or
 shared with third parties without prior written permission from der. See
 [LICENSE](LICENSE).
