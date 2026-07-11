@@ -236,6 +236,7 @@ def build_system_status(
         "TRADE_SESSION_TOKEN": bool(gateway_health.get("trade_session_required"))
         or token_present("TRADE_SESSION_TOKEN", None)
         or token_present_file_from_env("TRADE_SESSION_TOKEN_FILE")
+        or token_present_file(Path.home() / "Documents/openclaw_shared/trade_session_token")
         or token_present_file(Path("/Volumes/openclaw_shared/trade_session_token")),
         "DISCORD_BOT_TOKEN": token_present("DISCORD_BOT_TOKEN", None),
     }
@@ -364,12 +365,15 @@ def make_handler(args: argparse.Namespace) -> type[BaseHTTPRequestHandler]:
             )
 
         def _send_bytes(self, body: bytes, content_type: str) -> None:
-            self.send_response(200)
-            self.send_header("Content-Type", content_type)
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                return
 
     return LiveDashboardHandler
 

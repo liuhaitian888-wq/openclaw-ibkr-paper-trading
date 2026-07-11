@@ -1,7 +1,7 @@
 import threading
 import time
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict, List, Optional, Set, Tuple
 
 from ibapi.client import EClient
@@ -10,6 +10,7 @@ from ibapi.order import Order
 from ibapi.wrapper import EWrapper
 
 from trading.models import TradeProposal
+from trading.price_normalizer import normalize_order_price
 
 
 SUBMITTED_ORDER_STATUSES = {
@@ -20,6 +21,9 @@ SUBMITTED_ORDER_STATUSES = {
     "Filled",
 }
 
+def normalize_us_stock_price(price: float) -> float:
+    return float(Decimal(str(price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
 
 @dataclass(frozen=True)
 class OrderConfirmation:
@@ -29,6 +33,13 @@ class OrderConfirmation:
     open_order_states: Dict[int, str] = field(default_factory=dict)
     messages: Tuple[str, ...] = field(default_factory=tuple)
     timings: Dict[str, float] = field(default_factory=dict)
+    raw_limit_price: Optional[float] = None
+    normalized_limit_price: Optional[float] = None
+    raw_stop_price: Optional[float] = None
+    normalized_stop_price: Optional[float] = None
+    parent_transmit: Optional[bool] = None
+    child_transmit: Optional[bool] = None
+    child_rejected_parent_cancel_requested: bool = False
 
     @property
     def acknowledged_ids(self) -> Tuple[int, ...]:
@@ -59,6 +70,22 @@ class OrderConfirmation:
             parts.append(f"open_order_states={{{state_text}}}")
         if self.messages:
             parts.append("messages=" + " | ".join(self.messages))
+        if self.parent_transmit is not None:
+            parts.append(f"parent_transmit={str(self.parent_transmit).lower()}")
+        if self.child_transmit is not None:
+            parts.append(f"child_transmit={str(self.child_transmit).lower()}")
+        if self.raw_limit_price is not None:
+            parts.append(f"raw_limit_price={self.raw_limit_price}")
+        if self.normalized_limit_price is not None:
+            parts.append(f"normalized_limit_price={self.normalized_limit_price}")
+        if self.raw_stop_price is not None:
+            parts.append(f"raw_stop_price={self.raw_stop_price}")
+        if self.normalized_stop_price is not None:
+            parts.append(f"normalized_stop_price={self.normalized_stop_price}")
+        parts.append(
+            "child_rejected_parent_cancel_requested="
+            + str(self.child_rejected_parent_cancel_requested).lower()
+        )
         return ", ".join(parts)
 
 
@@ -217,6 +244,8 @@ class TwsPaperBroker:
         total_started = time.perf_counter()
         timings: Dict[str, float] = {}
         client = TwsPaperClient()
+        parent_placed = False
+        child_rejected_parent_cancel_requested = False
         try:
             connect_started = time.perf_counter()
             client.connect(self._host, self._port, clientId=self._client_id)
@@ -246,7 +275,27 @@ class TwsPaperBroker:
             client.allow_open_order_confirmation = True
             place_started = time.perf_counter()
             client.placeOrder(parent_id, contract, parent)
-            client.placeOrder(stop_id, contract, stop)
+            parent_placed = True
+            try:
+                client.placeOrder(stop_id, contract, stop)
+            except Exception as exc:
+                child_rejected_parent_cancel_requested = self._cancel_parent_order(
+                    client,
+                    parent_id,
+                    parent_placed,
+                )
+                raise RuntimeError(
+                    "TWS child stop order placement failed; "
+                    f"parent_order_id={parent_id}, child_order_id={stop_id}, "
+                    "parent_transmit=false, "
+                    f"child_transmit={str(transmit).lower()}, "
+                    f"raw_limit_price={proposal.limit_price}, "
+                    f"normalized_limit_price={parent.lmtPrice}, "
+                    f"raw_stop_price={proposal.stop_price}, "
+                    f"normalized_stop_price={stop.auxPrice}, "
+                    "child_rejected_parent_cancel_requested="
+                    + str(child_rejected_parent_cancel_requested).lower()
+                ) from exc
             timings["broker_place_orders_ms"] = self._elapsed_ms(place_started)
 
             ack_started = time.perf_counter()
@@ -262,9 +311,38 @@ class TwsPaperBroker:
                 timings["broker_wait_ack_ms"] = self._elapsed_ms(ack_started)
             order_errors = self._fatal_order_errors(client, {parent_id, stop_id})
             if order_errors:
-                raise RuntimeError("TWS rejected an order: " + "; ".join(order_errors))
+                if self._fatal_order_errors(client, {stop_id}):
+                    child_rejected_parent_cancel_requested = self._cancel_parent_order(
+                        client,
+                        parent_id,
+                        parent_placed,
+                    )
+                raise RuntimeError(
+                    "TWS rejected an order: "
+                    + "; ".join(order_errors)
+                    + f"; parent_order_id={parent_id}; child_order_id={stop_id}; "
+                    + "parent_transmit=false; "
+                    + f"child_transmit={str(transmit).lower()}; "
+                    + f"raw_limit_price={proposal.limit_price}; "
+                    + f"normalized_limit_price={parent.lmtPrice}; "
+                    + f"raw_stop_price={proposal.stop_price}; "
+                    + f"normalized_stop_price={stop.auxPrice}; "
+                    + "child_rejected_parent_cancel_requested="
+                    + str(child_rejected_parent_cancel_requested).lower()
+                )
             timings["broker_total_ms"] = self._elapsed_ms(total_started)
-            return self._confirmation(client, (parent_id, stop_id), timings)
+            return self._confirmation(
+                client,
+                (parent_id, stop_id),
+                timings,
+                raw_limit_price=proposal.limit_price,
+                normalized_limit_price=parent.lmtPrice,
+                raw_stop_price=proposal.stop_price,
+                normalized_stop_price=stop.auxPrice,
+                parent_transmit=False,
+                child_transmit=transmit,
+                child_rejected_parent_cancel_requested=child_rejected_parent_cancel_requested,
+            )
         finally:
             if client.isConnected():
                 client.disconnect()
@@ -322,10 +400,182 @@ class TwsPaperBroker:
             if order_errors:
                 raise RuntimeError("TWS rejected an order: " + "; ".join(order_errors))
             timings["broker_total_ms"] = self._elapsed_ms(total_started)
-            return self._confirmation(client, (order_id,), timings)
+            return self._confirmation(
+                client,
+                (order_id,),
+                timings,
+                raw_limit_price=proposal.limit_price,
+                normalized_limit_price=order.lmtPrice,
+            )
         finally:
             if client.isConnected():
                 client.disconnect()
+
+    def submit_stop(
+        self,
+        *,
+        symbol: str,
+        action: str,
+        quantity: int,
+        stop_price: float,
+        order_ref: str,
+        transmit: bool,
+        outside_rth: bool = False,
+        timeout: float = 10.0,
+    ) -> OrderConfirmation:
+        if action != "SELL":
+            raise ValueError("protective stop submission only supports SELL")
+        total_started = time.perf_counter()
+        timings: Dict[str, float] = {}
+        client = TwsPaperClient()
+        try:
+            connect_started = time.perf_counter()
+            client.connect(self._host, self._port, clientId=self._client_id)
+            threading.Thread(target=client.run_loop, daemon=True).start()
+            if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
+                raise RuntimeError("TWS paper connection timed out")
+            timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
+
+            if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
+                raise RuntimeError("Orders are restricted to one DU paper account")
+            if client.next_order_id is None:
+                raise RuntimeError("TWS did not provide a valid order ID")
+
+            order_id = client.next_order_id
+            contract = self._stock_contract(symbol)
+            order = self._stop_order(
+                symbol=symbol,
+                action=action,
+                quantity=quantity,
+                stop_price=stop_price,
+                account=client.accounts[0],
+                order_id=order_id,
+                order_ref=order_ref,
+                transmit=transmit,
+                outside_rth=outside_rth,
+            )
+            client.expected_order_ids = {order_id}
+            client.allow_open_order_confirmation = True
+            place_started = time.perf_counter()
+            client.placeOrder(order_id, contract, order)
+            timings["broker_place_orders_ms"] = self._elapsed_ms(place_started)
+
+            ack_started = time.perf_counter()
+            if not client.orders_acknowledged.wait(timeout):
+                timings["broker_wait_ack_ms"] = self._elapsed_ms(ack_started)
+                fallback_started = time.perf_counter()
+                client.reqOpenOrders()
+                client.open_orders_received.wait(5.0)
+                timings["broker_open_orders_fallback_ms"] = self._elapsed_ms(fallback_started)
+            else:
+                timings["broker_wait_ack_ms"] = self._elapsed_ms(ack_started)
+            order_errors = self._fatal_order_errors(client, {order_id})
+            if order_errors:
+                raise RuntimeError("TWS rejected an order: " + "; ".join(order_errors))
+            timings["broker_total_ms"] = self._elapsed_ms(total_started)
+            return self._confirmation(
+                client,
+                (order_id,),
+                timings,
+                raw_stop_price=stop_price,
+                normalized_stop_price=order.auxPrice,
+                child_transmit=transmit,
+            )
+        finally:
+            if client.isConnected():
+                client.disconnect()
+
+    def submit_stop_limit(
+        self,
+        *,
+        symbol: str,
+        action: str,
+        quantity: int,
+        stop_price: float,
+        limit_price: float,
+        order_ref: str,
+        transmit: bool,
+        outside_rth: bool = False,
+        timeout: float = 10.0,
+    ) -> OrderConfirmation:
+        if action != "SELL":
+            raise ValueError("protective stop-limit submission only supports SELL")
+        total_started = time.perf_counter()
+        timings: Dict[str, float] = {}
+        client = TwsPaperClient()
+        try:
+            connect_started = time.perf_counter()
+            client.connect(self._host, self._port, clientId=self._client_id)
+            threading.Thread(target=client.run_loop, daemon=True).start()
+            if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
+                raise RuntimeError("TWS paper connection timed out")
+            timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
+
+            if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
+                raise RuntimeError("Orders are restricted to one DU paper account")
+            if client.next_order_id is None:
+                raise RuntimeError("TWS did not provide a valid order ID")
+
+            order_id = client.next_order_id
+            contract = self._stock_contract(symbol)
+            order = self._stop_limit_order(
+                symbol=symbol,
+                action=action,
+                quantity=quantity,
+                stop_price=stop_price,
+                limit_price=limit_price,
+                account=client.accounts[0],
+                order_id=order_id,
+                order_ref=order_ref,
+                transmit=transmit,
+                outside_rth=outside_rth,
+            )
+            client.expected_order_ids = {order_id}
+            client.allow_open_order_confirmation = True
+            place_started = time.perf_counter()
+            client.placeOrder(order_id, contract, order)
+            timings["broker_place_orders_ms"] = self._elapsed_ms(place_started)
+
+            ack_started = time.perf_counter()
+            if not client.orders_acknowledged.wait(timeout):
+                timings["broker_wait_ack_ms"] = self._elapsed_ms(ack_started)
+                fallback_started = time.perf_counter()
+                client.reqOpenOrders()
+                client.open_orders_received.wait(5.0)
+                timings["broker_open_orders_fallback_ms"] = self._elapsed_ms(fallback_started)
+            else:
+                timings["broker_wait_ack_ms"] = self._elapsed_ms(ack_started)
+            order_errors = self._fatal_order_errors(client, {order_id})
+            if order_errors:
+                raise RuntimeError("TWS rejected an order: " + "; ".join(order_errors))
+            timings["broker_total_ms"] = self._elapsed_ms(total_started)
+            return self._confirmation(
+                client,
+                (order_id,),
+                timings,
+                raw_limit_price=limit_price,
+                normalized_limit_price=order.lmtPrice,
+                raw_stop_price=stop_price,
+                normalized_stop_price=order.auxPrice,
+                child_transmit=transmit,
+            )
+        finally:
+            if client.isConnected():
+                client.disconnect()
+
+    @staticmethod
+    def _cancel_parent_order(
+        client: TwsPaperClient,
+        parent_id: int,
+        parent_placed: bool,
+    ) -> bool:
+        if not parent_placed:
+            return False
+        try:
+            client.cancelOrder(parent_id, "")
+        except TypeError:
+            client.cancelOrder(parent_id)
+        return True
 
     @classmethod
     def _fatal_order_errors(
@@ -360,6 +610,14 @@ class TwsPaperBroker:
         client: TwsPaperClient,
         order_ids: Tuple[int, ...],
         timings: Optional[Dict[str, float]] = None,
+        *,
+        raw_limit_price: Optional[float] = None,
+        normalized_limit_price: Optional[float] = None,
+        raw_stop_price: Optional[float] = None,
+        normalized_stop_price: Optional[float] = None,
+        parent_transmit: Optional[bool] = None,
+        child_transmit: Optional[bool] = None,
+        child_rejected_parent_cancel_requested: bool = False,
     ) -> OrderConfirmation:
         return OrderConfirmation(
             order_ids=order_ids,
@@ -368,6 +626,13 @@ class TwsPaperBroker:
             open_order_states=dict(client.open_order_states),
             messages=tuple(client.errors),
             timings={} if timings is None else dict(timings),
+            raw_limit_price=raw_limit_price,
+            normalized_limit_price=normalized_limit_price,
+            raw_stop_price=raw_stop_price,
+            normalized_stop_price=normalized_stop_price,
+            parent_transmit=parent_transmit,
+            child_transmit=child_transmit,
+            child_rejected_parent_cancel_requested=child_rejected_parent_cancel_requested,
         )
 
     @staticmethod
@@ -400,7 +665,12 @@ class TwsPaperBroker:
         parent.action = proposal.side
         parent.orderType = "LMT"
         parent.totalQuantity = Decimal(proposal.quantity)
-        parent.lmtPrice = proposal.limit_price
+        parent.lmtPrice = normalize_order_price(
+            symbol=proposal.symbol,
+            side=proposal.side,
+            order_type="LMT",
+            price=proposal.limit_price,
+        )
         parent.tif = "DAY"
         parent.outsideRth = outside_rth
         parent.orderRef = proposal.idempotency_key
@@ -412,7 +682,12 @@ class TwsPaperBroker:
         stop.action = closing_side
         stop.orderType = "STP"
         stop.totalQuantity = Decimal(proposal.quantity)
-        stop.auxPrice = proposal.stop_price
+        stop.auxPrice = normalize_order_price(
+            symbol=proposal.symbol,
+            side=closing_side,
+            order_type="STP",
+            price=proposal.stop_price,
+        )
         stop.parentId = parent_id
         stop.tif = "GTC"
         stop.outsideRth = outside_rth
@@ -434,9 +709,83 @@ class TwsPaperBroker:
         order.action = proposal.side
         order.orderType = "LMT"
         order.totalQuantity = Decimal(proposal.quantity)
-        order.lmtPrice = proposal.limit_price
+        order.lmtPrice = normalize_order_price(
+            symbol=proposal.symbol,
+            side=proposal.side,
+            order_type="LMT",
+            price=proposal.limit_price,
+        )
         order.tif = "DAY"
         order.outsideRth = outside_rth
         order.orderRef = proposal.idempotency_key
+        order.transmit = transmit
+        return order
+
+    @staticmethod
+    def _stop_order(
+        *,
+        symbol: str,
+        action: str,
+        quantity: int,
+        stop_price: float,
+        account: str,
+        order_id: int,
+        order_ref: str,
+        transmit: bool,
+        outside_rth: bool = False,
+    ) -> Order:
+        order = Order()
+        order.orderId = order_id
+        order.account = account
+        order.action = action
+        order.orderType = "STP"
+        order.totalQuantity = Decimal(quantity)
+        order.auxPrice = normalize_order_price(
+            symbol=symbol,
+            side="SELL",
+            order_type="STP",
+            price=stop_price,
+        )
+        order.tif = "GTC"
+        order.outsideRth = outside_rth
+        order.orderRef = order_ref
+        order.transmit = transmit
+        return order
+
+    @staticmethod
+    def _stop_limit_order(
+        *,
+        symbol: str,
+        action: str,
+        quantity: int,
+        stop_price: float,
+        limit_price: float,
+        account: str,
+        order_id: int,
+        order_ref: str,
+        transmit: bool,
+        outside_rth: bool = False,
+    ) -> Order:
+        order = Order()
+        order.orderId = order_id
+        order.account = account
+        order.action = action
+        order.orderType = "STP LMT"
+        order.totalQuantity = Decimal(quantity)
+        order.auxPrice = normalize_order_price(
+            symbol=symbol,
+            side="SELL",
+            order_type="STP",
+            price=stop_price,
+        )
+        order.lmtPrice = normalize_order_price(
+            symbol=symbol,
+            side="SELL",
+            order_type="LMT",
+            price=limit_price,
+        )
+        order.tif = "GTC"
+        order.outsideRth = outside_rth
+        order.orderRef = order_ref
         order.transmit = transmit
         return order

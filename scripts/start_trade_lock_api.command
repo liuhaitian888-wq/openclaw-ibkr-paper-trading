@@ -2,7 +2,11 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-SHARED_DIR="/Volumes/openclaw_shared"
+DEFAULT_SHARED_DIR="$HOME/Documents/openclaw_shared"
+if [[ ! -d "$DEFAULT_SHARED_DIR" && -d "/Volumes/openclaw_shared" ]]; then
+  DEFAULT_SHARED_DIR="/Volumes/openclaw_shared"
+fi
+SHARED_DIR="${OPENCLAW_SHARED_DIR:-$DEFAULT_SHARED_DIR}"
 TOKEN_FILE="$SHARED_DIR/trade_session_token"
 
 cd "$PROJECT_DIR"

@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -156,6 +157,9 @@ class IbkrReadOnlyQuoteSource:
         clean_symbols = [symbol.strip().upper() for symbol in symbols if symbol.strip()]
         if not clean_symbols:
             return []
+        if self._snapshot and _env_bool("NO_PAID_MARKET_DATA_REQUESTS", True) and not _env_bool("ALLOW_SNAPSHOT_MARKET_DATA", False):
+            self.last_errors = ["snapshot market data request blocked by NO_PAID_MARKET_DATA_REQUESTS/ALLOW_SNAPSHOT_MARKET_DATA"]
+            return []
 
         req_id_to_symbol = {
             index + 10_000: symbol
@@ -311,3 +315,10 @@ class ParallelIbkrReadOnlyQuoteSource:
 
 def _chunks(values: Sequence[str], size: int) -> List[List[str]]:
     return [list(values[index : index + size]) for index in range(0, len(values), size)]
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}

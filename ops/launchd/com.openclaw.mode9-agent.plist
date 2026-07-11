@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.mode9-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd "/Users/nbhsbgnb/Documents/New project" &amp;&amp; env MODE9_BUY_FREEZE=true POSITION_PROTECTION_REPAIR_ENABLED=false POSITION_PROTECTION_REPAIR_MODE=test POSITION_PROTECTION_TEST_SYMBOL=auto POSITION_PROTECTION_TEST_ORDER_LIMIT=1 POSITION_PROTECTION_RUN_MAX_ORDERS=20 POSITION_PROTECTION_RUN_REQUIRE_TEST_SUCCESS=true POSITION_PROTECTION_DEFAULT_STOP_PCT=0.05 POSITION_STOP_MODE=dynamic POSITION_STOP_DEFAULT_PCT=0.05 POSITION_STOP_MIN_PCT=0.03 POSITION_STOP_MAX_PCT=0.12 POSITION_STOP_ATR_MULTIPLIER=1.5 POSITION_STOP_SPREAD_MULTIPLIER=3.0 POSITION_STOP_STALE_MS=5000 POSITION_STOP_REQUIRE_FRESH_QUOTE=true TRADING_MODE=PAPER ALLOW_TWS_STAGING=true ALLOW_PAPER_TRANSMIT=true ALLOW_OUTSIDE_RTH=true TRADING_KILL_SWITCH=false TRADE_SESSION_TOKEN_FILE="/Users/nbhsbgnb/Documents/openclaw_shared/trade_session_token" MAX_ORDER_VALUE=400 MAX_QUANTITY=1 MAX_RISK_PER_ORDER=10 .venv313/bin/python scripts/run_autonomous_trading_agent.py --api-url http://192.168.64.1:8787 --universe-file "/Users/nbhsbgnb/Documents/New project/data/us_equity_universe.csv" --max-universe-symbols 60 --min-value-score 45 --cycle-seconds 30 --strategy-every-cycles 2 --strategy-mode paper --strategy-steps 1 --strategy-max-orders 4 --ibkr-workers 8 --ibkr-symbols-per-worker 8 --quote-timeout 8 --market-data-type 1</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/nbhsbgnb/Documents/New project</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/nbhsbgnb/Documents/New project/logs/mode9_agent.launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/nbhsbgnb/Documents/New project/logs/mode9_agent.launchd.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

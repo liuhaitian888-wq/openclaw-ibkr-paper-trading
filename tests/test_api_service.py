@@ -76,6 +76,34 @@ class ApiServiceTests(unittest.TestCase):
         self.assertEqual(submitted_payload["idempotency_key"], "stage-limit-0001")
         self.assertFalse(transmit)
 
+    def test_paper_limit_route_submits_with_transmission(self) -> None:
+        service = FakeService()
+        TradingApiHandler.service = service
+        payload = {
+            "symbol": "AAPL",
+            "side": "BUY",
+            "quantity": 1,
+            "limit_price": 190.0,
+            "idempotency_key": "paper-limit-0001",
+        }
+        body = json.dumps(payload).encode("utf-8")
+        handler = CapturingHandler()
+        handler.path = "/v1/orders/paper/limit"
+        handler.headers = {
+            "Content-Length": str(len(body)),
+            "X-API-Key": "test-api-key",
+        }
+        handler.rfile = BytesIO(body)
+        handler.wfile = BytesIO()
+
+        handler.do_POST()
+
+        self.assertEqual(handler.status, 200)
+        self.assertIsNotNone(service.limit_submission)
+        submitted_payload, transmit = service.limit_submission
+        self.assertEqual(submitted_payload["idempotency_key"], "paper-limit-0001")
+        self.assertTrue(transmit)
+
     def test_error_response_includes_workflow_step(self) -> None:
         TradingApiHandler.service = FailingService()
         payload = {

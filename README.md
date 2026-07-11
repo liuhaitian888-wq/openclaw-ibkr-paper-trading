@@ -15,6 +15,8 @@ paper-trading TWS session.
   free data, spread control, and slippage.
 - [Value Pool](VALUE_POOL.md) defines the first value-investing filter and how
   new finance concepts become testable modules.
+- [Strategy Modules](docs/STRATEGY_MODULES.md) documents the current paper-only
+  strategy modules, including the conservative dual-SMA trend strategy.
 
 ## Current safety state
 
@@ -82,6 +84,17 @@ confirms above a longer moving average, then sells on a small paper target,
 small stop, or trend loss. The `simulated-scenario` source intentionally moves
 fast enough to show BUY and SELL decisions in one run.
 
+Build the strategy catalog and book-principle mapping:
+
+```bash
+.venv313/bin/python scripts/build_strategy_catalog.py
+```
+
+This writes `reports/strategy_catalog.json` and `reports/strategy_catalog.md`.
+It records the current modular strategy set, data requirements, risk controls,
+book-derived principles, and the next validation steps before any strategy is
+treated as paper-trading evidence.
+
 The first free quote sources are Stooq and Yahoo delayed polling. They are
 keyless and useful for wiring the framework, but they are not Level 1/NBBO and
 not final low-latency execution feeds:
@@ -100,6 +113,196 @@ Check read-only IBKR quotes without placing orders:
 .venv313/bin/python scripts/check_ibkr_quotes.py --symbols AAPL,MSFT,QQQ --market-data-type 3
 .venv313/bin/python scripts/check_ibkr_quotes.py --symbols AAPL,MSFT,QQQ --market-data-type 1 --exchange IEX
 ```
+
+Audit whether the local machine is ready for a one-share paper trial:
+
+```bash
+.venv313/bin/python scripts/audit_paper_trading_readiness.py
+```
+
+This writes `reports/paper_environment_audit.json`. It never places orders. A
+ready report requires the local Trading API `/health` to respond, `TRADE_LOCK`,
+paper transmit enabled, kill switch off, a trade session token, TWS ready for
+orders, and exactly one `DU` paper account. Use `--no-api-health` for an offline
+configuration-only check, or `--health-json path/to/health.json` to audit a
+saved `/health` response.
+
+The guarded paper-trial session is the preferred end-to-end entrypoint. It runs
+the same environment audit first, and it stops before market-data recording or
+validation unless the environment is ready:
+
+```bash
+.venv313/bin/python scripts/run_guarded_paper_trial_session.py \
+  --symbols AAPL,MSFT,SPY \
+  --samples 30 \
+  --interval-seconds 60 \
+  --market-data-type 3
+```
+
+Add `--submit-validate` only after the audit is ready and you want to call
+`/v1/orders/validate/limit`. Add `--execute-paper --confirm PAPER_ONLY_1_SHARE`
+only for a deliberate one-share paper trial with a trade session token file.
+
+Build the operator runbook from the latest reports:
+
+```bash
+.venv313/bin/python scripts/build_paper_session_runbook.py
+```
+
+This writes `reports/paper_session_runbook.md` and
+`reports/paper_session_runbook.json`. The runbook summarizes current blockers,
+the next human steps, and the safe commands for the current state.
+
+Build a static status page from the runbook:
+
+```bash
+.venv313/bin/python scripts/build_paper_session_status_page.py
+```
+
+Open `reports/paper_session_status.html` locally to see the current state,
+blockers, operator steps, commands, and report artifacts in one place.
+
+After any paper order, capture readbacks and reconcile them:
+
+```bash
+.venv313/bin/python scripts/list_tws_orders.py > reports/tws_orders_snapshot.json
+.venv313/bin/python scripts/record_account_pnl.py --samples 1 --interval-seconds 1
+.venv313/bin/python scripts/build_paper_trial_reconciliation.py
+```
+
+The reconciliation report cross-checks the execution gate, SQLite audit record,
+TWS orders/executions, and the latest P&L snapshot.
+
+Build a single evidence bundle for the whole paper-trial workflow:
+
+```bash
+.venv313/bin/python scripts/build_paper_trial_evidence_bundle.py
+```
+
+This writes `reports/paper_trial_evidence_bundle.json` and
+`reports/paper_trial_evidence_bundle.md`, including the current stage, report
+statuses, next actions, and artifact presence.
+
+Refresh the complete report set in safe order:
+
+```bash
+.venv313/bin/python scripts/refresh_paper_trial_reports.py
+```
+
+This updates environment audit, guarded session, reconciliation, runbook,
+status page, preflight checklist, evidence bundle, and completion audit. If the
+environment is blocked, the refresh is still successful and stops before IBKR
+quote capture. Reconciliation reads the SQLite audit DB automatically when an
+execution gate contains an idempotency key.
+
+Rehearse the ready-environment code path without real IBKR data or orders:
+
+```bash
+.venv313/bin/python scripts/rehearse_paper_trial_workflow.py
+```
+
+This is a simulated rehearsal only. It proves the guarded pipeline can pass the
+ready gate and build validation/readiness artifacts, but it is not market-data
+or order execution evidence.
+
+Build the final preflight checklist before a real IBKR paper window:
+
+```bash
+.venv313/bin/python scripts/build_paper_trial_preflight_checklist.py
+```
+
+This writes `reports/paper_trial_preflight_checklist.json` and
+`reports/paper_trial_preflight_checklist.md`. It reads the latest audit,
+runbook, and simulated rehearsal reports, then states the next allowed action,
+machine-check status, manual confirmations, and hard stop conditions. It does
+not connect to IBKR and does not place orders.
+
+Monitor readiness while opening TWS paper and TRADE_LOCK:
+
+```bash
+.venv313/bin/python scripts/monitor_paper_trial_readiness.py --max-attempts 60 --interval-seconds 5
+```
+
+This writes `reports/paper_trial_readiness_monitor.json` and refreshes the
+audit, runbook, and preflight checklist. It only polls `/health`; it does not
+capture IBKR quotes, call validate endpoints, or submit orders. When it reports
+`ready_for_validate_only_window`, the next allowed action is guarded
+validate-only.
+
+Assess whether recorded IBKR quotes are useful for candidate generation:
+
+```bash
+.venv313/bin/python scripts/build_quote_quality_report.py
+```
+
+This writes `reports/quote_quality_report.json` and
+`reports/quote_quality_report.md`. It explains whether the recorded sample has
+enough rows, last-price movement, and reasonable spreads. Static quote samples
+are valid market-data evidence, but they should not be forced into paper orders.
+
+Hunt for a validate payload without submitting any paper order:
+
+```bash
+.venv313/bin/python scripts/hunt_paper_candidate.py \
+  --symbols AAPL,MSFT,SPY \
+  --max-attempts 3 \
+  --samples 30 \
+  --interval-seconds 5 \
+  --api-url http://192.168.64.1:8787
+```
+
+This writes `reports/paper_candidate_hunt.json`, updates the latest guarded
+session reports, and refreshes quote quality. It calls validate-only when a
+payload exists, but it never passes `--execute-paper` and never submits orders.
+
+Build a validate-only plan from the modular P0 strategy interface when the
+mean-reversion plan has no payload:
+
+```bash
+.venv313/bin/python scripts/build_strategy_validation_plan.py \
+  --quotes-csv data/ibkr_quotes.csv \
+  --submit-validate \
+  --api-url http://192.168.64.1:8787
+.venv313/bin/python scripts/build_paper_readiness_report.py reports/paper_validation_plan.json
+.venv313/bin/python scripts/build_paper_execution_gate.py \
+  reports/paper_readiness_report.json \
+  reports/paper_validation_plan.json
+```
+
+This uses the unified strategy modules to create validation candidates from
+recorded IBKR quotes. It still only calls the validate endpoint; paper
+submission remains behind the same execution gate, confirmation phrase, and
+session token checks.
+
+Before the final one-share paper submission, build a no-order pre-submit
+review, then submit through the reviewed gate only after explicit confirmation:
+
+```bash
+.venv313/bin/python scripts/build_paper_pre_submit_review.py
+.venv313/bin/python scripts/build_paper_execution_gate.py \
+  reports/paper_readiness_report.json \
+  reports/paper_validation_plan.json \
+  --execute-paper \
+  --confirm PAPER_ONLY_1_SHARE \
+  --trade-session-token-file ~/Documents/openclaw_shared/trade_session_token \
+  --pre-submit-review reports/paper_pre_submit_review.json \
+  --api-url http://192.168.64.1:8787
+```
+
+The reviewed gate blocks if the pre-submit review is stale, missing, failed, or
+does not match the selected one-share payload.
+
+Audit whether the whole current objective is actually complete:
+
+```bash
+.venv313/bin/python scripts/build_project_completion_audit.py
+```
+
+This writes `reports/project_completion_audit.json` and
+`reports/project_completion_audit.md`. It is deliberately strict: strategy
+catalog and simulated rehearsal are not enough. The audit remains incomplete
+until real IBKR readiness, quote capture, validate-only results, and a reconciled
+one-share paper order are all evidenced by current reports.
 
 Record account-level P&L over time without placing orders:
 

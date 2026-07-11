@@ -3,6 +3,8 @@ import unittest
 
 from scripts.run_autonomous_trading_agent import (
     build_research_tasks,
+    mode9_buy_freeze,
+    streaming_report_payload,
     update_market_state,
 )
 from trading.market_data import Quote
@@ -39,6 +41,23 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(tasks[0]["priority"], "high")
         self.assertEqual(tasks[1]["priority"], "watch")
         self.assertIn("SEC filings and earnings calendar", tasks[0]["requested_checks"])
+
+    def test_streaming_report_is_empty_when_disabled(self) -> None:
+        payload = streaming_report_payload(None)
+
+        self.assertEqual(payload["streaming_symbols"], [])
+        self.assertEqual(payload["streaming_quote_count"], 0)
+        self.assertEqual(payload["streaming_stale_symbols"], [])
+        self.assertEqual(payload["streaming_errors"], [])
+        self.assertEqual(payload["streaming_quotes"], {})
+
+    def test_mode9_buy_freeze_defaults_on(self) -> None:
+        import os
+        from unittest.mock import patch
+
+        env = {key: value for key, value in os.environ.items() if key != "MODE9_BUY_FREEZE"}
+        with patch.dict(os.environ, env, clear=True):
+            self.assertTrue(mode9_buy_freeze())
 
 
 if __name__ == "__main__":
