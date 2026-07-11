@@ -28,6 +28,27 @@ class MonitoringLineControlTests(unittest.TestCase):
         self.assertIn("export ALLOW_SNAPSHOT_MARKET_DATA=false", safe_env)
         self.assertIn("export POSITION_PROTECTION_REPAIR_ENABLED=false", safe_env)
 
+    def test_full_paper_automation_command_keeps_hard_safety_flags(self) -> None:
+        text = Path("scripts/control_trading_mode.command").read_text(encoding="utf-8")
+
+        self.assertIn("run_full_paper_automation()", text)
+        self.assertIn("FULL_PAPER_AUTOMATION|full-paper-automation|full_paper_automation", text)
+        block = text[text.index("run_full_paper_automation()") : text.index("if [[ ! -x")]
+        self.assertIn("export TRADING_MODE=PAPER", block)
+        self.assertIn("export LIVE_TRADING_ENABLED=false", block)
+        self.assertIn("export ALLOW_MARKET_ORDERS=false", block)
+        self.assertIn("export NO_PAID_MARKET_DATA_REQUESTS=true", block)
+        self.assertIn("export ALLOW_REGULATORY_SNAPSHOT=false", block)
+        self.assertIn("export ALLOW_SNAPSHOT_MARKET_DATA=false", block)
+        self.assertIn("export MODE9_BUY_FREEZE=false", block)
+        self.assertIn("export AUTO_BUY_ENABLED=true", block)
+        self.assertIn("export LIVE_OPTIONS_EXECUTION=false", block)
+        self.assertIn("export FULL_PAPER_AUTONOMOUS_RUN_ENABLED=true", block)
+        self.assertIn("export FULL_PAPER_RUN_MINUTES=\"${FULL_PAPER_RUN_MINUTES:-5}\"", block)
+        self.assertIn("export PAPER_BUY_MAX_NEW_POSITIONS_PER_DAY=\"${PAPER_BUY_MAX_NEW_POSITIONS_PER_DAY:-1}\"", block)
+        self.assertIn("export PAPER_BUY_MAX_ORDER_NOTIONAL=\"${PAPER_BUY_MAX_ORDER_NOTIONAL:-25}\"", block)
+        self.assertIn("export GAP_ESCAPE_PAPER_ONLY=true", block)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -151,6 +151,13 @@ def build_status_snapshot(now_utc: datetime, latest_agent: dict[str, object], po
     agent_age = None if latest_created is None else (now_utc - latest_created.astimezone(timezone.utc)).total_seconds()
     cycles_age = file_age_seconds(PROJECT_ROOT / "reports" / "autonomous_agent" / "cycles.jsonl", now_utc)
     api_ok, api_detail, api_payload = api_health_status()
+    monitoring_line = read_json(PROJECT_ROOT / "reports" / "monitoring_line" / "latest.json")
+    full_paper = read_json(PROJECT_ROOT / "reports" / "full_paper_run" / "latest.json")
+    market_session = read_json(PROJECT_ROOT / "reports" / "market_session" / "latest.json")
+    crosscheck = read_json(PROJECT_ROOT / "reports" / "market_quote_crosscheck" / "latest.json")
+    split = read_json(PROJECT_ROOT / "reports" / "execution_ledger_split" / "latest.json")
+    pnl_ledger = read_json(PROJECT_ROOT / "reports" / "pnl_ledger" / "latest.json")
+    auto_open = read_json(PROJECT_ROOT / "reports" / "final_auto_open_discovery_news_simulation_audit" / "latest.json")
     position = latest_agent.get("position_protection") if isinstance(latest_agent.get("position_protection"), dict) else {}
     strategy = latest_agent.get("strategy_run") if isinstance(latest_agent.get("strategy_run"), dict) else {}
     skip_reasons = top_skip_reasons(pool_reports)
@@ -170,6 +177,26 @@ def build_status_snapshot(now_utc: datetime, latest_agent: dict[str, object], po
         "cycles_last_update_age_seconds": None if cycles_age is None else round(cycles_age, 1),
         "trading_api_health_ok": api_ok,
         "trading_api_health_error": "" if api_ok else api_detail,
+        "monitor_line_running": bool(monitoring_line.get("mode9_monitoring_line_enabled")),
+        "full_paper_run_active": bool(full_paper.get("status") == "READY_FOR_PAPER_AUTOMATION_RUN"),
+        "full_paper_run_enabled": bool(full_paper.get("full_paper_run_enabled")),
+        "auto_buy_enabled": bool(full_paper.get("auto_buy_enabled")),
+        "gap_escape_enabled": bool(full_paper.get("gap_escape_enabled")),
+        "options_paper_execution_enabled": bool(full_paper.get("options_execution_enabled")),
+        "live_trading_enabled": bool(full_paper.get("live_trading_enabled")),
+        "market_session_state": market_session.get("session_state"),
+        "expected_live_bid_ask": market_session.get("expected_live_bid_ask"),
+        "quote_crosscheck_summary": crosscheck.get("summary"),
+        "buy_candidates": (split.get("counts") or {}).get("buy") if isinstance(split.get("counts"), dict) else None,
+        "protective_sell_candidates": (split.get("counts") or {}).get("protective_sell") if isinstance(split.get("counts"), dict) else None,
+        "gap_escape_sell_candidates": (split.get("counts") or {}).get("gap_escape_sell") if isinstance(split.get("counts"), dict) else None,
+        "profit_sell_candidates": (split.get("counts") or {}).get("profit_sell") if isinstance(split.get("counts"), dict) else None,
+        "options_plan_events": (split.get("counts") or {}).get("options_plan") if isinstance(split.get("counts"), dict) else None,
+        "actual_submitted_orders": split.get("order_submitted_count"),
+        "actual_executions_fills": 0,
+        "account_pnl": pnl_ledger.get("account_pnl_snapshot"),
+        "per_symbol_pnl_count": len(pnl_ledger.get("position_pnl_snapshots", [])) if isinstance(pnl_ledger.get("position_pnl_snapshots"), list) else None,
+        "stale_pnl_warning": pnl_ledger.get("stale_pnl_warning"),
         "buy_freeze": buy_freeze,
         "position_repair_enabled": repair_enabled,
         "position_repair_mode": repair_mode,
@@ -192,6 +219,18 @@ def build_status_snapshot(now_utc: datetime, latest_agent: dict[str, object], po
             skip_reasons=skip_reasons,
             api_ok=api_ok,
         ),
+        "mode9_state_note": "" if bool(mode9_pid and process_guard_age is not None and process_guard_age < 120) else "Mode 9 agent is not currently running; this is a report from last recorded state.",
+        "order_submission_note": "All events were decision/intent events only; no order was submitted." if (split.get("order_submitted_count") in {0, None}) else "",
+        "auto_open_discovery_enabled": auto_open.get("discovery_enabled"),
+        "auto_open_scanner_enabled": auto_open.get("scanner_enabled"),
+        "auto_open_news_enabled": auto_open.get("news_enabled"),
+        "auto_open_pool_expansion_enabled": auto_open.get("pool_expansion_enabled"),
+        "auto_open_local_simulation_enabled": auto_open.get("local_simulation_enabled"),
+        "auto_open_trade_pool_size": auto_open.get("trade_pool_size"),
+        "auto_open_simulated_orders_count": auto_open.get("simulated_orders_count"),
+        "auto_open_ibkr_paper_orders_submitted": auto_open.get("ibkr_paper_orders_submitted"),
+        "auto_open_live_orders_submitted": auto_open.get("live_orders_submitted"),
+        "auto_open_snapshot_risk": bool(auto_open.get("paid_snapshot_used") or auto_open.get("regulatory_snapshot_used")),
         "api_lock_state": api_payload.get("lock_state"),
         "api_tws_ready": (api_payload.get("tws") or {}).get("ready_for_orders") if isinstance(api_payload.get("tws"), dict) else None,
     }
@@ -207,6 +246,26 @@ def status_lines(status: dict[str, object]) -> str:
             f"- cycles_last_update_age_seconds: {status.get('cycles_last_update_age_seconds')}",
             f"- trading_api_health_ok: {status.get('trading_api_health_ok')}",
             f"- trading_api_health_error: {status.get('trading_api_health_error')}",
+            f"- monitor_line_running: {status.get('monitor_line_running')}",
+            f"- full_paper_run_active: {status.get('full_paper_run_active')}",
+            f"- full_paper_run_enabled: {status.get('full_paper_run_enabled')}",
+            f"- auto_buy_enabled: {status.get('auto_buy_enabled')}",
+            f"- gap_escape_enabled: {status.get('gap_escape_enabled')}",
+            f"- options_paper_execution_enabled: {status.get('options_paper_execution_enabled')}",
+            f"- live_trading_enabled: {status.get('live_trading_enabled')}",
+            f"- market_session_state: {status.get('market_session_state')}",
+            f"- expected_live_bid_ask: {status.get('expected_live_bid_ask')}",
+            f"- quote_crosscheck_summary: {status.get('quote_crosscheck_summary')}",
+            f"- buy_candidates: {status.get('buy_candidates')}",
+            f"- protective_sell_candidates: {status.get('protective_sell_candidates')}",
+            f"- gap_escape_sell_candidates: {status.get('gap_escape_sell_candidates')}",
+            f"- profit_sell_candidates: {status.get('profit_sell_candidates')}",
+            f"- options_plan_events: {status.get('options_plan_events')}",
+            f"- actual_submitted_orders: {status.get('actual_submitted_orders')}",
+            f"- actual_executions_fills: {status.get('actual_executions_fills')}",
+            f"- account_pnl: {status.get('account_pnl')}",
+            f"- per_symbol_pnl_count: {status.get('per_symbol_pnl_count')}",
+            f"- stale_pnl_warning: {status.get('stale_pnl_warning')}",
             f"- buy_freeze: {status.get('buy_freeze')}",
             f"- position_repair_enabled: {status.get('position_repair_enabled')}",
             f"- position_repair_mode: {status.get('position_repair_mode')}",
@@ -220,6 +279,18 @@ def status_lines(status: dict[str, object]) -> str:
             f"- top_skip_reasons: {status.get('top_skip_reasons')}",
             f"- pnl_sample_age_seconds: {status.get('pnl_sample_age_seconds')}",
             f"- submitted_count=0 explanation: {status.get('zero_submission_reason')}",
+            f"- mode9_state_note: {status.get('mode9_state_note')}",
+            f"- order_submission_note: {status.get('order_submission_note')}",
+            f"- auto_open_discovery_enabled: {status.get('auto_open_discovery_enabled')}",
+            f"- auto_open_scanner_enabled: {status.get('auto_open_scanner_enabled')}",
+            f"- auto_open_news_enabled: {status.get('auto_open_news_enabled')}",
+            f"- auto_open_pool_expansion_enabled: {status.get('auto_open_pool_expansion_enabled')}",
+            f"- auto_open_local_simulation_enabled: {status.get('auto_open_local_simulation_enabled')}",
+            f"- auto_open_trade_pool_size: {status.get('auto_open_trade_pool_size')}",
+            f"- auto_open_simulated_orders_count: {status.get('auto_open_simulated_orders_count')}",
+            f"- auto_open_ibkr_paper_orders_submitted: {status.get('auto_open_ibkr_paper_orders_submitted')}",
+            f"- auto_open_live_orders_submitted: {status.get('auto_open_live_orders_submitted')}",
+            f"- auto_open_snapshot_risk: {status.get('auto_open_snapshot_risk')}",
         ]
     )
 

@@ -568,6 +568,64 @@ print(json.dumps({
 PY
 }
 
+run_full_paper_automation() {
+  export TRADING_MODE=PAPER
+  export LIVE_TRADING_ENABLED=false
+  export ALLOW_MARKET_ORDERS=false
+  export NO_PAID_MARKET_DATA_REQUESTS=true
+  export ALLOW_REGULATORY_SNAPSHOT=false
+  export ALLOW_SNAPSHOT_MARKET_DATA=false
+  export ALLOW_DELAYED_DATA_FOR_EXECUTION=false
+  export MARKET_DATA_EXECUTION_REQUIRES_LIVE=true
+  export FULL_PAPER_AUTONOMOUS_RUN_ENABLED=true
+  export FULL_PAPER_RUN_MINUTES="${FULL_PAPER_RUN_MINUTES:-5}"
+  export PAPER_BUY_MAX_NEW_POSITIONS_PER_DAY="${PAPER_BUY_MAX_NEW_POSITIONS_PER_DAY:-1}"
+  export PAPER_BUY_MAX_ORDER_NOTIONAL="${PAPER_BUY_MAX_ORDER_NOTIONAL:-25}"
+  export PAPER_BUY_MAX_TOTAL_NEW_NOTIONAL_PER_DAY="${PAPER_BUY_MAX_TOTAL_NEW_NOTIONAL_PER_DAY:-25}"
+  export MODE9_BUY_FREEZE=false
+  export AUTO_BUY_ENABLED=true
+  export AUTO_BUY_PAPER_ONLY=true
+  export POOL_MANAGER_AS_BUY_SOURCE=true
+  export SIX_LAYER_POOLS_EXECUTION_ACTIVE=true
+  export TRADE_POOL_BUY_EXECUTION_ENABLED=true
+  export GAP_ESCAPE_ENABLED=true
+  export GAP_ESCAPE_EXECUTION_ENABLED=true
+  export GAP_ESCAPE_PAPER_ONLY=true
+  export OPTIONS_EXECUTION_ENABLED=true
+  export OPTIONS_EXECUTION_PAPER_ONLY=true
+  export LIVE_OPTIONS_EXECUTION=false
+  .venv313/bin/python scripts/run_full_paper_automation.py
+}
+
+set_auto_open_simulation_env() {
+  export DISCOVERY_ENABLED=true
+  export SCANNER_ENABLED=true
+  export NEWS_TRIGGER_ENABLED=true
+  export EXTERNAL_SOURCES_ENABLED=true
+  export POOL_EXPANSION_ENABLED=true
+  export INTENT_GENERATION_ENABLED=true
+  export LOCAL_SIMULATION_ENABLED=true
+  export FAST_ORDER_GUIDANCE_ENABLED=true
+  export MOCK_SCANNER_ENABLED=true
+  export NEWS_FIXTURE_ENABLED=true
+  export IBKR_PAPER_ORDER_SUBMISSION=false
+  export AUTO_ENABLE_IBKR_PAPER_ORDER_SUBMISSION=false
+  export LIVE_TRADING_ENABLED=false
+  export ALLOW_MARKET_ORDERS=false
+  export ALLOW_PAID_SNAPSHOT=false
+  export ALLOW_REGULATORY_SNAPSHOT=false
+  export NO_PAID_MARKET_DATA_REQUESTS=true
+  export ALLOW_SNAPSHOT_MARKET_DATA=false
+  export POSITION_PROTECTION_REPAIR_ENABLED=false
+  export GAP_ESCAPE_EXECUTION_ENABLED=false
+}
+
+run_auto_open_stage() {
+  local stage="$1"
+  set_auto_open_simulation_env
+  .venv313/bin/python scripts/run_auto_open_discovery_news_simulation.py "$stage"
+}
+
 if [[ ! -x ".venv313/bin/python" ]]; then
   echo "Python venv missing: $PROJECT_DIR/.venv313/bin/python"
   exit 1
@@ -608,8 +666,18 @@ echo "9) AUTONOMOUS_AGENT_BG - AI supervisor: research tasks + full-pool strateg
 echo "10) MONITOR_ON         - enable report-only monitoring line and account state manager"
 echo "11) MARKET_SESSION     - report current US equity market session"
 echo "12) ROLLOUT_PRECHECK   - safe report-only precheck before full paper rollout"
+echo "13) FULL_PAPER_AUTOMATION - enable staged paper-only full automation"
+echo "14) DISCOVERY_RUN         - auto-open local discovery; no orders"
+echo "15) SCANNER_RUN           - scanner discovery/fallback; no orders"
+echo "16) IBKR_NEWS_TEST        - news interface diagnostics; no orders"
+echo "17) NEWS_RUN              - unified news pipeline; no orders"
+echo "18) DYNAMIC_POOL_RUN      - discovery+news+pool rebuild; no orders"
+echo "19) SIMULATION_DEBUG_RUN  - full local simulated orders/fills/PnL; no IBKR orders"
+echo "20) PAPER_EXECUTION_GATE_CHECK - future paper gate report only"
+echo "21) REALTIME_ACCOUNT_SYNC - event-driven account bus + BUY/SELL snapshot sync"
+echo "22) IBKR_CALLBACK_DRY_RUN - read-only REAL_IBKR callback bridge dry-run"
 echo
-read -r -p "Choose mode [0/1/2/3/4/5/6/7/8/9/10/11/12]: " choice
+read -r -p "Choose mode [0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]: " choice
 fi
 
 case "$choice" in
@@ -730,6 +798,58 @@ case "$choice" in
 
   12|ROLLOUT_PRECHECK|rollout-precheck|rollout_precheck)
     run_rollout_precheck
+    exit 0
+    ;;
+
+  13|FULL_PAPER_AUTOMATION|full-paper-automation|full_paper_automation)
+    run_full_paper_automation
+    exit 0
+    ;;
+
+  14|DISCOVERY_RUN|discovery-run|discovery_run)
+    run_auto_open_stage discovery-run
+    exit 0
+    ;;
+
+  15|SCANNER_RUN|scanner-run|scanner_run)
+    run_auto_open_stage scanner-run
+    exit 0
+    ;;
+
+  16|IBKR_NEWS_TEST|ibkr-news-test|ibkr_news_test)
+    run_auto_open_stage ibkr-news-test
+    exit 0
+    ;;
+
+  17|NEWS_RUN|news-run|news_run)
+    run_auto_open_stage news-run
+    exit 0
+    ;;
+
+  18|DYNAMIC_POOL_RUN|dynamic-pool-run|dynamic_pool_run)
+    run_auto_open_stage dynamic-pool-run
+    exit 0
+    ;;
+
+  19|SIMULATION_DEBUG_RUN|simulation-debug-run|simulation_debug_run)
+    run_auto_open_stage simulation-debug-run
+    exit 0
+    ;;
+
+  20|PAPER_EXECUTION_GATE_CHECK|paper-execution-gate-check|paper_execution_gate_check)
+    run_auto_open_stage paper-execution-gate-check
+    exit 0
+    ;;
+
+  21|REALTIME_ACCOUNT_SYNC|realtime-account-sync|realtime_account_sync)
+    set_auto_open_simulation_env
+    .venv313/bin/python scripts/run_realtime_account_sync.py
+    exit 0
+    ;;
+
+  22|IBKR_CALLBACK_DRY_RUN|ibkr-callback-dry-run|ibkr_callback_dry_run)
+    set_auto_open_simulation_env
+    .venv313/bin/python scripts/run_ibkr_callback_dry_run.py
     exit 0
     ;;
 
