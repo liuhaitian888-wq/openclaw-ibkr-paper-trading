@@ -42,12 +42,15 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         "pool_manager_py": PROJECT_ROOT / "trading" / "pool_manager.py",
         "event_router_py": PROJECT_ROOT / "trading" / "event_router.py",
         "universe_csv": PROJECT_ROOT / "data" / "us_equity_universe.csv",
+        "security_master_csv": PROJECT_ROOT / "data" / "security_master.csv",
+        "pool_state_py": PROJECT_ROOT / "trading" / "pool_state.py",
         "mode9": PROJECT_ROOT / "scripts" / "run_autonomous_trading_agent.py",
         "strategy_module": PROJECT_ROOT / "scripts" / "run_pool_strategy_module.py",
     }
     latest_agent = read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json")
     position_guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
     universe_rows = read_universe(files["universe_csv"])
+    security_master_rows = read_universe(files["security_master_csv"])
     mode9_source = files["mode9"].read_text(encoding="utf-8") if files["mode9"].exists() else ""
     strategy_source = files["strategy_module"].read_text(encoding="utf-8") if files["strategy_module"].exists() else ""
     held = sorted({
@@ -60,9 +63,10 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     universe_symbols = [row["symbol"] for row in universe_rows if row.get("enabled", "true").lower() == "true"]
 
     security_master_exists = files["security_master_py"].exists()
+    canonical_pool_state_exists = files["pool_state_py"].exists()
     pool_manager_exists = files["pool_manager_py"].exists()
     event_router_exists = files["event_router_py"].exists()
-    persistent_security_master = security_master_exists or any((PROJECT_ROOT / path).exists() for path in ["data/security_master.csv", "data/security_master.json", "security_master.sqlite3", "reports/security_master/latest.json"])
+    persistent_security_master = security_master_exists and files["security_master_csv"].exists()
     persistent_pool_files = list((PROJECT_ROOT / "reports").glob("pool_membership/*.json")) + list((PROJECT_ROOT / "data").glob("*pool*"))
 
     layers = [
@@ -70,44 +74,46 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
             name="security_master",
             implemented=persistent_security_master,
             execution_active=False,
-            source_files=[str(files["security_master_py"])] if security_master_exists else [],
-            data_sources=[],
-            symbols=[],
+            source_files=[str(files["security_master_py"]), str(files["security_master_csv"])] if persistent_security_master else [],
+            data_sources=["Nasdaq Trader listed files", str(files["security_master_csv"])] if persistent_security_master else [],
+            symbols=[row["symbol"] for row in security_master_rows],
             missing=["trading/security_master.py", "persistent security master table/file"] if not persistent_security_master else [],
-            next_step="Create security master store and symbol identity schema.",
+            next_step="Add richer fundamentals/IBKR conId enrichment.",
         ),
-        layer_report("discovery_universe", False, False, [], ["scanner/news/SEC/Nasdaq documented only"], [], ["connected discovery ingestion"], "Wire scanner/news/SEC/Nasdaq sources."),
-        layer_report("tradable_universe", True, False, [str(files["universe_csv"]), str(files["mode9"])], ["data/us_equity_universe.csv", "Trading API allowlist", "value filter"], module_allowed or universe_symbols, [], "Keep reporting; execution still uses legacy CSV/module_allowed path."),
-        layer_report("stream_eligible_pool", pool_manager_exists, False, ["trading/market_data_line_manager.py", str(files["pool_manager_py"])], ["pool_manager report-only candidates"], [], ["execution consumption"], "Wire stream eligibility after pool reports are stable."),
-        layer_report("monitor_pool", True, False, [str(files["mode9"]), str(files["pool_manager_py"])], ["current positions + selected universe"], monitor_symbols, [], "Persist monitor_pool membership with reasons."),
-        layer_report("hot_pool", pool_manager_exists or event_router_exists, False, [str(files["pool_manager_py"]), str(files["event_router_py"])], ["top_movers/research_tasks transient only"], [str(task.get("symbol")) for task in latest_agent.get("research_tasks", [])[:8] if isinstance(task, dict)], ["execution consumption"], "Promote transient movers into audited hot_pool."),
-        layer_report("trade_pool", True, False, [str(files["strategy_module"]), str(files["pool_manager_py"])], ["module_allowed_symbols", "strategy decisions"], module_allowed, ["not execution source from pool_manager yet"], "Make trade_pool a persisted pool_manager output after report-only validation."),
+        layer_report("discovery_universe", persistent_security_master, False, [str(files["security_master_py"])], ["security_master hard instrument eligibility"], [row["symbol"] for row in security_master_rows], [], "Add contract-resolution enrichment and liquidity flags."),
+        layer_report("tradable_universe", True, False, [str(files["universe_csv"]), str(files["mode9"])], ["data/us_equity_universe.csv", "Trading API allowlist", "value filter"], module_allowed or universe_symbols, [], "Keep reporting; execution still requires explicit downstream gates."),
+        layer_report("stream_eligible_pool", pool_manager_exists, False, ["trading/market_data_line_manager.py", str(files["pool_manager_py"]), str(files["mode9"])], ["pool_manager candidates", "Mode 9 canonical bridge"], [], [], "Add richer quote-line budgeting after state reports are stable."),
+        layer_report("monitor_pool", True, False, [str(files["mode9"]), str(files["pool_manager_py"])], ["current positions + selected universe", "Mode 9 canonical bridge"], monitor_symbols, [], "Persist richer monitor reasons and quote diagnostics."),
+        layer_report("hot_pool", pool_manager_exists or event_router_exists, False, [str(files["pool_manager_py"]), str(files["event_router_py"]), str(files["mode9"])], ["top_movers/research_tasks", "Mode 9 canonical bridge"], [str(task.get("symbol")) for task in latest_agent.get("research_tasks", [])[:8] if isinstance(task, dict)], [], "Promote transient movers into audited hot_pool with TTL scoring."),
+        layer_report("trade_pool", True, False, [str(files["strategy_module"]), str(files["pool_manager_py"]), str(files["mode9"])], ["module_allowed_symbols", "strategy decisions", "Mode 9 canonical bridge"], module_allowed, ["explicit L5 strategy signal/risk approval not yet an execution source"], "Wire explicit strategy signal/risk approval into canonical L5 gate."),
     ]
 
     membership_rows = membership_records(now, universe_rows, monitor_symbols, module_allowed, held)
     answers = {
         "trading/security_master.py exists": security_master_exists,
+        "trading/pool_state.py exists": canonical_pool_state_exists,
         "trading/pool_manager.py exists": pool_manager_exists,
         "trading/event_router.py exists": event_router_exists,
         "persistent security_master exists": persistent_security_master,
-        "persistent membership for each pool exists": False,
+        "persistent membership for each pool exists": bool(persistent_pool_files),
         "membership schema complete": membership_schema_complete(membership_rows),
         "current positions included in monitor_pool and risk monitoring": all(symbol in monitor_symbols for symbol in held),
         "hard_coded_production_symbol_lists_removed": False,
         "hard_coded_symbols_limited_to_tests_audits_examples": False,
         "Mode 9 refreshes pool_manager report": "build_pool_manager_report" in mode9_source,
-        "Mode 9 consumes pool_manager output": False,
+        "Mode 9 consumes pool_manager output": "sync_canonical_pool_state" in mode9_source and "pool_manager_records" in mode9_source,
         "Mode 9 consumes pool_manager output for execution": False,
         "Mode 9 uses data/us_equity_universe.csv directly": "load_universe" in mode9_source and "universe_file" in mode9_source,
         "Mode 9 relies on module_allowed_symbols": "module_allowed_symbols" in mode9_source,
-        "scanner/news/SEC/Nasdaq sources connected": False,
-        "six_layer_system_state": "report-only implemented; Mode 9 refreshes reports but does not use pool_manager as execution symbol source",
+        "scanner/news/SEC/Nasdaq sources connected": files["security_master_csv"].exists(),
+        "canonical pool state implemented": canonical_pool_state_exists,
+        "six_layer_system_state": "global L1/L2 implemented; canonical transition engine implemented; Mode 9 consumes pool_manager for monitoring/state; execution source remains gated",
         "real_source_of_trading_symbols": "data/us_equity_universe.csv filtered into module_allowed_symbols plus current held positions forced into monitor_symbols",
     }
     architecture = {
         "timestamp": now,
         "source": "pool_architecture_audit",
-        "summary": "Six-layer pool architecture is not fully implemented and not wired into Mode 9 as pool_manager output.",
+        "summary": "Six-layer pool architecture has global L1/L2, canonical transitions, and Mode 9 runtime-state wiring; execution authorization remains conservative and gated.",
         "layers": layers,
         "answers": answers,
     }

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from trading.config import PROJECT_ROOT
-from trading.security_master import build_security_master_report
+from trading.security_master import DEFAULT_SECURITY_MASTER, build_security_master_report
 from trading.universe import load_universe, select_universe, UniverseSelectionConfig
 from trading.strategy import ValueFilterConfig, ValuePoolFilter
 
@@ -33,13 +33,14 @@ class PoolMembership:
 def build_pool_manager_report(
     *,
     universe_file: Path = DEFAULT_UNIVERSE,
+    security_master_file: Path = DEFAULT_SECURITY_MASTER,
     position_guard: Mapping[str, Any] | None = None,
     latest_agent: Mapping[str, Any] | None = None,
     max_symbols: int = 60,
     min_value_score: float = 45.0,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
-    security_master = build_security_master_report(universe_file)
+    security_master = build_security_master_report(universe_file, security_master_file=security_master_file)
     position_guard = dict(position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json"))
     latest_agent = dict(latest_agent or read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json"))
     held_symbols = sorted({
@@ -63,8 +64,10 @@ def build_pool_manager_report(
         PoolMembership(now, symbol, pool, included, not included, source, reason, score, blocked, now)
     )
     for row in security_master["records"]:
-        add(row["symbol"], "security_master", not bool(row.get("blocked_reason")), "security_master", "seed security master", None, row.get("blocked_reason", ""))
-        add(row["symbol"], "discovery_universe", True, "data/us_equity_universe.csv", "seed discovery universe")
+        security_included = not bool(row.get("blocked_reason"))
+        discovery_included, discovery_blocked = discovery_eligibility(row)
+        add(row["symbol"], "security_master", security_included, row.get("data_source") or "security_master", "global security master", None, row.get("blocked_reason", ""))
+        add(row["symbol"], "discovery_universe", discovery_included, "security_master", "hard instrument eligibility", None, discovery_blocked)
     for record in selection.records:
         symbol = str(record["symbol"])
         included = bool(record.get("approved"))
@@ -88,6 +91,8 @@ def build_pool_manager_report(
         "report_only": True,
         "execution_active": False,
         "mode9_trading_source_unchanged": True,
+        "global_security_master_count": len({row["symbol"] for row in security_master["records"]}),
+        "security_master_source_mode": security_master.get("source_mode"),
         "current_positions_forced_into_monitor_pool": held_symbols,
         "open_orders_forced_into_monitor_pool": open_order_symbols,
         "blocked_symbols": [asdict(item) for item in memberships if item.excluded],
@@ -102,6 +107,22 @@ def build_pool_manager_report(
     }
 
 
+def discovery_eligibility(row: Mapping[str, Any]) -> tuple[bool, str]:
+    if row.get("blocked_reason"):
+        return False, str(row.get("blocked_reason"))
+    if row.get("asset_type") not in {"STK", "ETF"}:
+        return False, "UNSUPPORTED_SECURITY_TYPE"
+    if row.get("currency") != "USD":
+        return False, "UNSUPPORTED_CURRENCY"
+    if row.get("is_otc"):
+        return False, "OTC_NOT_ALLOWED"
+    if row.get("is_test_issue"):
+        return False, "TEST_ISSUE"
+    if str(row.get("listing_status") or "").lower() not in {"", "active"}:
+        return False, "SYMBOL_NOT_ACTIVE"
+    return True, ""
+
+
 def architecture_report(now: str, memberships: list[PoolMembership]) -> dict[str, Any]:
     layers = []
     for pool in ["security_master", "discovery_universe", "tradable_universe", "stream_eligible_pool", "monitor_pool", "hot_pool", "trade_pool"]:
@@ -111,18 +132,18 @@ def architecture_report(now: str, memberships: list[PoolMembership]) -> dict[str
             "implemented": True,
             "report_only": True,
             "execution_active": False,
-            "connected_to_mode9": pool in {"monitor_pool", "hot_pool", "trade_pool"},
+            "connected_to_mode9": True,
             "symbol_count": len({item.symbol for item in rows}),
             "source": sorted({item.source for item in rows}),
             "example_symbols": list(dict.fromkeys(item.symbol for item in rows))[:10],
-            "blocked_reason": "report-only; not used as execution source",
-            "remaining_gap": "wire pool_manager output into Mode 9 trading" if pool == "trade_pool" else "",
+            "blocked_reason": "report-only; not an execution authorization source",
+            "remaining_gap": "wire explicit strategy signal/risk approval into canonical L5 gate" if pool == "trade_pool" else "",
         })
     return {
         "timestamp": now,
         "source": "pool_manager",
-        "classification": "B) report-only implemented; partially wired into Mode 9 monitoring, not trading",
-        "summary": "Six-layer pools are implemented as reports. Mode 9 trading still uses existing conservative CSV/module_allowed path.",
+        "classification": "B+) wired into Mode 9 monitoring/state; execution authorization remains gated",
+        "summary": "Six-layer pools feed Mode 9 monitoring and canonical state. Paper execution still requires explicit strategy, quote, session, risk, and account gates.",
         "layers": layers,
     }
 

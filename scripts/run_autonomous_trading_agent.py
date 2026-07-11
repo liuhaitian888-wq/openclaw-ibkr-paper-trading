@@ -38,6 +38,7 @@ from trading.market_data import Quote
 from trading.market_session import current_market_session
 from trading.options_hedge_planner import build_options_hedge_report
 from trading.pool_manager import build_pool_manager_report
+from trading.pool_state import PoolStateManager
 from trading.position_guard import build_position_guard_report
 from trading.position_protection import run_position_protection
 from trading.process_guard import ExecutionLock, stop_duplicate_autonomous_processes
@@ -92,6 +93,7 @@ class AgentCycle:
     account_state_manager: Dict[str, object]
     position_guard: Dict[str, object]
     pool_manager: Dict[str, object]
+    canonical_pool_state: Dict[str, object]
     event_risk: Dict[str, object]
     gap_risk: Dict[str, object]
     position_protection: Dict[str, object]
@@ -138,6 +140,7 @@ class AgentCycle:
             "account_state_manager": self.account_state_manager,
             "position_guard": self.position_guard,
             "pool_manager": self.pool_manager,
+            "canonical_pool_state": self.canonical_pool_state,
             "event_risk": self.event_risk,
             "gap_risk": self.gap_risk,
             "position_protection": self.position_protection,
@@ -418,6 +421,22 @@ def run_cycle(
     order_submitted = bool(strategy_run and int(strategy_run.get("submitted_count") or 0) > 0)
     if order_submitted:
         lifecycle = {**lifecycle, "lifecycle_state": "PAPER_ORDER_SUBMITTED", "blocked_reason": ""}
+    started = time.perf_counter()
+    try:
+        canonical_pool_state = sync_canonical_pool_state(
+            pool_manager=pool_manager,
+            market_session=market_session,
+            quote_readiness=quote_readiness,
+            quotes=quotes,
+            streaming_report=streaming_report,
+            lifecycle=lifecycle,
+            ready_for_orders=ready_for_orders,
+            trace_id=f"mode9-cycle-{cycle}",
+        )
+    except Exception as exc:
+        canonical_pool_state = {"status": "error", "error": str(exc), "execution_active": False}
+        errors.append(f"canonical pool state failed: {exc}")
+    timings["canonical_pool_state_ms"] = elapsed_ms(started)
     timings["cycle_total_ms"] = elapsed_ms(cycle_started)
     return AgentCycle(
         cycle=cycle,
@@ -441,6 +460,7 @@ def run_cycle(
         account_state_manager=dict(account_state_manager),
         position_guard=dict(position_guard),
         pool_manager=dict(pool_manager),
+        canonical_pool_state=dict(canonical_pool_state),
         event_risk=dict(event_risk),
         gap_risk=dict(gap_risk),
         position_protection=dict(position_protection),
@@ -495,6 +515,7 @@ def failed_cycle(cycle: int, exc: Exception, started: float) -> AgentCycle:
         account_state_manager={},
         position_guard={},
         pool_manager={},
+        canonical_pool_state={},
         event_risk={},
         gap_risk={},
         position_protection={},
@@ -644,6 +665,192 @@ def lifecycle(state: str, blocked_reason: str, execution_enabled: bool) -> Dict[
         "blocked_reason": blocked_reason,
         "execution_enabled": execution_enabled,
     }
+
+
+def sync_canonical_pool_state(
+    *,
+    pool_manager: Dict[str, Any],
+    market_session: Dict[str, object],
+    quote_readiness: Dict[str, object],
+    quotes: List[Quote],
+    streaming_report: Dict[str, object],
+    lifecycle: Dict[str, object],
+    ready_for_orders: bool,
+    trace_id: str,
+    db_path: Optional[Path] = None,
+) -> Dict[str, object]:
+    """Advance canonical runtime pool state from Mode 9 observations.
+
+    This bridge is intentionally state/report only. It never calls broker order
+    APIs and never marks a symbol as submitted without the strategy result.
+    """
+    manager = PoolStateManager(db_path=db_path) if db_path is not None else PoolStateManager()
+    manager.load()
+    records = pool_manager_records(pool_manager)
+    by_pool: Dict[str, set[str]] = {}
+    metadata: Dict[str, Dict[str, object]] = {}
+    for row in records:
+        if not bool(row.get("included")):
+            continue
+        symbol = str(row.get("symbol") or "").upper()
+        pool_name = str(row.get("pool_name") or "")
+        if not symbol or not pool_name:
+            continue
+        by_pool.setdefault(pool_name, set()).add(symbol)
+        metadata.setdefault(symbol, row)
+
+    runtime_symbols = sorted(
+        set().union(
+            by_pool.get("monitor_pool", set()),
+            by_pool.get("hot_pool", set()),
+            by_pool.get("trade_pool", set()),
+            by_pool.get("stream_eligible_pool", set()),
+            by_pool.get("tradable_universe", set()),
+        )
+    )
+    quote_by_symbol = quote_payloads_by_symbol(quotes=quotes, streaming_report=streaming_report)
+    session_expects_quotes = bool(market_session.get("expected_live_bid_ask"))
+    paper_account_confirmed = ready_for_orders and bool(lifecycle.get("execution_enabled"))
+    counts: Dict[str, int] = {}
+    blocked_reasons: Dict[str, int] = {}
+    sample_states: list[Dict[str, object]] = []
+
+    for symbol in runtime_symbols:
+        row = metadata.get(symbol, {})
+        manager.upsert_master(
+            symbol=symbol,
+            source=str(row.get("source") or "pool_manager"),
+            enabled=True,
+            trace_id=trace_id,
+        )
+        state = manager.evaluate_eligibility(
+            symbol,
+            contract_resolved=True,
+            market_data_available=True,
+            blocked=symbol not in by_pool.get("discovery_universe", set()) and bool(by_pool.get("discovery_universe")),
+            blocked_reason="NOT_IN_DISCOVERY_UNIVERSE",
+            trace_id=trace_id,
+        )
+        if (
+            state.current_layer in {"MASTER_UNIVERSE", "ELIGIBLE_UNIVERSE"}
+            and (
+                symbol in by_pool.get("tradable_universe", set())
+                or symbol in by_pool.get("stream_eligible_pool", set())
+                or symbol in by_pool.get("trade_pool", set())
+            )
+        ):
+            state = manager.nominate_scan(
+                symbol,
+                strategy="mode9_pool_manager",
+                score=float(row.get("score") or 0.0),
+                reason="Mode 9 pool manager runtime candidate",
+                trace_id=trace_id,
+            )
+        if symbol in by_pool.get("monitor_pool", set()) or symbol in by_pool.get("hot_pool", set()) or symbol in by_pool.get("trade_pool", set()):
+            quote_payload = quote_by_symbol.get(symbol, {})
+            if not session_expects_quotes:
+                state = manager.expire(
+                    symbol,
+                    component="mode9_market_session",
+                    reason_code="MARKET_CLOSED_WAITING",
+                    explanation=str(market_session.get("blocked_reason") or "market closed; waiting for fresh bid/ask"),
+                    trace_id=trace_id,
+                )
+            else:
+                state = manager.promote_to_watch(
+                    symbol,
+                    strategy="mode9_pool_manager",
+                    quote=quote_payload,
+                    entry_reason="Mode 9 monitor/hot/trade symbol has fresh bid/ask",
+                    score=float(row.get("score") or 0.0),
+                    quote_freshness_sec=max(1.0, float(quote_readiness.get("max_age_sec") or 8.0)),
+                    trace_id=trace_id,
+                )
+        if symbol in by_pool.get("trade_pool", set()) and state.current_layer == "WATCH_POOL":
+            state = manager.evaluate_signal(
+                symbol,
+                signal={
+                    "valid": False,
+                    "timestamp": manager.now(),
+                    "score": float(row.get("score") or 0.0),
+                    "strategy_confirmed": False,
+                    "source": "pool_manager",
+                },
+                market_session=market_session,
+                risk={"approved": bool(lifecycle.get("execution_enabled"))},
+                execution={
+                    "paper_account_confirmed": paper_account_confirmed,
+                    "live_trading_enabled": False,
+                    "duplicate_order": False,
+                    "contract_resolved": True,
+                },
+                trace_id=trace_id,
+            )
+        counts[state.current_layer] = counts.get(state.current_layer, 0) + 1
+        reason = str(state.transition_history[-1].reason_code) if state.transition_history else ""
+        if reason:
+            blocked_reasons[reason] = blocked_reasons.get(reason, 0) + 1
+        if len(sample_states) < 20:
+            sample_states.append(
+                {
+                    "symbol": state.symbol,
+                    "current_layer": state.current_layer,
+                    "last_reason_code": reason,
+                    "has_active_order": bool(state.execution_state.get("order_submitted")),
+                }
+            )
+
+    return {
+        "status": "ok",
+        "source": "mode9_canonical_pool_bridge",
+        "connected_to_mode9": True,
+        "execution_active": False,
+        "paper_order_submission_active": False,
+        "runtime_symbol_count": len(runtime_symbols),
+        "global_security_master_count": int(pool_manager.get("audit", {}).get("global_security_master_count") or 0)
+        if isinstance(pool_manager.get("audit"), dict)
+        else 0,
+        "pool_counts": {pool: len(symbols) for pool, symbols in sorted(by_pool.items())},
+        "canonical_layer_counts": counts,
+        "blocked_reason_counts": blocked_reasons,
+        "sample_states": sample_states,
+        "order_submitted": False,
+    }
+
+
+def pool_manager_records(pool_manager: Dict[str, Any]) -> list[Dict[str, object]]:
+    membership = pool_manager.get("membership") if isinstance(pool_manager, dict) else None
+    if not isinstance(membership, dict):
+        return []
+    records = membership.get("records")
+    if not isinstance(records, list):
+        return []
+    return [dict(row) for row in records if isinstance(row, dict)]
+
+
+def quote_payloads_by_symbol(*, quotes: List[Quote], streaming_report: Dict[str, object]) -> Dict[str, Dict[str, object]]:
+    result: Dict[str, Dict[str, object]] = {}
+    for quote in quotes:
+        result[quote.symbol.upper()] = {
+            "bid": quote.bid,
+            "ask": quote.ask,
+            "last": quote.last,
+            "timestamp": quote.timestamp.isoformat(),
+            "source": quote.source,
+        }
+    streaming_quotes = streaming_report.get("streaming_quotes", {})
+    if isinstance(streaming_quotes, dict):
+        for symbol, payload in streaming_quotes.items():
+            if not isinstance(payload, dict):
+                continue
+            result[str(symbol).upper()] = {
+                "bid": payload.get("bid"),
+                "ask": payload.get("ask"),
+                "last": payload.get("last"),
+                "timestamp": payload.get("timestamp") or payload.get("updated_at") or payload.get("last_update"),
+                "source": payload.get("source") or "ibkr_streaming",
+            }
+    return result
 
 
 def should_run_strategy_now(

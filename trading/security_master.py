@@ -10,6 +10,7 @@ from trading.config import PROJECT_ROOT
 
 REPORT_DIR = PROJECT_ROOT / "reports" / "security_master"
 DEFAULT_UNIVERSE = PROJECT_ROOT / "data" / "us_equity_universe.csv"
+DEFAULT_SECURITY_MASTER = PROJECT_ROOT / "data" / "security_master.csv"
 
 
 @dataclass(frozen=True)
@@ -36,15 +37,27 @@ class SecurityMasterRecord:
     blocked_reason: str
 
 
-def build_security_master_report(universe_file: Path = DEFAULT_UNIVERSE) -> dict[str, Any]:
+def build_security_master_report(
+    universe_file: Path = DEFAULT_UNIVERSE,
+    *,
+    security_master_file: Path = DEFAULT_SECURITY_MASTER,
+) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
-    records = [asdict(record) for record in load_seed_records(universe_file, now=now)]
+    if security_master_file.exists():
+        source_file = security_master_file
+        records = [asdict(record) for record in load_security_master_records(security_master_file, now=now)]
+        source_mode = "persistent_security_master"
+    else:
+        source_file = universe_file
+        records = [asdict(record) for record in load_seed_records(universe_file, now=now)]
+        source_mode = "seed_universe_fallback"
     report = {
         "timestamp": now,
         "source": "security_master",
         "report_only": True,
-        "data_sources": [str(universe_file)],
-        "future_sources": ["Nasdaq Trader", "SEC company facts/submissions", "IBKR contractDetails"],
+        "source_mode": source_mode,
+        "data_sources": [str(source_file)],
+        "future_sources": ["SEC company facts/submissions", "IBKR contractDetails"],
         "record_count": len(records),
         "records": records,
     }
@@ -59,6 +72,15 @@ def load_seed_records(universe_file: Path = DEFAULT_UNIVERSE, *, now: str | None
     with universe_file.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.DictReader(handle))
     return [record_from_universe_row(row, now=now) for row in rows if row.get("symbol")]
+
+
+def load_security_master_records(path: Path = DEFAULT_SECURITY_MASTER, *, now: str | None = None) -> list[SecurityMasterRecord]:
+    now = now or datetime.now(timezone.utc).isoformat()
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    return [record_from_security_master_row(row, now=now) for row in rows if row.get("symbol")]
 
 
 def record_from_universe_row(row: Mapping[str, str], *, now: str) -> SecurityMasterRecord:
@@ -88,6 +110,87 @@ def record_from_universe_row(row: Mapping[str, str], *, now: str) -> SecurityMas
         last_updated_at=now,
         blocked_reason="" if str(row.get("enabled", "true")).lower() == "true" else "disabled in seed universe",
     )
+
+
+def record_from_security_master_row(row: Mapping[str, str], *, now: str) -> SecurityMasterRecord:
+    symbol = str(row.get("symbol", "")).strip().upper()
+    exchange = str(row.get("primary_exchange") or row.get("exchange") or row.get("listing_exchange") or "").strip().upper()
+    security_type = str(row.get("security_type") or row.get("asset_type") or "STK").strip().upper()
+    enabled = str(row.get("enabled", "true")).lower() == "true"
+    test_issue = str(row.get("is_test_issue", "false")).lower() == "true"
+    etf = security_type == "ETF" or str(row.get("is_etf", "false")).lower() == "true"
+    return SecurityMasterRecord(
+        symbol=symbol,
+        company_name=str(row.get("company_name") or row.get("name") or "").strip(),
+        asset_type="ETF" if etf else security_type or "STK",
+        primary_exchange=exchange,
+        listing_exchange=str(row.get("listing_exchange") or exchange).strip().upper(),
+        currency=str(row.get("currency") or "USD").strip().upper(),
+        country=str(row.get("country") or "US").strip().upper(),
+        sector=str(row.get("sector") or "").strip(),
+        industry=str(row.get("industry") or "").strip(),
+        is_etf=etf,
+        is_adr=str(row.get("is_adr", "false")).lower() == "true",
+        is_otc=exchange in {"OTC", "PINK"},
+        is_test_issue=test_issue,
+        financial_status=str(row.get("financial_status") or "").strip(),
+        listing_status=str(row.get("listing_status") or ("active" if enabled else "disabled")).strip().lower(),
+        CIK=str(row.get("CIK") or row.get("cik") or "").strip(),
+        ibkr_conid=str(row.get("ibkr_conid") or "").strip(),
+        data_source=str(row.get("data_source") or "data/security_master.csv").strip(),
+        last_updated_at=str(row.get("last_updated_at") or now).strip(),
+        blocked_reason=str(row.get("blocked_reason") or ("" if enabled and not test_issue else "disabled or test issue")).strip(),
+    )
+
+
+def records_from_nasdaq_trader_rows(rows: list[Mapping[str, str]], *, source_name: str, now: str | None = None) -> list[SecurityMasterRecord]:
+    now = now or datetime.now(timezone.utc).isoformat()
+    records: list[SecurityMasterRecord] = []
+    for row in rows:
+        symbol = str(row.get("Symbol") or row.get("ACT Symbol") or "").strip().upper()
+        if not symbol or symbol == "File Creation Time":
+            continue
+        name = str(row.get("Security Name") or row.get("Security Name") or "").strip()
+        exchange = exchange_name(str(row.get("Exchange") or "NASDAQ"))
+        etf = str(row.get("ETF") or "N").upper() == "Y"
+        test_issue = str(row.get("Test Issue") or "N").upper() == "Y"
+        status = str(row.get("Financial Status") or "").strip()
+        records.append(
+            SecurityMasterRecord(
+                symbol=symbol,
+                company_name=name,
+                asset_type="ETF" if etf else "STK",
+                primary_exchange=exchange,
+                listing_exchange=exchange,
+                currency="USD",
+                country="US",
+                sector="",
+                industry="",
+                is_etf=etf,
+                is_adr=False,
+                is_otc=exchange in {"OTC", "PINK"},
+                is_test_issue=test_issue,
+                financial_status=status,
+                listing_status="active",
+                CIK="",
+                ibkr_conid="",
+                data_source=source_name,
+                last_updated_at=now,
+                blocked_reason="test issue" if test_issue else "",
+            )
+        )
+    return records
+
+
+def exchange_name(value: str) -> str:
+    return {
+        "A": "NYSE_AMERICAN",
+        "N": "NYSE",
+        "P": "NYSE_ARCA",
+        "Z": "BATS",
+        "V": "IEX",
+        "NASDAQ": "NASDAQ",
+    }.get(value.upper(), value.upper())
 
 
 def write_report(report: Mapping[str, Any]) -> None:

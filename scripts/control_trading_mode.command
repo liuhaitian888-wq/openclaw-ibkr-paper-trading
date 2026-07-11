@@ -16,6 +16,8 @@ AGENT_PID_FILE="$RUNTIME_DIR/autonomous_agent.pid"
 API_LOG_FILE="$LOG_DIR/trading_api.log"
 POOL_LOG_FILE="$LOG_DIR/pool_strategy.log"
 AGENT_LOG_FILE="$LOG_DIR/autonomous_agent.log"
+MODE9_LAUNCHD_SRC="$PROJECT_DIR/ops/launchd/com.openclaw.mode9-agent.plist"
+MODE9_LAUNCHD_DST="$HOME/Library/LaunchAgents/com.openclaw.mode9-agent.plist"
 DEFAULT_UNIVERSE_FILE="$PROJECT_DIR/data/us_equity_universe.csv"
 VM_HOST="${OPENCLAW_VM_HOST:-192.168.64.2}"
 VM_USER="${OPENCLAW_VM_USER:-nbhsbgnb}"
@@ -360,26 +362,110 @@ start_autonomous_agent_background() {
   fi
   mkdir -p "$RUNTIME_DIR" "$LOG_DIR"
   launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.openclaw.autonomous-paper.plist" >/dev/null 2>&1 || true
+  launchctl bootout "gui/$(id -u)" "$MODE9_LAUNCHD_DST" >/dev/null 2>&1 || true
   stop_autonomous_agent_if_running
-  MODE9_BUY_FREEZE="${MODE9_BUY_FREEZE:-true}" nohup .venv313/bin/python scripts/run_autonomous_trading_agent.py \
-    --api-url "$url" \
-    --universe-file "${AGENT_UNIVERSE_FILE:-$DEFAULT_UNIVERSE_FILE}" \
-    --max-universe-symbols "${AGENT_MAX_UNIVERSE_SYMBOLS:-60}" \
-    --min-value-score "${AGENT_MIN_VALUE_SCORE:-45}" \
-    --cycle-seconds "${AGENT_CYCLE_SECONDS:-30}" \
-    --strategy-every-cycles "${AGENT_STRATEGY_EVERY_CYCLES:-2}" \
-    --strategy-mode "${AGENT_STRATEGY_MODE:-paper}" \
-    --strategy-steps "${AGENT_STRATEGY_STEPS:-1}" \
-    --strategy-max-orders "${AGENT_STRATEGY_MAX_ORDERS:-4}" \
-    --ibkr-workers "${AGENT_IBKR_WORKERS:-8}" \
-    --ibkr-symbols-per-worker "${AGENT_IBKR_SYMBOLS_PER_WORKER:-8}" \
-    --quote-timeout "${AGENT_QUOTE_TIMEOUT:-8}" \
-    --market-data-type "${AGENT_MARKET_DATA_TYPE:-1}" \
-    ${AGENT_AUTO_APPROVE_CANDIDATES:+--candidate-auto-approve} \
-    >> "$AGENT_LOG_FILE" 2>&1 &
-  local pid="$!"
+  if [[ -f "$MODE9_LAUNCHD_SRC" ]] && command -v launchctl >/dev/null 2>&1; then
+    mkdir -p "$HOME/Library/LaunchAgents"
+    cp "$MODE9_LAUNCHD_SRC" "$MODE9_LAUNCHD_DST"
+    if launchctl bootstrap "gui/$(id -u)" "$MODE9_LAUNCHD_DST"; then
+      sleep 2
+      local pid
+      pid="$(pgrep -f "scripts/run_autonomous_trading_agent.py" | head -n 1 || true)"
+      if [[ -n "$pid" ]]; then
+        printf '%s\n' "$pid" > "$AGENT_PID_FILE"
+      else
+        : > "$AGENT_PID_FILE"
+      fi
+      echo "Started autonomous agent with launchd."
+      echo "PID: ${pid:-pending}"
+      echo "Log: $PROJECT_DIR/logs/mode9_agent.launchd.log"
+      echo "Latest state: $PROJECT_DIR/reports/autonomous_agent/latest.json"
+      return 0
+    fi
+    echo "launchd start failed; falling back to detached background mode."
+  fi
+  local pid
+  pid="$(
+    MODE9_BUY_FREEZE="${MODE9_BUY_FREEZE:-true}" \
+    LIVE_TRADING_ENABLED=false \
+    ALLOW_MARKET_ORDERS=false \
+    NO_PAID_MARKET_DATA_REQUESTS=true \
+    ALLOW_REGULATORY_SNAPSHOT=false \
+    ALLOW_SNAPSHOT_MARKET_DATA=false \
+    ALLOW_DELAYED_DATA_FOR_EXECUTION=false \
+    MARKET_DATA_EXECUTION_REQUIRES_LIVE=true \
+    AGENT_API_URL="$url" \
+    AGENT_UNIVERSE_FILE="${AGENT_UNIVERSE_FILE:-$DEFAULT_UNIVERSE_FILE}" \
+    AGENT_MAX_UNIVERSE_SYMBOLS="${AGENT_MAX_UNIVERSE_SYMBOLS:-60}" \
+    AGENT_MIN_VALUE_SCORE="${AGENT_MIN_VALUE_SCORE:-45}" \
+    AGENT_CYCLE_SECONDS="${AGENT_CYCLE_SECONDS:-30}" \
+    AGENT_STRATEGY_EVERY_CYCLES="${AGENT_STRATEGY_EVERY_CYCLES:-2}" \
+    AGENT_STRATEGY_MODE="${AGENT_STRATEGY_MODE:-paper}" \
+    AGENT_STRATEGY_STEPS="${AGENT_STRATEGY_STEPS:-1}" \
+    AGENT_STRATEGY_MAX_ORDERS="${AGENT_STRATEGY_MAX_ORDERS:-4}" \
+    AGENT_IBKR_WORKERS="${AGENT_IBKR_WORKERS:-8}" \
+    AGENT_IBKR_SYMBOLS_PER_WORKER="${AGENT_IBKR_SYMBOLS_PER_WORKER:-8}" \
+    AGENT_QUOTE_TIMEOUT="${AGENT_QUOTE_TIMEOUT:-8}" \
+    AGENT_MARKET_DATA_TYPE="${AGENT_MARKET_DATA_TYPE:-1}" \
+    AGENT_LOG_FILE="$AGENT_LOG_FILE" \
+    .venv313/bin/python - <<'PY'
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+project = Path.cwd()
+log_path = Path(os.environ["AGENT_LOG_FILE"])
+log_path.parent.mkdir(parents=True, exist_ok=True)
+cmd = [
+    sys.executable,
+    "scripts/run_autonomous_trading_agent.py",
+    "--api-url",
+    os.environ["AGENT_API_URL"],
+    "--universe-file",
+    os.environ["AGENT_UNIVERSE_FILE"],
+    "--max-universe-symbols",
+    os.environ["AGENT_MAX_UNIVERSE_SYMBOLS"],
+    "--min-value-score",
+    os.environ["AGENT_MIN_VALUE_SCORE"],
+    "--cycle-seconds",
+    os.environ["AGENT_CYCLE_SECONDS"],
+    "--strategy-every-cycles",
+    os.environ["AGENT_STRATEGY_EVERY_CYCLES"],
+    "--strategy-mode",
+    os.environ["AGENT_STRATEGY_MODE"],
+    "--strategy-steps",
+    os.environ["AGENT_STRATEGY_STEPS"],
+    "--strategy-max-orders",
+    os.environ["AGENT_STRATEGY_MAX_ORDERS"],
+    "--ibkr-workers",
+    os.environ["AGENT_IBKR_WORKERS"],
+    "--ibkr-symbols-per-worker",
+    os.environ["AGENT_IBKR_SYMBOLS_PER_WORKER"],
+    "--quote-timeout",
+    os.environ["AGENT_QUOTE_TIMEOUT"],
+    "--market-data-type",
+    os.environ["AGENT_MARKET_DATA_TYPE"],
+]
+if os.environ.get("AGENT_AUTO_APPROVE_CANDIDATES"):
+    cmd.append("--candidate-auto-approve")
+env = os.environ.copy()
+with log_path.open("ab") as log:
+    process = subprocess.Popen(
+        cmd,
+        cwd=project,
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        close_fds=True,
+    )
+print(process.pid)
+PY
+  )"
   printf '%s\n' "$pid" > "$AGENT_PID_FILE"
-  echo "Started autonomous agent in background."
+  echo "Started autonomous agent in detached background."
   echo "PID: $pid"
   echo "Log: $AGENT_LOG_FILE"
   echo "Latest state: $PROJECT_DIR/reports/autonomous_agent/latest.json"

@@ -1,4 +1,6 @@
 from datetime import datetime, timezone
+from pathlib import Path
+import tempfile
 import unittest
 
 from scripts.run_autonomous_trading_agent import (
@@ -9,6 +11,7 @@ from scripts.run_autonomous_trading_agent import (
     mode9_buy_freeze,
     should_run_strategy_now,
     streaming_report_payload,
+    sync_canonical_pool_state,
     update_market_state,
 )
 from trading.market_data import Quote
@@ -204,6 +207,66 @@ class AutonomousAgentTests(unittest.TestCase):
         env = {key: value for key, value in os.environ.items() if key != "MODE9_BUY_FREEZE"}
         with patch.dict(os.environ, env, clear=True):
             self.assertTrue(mode9_buy_freeze())
+
+    def test_canonical_pool_bridge_consumes_pool_manager_without_execution(self) -> None:
+        now = datetime.now(timezone.utc)
+        pool_manager = {
+            "membership": {
+                "records": [
+                    {"symbol": "AAPL", "pool_name": "discovery_universe", "included": True, "source": "test"},
+                    {"symbol": "AAPL", "pool_name": "tradable_universe", "included": True, "source": "test", "score": 80},
+                    {"symbol": "AAPL", "pool_name": "stream_eligible_pool", "included": True, "source": "test", "score": 80},
+                    {"symbol": "AAPL", "pool_name": "monitor_pool", "included": True, "source": "test", "score": 80},
+                    {"symbol": "AAPL", "pool_name": "trade_pool", "included": True, "source": "test", "score": 80},
+                ]
+            },
+            "audit": {"global_security_master_count": 1},
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            report = sync_canonical_pool_state(
+                pool_manager=pool_manager,
+                market_session={"session_state": "REGULAR", "expected_live_bid_ask": True, "order_type_allowed": True},
+                quote_readiness={"quotes_available": True, "quote_execution_ready": True},
+                quotes=[Quote("AAPL", 100.05, now, "test", bid=100.0, ask=100.1)],
+                streaming_report=streaming_report_payload(None),
+                lifecycle={"lifecycle_state": "PAPER_READY", "execution_enabled": True},
+                ready_for_orders=True,
+                trace_id="test-cycle",
+                db_path=Path(tmp) / "audit.sqlite3",
+            )
+
+        self.assertTrue(report["connected_to_mode9"])
+        self.assertFalse(report["execution_active"])
+        self.assertFalse(report["order_submitted"])
+        self.assertEqual(report["runtime_symbol_count"], 1)
+        self.assertIn("WATCH_POOL", report["canonical_layer_counts"])
+
+    def test_canonical_pool_bridge_market_closed_waits_without_order(self) -> None:
+        pool_manager = {
+            "membership": {
+                "records": [
+                    {"symbol": "PFE", "pool_name": "discovery_universe", "included": True, "source": "test"},
+                    {"symbol": "PFE", "pool_name": "tradable_universe", "included": True, "source": "test", "score": 70},
+                    {"symbol": "PFE", "pool_name": "monitor_pool", "included": True, "source": "test", "score": 70},
+                ]
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            report = sync_canonical_pool_state(
+                pool_manager=pool_manager,
+                market_session={"session_state": "WEEKEND", "expected_live_bid_ask": False, "blocked_reason": "market_weekend_no_live_bid_ask_expected"},
+                quote_readiness={"quotes_available": False, "quote_execution_ready": False},
+                quotes=[],
+                streaming_report=streaming_report_payload(None),
+                lifecycle={"lifecycle_state": "MARKET_CLOSED_WAITING", "execution_enabled": False},
+                ready_for_orders=True,
+                trace_id="test-cycle",
+                db_path=Path(tmp) / "audit.sqlite3",
+            )
+
+        self.assertFalse(report["order_submitted"])
+        self.assertIn("ELIGIBLE_UNIVERSE", report["canonical_layer_counts"])
+        self.assertIn("MARKET_CLOSED_WAITING", report["blocked_reason_counts"])
 
 
 if __name__ == "__main__":
