@@ -135,6 +135,24 @@ api_health_ok() {
   curl -fsS --max-time 2 -H "X-API-Key: $key" "$url/health" >/dev/null 2>&1
 }
 
+api_health_field() {
+  local url="$1"
+  local key="$2"
+  local field="$3"
+  .venv313/bin/python - "$url" "$key" "$field" <<'PY'
+import json
+import sys
+import urllib.request
+
+url, key, field = sys.argv[1], sys.argv[2], sys.argv[3]
+request = urllib.request.Request(f"{url}/health", headers={"X-API-Key": key})
+with urllib.request.urlopen(request, timeout=2) as response:
+    payload = json.loads(response.read().decode("utf-8"))
+value = payload.get(field, "")
+print("" if value is None else value)
+PY
+}
+
 detect_api_url() {
   local key="$1"
   local candidate
@@ -153,6 +171,34 @@ detect_api_url() {
     if api_health_ok "$candidate" "$key"; then
       printf '%s\n' "$candidate"
       return 0
+    fi
+  done
+
+  return 1
+}
+
+detect_trade_lock_api_url() {
+  local key="$1"
+  local candidate
+  local lock_state
+  local candidates=()
+
+  if [[ -n "${TRADING_API_URL:-}" ]]; then
+    candidates+=("${TRADING_API_URL%/}")
+  fi
+  candidates+=(
+    "http://192.168.64.1:8787"
+    "http://127.0.0.1:8787"
+    "http://localhost:8787"
+  )
+
+  for candidate in "${candidates[@]}"; do
+    if api_health_ok "$candidate" "$key"; then
+      lock_state="$(api_health_field "$candidate" "$key" lock_state 2>/dev/null || true)"
+      if [[ "$lock_state" == "TRADE_LOCK" ]]; then
+        printf '%s\n' "$candidate"
+        return 0
+      fi
     fi
   done
 
@@ -367,6 +413,17 @@ set_trade_lock_env() {
   export MAX_RISK_PER_ORDER=10
 }
 
+set_mode9_runtime_env() {
+  set_trade_lock_env
+  export LIVE_TRADING_ENABLED=false
+  export ALLOW_MARKET_ORDERS=false
+  export NO_PAID_MARKET_DATA_REQUESTS=true
+  export ALLOW_REGULATORY_SNAPSHOT=false
+  export ALLOW_SNAPSHOT_MARKET_DATA=false
+  export ALLOW_DELAYED_DATA_FOR_EXECUTION=false
+  export MARKET_DATA_EXECUTION_REQUIRES_LIVE=true
+}
+
 start_api_background() {
   mkdir -p "$RUNTIME_DIR" "$LOG_DIR"
   stop_api_if_running
@@ -380,6 +437,53 @@ start_api_background() {
   echo "Log: $API_LOG_FILE"
   echo "API URL: http://$TRADING_API_HOST:$TRADING_API_PORT"
   echo "To stop cleanly, rerun this menu and choose 0) STOP."
+}
+
+ensure_trade_lock_api_background() {
+  local key
+  local url
+  local token_loaded=false
+  key="$(cat .secrets/openclaw_api_key)"
+
+  if load_trade_token_env >/dev/null 2>&1; then
+    token_loaded=true
+  fi
+
+  if [[ "$token_loaded" == "true" ]]; then
+    write_trade_token_file "$TRADE_SESSION_TOKEN"
+  else
+    write_trade_token_file "$DAILY_TOKEN"
+    export TRADE_SESSION_TOKEN="$DAILY_TOKEN"
+  fi
+  unset TRADE_SESSION_TOKEN_FILE
+
+  set_mode9_runtime_env
+
+  if [[ "$token_loaded" == "true" ]] && url="$(detect_trade_lock_api_url "$key")"; then
+    echo "Trading API already running in TRADE_LOCK: $url"
+    return 0
+  fi
+
+  if url="$(detect_api_url "$key")"; then
+    local lock_state
+    lock_state="$(api_health_field "$url" "$key" lock_state 2>/dev/null || true)"
+    if [[ "$token_loaded" == "true" ]]; then
+      echo "Trading API is running but not in TRADE_LOCK: ${lock_state:-unknown}; restarting for Mode 9 runtime."
+    else
+      echo "Trading API is running, but no matching trade token was loaded; restarting for Mode 9 runtime."
+    fi
+  else
+    echo "No running TRADE_LOCK API found; starting one for Mode 9 runtime."
+  fi
+
+  start_api_background
+
+  if ! url="$(detect_trade_lock_api_url "$key")"; then
+    echo "Started API, but /health did not report TRADE_LOCK."
+    echo "Check log: $API_LOG_FILE"
+    return 1
+  fi
+  echo "Verified TRADE_LOCK API: $url"
 }
 
 run_monitor_on() {
@@ -626,6 +730,48 @@ run_auto_open_stage() {
   .venv313/bin/python scripts/run_auto_open_discovery_news_simulation.py "$stage"
 }
 
+show_main_menu() {
+  echo "Trading Gateway Mode Control"
+  echo
+  echo "A fresh daily TRADE_SESSION_TOKEN has been generated."
+  echo "It will only be written to the shared folder if you choose TRADE_LOCK or Mode 9 runtime."
+  echo
+  echo "0) STOP          - stop Mac API and clear shared trade token"
+  echo "1) DEV_LOCK      - developer state: code edits allowed, trading blocked"
+  echo "9) MODE9_RUNTIME - runtime state: ensure TRADE_LOCK API, then start autonomous agent"
+  echo "2) MORE_TOOLS    - expand advanced/manual controls"
+  echo
+}
+
+show_advanced_menu() {
+  echo
+  echo "Advanced / manual controls"
+  echo
+  echo "2) TRADE_LOCK - manual paper API mode; choose foreground or background API"
+  echo
+  echo "Checks / TRADE_LOCK automation against the currently running API:"
+  echo "3) HEALTH              - check Mac Python API and TWS readiness"
+  echo "4) AUTO_VALIDATE_SEQ   - requires TRADE_LOCK; validate automatic order sequence"
+  echo "5) AUTO_STAGE_SEQ      - DANGEROUS manual-transmit test; intentionally creates NEW untransmitted TWS orders"
+  echo "6) AUTO_PAPER_SEQ      - requires TRADE_LOCK; create NEW transmitted paper orders"
+  echo "7) POOL_STRATEGY_PAPER - run classic conservative pool module automatically"
+  echo "8) POOL_STRATEGY_BG    - start long paper pool strategy in background"
+  echo "10) MONITOR_ON         - enable report-only monitoring line and account state manager"
+  echo "11) MARKET_SESSION     - report current US equity market session"
+  echo "12) ROLLOUT_PRECHECK   - safe report-only precheck before full paper rollout"
+  echo "13) FULL_PAPER_AUTOMATION - enable staged paper-only full automation"
+  echo "14) DISCOVERY_RUN         - auto-open local discovery; no orders"
+  echo "15) SCANNER_RUN           - scanner discovery/fallback; no orders"
+  echo "16) IBKR_NEWS_TEST        - news interface diagnostics; no orders"
+  echo "17) NEWS_RUN              - unified news pipeline; no orders"
+  echo "18) DYNAMIC_POOL_RUN      - discovery+news+pool rebuild; no orders"
+  echo "19) SIMULATION_DEBUG_RUN  - full local simulated orders/fills/PnL; no IBKR orders"
+  echo "20) PAPER_EXECUTION_GATE_CHECK - future paper gate report only"
+  echo "21) REALTIME_ACCOUNT_SYNC - event-driven account bus + BUY/SELL snapshot sync"
+  echo "22) IBKR_CALLBACK_DRY_RUN - read-only REAL_IBKR callback bridge dry-run"
+  echo
+}
+
 if [[ ! -x ".venv313/bin/python" ]]; then
   echo "Python venv missing: $PROJECT_DIR/.venv313/bin/python"
   exit 1
@@ -646,38 +792,12 @@ PY
 if [[ $# -gt 0 ]]; then
   choice="$1"
 else
-  echo "Trading Gateway Mode Control"
-echo
-echo "A fresh daily TRADE_SESSION_TOKEN has been generated."
-echo "It will only be written to the shared folder if you choose TRADE_LOCK."
-echo
-echo "0) STOP       - stop Mac API and clear shared trade token"
-echo "1) DEV_LOCK   - code edits allowed, trading blocked"
-echo "2) TRADE_LOCK - paper trading allowed, choose foreground or background API"
-echo
-echo "Checks / TRADE_LOCK automation against the currently running API:"
-echo "3) HEALTH              - check Mac Python API and TWS readiness"
-echo "4) AUTO_VALIDATE_SEQ   - requires TRADE_LOCK; validate automatic order sequence"
-echo "5) AUTO_STAGE_SEQ      - DANGEROUS manual-transmit test; intentionally creates NEW untransmitted TWS orders"
-echo "6) AUTO_PAPER_SEQ      - requires TRADE_LOCK; create NEW transmitted paper orders"
-echo "7) POOL_STRATEGY_PAPER - run classic conservative pool module automatically"
-echo "8) POOL_STRATEGY_BG    - start long paper pool strategy in background"
-echo "9) AUTONOMOUS_AGENT_BG - AI supervisor: research tasks + full-pool strategy"
-echo "10) MONITOR_ON         - enable report-only monitoring line and account state manager"
-echo "11) MARKET_SESSION     - report current US equity market session"
-echo "12) ROLLOUT_PRECHECK   - safe report-only precheck before full paper rollout"
-echo "13) FULL_PAPER_AUTOMATION - enable staged paper-only full automation"
-echo "14) DISCOVERY_RUN         - auto-open local discovery; no orders"
-echo "15) SCANNER_RUN           - scanner discovery/fallback; no orders"
-echo "16) IBKR_NEWS_TEST        - news interface diagnostics; no orders"
-echo "17) NEWS_RUN              - unified news pipeline; no orders"
-echo "18) DYNAMIC_POOL_RUN      - discovery+news+pool rebuild; no orders"
-echo "19) SIMULATION_DEBUG_RUN  - full local simulated orders/fills/PnL; no IBKR orders"
-echo "20) PAPER_EXECUTION_GATE_CHECK - future paper gate report only"
-echo "21) REALTIME_ACCOUNT_SYNC - event-driven account bus + BUY/SELL snapshot sync"
-echo "22) IBKR_CALLBACK_DRY_RUN - read-only REAL_IBKR callback bridge dry-run"
-echo
-read -r -p "Choose mode [0/1/2/3/4/5/6/7/8/9/10/11/12/13/14/15/16/17/18/19/20/21/22]: " choice
+  show_main_menu
+  read -r -p "Choose mode [0/1/2/9]: " choice
+  if [[ "$choice" == "2" || "$choice" == "MORE_TOOLS" || "$choice" == "more_tools" || "$choice" == "tools" ]]; then
+    show_advanced_menu
+    read -r -p "Choose advanced mode [2/3/4/5/6/7/8/10/11/12/13/14/15/16/17/18/19/20/21/22]: " choice
+  fi
 fi
 
 case "$choice" in
@@ -772,6 +892,7 @@ case "$choice" in
     ;;
 
   9|AUTONOMOUS_AGENT_BG|autonomous_agent_bg|agent-bg|agent_bg)
+    ensure_trade_lock_api_background
     start_autonomous_agent_background
     exit 0
     ;;
