@@ -35,6 +35,7 @@ from trading.gap_risk_manager import build_gap_risk_report
 from trading.ibkr_readonly import ParallelIbkrReadOnlyQuoteSource
 from trading.ibkr_streaming import IbkrStreamingQuoteSource
 from trading.market_data import Quote
+from trading.market_session import current_market_session
 from trading.options_hedge_planner import build_options_hedge_report
 from trading.pool_manager import build_pool_manager_report
 from trading.position_guard import build_position_guard_report
@@ -53,6 +54,19 @@ from trading.universe import (
 
 
 DEFAULT_API_URL = "http://192.168.64.1:8787"
+MODE9_LIFECYCLE_STATES = {
+    "STARTING",
+    "API_NOT_READY",
+    "IBKR_DISCONNECTED",
+    "MARKET_CLOSED_WAITING",
+    "WAITING_FOR_QUOTES",
+    "QUOTES_STALE_WAITING",
+    "PAPER_READY",
+    "PAPER_BLOCKED_BY_RISK",
+    "PAPER_ORDER_SUBMITTED",
+    "ERROR_RECOVERABLE",
+}
+ACTIVE_LIFECYCLE_STATES = {"PAPER_READY", "PAPER_BLOCKED_BY_RISK", "PAPER_ORDER_SUBMITTED"}
 
 
 @dataclass(frozen=True)
@@ -88,6 +102,18 @@ class AgentCycle:
     trailing_profit: Dict[str, object]
     options_hedge: Dict[str, object]
     mode9_buy_freeze: bool
+    agent_running: bool
+    lifecycle_state: str
+    market_session_state: str
+    ibkr_connected: bool
+    quotes_available: bool
+    quote_execution_ready: bool
+    execution_enabled: bool
+    order_submitted: bool
+    blocked_reason: str
+    next_check_at: str
+    market_session: Dict[str, object]
+    quote_readiness: Dict[str, object]
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -122,6 +148,18 @@ class AgentCycle:
             "trailing_profit": self.trailing_profit,
             "options_hedge": self.options_hedge,
             "mode9_buy_freeze": self.mode9_buy_freeze,
+            "agent_running": self.agent_running,
+            "lifecycle_state": self.lifecycle_state,
+            "market_session_state": self.market_session_state,
+            "ibkr_connected": self.ibkr_connected,
+            "quotes_available": self.quotes_available,
+            "quote_execution_ready": self.quote_execution_ready,
+            "execution_enabled": self.execution_enabled,
+            "order_submitted": self.order_submitted,
+            "blocked_reason": self.blocked_reason,
+            "next_check_at": self.next_check_at,
+            "market_session": self.market_session,
+            "quote_readiness": self.quote_readiness,
         }
 
 
@@ -179,6 +217,7 @@ def main() -> int:
                     result = failed_cycle(cycle, exc, started)
                 append_jsonl(args.report_dir / "cycles.jsonl", result.as_dict())
                 write_json(args.report_dir / "latest.json", result.as_dict())
+                write_text(args.report_dir / "latest.md", cycle_markdown(result.as_dict()))
                 elapsed = time.perf_counter() - started
                 if args.cycles > 0 and cycle >= args.cycles:
                     break
@@ -207,6 +246,7 @@ def run_cycle(
     timings["health_ms"] = elapsed_ms(started)
     lock_state = str(health.get("lock_state", "unknown"))
     tws = health.get("tws", {}) if isinstance(health.get("tws"), dict) else {}
+    ibkr_connected = tws.get("connected") is True
     ready_for_orders = tws.get("ready_for_orders") is True
     allowed_symbols = sorted(set(health.get("limits", {}).get("allowed_symbols", [])))
     started = time.perf_counter()
@@ -330,6 +370,9 @@ def run_cycle(
     monitor_symbols = list(dict.fromkeys([*held_symbols, *monitor_symbols]))
     timings["select_universe_ms"] = elapsed_ms(started)
     started = time.perf_counter()
+    market_session = current_market_session(symbols=monitor_symbols[: min(12, len(monitor_symbols))]).to_dict()
+    timings["market_session_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     quotes = fetch_quotes(args, settings, monitor_symbols, cycle, errors)
     timings["fetch_quotes_ms"] = elapsed_ms(started)
     started = time.perf_counter()
@@ -344,19 +387,37 @@ def run_cycle(
     started = time.perf_counter()
     process_candidate_inbox(args, errors)
     timings["process_candidate_inbox_ms"] = elapsed_ms(started)
+    streaming_report = streaming_report_payload(streaming_source)
+    quote_readiness = build_quote_readiness(
+        quotes=quotes,
+        streaming_report=streaming_report,
+        max_age_ms=max(1000.0, args.quote_timeout * 1000.0),
+    )
+    lifecycle = evaluate_lifecycle_state(
+        health=health,
+        lock_state=lock_state,
+        ready_for_orders=ready_for_orders,
+        ibkr_connected=ibkr_connected,
+        market_session=market_session,
+        quote_readiness=quote_readiness,
+        errors=errors,
+    )
 
     started = time.perf_counter()
-    should_run_strategy = (
-        not args.disable_strategy
-        and ready_for_orders
-        and lock_state == "TRADE_LOCK"
-        and args.strategy_every_cycles > 0
-        and cycle % args.strategy_every_cycles == 0
+    should_run_strategy = should_run_strategy_now(
+        disable_strategy=args.disable_strategy,
+        lifecycle_state=str(lifecycle["lifecycle_state"]),
+        ready_for_orders=ready_for_orders,
+        lock_state=lock_state,
+        strategy_every_cycles=args.strategy_every_cycles,
+        cycle=cycle,
     )
     if should_run_strategy:
         strategy_run = run_strategy_once(args, api_key, monitor_symbols, buy_freeze=buy_freeze)
     timings["strategy_run_ms"] = elapsed_ms(started)
-    streaming_report = streaming_report_payload(streaming_source)
+    order_submitted = bool(strategy_run and int(strategy_run.get("submitted_count") or 0) > 0)
+    if order_submitted:
+        lifecycle = {**lifecycle, "lifecycle_state": "PAPER_ORDER_SUBMITTED", "blocked_reason": ""}
     timings["cycle_total_ms"] = elapsed_ms(cycle_started)
     return AgentCycle(
         cycle=cycle,
@@ -390,10 +451,28 @@ def run_cycle(
         trailing_profit=dict(trailing_profit),
         options_hedge=dict(options_hedge),
         mode9_buy_freeze=buy_freeze,
+        agent_running=True,
+        lifecycle_state=str(lifecycle["lifecycle_state"]),
+        market_session_state=str(market_session.get("session_state") or "UNKNOWN"),
+        ibkr_connected=ibkr_connected,
+        quotes_available=bool(quote_readiness["quotes_available"]),
+        quote_execution_ready=bool(quote_readiness["quote_execution_ready"]),
+        execution_enabled=bool(lifecycle["execution_enabled"]),
+        order_submitted=order_submitted,
+        blocked_reason=str(lifecycle["blocked_reason"]),
+        next_check_at=next_check_at(args.cycle_seconds),
+        market_session=dict(market_session),
+        quote_readiness=dict(quote_readiness),
     )
 
 
 def failed_cycle(cycle: int, exc: Exception, started: float) -> AgentCycle:
+    lifecycle_state = "API_NOT_READY" if isinstance(exc, urllib.error.URLError) else "ERROR_RECOVERABLE"
+    blocked_reason = (
+        f"trading_api_health_unavailable: {exc}"
+        if lifecycle_state == "API_NOT_READY"
+        else f"cycle failed recoverably: {exc}"
+    )
     return AgentCycle(
         cycle=cycle,
         created_at=utc_now(),
@@ -426,7 +505,188 @@ def failed_cycle(cycle: int, exc: Exception, started: float) -> AgentCycle:
         trailing_profit={},
         options_hedge={},
         mode9_buy_freeze=mode9_buy_freeze(),
+        agent_running=True,
+        lifecycle_state=lifecycle_state,
+        market_session_state="UNKNOWN",
+        ibkr_connected=False,
+        quotes_available=False,
+        quote_execution_ready=False,
+        execution_enabled=False,
+        order_submitted=False,
+        blocked_reason=blocked_reason,
+        next_check_at=next_check_at(30.0),
+        market_session={},
+        quote_readiness={
+            "quotes_available": False,
+            "quote_execution_ready": False,
+            "fresh_bid_count": 0,
+            "fresh_ask_count": 0,
+            "blocked_reason": "cycle_failed",
+        },
     )
+
+
+def build_quote_readiness(
+    *,
+    quotes: List[Quote],
+    streaming_report: Dict[str, object],
+    max_age_ms: float,
+) -> Dict[str, object]:
+    now = datetime.now(timezone.utc)
+    fresh_bid_count = 0
+    fresh_ask_count = 0
+    quote_rows: List[Dict[str, object]] = []
+    for quote in quotes:
+        age_ms = quote.age_ms(now)
+        bid_fresh = quote.bid is not None and age_ms <= max_age_ms
+        ask_fresh = quote.ask is not None and age_ms <= max_age_ms
+        fresh_bid_count += int(bid_fresh)
+        fresh_ask_count += int(ask_fresh)
+        quote_rows.append(
+            {
+                "symbol": quote.symbol.upper(),
+                "source": quote.source,
+                "bid_received": quote.bid is not None,
+                "ask_received": quote.ask is not None,
+                "bid_fresh": bid_fresh,
+                "ask_fresh": ask_fresh,
+                "age_ms": age_ms,
+            }
+        )
+
+    streaming_quotes = streaming_report.get("streaming_quotes", {})
+    if isinstance(streaming_quotes, dict):
+        for symbol, payload in streaming_quotes.items():
+            if not isinstance(payload, dict):
+                continue
+            blocked = str(payload.get("blocked_reason") or "")
+            bid_received = payload.get("bid") is not None
+            ask_received = payload.get("ask") is not None
+            bid_fresh = bid_received and "stale_bid" not in blocked and "bid is missing" not in blocked
+            ask_fresh = ask_received and "stale_ask" not in blocked and "ask is missing" not in blocked
+            fresh_bid_count += int(bid_fresh)
+            fresh_ask_count += int(ask_fresh)
+            quote_rows.append(
+                {
+                    "symbol": str(symbol).upper(),
+                    "source": payload.get("source") or "ibkr_streaming",
+                    "bid_received": bid_received,
+                    "ask_received": ask_received,
+                    "bid_fresh": bid_fresh,
+                    "ask_fresh": ask_fresh,
+                    "blocked_reason": blocked,
+                }
+            )
+
+    quotes_available = bool(quote_rows)
+    quote_execution_ready = fresh_bid_count > 0 and fresh_ask_count > 0
+    blocked_reason = ""
+    if not quotes_available:
+        blocked_reason = "waiting_for_quotes"
+    elif not quote_execution_ready:
+        blocked_reason = "stale_or_missing_bid_ask"
+    return {
+        "quotes_available": quotes_available,
+        "quote_execution_ready": quote_execution_ready,
+        "fresh_bid_count": fresh_bid_count,
+        "fresh_ask_count": fresh_ask_count,
+        "quote_count": len(quote_rows),
+        "blocked_reason": blocked_reason,
+        "rows": quote_rows[:40],
+    }
+
+
+def evaluate_lifecycle_state(
+    *,
+    health: Dict[str, Any],
+    lock_state: str,
+    ready_for_orders: bool,
+    ibkr_connected: bool,
+    market_session: Dict[str, object],
+    quote_readiness: Dict[str, object],
+    errors: List[str],
+) -> Dict[str, object]:
+    if not isinstance(health, dict) or not health:
+        return lifecycle("API_NOT_READY", "trading_api_health_unavailable", False)
+    if lock_state != "TRADE_LOCK":
+        return lifecycle("API_NOT_READY", f"lock_state_not_trade_lock:{lock_state}", False)
+    if not ibkr_connected:
+        return lifecycle("IBKR_DISCONNECTED", "ibkr_tws_disconnected", False)
+    session_state = str(market_session.get("session_state") or "UNKNOWN")
+    expected_live_bid_ask = bool(market_session.get("expected_live_bid_ask"))
+    if not expected_live_bid_ask:
+        return lifecycle("MARKET_CLOSED_WAITING", str(market_session.get("blocked_reason") or "market_closed_no_live_bid_ask_expected"), False)
+    if not bool(quote_readiness.get("quotes_available")):
+        return lifecycle("WAITING_FOR_QUOTES", "waiting_for_live_bid_ask_quotes", False)
+    if not bool(quote_readiness.get("quote_execution_ready")):
+        reason = str(quote_readiness.get("blocked_reason") or "stale_or_missing_bid_ask")
+        return lifecycle("QUOTES_STALE_WAITING", reason, False)
+    if not ready_for_orders:
+        return lifecycle("PAPER_BLOCKED_BY_RISK", "tws_or_trading_api_not_ready_for_orders", False)
+    if errors:
+        non_market_errors = [
+            error
+            for error in errors
+            if "automatic snapshot market data blocked" not in error
+        ]
+        if non_market_errors:
+            return lifecycle("ERROR_RECOVERABLE", "; ".join(non_market_errors[:3]), False)
+    if session_state == "UNKNOWN":
+        return lifecycle("ERROR_RECOVERABLE", "market_session_unknown", False)
+    return lifecycle("PAPER_READY", "", True)
+
+
+def lifecycle(state: str, blocked_reason: str, execution_enabled: bool) -> Dict[str, object]:
+    if state not in MODE9_LIFECYCLE_STATES:
+        raise ValueError(f"unsupported Mode 9 lifecycle state: {state}")
+    return {
+        "lifecycle_state": state,
+        "blocked_reason": blocked_reason,
+        "execution_enabled": execution_enabled,
+    }
+
+
+def should_run_strategy_now(
+    *,
+    disable_strategy: bool,
+    lifecycle_state: str,
+    ready_for_orders: bool,
+    lock_state: str,
+    strategy_every_cycles: int,
+    cycle: int,
+) -> bool:
+    return (
+        not disable_strategy
+        and lifecycle_state == "PAPER_READY"
+        and ready_for_orders
+        and lock_state == "TRADE_LOCK"
+        and strategy_every_cycles > 0
+        and cycle % strategy_every_cycles == 0
+    )
+
+
+def next_check_at(cycle_seconds: float) -> str:
+    return datetime.fromtimestamp(time.time() + max(0.0, cycle_seconds), tz=timezone.utc).isoformat()
+
+
+def cycle_markdown(payload: Dict[str, object]) -> str:
+    lines = [
+        "# Autonomous Agent",
+        "",
+        f"- agent_running: {payload.get('agent_running')}",
+        f"- lifecycle_state: {payload.get('lifecycle_state')}",
+        f"- market_session_state: {payload.get('market_session_state')}",
+        f"- ibkr_connected: {payload.get('ibkr_connected')}",
+        f"- quotes_available: {payload.get('quotes_available')}",
+        f"- quote_execution_ready: {payload.get('quote_execution_ready')}",
+        f"- execution_enabled: {payload.get('execution_enabled')}",
+        f"- order_submitted: {payload.get('order_submitted')}",
+        f"- blocked_reason: {payload.get('blocked_reason')}",
+        f"- next_check_at: {payload.get('next_check_at')}",
+        "",
+        "Waiting states are normal for closed markets, disconnected TWS, missing quotes, or stale bid/ask. Mode 9 keeps running and does not submit orders until the paper-only execution gate is ready.",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def build_streaming_source(settings: Settings) -> Optional[IbkrStreamingQuoteSource]:
@@ -715,6 +975,11 @@ def append_jsonl(path: Path, payload: Dict[str, object]) -> None:
 def write_json(path: Path, payload: Dict[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def write_text(path: Path, payload: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload, encoding="utf-8")
 
 
 def utc_now() -> str:
