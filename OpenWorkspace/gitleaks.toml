@@ -1,0 +1,9 @@
+title = "OpenWorkspace gitleaks configuration"
+
+[allowlist]
+description = "Allow examples and documentation placeholders only."
+paths = [
+  '''Config/.*\.example\.json''',
+  '''docs/.*\.md''',
+  '''README\.md'''
+]

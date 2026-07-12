@@ -1,0 +1,21 @@
+.DS_Store
+.build/
+DerivedData/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserdata/
+
+# Local app state
+Config/workspace.json
+Config/device.json
+Config/runtime-state.json
+Config/cache/
+Logs/
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+.secrets/
+*.pem
+*.p12
+*.mobileprovision

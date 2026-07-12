@@ -1,0 +1,10 @@
+{
+  "alias": "Android Display",
+  "capabilities": {
+    "supportedConnectionModes": ["wifi"],
+    "supportsDisplay": true,
+    "supportsKeyboardInput": true,
+    "supportsPointerInput": true
+  },
+  "kind": "android"
+}
