@@ -7,6 +7,7 @@ final class AppViewModel: ObservableObject {
     @Published var statusMessage = "OpenWorkspace is idle"
     @Published var connectedDevices: [RegisteredDevice] = []
     @Published var discoveredDevices: [DiscoveredDevice] = []
+    @Published var displays: [ManagedDisplay] = []
     @Published var displayCount = 0
     @Published var isVirtualDisplayActive = false
     @Published var isSunshineInstalled = false
@@ -69,6 +70,7 @@ final class AppViewModel: ObservableObject {
             let status = try await workspaceService.status()
             connectedDevices = status.connectedDevices
             discoveredDevices = status.discoveredDevices
+            displays = status.displays
             displayCount = status.displays.count
             isVirtualDisplayActive = status.isVirtualDisplayActive
             isSunshineInstalled = status.isSunshineInstalled
@@ -100,7 +102,7 @@ final class AppViewModel: ObservableObject {
         await run("Creating virtual display") {
             _ = try await self.workspaceService.createVirtualDisplay()
             await self.refreshStatus()
-            return "Virtual display requested"
+            return "Virtual display created"
         }
     }
 
@@ -109,6 +111,26 @@ final class AppViewModel: ObservableObject {
             try await self.workspaceService.destroyVirtualDisplay()
             await self.refreshStatus()
             return "Virtual display destroyed"
+        }
+    }
+
+    func refreshDisplays() async {
+        await run("Refreshing displays") {
+            let refreshedDisplays = try await self.workspaceService.refreshDisplays()
+            let status = try await self.workspaceService.status()
+            self.displays = refreshedDisplays
+            self.displayCount = refreshedDisplays.count
+            self.isVirtualDisplayActive = status.isVirtualDisplayActive
+            return "Displays refreshed: \(refreshedDisplays.count)"
+        }
+    }
+
+    func listDisplays() async {
+        await run("Listing displays") {
+            let listedDisplays = try await self.workspaceService.listDisplays()
+            self.displays = listedDisplays
+            self.displayCount = listedDisplays.count
+            return "Displays listed: \(listedDisplays.count)"
         }
     }
 

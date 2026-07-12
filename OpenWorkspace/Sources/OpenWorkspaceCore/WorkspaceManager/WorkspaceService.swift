@@ -6,6 +6,8 @@ public protocol WorkspaceServicing: Sendable {
     func registerAndroidDevice(alias: String) async throws -> RegisteredDevice
     func createVirtualDisplay() async throws -> VirtualDisplayHandle
     func destroyVirtualDisplay() async throws
+    func refreshDisplays() async throws -> [ManagedDisplay]
+    func listDisplays() async throws -> [ManagedDisplay]
     func launchSunshine() async throws
     func stopSunshine() async throws
     func restartSunshine() async throws
@@ -69,7 +71,7 @@ public actor WorkspaceService: WorkspaceServicing {
 
     public func status() async throws -> WorkspaceStatus {
         let discoveredDevices = try await discoveryService.discoverDevices()
-        let displays = try await displayManager.listDisplays()
+        let displays = try await displayManager.refreshDisplays()
         let virtualDisplayActive = try await displayManager.isVirtualDisplayActive()
         let sunshineInstalled = await sunshineManager.installation() != nil
         let sunshineRunning = await sunshineManager.isRunning()
@@ -113,6 +115,14 @@ public actor WorkspaceService: WorkspaceServicing {
     public func destroyVirtualDisplay() async throws {
         try await displayManager.destroyVirtualDisplay()
         virtualDisplays.removeAll()
+    }
+
+    public func refreshDisplays() async throws -> [ManagedDisplay] {
+        try await displayManager.refreshDisplays()
+    }
+
+    public func listDisplays() async throws -> [ManagedDisplay] {
+        try await displayManager.listDisplays()
     }
 
     public func launchSunshine() async throws {

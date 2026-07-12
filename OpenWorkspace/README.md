@@ -99,6 +99,7 @@ swift test
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Virtual Display Workflow](docs/VIRTUAL_DISPLAY.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Development Guide](docs/DEVELOPMENT.md)
 - [Contribution Guide](docs/CONTRIBUTING.md)

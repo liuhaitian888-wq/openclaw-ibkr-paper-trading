@@ -6,7 +6,7 @@
 - ADB Android discovery: implemented
 - Android device registration: implemented
 - BetterDisplay provider boundary: implemented
-- Virtual display create/destroy through provider: implemented
+- Virtual display create/destroy/refresh/list through provider: implemented
 - Sunshine lifecycle manager: implemented
 - Save and restore workspace configuration: implemented
 - Privacy-aware logging: implemented

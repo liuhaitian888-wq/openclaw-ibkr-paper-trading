@@ -66,6 +66,8 @@ Apple documents APIs for enumerating and interacting with displays, but not a pu
 
 BetterDisplay documents virtual screen support and CLI integration for creating, connecting, and discarding virtual screens. The initial provider uses that external CLI when installed.
 
+See [Virtual Display Workflow](VIRTUAL_DISPLAY.md) for the implemented Milestone 1 workflow.
+
 References:
 
 - [Apple CoreGraphics Display Services](https://developer.apple.com/documentation/coregraphics/display-services)

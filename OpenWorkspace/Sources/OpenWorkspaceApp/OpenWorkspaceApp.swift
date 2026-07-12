@@ -54,6 +54,16 @@ struct OpenWorkspaceApp: App {
 
                     Divider()
 
+                    if viewModel.displays.isEmpty {
+                        Text("No display snapshot")
+                    } else {
+                        ForEach(viewModel.displays) { display in
+                            Text("\(display.name): \(display.resolution.width)x\(display.resolution.height)")
+                        }
+                    }
+
+                    Divider()
+
                     Button("Create Virtual Display") {
                         Task { await viewModel.createVirtualDisplay() }
                     }
@@ -63,6 +73,14 @@ struct OpenWorkspaceApp: App {
                         Task { await viewModel.destroyVirtualDisplay() }
                     }
                     .disabled(!viewModel.isVirtualDisplayActive)
+
+                    Button("Refresh Displays") {
+                        Task { await viewModel.refreshDisplays() }
+                    }
+
+                    Button("List Displays") {
+                        Task { await viewModel.listDisplays() }
+                    }
                 }
 
                 Button("Launch Sunshine") {
