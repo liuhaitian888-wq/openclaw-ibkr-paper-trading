@@ -30,7 +30,7 @@ struct OpenWorkspaceApp: App {
                     }
 
                     ForEach(viewModel.connectedDevices) { device in
-                        Text("\(device.alias) (\(device.kind.rawValue))")
+                        Text("\(device.alias) (\(device.kind.rawValue)): \(viewModel.connectedDeviceState.rawValue)")
                     }
 
                     ForEach(viewModel.discoveredDevices) { device in
@@ -131,20 +131,91 @@ struct OpenWorkspaceApp: App {
                     }
                 }
 
-                Button("Launch Sunshine") {
-                    Task { await viewModel.launchSunshine() }
-                }
-                .disabled(viewModel.isSunshineRunning)
+                Menu("Streaming") {
+                    Text("Status: \(viewModel.streamingState.rawValue)")
 
-                Button("Restart Sunshine") {
-                    Task { await viewModel.restartSunshine() }
-                }
-                .disabled(!viewModel.isSunshineInstalled)
+                    Divider()
 
-                Button("Stop Sunshine") {
-                    Task { await viewModel.stopSunshine() }
+                    Button("Status") {
+                        Task { await viewModel.refreshStatus() }
+                    }
+
+                    Button("Launch") {
+                        Task { await viewModel.launchStreaming() }
+                    }
+                    .disabled(viewModel.streamingState == .running)
+
+                    Button("Stop") {
+                        Task { await viewModel.stopStreaming() }
+                    }
+                    .disabled(viewModel.streamingState != .running)
+
+                    Button("Restart") {
+                        Task { await viewModel.restartStreaming() }
+                    }
+                    .disabled(!viewModel.streamingInstalled)
+
+                    Button("Reload Configuration") {
+                        Task { await viewModel.reloadStreamingConfiguration() }
+                    }
+                    .disabled(!viewModel.streamingInstalled)
+
+                    Menu("Logs") {
+                        Button("Refresh Logs") {
+                            Task { await viewModel.readStreamingLogs() }
+                        }
+
+                        Divider()
+
+                        if viewModel.streamingLogLines.isEmpty {
+                            Text("No logs loaded")
+                        } else {
+                            ForEach(viewModel.streamingLogLines, id: \.self) { line in
+                                Text(line)
+                            }
+                        }
+                    }
+
+                    Menu("Statistics") {
+                        Button("Refresh Statistics") {
+                            Task { await viewModel.readStreamingStatistics() }
+                        }
+
+                        Divider()
+
+                        if viewModel.streamingStatisticsLines.isEmpty {
+                            Text("No statistics loaded")
+                        } else {
+                            ForEach(viewModel.streamingStatisticsLines, id: \.self) { line in
+                                Text(line)
+                            }
+                        }
+                    }
+
+                    Menu("Diagnostics") {
+                        Button("Run Diagnostics") {
+                            Task { await viewModel.runStreamingDiagnostics() }
+                        }
+
+                        Divider()
+
+                        if viewModel.streamingDiagnosticsLines.isEmpty {
+                            Text("No diagnostics yet")
+                        } else {
+                            ForEach(viewModel.streamingDiagnosticsLines, id: \.self) { line in
+                                Text(line)
+                            }
+                        }
+                    }
+
+                    Button("Settings") {
+                        Task { await viewModel.openStreamingSettings() }
+                    }
+
+                    Button("Pair Device") {
+                        viewModel.pairDevicePlaceholder()
+                    }
                 }
-                .disabled(!viewModel.isSunshineRunning)
 
                 Divider()
 

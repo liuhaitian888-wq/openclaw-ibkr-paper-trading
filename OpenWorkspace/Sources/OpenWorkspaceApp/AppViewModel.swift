@@ -12,8 +12,12 @@ final class AppViewModel: ObservableObject {
     @Published var isVirtualDisplayActive = false
     @Published var betterDisplayDiagnostics: BetterDisplayDiagnostics?
     @Published var diagnosticsLines: [String] = []
-    @Published var isSunshineInstalled = false
-    @Published var isSunshineRunning = false
+    @Published var streamingState: StreamingState = .unavailable
+    @Published var streamingInstalled = false
+    @Published var streamingDiagnosticsLines: [String] = []
+    @Published var streamingLogLines: [String] = []
+    @Published var streamingStatisticsLines: [String] = []
+    @Published var connectedDeviceState: StreamingDeviceConnectionState = .offline
 
     private let workspaceService: WorkspaceServicing
     private let logger: AppLogging
@@ -26,6 +30,7 @@ final class AppViewModel: ObservableObject {
     static func bootstrap() -> AppViewModel {
         DiagnosticsCommand.runAndExitIfNeeded()
         BetterDisplayCommandLine.runAndExitIfNeeded()
+        StreamingCommandLine.runAndExitIfNeeded()
 
         let logger = ConsoleLogger(minimumLevel: .info)
         let processRunner = ShellProcessRunner(logger: logger)
@@ -46,7 +51,9 @@ final class AppViewModel: ObservableObject {
             ),
             deviceRegistry: InMemoryDeviceRegistry(logger: logger),
             displayManager: MacDisplayManager(provider: displayProvider, logger: logger),
-            sunshineManager: SunshineManager(processRunner: processRunner, logger: logger),
+            streamingManager: StreamingManager(
+                provider: SunshineProvider(processRunner: processRunner, logger: logger)
+            ),
             clientManager: ExternalClientManager(logger: logger),
             configurationStore: configurationStore,
             logger: logger
@@ -56,14 +63,14 @@ final class AppViewModel: ObservableObject {
     }
 
     var summary: String {
-        if isVirtualDisplayActive && isSunshineRunning {
+        if isVirtualDisplayActive && streamingState == .running {
             return "Ready for third display"
         }
         if isVirtualDisplayActive {
             return "Virtual display active"
         }
-        if isSunshineRunning {
-            return "Sunshine running"
+        if streamingState == .running {
+            return "Streaming running"
         }
         return statusMessage
     }
@@ -76,9 +83,9 @@ final class AppViewModel: ObservableObject {
             displays = status.displays
             displayCount = status.displays.count
             isVirtualDisplayActive = status.isVirtualDisplayActive
-            isSunshineInstalled = status.isSunshineInstalled
-            isSunshineRunning = status.isSunshineRunning
-            statusMessage = "Displays: \(displayCount) | Sunshine: \(isSunshineRunning ? "Running" : "Stopped")"
+            streamingState = status.streamingState
+            streamingInstalled = status.streamingInstallation.isInstalled
+            statusMessage = "Displays: \(displayCount) | Streaming: \(streamingState.rawValue)"
         } catch {
             logger.error("Status refresh failed: \(error.localizedDescription)")
             statusMessage = "Status unavailable"
@@ -179,28 +186,76 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func launchSunshine() async {
-        await run("Launching Sunshine") {
-            try await self.workspaceService.launchSunshine()
+    func launchStreaming() async {
+        await run("Launching streaming provider") {
+            try await self.workspaceService.launchStreaming()
             await self.refreshStatus()
-            return "Sunshine launch requested"
+            return "Streaming launch requested"
         }
     }
 
-    func stopSunshine() async {
-        await run("Stopping Sunshine") {
-            try await self.workspaceService.stopSunshine()
+    func stopStreaming() async {
+        await run("Stopping streaming provider") {
+            try await self.workspaceService.stopStreaming()
             await self.refreshStatus()
-            return "Sunshine stop requested"
+            return "Streaming stop requested"
         }
     }
 
-    func restartSunshine() async {
-        await run("Restarting Sunshine") {
-            try await self.workspaceService.restartSunshine()
+    func restartStreaming() async {
+        await run("Restarting streaming provider") {
+            try await self.workspaceService.restartStreaming()
             await self.refreshStatus()
-            return "Sunshine restart requested"
+            return "Streaming restart requested"
         }
+    }
+
+    func reloadStreamingConfiguration() async {
+        await run("Reloading streaming configuration") {
+            try await self.workspaceService.reloadStreamingConfiguration()
+            await self.refreshStatus()
+            return "Streaming configuration reloaded"
+        }
+    }
+
+    func readStreamingLogs() async {
+        await run("Reading streaming logs") {
+            let logs = try await self.workspaceService.streamingLogs()
+            self.streamingLogLines = logs
+            return "Streaming logs loaded"
+        }
+    }
+
+    func readStreamingStatistics() async {
+        await run("Reading streaming statistics") {
+            let statistics = try await self.workspaceService.streamingStatistics()
+            self.streamingStatisticsLines = Self.formatStatistics(statistics)
+            return "Streaming statistics loaded"
+        }
+    }
+
+    func runStreamingDiagnostics() async {
+        await run("Running streaming diagnostics") {
+            let diagnostics = try await self.workspaceService.streamingDiagnostics()
+            self.streamingDiagnosticsLines = Self.formatStreamingDiagnostics(diagnostics)
+            self.streamingLogLines = diagnostics.logPreview
+            self.streamingStatisticsLines = Self.formatStatistics(diagnostics.statistics)
+            self.streamingState = diagnostics.state
+            self.streamingInstalled = diagnostics.installation.isInstalled
+            return "Streaming diagnostics complete"
+        }
+    }
+
+    func openStreamingSettings() async {
+        await run("Opening streaming settings") {
+            try await self.workspaceService.openStreamingSettings()
+            return "Streaming settings requested"
+        }
+    }
+
+    func pairDevicePlaceholder() {
+        statusMessage = "Pair Device is reserved for a future Moonlight workflow"
+        connectedDeviceState = .offline
     }
 
     func saveWorkspace() async {
@@ -262,5 +317,33 @@ final class AppViewModel: ObservableObject {
             lines.append(contentsOf: environment.guidance.map { "Guidance: \($0)" })
         }
         return lines
+    }
+
+    private static func formatStreamingDiagnostics(_ diagnostics: StreamingDiagnostics) -> [String] {
+        var lines = [
+            "Provider: \(diagnostics.provider.rawValue)",
+            "Installed: \(diagnostics.installation.isInstalled ? "Yes" : "No")",
+            "Executable: \(diagnostics.installation.executableURL == nil ? "Unavailable" : "Available")",
+            "Version: \(diagnostics.installation.version ?? "Unavailable")",
+            "State: \(diagnostics.state.rawValue)",
+            "Configuration: \(diagnostics.configuration.url?.lastPathComponent ?? "Unavailable")",
+            "VideoToolbox: \(diagnostics.statistics.videoToolboxAvailable ? "Available" : "Unavailable")",
+            "Hardware Encoder: \(diagnostics.statistics.hardwareEncoderAvailable ? "Available" : "Unavailable")",
+            "Web Port Available: \(diagnostics.statistics.webPortAvailable ? "Yes" : "No")",
+            "Stream Ports Available: \(diagnostics.statistics.streamPortsAvailable ? "Yes" : "No")"
+        ]
+        lines.append(contentsOf: diagnostics.issues.map { "Issue: \($0)" })
+        lines.append(contentsOf: diagnostics.installation.guidance.map { "Guidance: \($0)" })
+        return lines
+    }
+
+    private static func formatStatistics(_ statistics: StreamingStatistics) -> [String] {
+        [
+            "PID: \(statistics.processIdentifier.map(String.init) ?? "Unavailable")",
+            "Web Port Available: \(statistics.webPortAvailable ? "Yes" : "No")",
+            "Stream Ports Available: \(statistics.streamPortsAvailable ? "Yes" : "No")",
+            "VideoToolbox: \(statistics.videoToolboxAvailable ? "Available" : "Unavailable")",
+            "Hardware Encoder: \(statistics.hardwareEncoderAvailable ? "Available" : "Unavailable")"
+        ]
     }
 }

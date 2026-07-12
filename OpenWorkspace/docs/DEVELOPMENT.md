@@ -5,7 +5,7 @@
 - `Sources/OpenWorkspaceApp`: SwiftUI menu-bar app and dependency composition
 - `Sources/OpenWorkspaceCore`: testable orchestration core
 - `Sources/OpenWorkspaceCore/DisplayManager`: CoreGraphics display listing and provider-backed virtual display lifecycle
-- `Sources/OpenWorkspaceCore/SunshineController`: external Sunshine lifecycle manager
+- `Sources/OpenWorkspaceCore/StreamingManager`: provider-based host streaming orchestration and Sunshine provider
 - `Sources/OpenWorkspaceCore/DeviceDiscovery`: composite discovery service and ADB backend
 - `Tests/OpenWorkspaceCoreTests`: unit tests
 - `Config`: example configuration only

@@ -13,9 +13,17 @@ public protocol WorkspaceServicing: Sendable {
     func setVirtualDisplayScaling(_ scalingMode: DisplayScalingMode) async throws
     func setVirtualDisplayRotation(_ rotation: DisplayRotation) async throws
     func openBetterDisplaySettings() async throws
-    func launchSunshine() async throws
-    func stopSunshine() async throws
-    func restartSunshine() async throws
+    func streamingState() async -> StreamingState
+    func streamingInstallation() async -> StreamingInstallation
+    func launchStreaming() async throws
+    func stopStreaming() async throws
+    func restartStreaming() async throws
+    func reloadStreamingConfiguration() async throws
+    func streamingConfiguration() async throws -> StreamingConfiguration
+    func streamingLogs() async throws -> [String]
+    func streamingStatistics() async throws -> StreamingStatistics
+    func streamingDiagnostics() async throws -> StreamingDiagnostics
+    func openStreamingSettings() async throws
     func saveWorkspace() async throws
     func restoreWorkspace() async throws
 }
@@ -25,23 +33,23 @@ public struct WorkspaceStatus: Equatable, Sendable {
     public var discoveredDevices: [DiscoveredDevice]
     public var displays: [ManagedDisplay]
     public var isVirtualDisplayActive: Bool
-    public var isSunshineInstalled: Bool
-    public var isSunshineRunning: Bool
+    public var streamingState: StreamingState
+    public var streamingInstallation: StreamingInstallation
 
     public init(
         connectedDevices: [RegisteredDevice],
         discoveredDevices: [DiscoveredDevice],
         displays: [ManagedDisplay],
         isVirtualDisplayActive: Bool,
-        isSunshineInstalled: Bool,
-        isSunshineRunning: Bool
+        streamingState: StreamingState,
+        streamingInstallation: StreamingInstallation
     ) {
         self.connectedDevices = connectedDevices
         self.discoveredDevices = discoveredDevices
         self.displays = displays
         self.isVirtualDisplayActive = isVirtualDisplayActive
-        self.isSunshineInstalled = isSunshineInstalled
-        self.isSunshineRunning = isSunshineRunning
+        self.streamingState = streamingState
+        self.streamingInstallation = streamingInstallation
     }
 }
 
@@ -49,7 +57,7 @@ public actor WorkspaceService: WorkspaceServicing {
     private let discoveryService: DeviceDiscovering
     private let deviceRegistry: DeviceRegistering
     private let displayManager: DisplayManaging
-    private let sunshineManager: SunshineManaging
+    private let streamingManager: StreamingManager
     private let clientManager: ClientManaging
     private let configurationStore: ConfigurationStoring
     private let logger: AppLogging
@@ -60,7 +68,7 @@ public actor WorkspaceService: WorkspaceServicing {
         discoveryService: DeviceDiscovering,
         deviceRegistry: DeviceRegistering,
         displayManager: DisplayManaging,
-        sunshineManager: SunshineManaging,
+        streamingManager: StreamingManager,
         clientManager: ClientManaging,
         configurationStore: ConfigurationStoring,
         logger: AppLogging
@@ -68,7 +76,7 @@ public actor WorkspaceService: WorkspaceServicing {
         self.discoveryService = discoveryService
         self.deviceRegistry = deviceRegistry
         self.displayManager = displayManager
-        self.sunshineManager = sunshineManager
+        self.streamingManager = streamingManager
         self.clientManager = clientManager
         self.configurationStore = configurationStore
         self.logger = logger
@@ -78,16 +86,16 @@ public actor WorkspaceService: WorkspaceServicing {
         let discoveredDevices = try await discoveryService.discoverDevices()
         let displays = try await displayManager.refreshDisplays()
         let virtualDisplayActive = try await displayManager.isVirtualDisplayActive()
-        let sunshineInstalled = await sunshineManager.installation() != nil
-        let sunshineRunning = await sunshineManager.isRunning()
+        let streamingInstallation = await streamingManager.installation()
+        let streamingState = await streamingManager.state()
 
         return WorkspaceStatus(
             connectedDevices: await deviceRegistry.allDevices(),
             discoveredDevices: discoveredDevices,
             displays: displays,
             isVirtualDisplayActive: virtualDisplayActive,
-            isSunshineInstalled: sunshineInstalled,
-            isSunshineRunning: sunshineRunning
+            streamingState: streamingState,
+            streamingInstallation: streamingInstallation
         )
     }
 
@@ -150,16 +158,48 @@ public actor WorkspaceService: WorkspaceServicing {
         try await displayManager.openBetterDisplaySettings()
     }
 
-    public func launchSunshine() async throws {
-        try await sunshineManager.start()
+    public func streamingState() async -> StreamingState {
+        await streamingManager.state()
     }
 
-    public func stopSunshine() async throws {
-        try await sunshineManager.stop()
+    public func streamingInstallation() async -> StreamingInstallation {
+        await streamingManager.installation()
     }
 
-    public func restartSunshine() async throws {
-        try await sunshineManager.restart()
+    public func launchStreaming() async throws {
+        try await streamingManager.launch()
+    }
+
+    public func stopStreaming() async throws {
+        try await streamingManager.stop()
+    }
+
+    public func restartStreaming() async throws {
+        try await streamingManager.restart()
+    }
+
+    public func reloadStreamingConfiguration() async throws {
+        try await streamingManager.reloadConfiguration()
+    }
+
+    public func streamingConfiguration() async throws -> StreamingConfiguration {
+        try await streamingManager.readConfiguration()
+    }
+
+    public func streamingLogs() async throws -> [String] {
+        try await streamingManager.readLogs()
+    }
+
+    public func streamingStatistics() async throws -> StreamingStatistics {
+        try await streamingManager.statistics()
+    }
+
+    public func streamingDiagnostics() async throws -> StreamingDiagnostics {
+        try await streamingManager.diagnostics()
+    }
+
+    public func openStreamingSettings() async throws {
+        try await streamingManager.openSettings()
     }
 
     public func saveWorkspace() async throws {

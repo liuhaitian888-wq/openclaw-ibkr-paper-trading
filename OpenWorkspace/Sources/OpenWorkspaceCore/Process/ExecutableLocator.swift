@@ -2,11 +2,14 @@ import Foundation
 
 public struct ExecutableLocator: Sendable {
     private let environment: [String: String]
+    private let includeStandardDirectories: Bool
 
     public init(
-        environment: [String: String] = ProcessInfo.processInfo.environment
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        includeStandardDirectories: Bool = true
     ) {
         self.environment = environment
+        self.includeStandardDirectories = includeStandardDirectories
     }
 
     public func pathEntries() -> [String] {
@@ -47,7 +50,8 @@ public struct ExecutableLocator: Sendable {
             "/usr/bin",
             "/bin"
         ]
-        return (rawPath.split(separator: ":").map(String.init) + standard).uniqued()
+        let environmentDirectories = rawPath.split(separator: ":").map(String.init)
+        return (environmentDirectories + (includeStandardDirectories ? standard : [])).uniqued()
     }
 
     private func applicationDirectories() -> [String] {

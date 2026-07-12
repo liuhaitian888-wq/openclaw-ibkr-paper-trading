@@ -11,7 +11,8 @@ flowchart LR
   Display["Display Manager"]
   Provider["Display Provider"]
   VirtualDisplay["Virtual Display Manager"]
-  Sunshine["Sunshine Manager"]
+  Sunshine["Sunshine Provider"]
+  Streaming["Streaming Manager"]
   Client["Client Manager"]
   Config["Configuration Manager"]
   Logging["Privacy Logging"]
@@ -27,7 +28,8 @@ flowchart LR
   Workspace --> Display
   Display --> Provider
   Workspace --> VirtualDisplay
-  Workspace --> Sunshine
+  Workspace --> Streaming
+  Streaming --> Sunshine
   Workspace --> Client
   Workspace --> Config
   Workspace --> Logging
@@ -44,11 +46,13 @@ Display Manager lists active macOS displays through public CoreGraphics APIs and
 
 Display Provider is the integration boundary for virtual monitor creation. The first provider uses BetterDisplay CLI. OpenWorkspace does not call private CoreGraphics or CoreDisplay virtual-display APIs.
 
-Sunshine Manager detects installation, checks running status, starts, stops, restarts, reads configuration, and validates configuration without logging raw values.
+Streaming Manager owns provider-independent host streaming orchestration. Sunshine Provider is the first concrete provider and detects installation, running status, version, configuration, logs, ports, VideoToolbox, and hardware encoder support without logging raw secrets.
 
 Client Manager prepares external clients without implementing custom streaming.
 
-Workspace Manager orchestrates Phase 1 workflows: status refresh, discovery, registration, virtual display creation/destruction, Sunshine lifecycle, save, and restore.
+Workspace Manager orchestrates status refresh, discovery, registration, virtual display lifecycle, streaming provider lifecycle, save, and restore.
+
+For the streaming provider pattern, see [Streaming Platform](STREAMING.md).
 
 Configuration Manager persists human-readable JSON for workspace settings only.
 
