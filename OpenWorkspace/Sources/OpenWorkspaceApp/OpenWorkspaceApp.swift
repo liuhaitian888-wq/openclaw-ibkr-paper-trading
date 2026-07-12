@@ -81,6 +81,54 @@ struct OpenWorkspaceApp: App {
                     Button("List Displays") {
                         Task { await viewModel.listDisplays() }
                     }
+
+                    Menu("Display Resolution") {
+                        Button("1920x1080") {
+                            Task { await viewModel.setResolution(Resolution(width: 1920, height: 1080)) }
+                        }
+                        Button("2560x1440") {
+                            Task { await viewModel.setResolution(Resolution(width: 2560, height: 1440)) }
+                        }
+                    }
+                    .disabled(!viewModel.isVirtualDisplayActive)
+
+                    Menu("Display Scaling") {
+                        ForEach(DisplayScalingMode.allCases, id: \.rawValue) { scalingMode in
+                            Button(scalingMode.label) {
+                                Task { await viewModel.setScaling(scalingMode) }
+                            }
+                        }
+                    }
+                    .disabled(!viewModel.isVirtualDisplayActive)
+
+                    Menu("Display Rotation") {
+                        ForEach(DisplayRotation.allCases, id: \.rawValue) { rotation in
+                            Button(rotation.label) {
+                                Task { await viewModel.setRotation(rotation) }
+                            }
+                        }
+                    }
+                    .disabled(!viewModel.isVirtualDisplayActive)
+
+                    Menu("Diagnostics") {
+                        Button("Run Diagnostics") {
+                            Task { await viewModel.runDisplayDiagnostics() }
+                        }
+
+                        Divider()
+
+                        if viewModel.diagnosticsLines.isEmpty {
+                            Text("No diagnostics yet")
+                        } else {
+                            ForEach(viewModel.diagnosticsLines, id: \.self) { line in
+                                Text(line)
+                            }
+                        }
+                    }
+
+                    Button("Settings") {
+                        Task { await viewModel.openBetterDisplaySettings() }
+                    }
                 }
 
                 Button("Launch Sunshine") {

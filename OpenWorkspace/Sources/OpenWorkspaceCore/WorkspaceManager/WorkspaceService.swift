@@ -8,6 +8,11 @@ public protocol WorkspaceServicing: Sendable {
     func destroyVirtualDisplay() async throws
     func refreshDisplays() async throws -> [ManagedDisplay]
     func listDisplays() async throws -> [ManagedDisplay]
+    func betterDisplayDiagnostics() async throws -> BetterDisplayDiagnostics
+    func setVirtualDisplayResolution(_ resolution: Resolution) async throws
+    func setVirtualDisplayScaling(_ scalingMode: DisplayScalingMode) async throws
+    func setVirtualDisplayRotation(_ rotation: DisplayRotation) async throws
+    func openBetterDisplaySettings() async throws
     func launchSunshine() async throws
     func stopSunshine() async throws
     func restartSunshine() async throws
@@ -123,6 +128,26 @@ public actor WorkspaceService: WorkspaceServicing {
 
     public func listDisplays() async throws -> [ManagedDisplay] {
         try await displayManager.listDisplays()
+    }
+
+    public func betterDisplayDiagnostics() async throws -> BetterDisplayDiagnostics {
+        try await displayManager.betterDisplayDiagnostics()
+    }
+
+    public func setVirtualDisplayResolution(_ resolution: Resolution) async throws {
+        try await displayManager.setVirtualDisplayResolution(resolution)
+    }
+
+    public func setVirtualDisplayScaling(_ scalingMode: DisplayScalingMode) async throws {
+        try await displayManager.setVirtualDisplayScaling(scalingMode)
+    }
+
+    public func setVirtualDisplayRotation(_ rotation: DisplayRotation) async throws {
+        try await displayManager.setVirtualDisplayRotation(rotation)
+    }
+
+    public func openBetterDisplaySettings() async throws {
+        try await displayManager.openBetterDisplaySettings()
     }
 
     public func launchSunshine() async throws {

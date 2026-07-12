@@ -76,7 +76,13 @@ Expected real-device verification when BetterDisplay is installed:
 8. Quit and relaunch OpenWorkspace.
 9. Confirm the menu still reports the correct display count.
 
-Local verification on this development machine found 2 displays, but BetterDisplay CLI was not installed, so the real 2 -> 3 -> 2 create/destroy cycle could not be completed locally.
+Real verification on this development machine completed successfully after installing BetterDisplay 4.3.5:
+
+```text
+before=2
+afterCreate=3
+afterDestroy=2
+```
 
 ## Known Limitations
 

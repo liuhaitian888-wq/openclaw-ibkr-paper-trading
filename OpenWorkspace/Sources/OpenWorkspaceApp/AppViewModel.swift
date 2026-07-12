@@ -10,6 +10,8 @@ final class AppViewModel: ObservableObject {
     @Published var displays: [ManagedDisplay] = []
     @Published var displayCount = 0
     @Published var isVirtualDisplayActive = false
+    @Published var betterDisplayDiagnostics: BetterDisplayDiagnostics?
+    @Published var diagnosticsLines: [String] = []
     @Published var isSunshineInstalled = false
     @Published var isSunshineRunning = false
 
@@ -23,6 +25,7 @@ final class AppViewModel: ObservableObject {
 
     static func bootstrap() -> AppViewModel {
         DiagnosticsCommand.runAndExitIfNeeded()
+        BetterDisplayCommandLine.runAndExitIfNeeded()
 
         let logger = ConsoleLogger(minimumLevel: .info)
         let processRunner = ShellProcessRunner(logger: logger)
@@ -134,6 +137,48 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    func runDisplayDiagnostics() async {
+        await run("Running display diagnostics") {
+            let diagnostics = try await self.workspaceService.betterDisplayDiagnostics()
+            self.betterDisplayDiagnostics = diagnostics
+            self.diagnosticsLines = Self.formatDiagnostics(diagnostics)
+            self.displayCount = diagnostics.currentDisplayCount
+            self.isVirtualDisplayActive = diagnostics.virtualDisplayConnected
+            return "Diagnostics complete"
+        }
+    }
+
+    func setResolution(_ resolution: Resolution) async {
+        await run("Setting resolution") {
+            try await self.workspaceService.setVirtualDisplayResolution(resolution)
+            await self.refreshDisplays()
+            return "Resolution set to \(resolution.width)x\(resolution.height)"
+        }
+    }
+
+    func setScaling(_ scalingMode: DisplayScalingMode) async {
+        await run("Setting scaling") {
+            try await self.workspaceService.setVirtualDisplayScaling(scalingMode)
+            await self.refreshDisplays()
+            return "Scaling set to \(scalingMode.label)"
+        }
+    }
+
+    func setRotation(_ rotation: DisplayRotation) async {
+        await run("Setting rotation") {
+            try await self.workspaceService.setVirtualDisplayRotation(rotation)
+            await self.refreshDisplays()
+            return "Rotation set to \(rotation.label)"
+        }
+    }
+
+    func openBetterDisplaySettings() async {
+        await run("Opening BetterDisplay settings") {
+            try await self.workspaceService.openBetterDisplaySettings()
+            return "BetterDisplay settings requested"
+        }
+    }
+
     func launchSunshine() async {
         await run("Launching Sunshine") {
             try await self.workspaceService.launchSunshine()
@@ -190,5 +235,32 @@ final class AppViewModel: ObservableObject {
             logger.error("Operation failed: \(error.localizedDescription)")
             statusMessage = "Error: \(error.localizedDescription)"
         }
+    }
+
+    private static func formatDiagnostics(_ diagnostics: BetterDisplayDiagnostics) -> [String] {
+        let environment = diagnostics.environment
+        let version = diagnostics.version ?? "Unavailable"
+        let capabilities = diagnostics.capabilities.map(\.rawValue).joined(separator: ", ")
+        let supportedResolutions = diagnostics.supportedResolutions
+            .map { "\($0.width)x\($0.height)" }
+            .joined(separator: ", ")
+
+        var lines = [
+            "Installed: \(environment.isInstalled ? "Yes" : "No")",
+            "CLI Available: \(environment.isCLIAvailable ? "Yes" : "No")",
+            "Version: \(version)",
+            "Capabilities: \(capabilities.isEmpty ? "Unavailable" : capabilities)",
+            "Executable Permission: \(environment.hasExecutablePermission ? "Yes" : "No")",
+            "PATH Entries: \(environment.pathEntries.count)",
+            "Virtual Display: \(diagnostics.virtualDisplayConnected ? "Connected" : "Disconnected")",
+            "Current Display Count: \(diagnostics.currentDisplayCount)",
+            "Supported Resolutions: \(supportedResolutions.isEmpty ? "Unavailable" : supportedResolutions)",
+            "Required Configuration: \(environment.isRequiredConfigurationLikelyEnabled ? "Likely enabled" : "Unavailable")"
+        ]
+
+        if !environment.guidance.isEmpty {
+            lines.append(contentsOf: environment.guidance.map { "Guidance: \($0)" })
+        }
+        return lines
     }
 }

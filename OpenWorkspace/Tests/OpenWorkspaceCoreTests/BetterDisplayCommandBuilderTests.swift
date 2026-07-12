@@ -36,4 +36,53 @@ struct BetterDisplayCommandBuilderTests {
             ]
         )
     }
+
+    @Test func controlCommandsUseDocumentedBetterDisplayParameters() {
+        let name = "OpenWorkspace Virtual Display"
+
+        #expect(
+            BetterDisplayCommandBuilder.setResolutionArguments(
+                name: name,
+                resolution: Resolution(width: 2560, height: 1440)
+            ) == [
+                "set",
+                "-namelike=OpenWorkspace Virtual Display",
+                "-resolution=2560x1440"
+            ]
+        )
+        #expect(
+            BetterDisplayCommandBuilder.setScalingArguments(name: name, scalingMode: .hiDPI) == [
+                "set",
+                "-namelike=OpenWorkspace Virtual Display",
+                "-hiDPI=on"
+            ]
+        )
+        #expect(
+            BetterDisplayCommandBuilder.setRotationArguments(name: name, rotation: .degrees90) == [
+                "set",
+                "-namelike=OpenWorkspace Virtual Display",
+                "-rotation=90"
+            ]
+        )
+        #expect(BetterDisplayCommandBuilder.openSettingsArguments() == [
+            "set",
+            "-settingsWindow=on"
+        ])
+    }
+
+    @Test func parsesSupportedResolutionsFromDisplayModeOutput() {
+        let output = """
+        Available display modes:
+        1920x1080 @ 60Hz HiDPI
+        2560 x 1440 @ 60Hz
+        1920x1080 duplicate
+        """
+
+        let resolutions = BetterDisplayCommandBuilder.parseResolutions(output)
+
+        #expect(resolutions == [
+            Resolution(width: 1920, height: 1080),
+            Resolution(width: 2560, height: 1440)
+        ])
+    }
 }

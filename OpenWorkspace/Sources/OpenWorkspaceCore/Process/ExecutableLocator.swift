@@ -9,6 +9,10 @@ public struct ExecutableLocator: Sendable {
         self.environment = environment
     }
 
+    public func pathEntries() -> [String] {
+        pathDirectories()
+    }
+
     public func firstExecutable(named names: [String], additionalDirectories: [String] = []) -> URL? {
         let directories = pathDirectories() + additionalDirectories
         for directory in directories {

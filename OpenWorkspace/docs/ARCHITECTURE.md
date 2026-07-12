@@ -68,6 +68,8 @@ BetterDisplay documents virtual screen support and CLI integration for creating,
 
 See [Virtual Display Workflow](VIRTUAL_DISPLAY.md) for the implemented Milestone 1 workflow.
 
+See [BetterDisplay Integration](BETTERDISPLAY.md) for the full provider diagnostics and CLI contract.
+
 References:
 
 - [Apple CoreGraphics Display Services](https://developer.apple.com/documentation/coregraphics/display-services)
