@@ -31,6 +31,7 @@ from trading.market_data import Quote
 
 DEFAULT_API_URL = "http://192.168.64.1:8787"
 DEFAULT_TOKEN_FILES = (
+    Path.home() / "Documents/openclaw_shared/trade_session_token",
     Path("/Volumes/openclaw_shared/trade_session_token"),
     Path("/mnt/openclaw_shared/trade_session_token"),
 )

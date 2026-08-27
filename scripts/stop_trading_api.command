@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SHARED_DIR="/Volumes/openclaw_shared"
+DEFAULT_SHARED_DIR="$HOME/Documents/openclaw_shared"
+if [[ ! -d "$DEFAULT_SHARED_DIR" && -d "/Volumes/openclaw_shared" ]]; then
+  DEFAULT_SHARED_DIR="/Volumes/openclaw_shared"
+fi
+SHARED_DIR="${OPENCLAW_SHARED_DIR:-$DEFAULT_SHARED_DIR}"
 TOKEN_FILE="$SHARED_DIR/trade_session_token"
 
 unset TRADE_SESSION_TOKEN

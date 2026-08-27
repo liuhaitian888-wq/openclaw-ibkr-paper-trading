@@ -53,6 +53,7 @@ class AgentCycle:
     research_tasks: List[Dict[str, object]]
     strategy_run: Optional[Dict[str, object]]
     errors: List[str]
+    timings: Dict[str, float]
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -67,6 +68,7 @@ class AgentCycle:
             "research_tasks": self.research_tasks,
             "strategy_run": self.strategy_run,
             "errors": self.errors,
+            "timings": self.timings,
         }
 
 
@@ -124,20 +126,37 @@ def run_cycle(
     state: Dict[str, Dict[str, float]],
     cycle: int,
 ) -> AgentCycle:
+    cycle_started = time.perf_counter()
     errors: List[str] = []
+    timings: Dict[str, float] = {}
     strategy_run = None
+    started = time.perf_counter()
     health = request_json("GET", "/health", None, api_url=args.api_url, api_key=api_key, timeout=10.0)
+    timings["health_ms"] = elapsed_ms(started)
     lock_state = str(health.get("lock_state", "unknown"))
     tws = health.get("tws", {}) if isinstance(health.get("tws"), dict) else {}
     ready_for_orders = tws.get("ready_for_orders") is True
     allowed_symbols = sorted(set(health.get("limits", {}).get("allowed_symbols", [])))
+    started = time.perf_counter()
     monitor_symbols, module_allowed = select_monitor_symbols(args, allowed_symbols)
+    timings["select_universe_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     quotes = fetch_quotes(args, settings, monitor_symbols, cycle, errors)
+    timings["fetch_quotes_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     top_movers = update_market_state(state, quotes)
+    timings["update_market_state_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     research_tasks = build_research_tasks(top_movers, module_allowed)
+    timings["build_research_tasks_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     write_json(args.report_dir / "research_tasks.json", {"tasks": research_tasks, "created_at": utc_now()})
+    timings["write_research_tasks_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
     process_candidate_inbox(args, errors)
+    timings["process_candidate_inbox_ms"] = elapsed_ms(started)
 
+    started = time.perf_counter()
     should_run_strategy = (
         not args.disable_strategy
         and ready_for_orders
@@ -147,6 +166,8 @@ def run_cycle(
     )
     if should_run_strategy:
         strategy_run = run_strategy_once(args, api_key, monitor_symbols)
+    timings["strategy_run_ms"] = elapsed_ms(started)
+    timings["cycle_total_ms"] = elapsed_ms(cycle_started)
     return AgentCycle(
         cycle=cycle,
         created_at=utc_now(),
@@ -159,6 +180,7 @@ def run_cycle(
         research_tasks=research_tasks,
         strategy_run=strategy_run,
         errors=errors,
+        timings=timings,
     )
 
 
@@ -402,6 +424,10 @@ def write_json(path: Path, payload: Dict[str, object]) -> None:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def elapsed_ms(started: float) -> float:
+    return round((time.perf_counter() - started) * 1000, 3)
 
 
 if __name__ == "__main__":
