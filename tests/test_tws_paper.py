@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 import unittest
 
 from trading.models import TradeProposal
@@ -6,6 +7,43 @@ from trading.tws_paper import OrderConfirmation, TwsPaperBroker, TwsPaperClient
 
 
 class TwsPaperBrokerTests(unittest.TestCase):
+    def test_readonly_callbacks_capture_orders_and_executions(self) -> None:
+        client = TwsPaperClient()
+        contract = SimpleNamespace(symbol="MSFT")
+        order = SimpleNamespace(
+            orderId=42,
+            permId=420,
+            parentId=0,
+            clientId=22,
+            orderRef="paper-order-0042",
+            account="DU12345",
+            action="BUY",
+            orderType="LMT",
+            totalQuantity=Decimal("1"),
+            lmtPrice=300.0,
+            auxPrice=0.0,
+            tif="DAY",
+        )
+        state = SimpleNamespace(status="Submitted")
+        execution = SimpleNamespace(
+            execId="exec-42",
+            orderId=42,
+            permId=420,
+            side="BOT",
+            shares=Decimal("1"),
+            price=299.5,
+            time="20260824 10:00:00",
+            acctNumber="DU12345",
+            orderRef="paper-order-0042",
+        )
+
+        client.openOrder(42, contract, order, state)
+        client.execDetails(9001, contract, execution)
+
+        self.assertEqual(client.broker_orders[42]["order_ref"], "paper-order-0042")
+        self.assertEqual(client.broker_orders[42]["status"], "Submitted")
+        self.assertEqual(client.executions["exec-42"]["price"], 299.5)
+
     def test_transmitted_order_requires_order_status_ack(self) -> None:
         client = TwsPaperClient()
         client.expected_order_ids = {100}

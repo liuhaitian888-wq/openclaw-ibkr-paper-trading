@@ -34,6 +34,11 @@ paper-trading TWS session.
 The paper order adapter creates a limit entry and a protective stop as a bracket.
 Every submission requires a unique idempotency key and is recorded in SQLite.
 
+Broker reconciliation persists TWS open/completed orders and executions into
+SQLite. Unknown active TWS orders fail closed and block new submissions until
+the discrepancy is investigated. Reconciliation is explicit; it never places,
+modifies, or cancels an order.
+
 SQLite is only the local audit ledger. It is not part of the realtime order
 route, and no manual database operation is needed during normal trading. The
 default file is `trading_audit.sqlite3`; SQLite may also create `-wal` and `-shm`
@@ -185,6 +190,7 @@ must be sent in the `X-API-Key` header. Do not commit or send this key in chat.
 - `POST /v1/orders/stage/limit` - sends an untransmitted limit order to paper TWS; disabled
 - `POST /v1/orders/paper` - transmits a bracket to paper TWS; disabled
 - `POST /v1/orders/paper/limit` - transmits a single limit order to paper TWS; disabled
+- `POST /v1/orders/reconcile` - read-only TWS order/execution sync into SQLite
 
 Example request body:
 

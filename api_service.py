@@ -90,6 +90,8 @@ class TradingApiHandler(BaseHTTPRequestHandler):
                 result = self.service.submit(payload, transmit=True)
             elif path == "/v1/orders/paper/limit":
                 result = self.service.submit_limit(payload, transmit=True)
+            elif path == "/v1/orders/reconcile":
+                result = self.service.reconcile_orders()
             else:
                 self._send_json(404, {"error": "not_found"})
                 return

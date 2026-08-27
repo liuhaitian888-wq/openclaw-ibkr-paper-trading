@@ -2,7 +2,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from ibapi.client import EClient
 from ibapi.contract import Contract
@@ -86,6 +86,13 @@ class TwsConnectionStatus:
         }
 
 
+@dataclass(frozen=True)
+class BrokerSnapshot:
+    orders: Tuple[Dict[str, Any], ...] = ()
+    executions: Tuple[Dict[str, Any], ...] = ()
+    messages: Tuple[str, ...] = ()
+
+
 class TwsPaperClient(EWrapper, EClient):
     def __init__(self) -> None:
         EClient.__init__(self, self)
@@ -97,10 +104,15 @@ class TwsPaperClient(EWrapper, EClient):
         self.expected_order_ids: Set[int] = set()
         self.acknowledged_order_ids: Set[int] = set()
         self.order_statuses: Dict[int, str] = {}
+        self.order_status_details: Dict[int, Dict[str, Any]] = {}
         self.open_order_states: Dict[int, str] = {}
         self.allow_open_order_confirmation = False
         self.orders_acknowledged = threading.Event()
         self.open_orders_received = threading.Event()
+        self.completed_orders_received = threading.Event()
+        self.executions_received = threading.Event()
+        self.broker_orders: Dict[int, Dict[str, Any]] = {}
+        self.executions: Dict[str, Dict[str, Any]] = {}
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.next_order_id = orderId
@@ -125,6 +137,9 @@ class TwsPaperClient(EWrapper, EClient):
             self.orders_acknowledged.set()
 
     def openOrder(self, orderId: int, contract: object, order: object, orderState: object) -> None:  # noqa: N802,E501
+        self.broker_orders[orderId] = self._order_payload(
+            orderId, contract, order, orderState, completed=False
+        )
         if orderId in self.expected_order_ids:
             status = getattr(orderState, "status", "")
             if status:
@@ -136,6 +151,35 @@ class TwsPaperClient(EWrapper, EClient):
 
     def openOrderEnd(self) -> None:  # noqa: N802
         self.open_orders_received.set()
+
+    def completedOrder(self, contract: object, order: object, orderState: object) -> None:  # noqa: N802,E501
+        order_id = int(getattr(order, "orderId", 0))
+        self.broker_orders[order_id] = self._order_payload(
+            order_id, contract, order, orderState, completed=True
+        )
+
+    def completedOrdersEnd(self) -> None:  # noqa: N802
+        self.completed_orders_received.set()
+
+    def execDetails(self, reqId: int, contract: object, execution: object) -> None:  # noqa: N802,E501
+        exec_id = str(getattr(execution, "execId", ""))
+        if not exec_id:
+            return
+        self.executions[exec_id] = {
+            "exec_id": exec_id,
+            "order_id": int(getattr(execution, "orderId", 0)),
+            "perm_id": int(getattr(execution, "permId", 0)),
+            "symbol": str(getattr(contract, "symbol", "")),
+            "side": str(getattr(execution, "side", "")),
+            "shares": float(getattr(execution, "shares", 0)),
+            "price": float(getattr(execution, "price", 0)),
+            "time": str(getattr(execution, "time", "")),
+            "account": str(getattr(execution, "acctNumber", "")),
+            "order_ref": str(getattr(execution, "orderRef", "")),
+        }
+
+    def execDetailsEnd(self, reqId: int) -> None:  # noqa: N802
+        self.executions_received.set()
 
     def orderStatus(  # noqa: N802
         self,
@@ -151,12 +195,51 @@ class TwsPaperClient(EWrapper, EClient):
         whyHeld: str,
         mktCapPrice: float,
     ) -> None:
-        if orderId not in self.expected_order_ids:
-            return
         self.order_statuses[orderId] = status
-        if status in SUBMITTED_ORDER_STATUSES:
+        self.order_status_details[orderId] = {
+            "status": status,
+            "filled": float(filled),
+            "remaining": float(remaining),
+            "avg_fill_price": float(avgFillPrice),
+            "perm_id": int(permId),
+            "parent_id": int(parentId),
+            "last_fill_price": float(lastFillPrice),
+            "client_id": int(clientId),
+            "why_held": whyHeld,
+        }
+        if orderId in self.broker_orders:
+            self.broker_orders[orderId].update(self.order_status_details[orderId])
+        if orderId in self.expected_order_ids and status in SUBMITTED_ORDER_STATUSES:
             self.acknowledged_order_ids.add(orderId)
-        self.orders_acknowledged.set()
+        if orderId in self.expected_order_ids:
+            self.orders_acknowledged.set()
+
+    @staticmethod
+    def _order_payload(
+        order_id: int,
+        contract: object,
+        order: object,
+        order_state: object,
+        *,
+        completed: bool,
+    ) -> Dict[str, Any]:
+        return {
+            "order_id": order_id,
+            "perm_id": int(getattr(order, "permId", 0)),
+            "parent_id": int(getattr(order, "parentId", 0)),
+            "client_id": int(getattr(order, "clientId", 0)),
+            "order_ref": str(getattr(order, "orderRef", "")),
+            "account": str(getattr(order, "account", "")),
+            "symbol": str(getattr(contract, "symbol", "")),
+            "side": str(getattr(order, "action", "")),
+            "order_type": str(getattr(order, "orderType", "")),
+            "quantity": float(getattr(order, "totalQuantity", 0)),
+            "limit_price": float(getattr(order, "lmtPrice", 0)),
+            "aux_price": float(getattr(order, "auxPrice", 0)),
+            "tif": str(getattr(order, "tif", "")),
+            "status": str(getattr(order_state, "status", "")),
+            "completed": completed,
+        }
 
 
 class TwsPaperBroker:
@@ -202,6 +285,47 @@ class TwsPaperBroker:
                 ready_for_orders=False,
                 error=str(exc),
                 timings={"tws_status_check_ms": self._elapsed_ms(started)},
+            )
+        finally:
+            if client.isConnected():
+                client.disconnect()
+
+    def collect_snapshot(self, timeout: float = 5.0) -> BrokerSnapshot:
+        """Read broker order/execution truth without placing or changing orders."""
+        client = TwsPaperClient()
+        try:
+            client.connect(self._host, self._port, clientId=self._client_id)
+            threading.Thread(target=client.run_loop, daemon=True).start()
+            deadline = time.perf_counter() + timeout
+            if not client.ready.wait(timeout) or not client.accounts_ready.wait(
+                max(0.0, deadline - time.perf_counter())
+            ):
+                raise RuntimeError("TWS paper reconciliation connection timed out")
+            if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
+                raise RuntimeError("Reconciliation is restricted to one DU paper account")
+
+            client.reqAllOpenOrders()
+            client.open_orders_received.wait(max(0.0, deadline - time.perf_counter()))
+            try:
+                client.reqCompletedOrders(False)
+                client.completed_orders_received.wait(
+                    max(0.0, deadline - time.perf_counter())
+                )
+            except AttributeError:
+                client.errors.append("reqCompletedOrders is unavailable")
+
+            from ibapi.execution import ExecutionFilter
+
+            client.reqExecutions(9001, ExecutionFilter())
+            client.executions_received.wait(max(0.0, deadline - time.perf_counter()))
+            return BrokerSnapshot(
+                orders=tuple(
+                    client.broker_orders[key] for key in sorted(client.broker_orders)
+                ),
+                executions=tuple(
+                    client.executions[key] for key in sorted(client.executions)
+                ),
+                messages=tuple(client.errors),
             )
         finally:
             if client.isConnected():

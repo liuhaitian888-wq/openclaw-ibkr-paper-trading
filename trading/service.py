@@ -7,7 +7,7 @@ from trading.audit import AuditLog
 from trading.config import Settings
 from trading.models import TradeProposal
 from trading.risk import RiskEngine, RiskLimits
-from trading.tws_paper import OrderConfirmation, TwsPaperBroker
+from trading.tws_paper import BrokerSnapshot, OrderConfirmation, TwsPaperBroker
 from trading.workflow import attach_workflow_step
 
 
@@ -46,6 +46,9 @@ class TradingService:
             },
             "audit": {
                 "database": str(self.settings.audit_db),
+                "latest_reconciliation": self._audit.latest_reconciliation(),
+                "external_order_block": self._audit.has_unresolved_external_orders(),
+                "unresolved_external_orders": self._audit.unresolved_external_orders(),
                 "recent_order_count": len(recent_orders),
                 "recent_orders": [
                     {
@@ -91,7 +94,25 @@ class TradingService:
         record = self._audit.get(idempotency_key)
         if record is None:
             raise KeyError("order_not_found")
+        record["events"] = self._audit.order_events(idempotency_key)
         return {"status": "ok", "order": record}
+
+    def reconcile_orders(self) -> Dict[str, Any]:
+        """Persist broker truth and expose unknown active orders as a hard block."""
+        broker = TwsPaperBroker(
+            self.settings.tws_host,
+            self.settings.tws_port,
+            self.settings.tws_client_id,
+        )
+        snapshot: BrokerSnapshot = broker.collect_snapshot()
+        result = self._audit.reconcile(
+            list(snapshot.orders),
+            list(snapshot.executions),
+            list(snapshot.messages),
+        )
+        result["unresolved_external_orders"] = self._audit.unresolved_external_orders()
+        result["workflow_step"] = "broker_reconciliation"
+        return result
 
     def validate(self, payload: Mapping[str, Any]) -> Dict[str, Any]:
         try:
@@ -220,6 +241,11 @@ class TradingService:
             status,
             confirmation.details(),
         )
+        self._audit.record_submission(
+            proposal.idempotency_key,
+            list(confirmation.order_ids),
+            confirmation.statuses,
+        )
         timings["service_audit_update_ms"] = self._elapsed_ms(audit_update_started)
         parent_id, stop_id = confirmation.order_ids
         return self._with_total_timing(
@@ -329,6 +355,11 @@ class TradingService:
             status,
             confirmation.details(),
         )
+        self._audit.record_submission(
+            proposal.idempotency_key,
+            list(confirmation.order_ids),
+            confirmation.statuses,
+        )
         timings["service_audit_update_ms"] = self._elapsed_ms(audit_update_started)
         (order_id,) = confirmation.order_ids
         return self._with_total_timing(
@@ -422,6 +453,10 @@ class TradingService:
         payload: Mapping[str, Any],
         transmit: bool,
     ) -> None:
+        if self._audit.has_unresolved_external_orders():
+            raise PermissionError(
+                "Trading is blocked by an unreconciled external TWS order"
+            )
         if self.settings.trading_mode != "PAPER":
             raise PermissionError("TWS order submission requires TRADING_MODE=PAPER")
         if self.settings.trading_kill_switch:

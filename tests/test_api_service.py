@@ -16,10 +16,15 @@ class FakeService:
 
     def __init__(self) -> None:
         self.limit_submission: Tuple[Mapping[str, Any], bool] | None = None
+        self.reconciled = False
 
     def submit_limit(self, payload: Mapping[str, Any], transmit: bool) -> Dict[str, Any]:
         self.limit_submission = (payload, transmit)
         return {"status": "LIMIT_STAGED_NOT_TRANSMITTED", "approved": True}
+
+    def reconcile_orders(self) -> Dict[str, Any]:
+        self.reconciled = True
+        return {"status": "OK", "workflow_step": "broker_reconciliation"}
 
 
 class FailingService(FakeService):
@@ -46,6 +51,26 @@ class CapturingHandler(TradingApiHandler):
 
 
 class ApiServiceTests(unittest.TestCase):
+    def test_reconcile_route_runs_readonly_broker_sync(self) -> None:
+        service = FakeService()
+        TradingApiHandler.service = service
+        body = b"{}"
+        handler = CapturingHandler()
+        handler.path = "/v1/orders/reconcile"
+        handler.headers = {
+            "Content-Length": str(len(body)),
+            "X-API-Key": "test-api-key",
+        }
+        handler.rfile = BytesIO(body)
+        handler.wfile = BytesIO()
+
+        handler.do_POST()
+
+        result = json.loads(handler.wfile.getvalue())
+        self.assertEqual(handler.status, 200)
+        self.assertEqual(result["status"], "OK")
+        self.assertTrue(service.reconciled)
+
     def test_stage_limit_route_submits_without_transmission(self) -> None:
         service = FakeService()
         TradingApiHandler.service = service

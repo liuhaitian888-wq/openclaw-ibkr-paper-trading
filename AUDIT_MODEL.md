@@ -23,7 +23,7 @@ Execution audit answers:
 - What did TWS acknowledge?
 - Where did the workflow stop if it failed?
 
-Current core fields:
+Request ledger fields:
 
 - `idempotency_key`
 - `created_at`
@@ -31,6 +31,18 @@ Current core fields:
 - `status`
 - `proposal_json`
 - `details`
+
+The reconciliation schema now also stores:
+
+- append-only `order_events` for request and broker observations
+- `broker_orders` with raw and canonical lifecycle states
+- idempotent `executions` keyed by IBKR execution ID
+- `reconciliation_runs` with unknown-active-order counts and diagnostics
+
+Unknown active TWS orders that cannot be joined through
+`orderRef=idempotency_key` create a fail-closed submission block. TWS/IBKR is
+the broker-truth source; SQLite is the durable local history and recovery
+ledger.
 
 Recommended next fields:
 
