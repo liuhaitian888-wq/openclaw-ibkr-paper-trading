@@ -1,0 +1,148 @@
+openclaw-ibkr-paper-trading 项目结构简明问答
+更新时间：2026-08-31
+
+使用说明
+本文件面向项目成员和 Codex，按目录覆盖交易仓库全部受版本控制文件；每题回答不超过两句话，讨论结果留给组会填写。
+本地正式工作目录：/Users/nbhsbgnb/.codex/worktrees/7c43/New project
+远程仓库：https://github.com/liuhaitian888-wq/openclaw-ibkr-paper-trading
+
+Q01：这个项目最终要做什么？
+答：它要成为由 Agent 自主研究、决策、风控、下单、审计和复盘的美股自动交易平台；目前只允许 IBKR Paper，连接器在负责人明确口头授权前不得接入 Live。
+下一步建议：先完成 Paper 端到端证据闭环，再设计但不启用 Paper-to-Live 门禁。
+讨论结果：________
+
+Q02：项目根目录有哪些文件，各自负责什么？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project
+文件：.env.example（环境变量模板）、.gitignore（忽略规则）、.pre-commit-config.yaml（提交前泄漏扫描）、AGENTS.md（Codex 仓库规则）、ARCHITECTURE.md（架构）、AUDIT_MODEL.md（审计模型）、DATA_FEEDS.md（数据源）、LICENSE（许可）、README.md（入口简介）、SECURITY_MODEL.md（安全模型）、TRADING_LOCK.md（交易锁）、VALUE_POOL.md（价值池）、api_service.py（API 服务）、main.py（命令入口）、run_dry_run_api.command（干跑 API）、tws_readonly_check.py（TWS 只读检查）。
+答：根目录已经具备安全、架构和运行入口，但入口较多且命名层级不统一；不足是新成员难以判断唯一推荐启动路径。
+下一步建议：确定一个 Paper 运行入口并在 README 中把其他入口标为诊断、兼容或停用。
+讨论结果：________
+
+Q03：Codex 与提交安全配置在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/.codex
+文件：hooks.json；hooks/secret_scan_stop.py。
+答：这些文件让 Codex 停止前执行秘密扫描，配合根目录 pre-commit 形成双层保护；不足是仍需在 GitHub CI 中验证相同规则。
+下一步建议：增加远端 gitleaks CI，并用无秘密样例验证失败门禁。
+讨论结果：________
+
+Q04：配置和证券主数据在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/config
+文件：__init__.py、autonomous_paper.env.example、defaults.py。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/data
+文件：security_master.csv、us_equity_universe.csv。
+答：配置定义 Paper Agent 默认值，CSV 提供证券主表和美股候选全集；不足是配置来源、运行覆盖值和主数据更新时间还缺少统一可追溯快照。
+下一步建议：每次 Agent 循环把最终配置哈希、证券主表版本和数据时间写入审计库。
+讨论结果：________
+
+Q05：核心交易代码在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/trading
+文件：__init__.py、account_state_manager.py、audit.py、audit_writer.py、auto_open_pipeline.py、autonomous_runtime.py、buy_decision_engine.py、candidate_research.py、candidate_scoring.py、config.py、cycle_snapshot.py、dashboard.py、data_buses.py、discovery_orchestrator.py、event_risk_control.py、event_router.py、execution_ledger_split.py、fast_order_guidance.py、gap_escape_manager.py、gap_risk_manager.py、ibkr_callback_bridge.py、ibkr_callback_wiring_audit.py、ibkr_news.py、ibkr_readonly.py、ibkr_scanner.py、ibkr_streaming.py、market_data.py、market_data_line_manager.py、market_quote_crosscheck.py、market_session.py、models.py、module_interfaces.py、news_candidate_router.py、news_event_monitor.py、news_event_structurer.py、news_provider_registry.py、options_hedge_planner.py、order_intent_router.py、order_intents.py、order_rejections.py、paper_audit_db.py、paper_environment_audit.py、paper_execution_gate.py、paper_order_executor.py、pool_builder.py、pool_manager.py、pool_state.py、position_guard.py、position_lifecycle_manager.py、position_protection.py、price_normalizer.py、process_guard.py、profit_lock.py、realtime_account_state_bus.py、realtime_account_sync.py、risk.py、scanner_universe_builder.py、security_master.py、sell_decision_engine.py、service.py、session_calendar.py、session_policy.py、simulated_order_executor.py、simulated_pnl.py、simulated_position_ledger.py、simulation.py、sqlite_event_store.py、state_bootstrap_manager.py、state_freshness_policy.py、state_timestamp_reconciler.py、strategy.py、strategy_modules.py、strategy_signals.py、subscription_health.py、take_profit.py、trailing_profit.py、tws_paper.py、universe.py、workflow.py。
+答：该目录已覆盖行情、六层股票池、策略、事件、账户、风控、Paper 执行、生命周期、SQLite 审计和 Dashboard；不足是模块数量增长很快，部分职责和旧模块存在重叠，SQLite 连接还会产生 ResourceWarning。
+下一步建议：优先画出唯一事件流和订单状态机，统一旧新接口，并显式关闭所有数据库连接。
+讨论结果：________
+
+Q06：策略和硬风控在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/strategies
+文件：__init__.py、base.py、dual_ma.py、grid.py、mean_reversion.py、ml_baseline.py。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/risk
+文件：__init__.py、core.py。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/execution
+文件：__init__.py、paper.py。
+答：Agent 可以自主选策略和操作，但 Python 风控与 Paper 执行门必须不可绕过；不足是未来插件化策略的权限清单和失败隔离还未形成正式协议。
+下一步建议：为每个策略声明输入、输出、最大权限、超时、故障模式和不可绕过的组合风险门。
+讨论结果：________
+
+Q07：研究与证据生成代码在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/research
+文件：.gitkeep、__init__.py、full_paper_trial_pipeline.py、guarded_paper_trial_session.py、ibkr_mean_reversion_pipeline.py、ibkr_quote_recorder.py、mean_reversion_diagnostics.py、paper_candidate_hunt.py、paper_execution_gate.py、paper_pre_submit_review.py、paper_readiness_report.py、paper_session_runbook.py、paper_session_status_page.py、paper_trial_evidence_bundle.py、paper_trial_preflight_checklist.py、paper_trial_readiness_monitor.py、paper_trial_reconciliation.py、paper_trial_rehearsal.py、paper_trial_report_refresh.py、paper_validation_plan.py、project_completion_audit.py、quote_quality_report.py、strategy_catalog.py、strategy_validation_plan.py。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/backtest
+文件：.gitkeep。
+答：研究层已经能形成 Paper 候选、预检、演练、对账和证据包，但真正的回测目录仍为空；不足是策略有效性、交易成本、样本外表现和可重复数据版本证据不够。
+下一步建议：建立不可变数据集、成本模型、样本外回测和 Paper 对照实验四件套。
+讨论结果：________
+
+Q08：运维脚本在哪里，哪些可能触及交易？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/scripts
+文件：approve_candidate_to_universe.py、audit_ibkr_level1_streaming.py、audit_paper_trading_readiness.py、auto_paper_limit_from_quote.py、benchmark_autonomous_agent_cycle.py、benchmark_ibkr_quote_batches.py、build_account_reports.py、build_ibkr_callback_wiring_audit.py、build_market_data_audit_report.py、build_market_data_billing_safety.py、build_market_data_line_report.py、build_mode9_execution_audit.py、build_mode9_infrastructure_status.py、build_paper_execution_gate.py、build_paper_pre_submit_review.py、build_paper_readiness_report.py、build_paper_session_runbook.py、build_paper_session_status_page.py、build_paper_trial_evidence_bundle.py、build_paper_trial_preflight_checklist.py、build_paper_trial_reconciliation.py、build_paper_validation_plan.py、build_pool_architecture_audit.py、build_position_guard_report.py、build_project_completion_audit.py、build_quote_quality_report.py、build_security_master.py、build_strategy_catalog.py、build_strategy_extension_status.py、build_strategy_validation_plan.py、check_gateway_health.command、check_ibkr_quotes.py、configure_feishu_webhook.command、control_trading_mode.command、deploy_openclaw_gateway.command、diagnose_market_data_channels.py、generate_daily_feishu_update.py、generate_strategy_dashboard.py、hunt_paper_candidate.py、list_tws_orders.py、monitor_paper_trial_readiness.py、record_account_pnl.py、record_ibkr_quotes.py、refresh_paper_trial_reports.py、refresh_position_protection_test_result.py、refresh_strategy_dashboard.py、rehearse_paper_trial_workflow.py、review_candidate_report.py、review_t_duplicate_stops.py、run_auto_open_discovery_news_simulation.py、run_auto_order_sequence.py、run_autonomous_paper_runtime.py、run_autonomous_trading_agent.py、run_full_paper_automation.py、run_full_paper_rollout.py、run_full_paper_trial_pipeline.py、run_guarded_paper_trial_session.py、run_ibkr_callback_dry_run.py、run_ibkr_mean_reversion_pipeline.py、run_mean_reversion_diagnostics.py、run_mode9_report_only_infrastructure_cycle.py、run_pool_strategy_module.py、run_position_protection.py、run_realtime_account_sync.py、run_strategy_simulation.py、send_daily_feishu_update.command、send_daily_feishu_update_if_due.command、send_feishu_report.py、serve_live_dashboard.py、start_dev_lock_api.command、start_live_dashboard.command、start_trade_lock_api.command、stop_trading_api.command、submit_single_paper_from_readiness.py、test_ibkr_tick_by_tick.py、test_streaming_quotes.py。
+答：build、audit、diagnose、report 类脚本通常只读，run、submit、auto、control 类必须视为高权限入口并始终经过 Paper 与硬风控门；不足是文件名不能代替机器可验证的权限声明。
+下一步建议：给每个脚本增加 READ_ONLY、SIMULATION、PAPER_ORDER 三类元数据，并让启动器拒绝未知权限。
+讨论结果：________
+
+Q09：自动运行和 OpenClaw 接口在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/ops/launchd
+文件：com.openclaw.autonomous-paper.plist、com.openclaw.mode9-agent.plist。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/openclaw
+文件：SKILL.md、openclaw_trading_client.py。
+答：launchd 描述自动 Paper 调度，OpenClaw 客户端供 Agent 调用受控交易接口；不足是自动恢复、重复执行、并发锁和权限撤销仍需故障注入验证。
+下一步建议：在离线环境测试崩溃重启、重复事件、陈旧行情、断网、数据库锁和部分成交恢复。
+讨论结果：________
+
+Q10：飞书日报是不是每日交易报告，它如何工作？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/scripts
+文件：generate_daily_feishu_update.py、send_daily_feishu_update.command、send_daily_feishu_update_if_due.command、send_feishu_report.py、configure_feishu_webhook.command。
+答：是，它读取 Agent 状态、盈亏、股票池、自动报告、进程健康和日志后生成每日交易摘要，并通过本地秘密配置发送到飞书；不足是外部发送失败、重复发送与敏感字段脱敏需要更强验证。
+下一步建议：增加幂等消息 ID、脱敏快照测试、失败重试上限和发送回执审计。
+讨论结果：________
+
+Q11：TWS 订单是否已经存入 SQL？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/trading
+文件：tws_paper.py、ibkr_callback_bridge.py、paper_audit_db.py、sqlite_event_store.py、audit_writer.py、execution_ledger_split.py。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/scripts
+文件：list_tws_orders.py、build_paper_trial_reconciliation.py、review_t_duplicate_stops.py。
+答：订单、状态回调和成交明细已有 SQLite 审计与只读查询链路，并有测试验证订单引用、状态和成交价格被捕获；不足是必须用真实 Paper 会话证明重启后对账、部分成交和外部手工订单都不会丢失。
+下一步建议：下一里程碑执行一次受控 Paper 小额订单全生命周期演练并输出数据库证据包。
+讨论结果：________
+
+Q12：Dashboard 与生成物在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/output/pdf
+文件：derge_project_engineering_manual_cn.pdf。
+答：版本库只保留工程手册 PDF，运行时还会在忽略目录生成 SQLite、JSON、CSV、日志、HTML Dashboard、状态页和报告；不足是当前产物命名、保留期和权威来源尚未统一。
+下一步建议：统一到 .runtime/{db,logs,reports,dashboard,evidence}，并为每个产物写生成时间、输入版本和校验值。
+讨论结果：________
+
+Q13：项目文档在哪里？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs
+文件：BOOK_BASED_RESEARCH_ROADMAP.md、CONTEXT_TOKEN_BUDGET_MONITOR_IDEA.md、HARDWARE_SOFTWARE_ROADMAP.md、NEXT_PHASE_AUTONOMOUS_PAPER_TRADING_PROMPT.md、PROJECT_HANDOFF_MANUAL_CN.md、PROJECT_MAP.md、RESEARCH_CANDIDATE_PIPELINE.md、STRATEGY_DEBT.md、STRATEGY_FLOW.md、STRATEGY_MODULES.md、YUGE_AUTONOMOUS_TRADING_BRIEF.md、PROJECT_STRUCTURE_QA.txt。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs/trading_sessions
+文件：README.md、01_calendar_and_timezones.md、02_overnight_session.md、03_premarket_session.md、04_regular_session.md、05_afterhours_session.md、06_risk_by_session.md、07_order_types_by_session.md、08_monitoring_and_recovery.md、09_autonomous_runtime_runbook.md。
+答：文档覆盖架构、研究、策略债务、交接和各交易时段运行手册；不足是部分文档可能描述不同阶段，需要与代码和测试建立版本对应关系。
+下一步建议：每个里程碑更新能力矩阵，并由测试链接到对应文档约束。
+讨论结果：________
+
+Q14：测试覆盖在哪里，当前做到哪一步？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/tests
+文件：__init__.py、test_account_reports.py、test_account_state_manager.py、test_api_service.py、test_auto_open_pipeline.py、test_autonomous_agent.py、test_autonomous_runtime.py、test_candidate_research.py、test_daily_feishu_update.py、test_dashboard.py、test_event_risk_control.py、test_event_router.py、test_full_paper_trial_pipeline.py、test_gap_escape_manager.py、test_gap_risk_manager.py、test_guarded_paper_trial_session.py、test_ibkr_callback_bridge.py、test_ibkr_callback_wiring_audit.py、test_ibkr_mean_reversion_pipeline.py、test_ibkr_quote_recorder.py、test_ibkr_readonly.py、test_ibkr_streaming.py、test_market_data_billing_safety.py、test_market_quote_crosscheck.py、test_market_session.py、test_mean_reversion_diagnostics.py、test_mode9_infrastructure_status.py、test_mode9_report_only_infrastructure_cycle.py、test_monitoring_line_control.py、test_openclaw_client.py、test_options_hedge_planner.py、test_order_intents_and_pnl_ledger.py、test_paper_candidate_hunt.py、test_paper_environment_audit.py、test_paper_execution_gate.py、test_paper_pre_submit_review.py、test_paper_readiness_report.py、test_paper_session_runbook.py、test_paper_session_status_page.py、test_paper_trial_evidence_bundle.py、test_paper_trial_preflight_checklist.py、test_paper_trial_readiness_monitor.py、test_paper_trial_reconciliation.py、test_paper_trial_rehearsal.py、test_paper_trial_report_refresh.py、test_paper_validation_plan.py、test_pool_architecture_audit.py、test_pool_manager.py、test_pool_state.py、test_position_protection.py、test_position_protection_test_result_refresh.py、test_price_normalizer.py、test_profit_protection_reports.py、test_project_completion_audit.py、test_quote_quality_report.py、test_realtime_account_sync.py、test_reconciliation.py、test_risk.py、test_security_master.py、test_service.py、test_session_calendar.py、test_session_policy.py、test_strategy.py、test_strategy_catalog.py、test_strategy_extension_status.py、test_strategy_modules.py、test_strategy_validation_plan.py、test_tws_paper.py、test_unified_strategy_interface.py、test_universe.py。
+答：2026-08-27 合并后离线单元测试为 360/360 通过且 gitleaks 通过；不足是这些测试不能替代 TWS Paper 集成测试、长时间稳定性测试、故障注入和成交后对账。
+下一步建议：每个里程碑固定执行单元、集成、回放、Paper 演练、安全扫描和恢复测试六类验证。
+讨论结果：________
+
+Q15：Wind、OpenWorkspace 和 Discord 是否还混在交易项目里？
+答：Wind 已独立到 /Users/nbhsbgnb/Documents/wind_storage_mpc_project，Discord 已独立到私有仓库 discord-handbook，OpenWorkspace 已形成独立本地迁移提交但仍等待 GitHub workflow 权限完成远端推送；不足是旧交易仓库分支在远端验证前尚不能全部删除。
+下一步建议：验证 OpenWorkspace 独立远端和克隆一致性后，删除交易仓库全部旧非 main 分支。
+讨论结果：________
+
+Q16：Context Token Budget Monitor 是否已经实现？
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs/CONTEXT_TOKEN_BUDGET_MONITOR_IDEA.md
+答：没有，它只是独立待研究项；API response usage 可提供请求响应 token 数据，但尚无已核实证据证明 Codex App 暴露精确实时上下文占用接口。
+下一步建议：保持交易核心优先，未来只基于官方能力研究近似提醒、压缩和 handoff，不宣称不存在的精确接口。
+讨论结果：________
+
+Q17：未来一到三个里程碑应是什么？
+答：M1 完成订单状态机、SQL 对账与故障恢复证据，M2 完成可重复回测和长时间 Paper 自主运行，M3 只设计 Paper-to-Live 独立门禁且当前绝不启用 Live；不足是量化验收阈值仍需组会确认。
+下一步建议：为每个里程碑确定通过率、最长恢复时间、最大可接受对账差异和风险门测试矩阵。
+讨论结果：________
+
+周六组会勾选清单
+[ ] Q02：确认唯一推荐运行入口。
+[ ] Q05：确认是否优先清理 SQLite 连接与模块重叠。
+[ ] Q06：确认策略插件权限协议。
+[ ] Q07：确认首个回测数据集和成本模型。
+[ ] Q08：确认脚本权限分级。
+[ ] Q10：确认飞书日报的脱敏、幂等和回执要求。
+[ ] Q11：批准下一次受控 IBKR Paper 全生命周期演练；未批准前不连接、不下单。
+[ ] Q12：确认运行产物统一目录和保留期。
+[ ] Q15：确认 OpenWorkspace 授权完成后立即删除旧分支。
+[ ] Q17：确认 M1-M3 的量化验收阈值。
+
+边界提醒
+任何 Agent 即使拥有代码与系统权限，也不得绕过 Python 硬风控、Paper 账户验证、交易锁、审计写入和负责人对 Live 连接的独立明确授权。
