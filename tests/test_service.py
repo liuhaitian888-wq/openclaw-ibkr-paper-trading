@@ -27,6 +27,15 @@ def make_settings(directory: str, **overrides: object) -> Settings:
         "max_quantity": 1,
         "max_order_value": 200.0,
         "max_risk_per_order": 10.0,
+        "max_daily_notional_value": None,
+        "daily_notional_timezone": "Europe/Berlin",
+        "streaming_market_data_enabled": False,
+        "streaming_symbols": ("AAPL", "MSFT", "NVDA"),
+        "streaming_max_symbols": 3,
+        "streaming_stale_ms": 3000.0,
+        "streaming_tws_host": "127.0.0.1",
+        "streaming_tws_port": 7497,
+        "streaming_client_id": 32,
         "audit_db": Path(directory) / "audit.sqlite3",
     }
     values.update(overrides)
@@ -76,6 +85,13 @@ def not_ready_tws_status() -> TwsConnectionStatus:
 
 
 class TradingServiceTests(unittest.TestCase):
+    def test_stage_menu_requires_explicit_confirmation(self) -> None:
+        script = Path("scripts/control_trading_mode.command").read_text(encoding="utf-8")
+
+        self.assertIn("Type STAGE to continue", script)
+        self.assertIn('[[ "$stage_confirm" != "STAGE" ]]', script)
+        self.assertIn("intentionally creates untransmitted staged orders", script)
+
     def test_dry_run_validation_approves_safe_proposal(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             service = TradingService(make_settings(directory))
@@ -253,6 +269,9 @@ class TradingServiceTests(unittest.TestCase):
             self.assertIn("service_total_ms", result["timings"])
             self.assertIn("service_risk_ms", result["timings"])
             self.assertEqual(result["timings"]["broker_total_ms"], 2.0)
+            record = service.audit_order("limit-0001")["order"]
+            self.assertIn("execution_intent=paper_transmit", record["details"])
+            self.assertIn("transmit=true", record["details"])
             broker_class.return_value.submit_limit.assert_called_once_with(
                 unittest.mock.ANY,
                 transmit=True,
@@ -294,6 +313,8 @@ class TradingServiceTests(unittest.TestCase):
             record = service.audit_order("pending-bracket-0001")["order"]
             self.assertEqual(record["status"], "PAPER_PENDING_CONFIRMATION")
             self.assertIn("pending_confirmation=true", record["details"])
+            self.assertIn("execution_intent=paper_transmit", record["details"])
+            self.assertIn("bracket_parent_transmit_false_expected=true", record["details"])
 
     @patch("trading.service.TwsPaperBroker")
     def test_limit_paper_order_records_pending_confirmation_when_tws_has_no_ack(
@@ -339,6 +360,62 @@ class TradingServiceTests(unittest.TestCase):
 
             self.assertFalse(result["approved"])
             self.assertEqual(result["reason"], "Order value exceeds the configured maximum")
+
+    @patch("trading.service.TwsPaperBroker")
+    def test_daily_notional_cap_is_disabled_by_default(
+        self,
+        broker_class: object,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            settings = make_settings(
+                directory,
+                trading_mode="PAPER",
+                allow_paper_transmit=True,
+                trade_session_token="session-ok",
+                max_order_value=400.0,
+            )
+            payload = valid_limit_payload("daily-disabled-0001")
+            payload["trade_session_token"] = "session-ok"
+            broker_class.return_value.submit_limit.return_value = OrderConfirmation(
+                order_ids=(200,),
+                statuses={200: "Submitted"},
+            )
+            service = TradingService(settings)
+
+            result = service.submit_limit(payload, transmit=True)
+
+            self.assertEqual(result["status"], "PAPER_LIMIT_SUBMITTED")
+            self.assertEqual(service.health()["limits"]["max_daily_notional_value"], None)
+
+    @patch("trading.service.TwsPaperBroker")
+    def test_daily_notional_cap_rejects_when_configured_and_exceeded(
+        self,
+        broker_class: object,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            settings = make_settings(
+                directory,
+                trading_mode="PAPER",
+                allow_paper_transmit=True,
+                trade_session_token="session-ok",
+                max_order_value=400.0,
+                max_daily_notional_value=500.0,
+            )
+            broker_class.return_value.submit_limit.return_value = OrderConfirmation(
+                order_ids=(200,),
+                statuses={200: "Submitted"},
+            )
+            service = TradingService(settings)
+            first = valid_limit_payload("daily-cap-0001")
+            first["trade_session_token"] = "session-ok"
+            second = valid_limit_payload("daily-cap-0002")
+            second["trade_session_token"] = "session-ok"
+
+            service.submit_limit(first, transmit=True)
+            with self.assertRaisesRegex(PermissionError, "Daily notional cap exceeded"):
+                service.submit_limit(second, transmit=True)
+
+            self.assertEqual(service.audit_orders(limit=10)["count"], 1)
 
     @patch("trading.service.TwsPaperBroker")
     def test_audit_orders_can_be_queried_after_submission(

@@ -523,6 +523,21 @@ class AuditLog:
             ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def paper_notional_for_date(
+        self,
+        day: str,
+        timezone_name: str = "Europe/Berlin",
+    ) -> float:
+        return round(
+            sum(
+                _notional(record)
+                for record in self.list_for_date(day, timezone_name)
+                if str(record["mode"]).startswith("PAPER")
+                and record["status"] != "FAILED"
+            ),
+            6,
+        )
+
     @staticmethod
     def _row_to_record(row: sqlite3.Row) -> Dict[str, Any]:
         return {
@@ -533,3 +548,13 @@ class AuditLog:
             "proposal": json.loads(row["proposal_json"]),
             "details": row["details"],
         }
+
+
+def _notional(record: Dict[str, Any]) -> float:
+    proposal = record.get("proposal", {})
+    if not isinstance(proposal, dict):
+        return 0.0
+    try:
+        return float(proposal.get("quantity", 0)) * float(proposal.get("limit_price", 0.0))
+    except (TypeError, ValueError):
+        return 0.0

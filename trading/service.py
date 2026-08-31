@@ -2,10 +2,12 @@ import hmac
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional
+from zoneinfo import ZoneInfo
 
 from trading.audit import AuditLog
 from trading.config import Settings
 from trading.models import TradeProposal
+from trading.order_rejections import log_order_rejection
 from trading.risk import RiskEngine, RiskLimits
 from trading.tws_paper import BrokerSnapshot, OrderConfirmation, TwsPaperBroker
 from trading.workflow import attach_workflow_step
@@ -43,6 +45,9 @@ class TradingService:
                 "max_quantity": self.settings.max_quantity,
                 "max_order_value": self.settings.max_order_value,
                 "max_risk_per_order": self.settings.max_risk_per_order,
+                "max_daily_notional_value": self.settings.max_daily_notional_value,
+                "daily_notional_timezone": self.settings.daily_notional_timezone,
+                "daily_notional_used": self._daily_notional_used(),
             },
             "audit": {
                 "database": str(self.settings.audit_db),
@@ -197,6 +202,7 @@ class TradingService:
                 PermissionError(f"TWS is not ready for orders: {preflight['error']}"),
                 "service_tws_preflight",
             )
+        self._require_daily_notional_available(proposal)
         audit_reserve_started = time.perf_counter()
         if not self._audit.reserve(
             proposal,
@@ -224,6 +230,7 @@ class TradingService:
             timings["service_broker_submit_ms"] = self._elapsed_ms(broker_started)
         except Exception as exc:
             self._audit.update(proposal.idempotency_key, "FAILED", str(exc))
+            log_order_rejection(proposal=proposal, error=exc)
             raise attach_workflow_step(exc, "service_broker_submit") from exc
         timings.update(confirmation.timings)
 
@@ -239,7 +246,7 @@ class TradingService:
         self._audit.update(
             proposal.idempotency_key,
             status,
-            confirmation.details(),
+            self._audit_details(confirmation, transmit=transmit, bracket=True),
         )
         self._audit.record_submission(
             proposal.idempotency_key,
@@ -311,6 +318,7 @@ class TradingService:
                 PermissionError(f"TWS is not ready for orders: {preflight['error']}"),
                 "service_tws_preflight",
             )
+        self._require_daily_notional_available(proposal)
         audit_reserve_started = time.perf_counter()
         if not self._audit.reserve(
             proposal,
@@ -338,6 +346,7 @@ class TradingService:
             timings["service_broker_submit_ms"] = self._elapsed_ms(broker_started)
         except Exception as exc:
             self._audit.update(proposal.idempotency_key, "FAILED", str(exc))
+            log_order_rejection(proposal=proposal, error=exc)
             raise attach_workflow_step(exc, "service_broker_submit") from exc
         timings.update(confirmation.timings)
 
@@ -353,7 +362,7 @@ class TradingService:
         self._audit.update(
             proposal.idempotency_key,
             status,
-            confirmation.details(),
+            self._audit_details(confirmation, transmit=transmit, bracket=False),
         )
         self._audit.record_submission(
             proposal.idempotency_key,
@@ -404,6 +413,27 @@ class TradingService:
     @staticmethod
     def _confirmation_status(confirmation: OrderConfirmation) -> str:
         return "PENDING_CONFIRMATION" if confirmation.pending_confirmation else "CONFIRMED"
+
+    @staticmethod
+    def _audit_details(
+        confirmation: OrderConfirmation,
+        *,
+        transmit: bool,
+        bracket: bool,
+    ) -> str:
+        execution_intent = "paper_transmit" if transmit else "stage"
+        parts = [
+            f"execution_intent={execution_intent}",
+            f"transmit={str(transmit).lower()}",
+        ]
+        if bracket:
+            parts.append("bracket_parent_transmit_false_expected=true")
+            parts.append(
+                "bracket_child_transmit_triggers_bracket="
+                + str(transmit).lower()
+            )
+        parts.append(confirmation.details())
+        return ", ".join(parts)
 
     @classmethod
     def _with_total_timing(
@@ -477,6 +507,31 @@ class TradingService:
             self.settings.trade_session_token,
         ):
             raise PermissionError("Invalid trade session token")
+
+    def _require_daily_notional_available(self, proposal: TradeProposal) -> None:
+        cap = self.settings.max_daily_notional_value
+        if cap is None:
+            return
+        current = self._daily_notional_used()
+        proposed = proposal.quantity * proposal.limit_price
+        if current + proposed > cap:
+            raise attach_workflow_step(
+                PermissionError(
+                    "Daily notional cap exceeded: "
+                    f"used={current:.2f}, proposed={proposed:.2f}, cap={cap:.2f}, "
+                    f"timezone={self.settings.daily_notional_timezone}"
+                ),
+                "service_daily_notional",
+            )
+
+    def _daily_notional_used(self) -> float:
+        if self.settings.max_daily_notional_value is None:
+            return 0.0
+        day = datetime.now(ZoneInfo(self.settings.daily_notional_timezone)).date().isoformat()
+        return self._audit.paper_notional_for_date(
+            day,
+            self.settings.daily_notional_timezone,
+        )
 
     @staticmethod
     def _estimated_risk(proposal: TradeProposal) -> float:

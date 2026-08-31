@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.autonomous-paper</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>-lc</string>
+    <string>cd "/Users/nbhsbgnb/Documents/New project" &amp;&amp; env TRADING_MODE=PAPER ALLOW_TWS_STAGING=true ALLOW_PAPER_TRANSMIT=true ALLOW_OUTSIDE_RTH=true TRADING_KILL_SWITCH=false TRADE_SESSION_TOKEN_FILE="/Users/nbhsbgnb/Documents/openclaw_shared/trade_session_token" MAX_ORDER_VALUE=400 MAX_QUANTITY=1 MAX_RISK_PER_ORDER=10 AUTONOMOUS_PAPER_ONLY=true AUTONOMOUS_KILL_SWITCH=false AUTONOMOUS_MAX_CYCLES=0 AUTONOMOUS_CYCLE_SLEEP_SECONDS=30 AUTONOMOUS_MAX_ORDERS_PER_SESSION=20 AUTONOMOUS_MAX_ORDERS_PER_SYMBOL=3 AUTONOMOUS_MAX_OPEN_ORDERS=5 AUTONOMOUS_MAX_ORDER_VALUE=400 AUTONOMOUS_MAX_POSITION_PER_SYMBOL=5 AUTONOMOUS_DAILY_LOSS_LIMIT=100 AUTONOMOUS_REQUIRE_PROTECTIVE_STOP=true AUTONOMOUS_REQUIRE_LIMIT_ENTRY=true AUTONOMOUS_REQUIRE_PRE_SUBMIT_REVIEW=false .venv313/bin/python scripts/run_autonomous_paper_runtime.py --symbols AAPL,MSFT,SPY,PFE,T,F --cycles 0 --sleep-seconds 30 --batch-size 3 --bar-interval-seconds 30 --market-data-type 3</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/nbhsbgnb/Documents/New project</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/Users/nbhsbgnb/Documents/New project/logs/autonomous_paper_runtime.launchd.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/nbhsbgnb/Documents/New project/logs/autonomous_paper_runtime.launchd.err.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+  </dict>
+</dict>
+</plist>

@@ -25,6 +25,7 @@ from trading.config import Settings
 from trading.dashboard import render_dashboard_html
 from trading.ibkr_readonly import IbkrReadOnlyQuoteSource, ParallelIbkrReadOnlyQuoteSource
 from trading.market_data import Quote, QuoteSource, SimulatedQuoteSource
+from trading.process_guard import ExecutionLock
 from trading.strategy import StrategyScannerConfig, RotatingStrategyScanner, ValueFilterConfig, ValuePoolFilter
 from trading.strategy_modules import (
     ConservativeTrendConfig,
@@ -131,6 +132,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-daily-loss", type=float, default=25.0)
     parser.add_argument("--max-consecutive-losses", type=int, default=3)
     parser.add_argument("--allow-new-entries-outside-rth", action="store_true")
+    parser.add_argument("--buy-freeze", action="store_true")
     parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
     parser.add_argument(
         "--dashboard-output",
@@ -143,6 +145,17 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     started = time.perf_counter()
     args = parse_args()
+    can_submit_orders = args.mode in {"paper", "stage"}
+    with ExecutionLock(
+        process_name="pool_strategy_module",
+        mode=args.mode,
+        can_submit_orders=can_submit_orders,
+        prefer_mode9=True,
+    ):
+        return run_module(args, started)
+
+
+def run_module(args: argparse.Namespace, started: float) -> int:
     api_key = read_required(args.api_key_file, "OPENCLAW_API_KEY")
     trade_session_token = read_trade_session_token(args.trade_session_token_file) if args.mode == "paper" else None
     health = request_json("GET", "/health", None, api_url=args.api_url, api_key=api_key, timeout=args.api_timeout)
@@ -236,6 +249,19 @@ def main() -> int:
             portfolio_risk_decisions.append(decision_record)
             if not decision.is_order or submitted_count >= args.max_orders:
                 continue
+            if args.buy_freeze and decision.side == "BUY":
+                submissions.append(
+                    {
+                        "status": "BLOCKED",
+                        "approved": False,
+                        "workflow_step": "mode9_buy_freeze",
+                        "reason": "MODE9_BUY_FREEZE blocks new BUY orders",
+                        "step": step,
+                        "decision": decision_payload(step, decision),
+                        "proposal": payload_without_token(order_payload(decision, step)),
+                    }
+                )
+                continue
             payload = order_payload(decision, step)
             if trade_session_token:
                 payload["trade_session_token"] = trade_session_token
@@ -271,7 +297,7 @@ def main() -> int:
         "batch_size": batch_size,
         "full_pool_each_step": args.full_pool_each_step,
         "steps": args.steps,
-        "submitted_count": len(submissions),
+        "submitted_count": sum(1 for item in submissions if item.get("approved") is not False),
         "positions": {
             symbol: {
                 "quantity": position.quantity,
@@ -292,6 +318,7 @@ def main() -> int:
             "max_daily_loss": args.max_daily_loss,
             "max_consecutive_losses": args.max_consecutive_losses,
             "allow_new_entries_outside_rth": args.allow_new_entries_outside_rth,
+            "buy_freeze": args.buy_freeze,
         },
         "timings": {"run_total_ms": elapsed_ms(started)},
     }

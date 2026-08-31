@@ -174,37 +174,48 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     settings = Settings.load()
+    payload = read_tws_orders(
+        host=args.host or settings.tws_host,
+        port=args.port or settings.tws_port,
+        client_id=args.client_id,
+        timeout=args.timeout,
+    )
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if payload.get("status") == "ok" else 1
+
+
+def read_tws_orders(
+    *,
+    host: str,
+    port: int,
+    client_id: int = 66001,
+    timeout: float = 5.0,
+) -> Dict[str, Any]:
     client = ReadOnlyOrdersClient()
     started = time.perf_counter()
     try:
-        client.connect(
-            args.host or settings.tws_host,
-            args.port or settings.tws_port,
-            clientId=args.client_id,
-        )
+        client.connect(host, port, clientId=client_id)
         threading.Thread(target=client.run_loop, daemon=True).start()
-        if not client.ready.wait(args.timeout):
-            payload = {
+        if not client.ready.wait(timeout):
+            return {
                 "status": "error",
                 "error": "TWS API handshake timed out",
                 "errors": client.errors,
             }
-            print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-            return 1
 
         client.reqAllOpenOrders()
-        client.open_orders_ready.wait(args.timeout)
+        client.open_orders_ready.wait(timeout)
 
         try:
             client.reqCompletedOrders(False)
-            client.completed_orders_ready.wait(args.timeout)
+            client.completed_orders_ready.wait(timeout)
         except AttributeError:
             client.errors.append("reqCompletedOrders is unavailable in this ibapi version")
 
         client.reqExecutions(9001, ExecutionFilter())
-        client.executions_ready.wait(args.timeout)
+        client.executions_ready.wait(timeout)
 
-        payload = {
+        return {
             "status": "ok",
             "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
             "next_order_id": client.next_order_id,
@@ -222,8 +233,6 @@ def main() -> int:
             "executions": client.executions,
             "errors": client.errors,
         }
-        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
-        return 0
     finally:
         if client.isConnected():
             client.disconnect()

@@ -9,10 +9,14 @@ IBKR.
 
 ### Discord Handbook Zone
 
+The Discord handbook bot has been split out to
+`/Users/nbhsbgnb/Documents/discord_handbook_project`. It remains an external
+context tool, not part of the trading gateway.
+
 Allowed:
 
 - Read selected Discord channels.
-- Summarize discussion into `handbook/`.
+- Summarize discussion into its own handbook files.
 - Save images and attachments for project memory.
 - Report handbook status.
 

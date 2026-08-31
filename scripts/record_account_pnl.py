@@ -296,11 +296,33 @@ def append_outputs(csv_output: Path, jsonl_output: Path, sample: PnlSample) -> N
     payload = sample.as_dict()
     csv_output.parent.mkdir(parents=True, exist_ok=True)
     jsonl_output.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not csv_output.exists()
+    fieldnames = list(payload)
+    existing_rows: List[Dict[str, object]] = []
+    write_header = True
+    if csv_output.exists():
+        with csv_output.open(newline="", encoding="utf-8") as existing:
+            reader = csv.DictReader(existing)
+            existing_fieldnames = list(reader.fieldnames or [])
+            existing_rows = [dict(row) for row in reader]
+        if existing_fieldnames == fieldnames:
+            write_header = False
+        else:
+            for name in existing_fieldnames:
+                if name and name not in fieldnames:
+                    fieldnames.append(name)
+            for row in existing_rows:
+                row.pop(None, None)
+                for name in fieldnames:
+                    row.setdefault(name, "")
     with csv_output.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(payload))
+        if write_header and existing_rows:
+            handle.seek(0)
+            handle.truncate()
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         if write_header:
             writer.writeheader()
+            for row in existing_rows:
+                writer.writerow(row)
         writer.writerow(payload)
     with jsonl_output.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
