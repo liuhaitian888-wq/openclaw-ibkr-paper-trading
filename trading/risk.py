@@ -11,13 +11,22 @@ class RiskLimits:
     max_quantity: int
     max_order_value: float
     max_risk_per_order: float
+    require_protective_stop: bool = True
+    max_symbol_exposure: float | None = None
+    max_gross_exposure: float | None = None
 
 
 class RiskEngine:
     def __init__(self, limits: RiskLimits) -> None:
         self._limits = limits
 
-    def validate(self, proposal: TradeProposal) -> RiskDecision:
+    def validate(
+        self,
+        proposal: TradeProposal,
+        *,
+        current_symbol_exposure: float = 0.0,
+        current_gross_exposure: float = 0.0,
+    ) -> RiskDecision:
         if not self._limits.trading_enabled:
             return self._reject("Trading is DISARMED")
 
@@ -37,7 +46,21 @@ class RiskEngine:
         if order_value > self._limits.max_order_value:
             return self._reject("Order value exceeds the configured maximum")
 
+        if (
+            self._limits.max_symbol_exposure is not None
+            and current_symbol_exposure + order_value > self._limits.max_symbol_exposure
+        ):
+            return self._reject("Symbol exposure exceeds the configured maximum")
+
+        if (
+            self._limits.max_gross_exposure is not None
+            and current_gross_exposure + order_value > self._limits.max_gross_exposure
+        ):
+            return self._reject("Gross exposure exceeds the configured maximum")
+
         if proposal.stop_price is None:
+            if self._limits.require_protective_stop:
+                return self._reject("Protective stop is required")
             return RiskDecision(True, "APPROVED", "All configured checks passed")
 
         if proposal.stop_price <= 0:
