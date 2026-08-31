@@ -114,8 +114,14 @@ def audit_requests_for_date(day: object) -> list[dict[str, Any]]:
     if not db.exists():
         return []
     rows: list[dict[str, Any]] = []
-    with sqlite3.connect(db) as con:
+    con = sqlite3.connect(db)
+    try:
         con.row_factory = sqlite3.Row
+        table_exists = con.execute(
+            "select 1 from sqlite_master where type = 'table' and name = 'order_requests'"
+        ).fetchone()
+        if table_exists is None:
+            return []
         for row in con.execute("select * from order_requests order by created_at"):
             created_at = str(row["created_at"])
             try:
@@ -126,6 +132,8 @@ def audit_requests_for_date(day: object) -> list[dict[str, Any]]:
                 continue
             proposal = json.loads(row["proposal_json"])
             rows.append({**dict(row), "proposal": proposal})
+    finally:
+        con.close()
     return rows
 
 

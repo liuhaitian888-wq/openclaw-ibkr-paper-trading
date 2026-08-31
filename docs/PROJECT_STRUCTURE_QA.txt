@@ -114,13 +114,13 @@ Q13：项目文档在哪里？
 Q14：测试覆盖在哪里，当前做到哪一步？
 路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/tests
 文件：__init__.py、test_account_reports.py、test_account_state_manager.py、test_api_service.py、test_auto_open_pipeline.py、test_autonomous_agent.py、test_autonomous_runtime.py、test_candidate_research.py、test_daily_feishu_update.py、test_dashboard.py、test_event_risk_control.py、test_event_router.py、test_full_paper_trial_pipeline.py、test_gap_escape_manager.py、test_gap_risk_manager.py、test_guarded_paper_trial_session.py、test_ibkr_callback_bridge.py、test_ibkr_callback_wiring_audit.py、test_ibkr_mean_reversion_pipeline.py、test_ibkr_quote_recorder.py、test_ibkr_readonly.py、test_ibkr_streaming.py、test_market_data_billing_safety.py、test_market_quote_crosscheck.py、test_market_session.py、test_mean_reversion_diagnostics.py、test_mode9_infrastructure_status.py、test_mode9_report_only_infrastructure_cycle.py、test_monitoring_line_control.py、test_openclaw_client.py、test_options_hedge_planner.py、test_order_intents_and_pnl_ledger.py、test_paper_candidate_hunt.py、test_paper_environment_audit.py、test_paper_execution_gate.py、test_paper_pre_submit_review.py、test_paper_readiness_report.py、test_paper_session_runbook.py、test_paper_session_status_page.py、test_paper_trial_evidence_bundle.py、test_paper_trial_preflight_checklist.py、test_paper_trial_readiness_monitor.py、test_paper_trial_reconciliation.py、test_paper_trial_rehearsal.py、test_paper_trial_report_refresh.py、test_paper_validation_plan.py、test_pool_architecture_audit.py、test_pool_manager.py、test_pool_state.py、test_position_protection.py、test_position_protection_test_result_refresh.py、test_price_normalizer.py、test_profit_protection_reports.py、test_project_completion_audit.py、test_quote_quality_report.py、test_realtime_account_sync.py、test_reconciliation.py、test_risk.py、test_security_master.py、test_service.py、test_session_calendar.py、test_session_policy.py、test_strategy.py、test_strategy_catalog.py、test_strategy_extension_status.py、test_strategy_modules.py、test_strategy_validation_plan.py、test_tws_paper.py、test_unified_strategy_interface.py、test_universe.py。
-答：2026-08-27 合并后离线单元测试为 360/360 通过且 gitleaks 通过；不足是这些测试不能替代 TWS Paper 集成测试、长时间稳定性测试、故障注入和成交后对账。
+答：2026-08-31 最终离线单元测试为 361/361 通过且 gitleaks 通过；不足是这些测试不能替代 TWS Paper 集成测试、长时间稳定性测试、故障注入和成交后对账。
 下一步建议：每个里程碑固定执行单元、集成、回放、Paper 演练、安全扫描和恢复测试六类验证。
 讨论结果：________
 
 Q15：Wind、OpenWorkspace 和 Discord 是否还混在交易项目里？
-答：Wind 已独立到 /Users/nbhsbgnb/Documents/wind_storage_mpc_project，Discord 已独立到私有仓库 discord-handbook，OpenWorkspace 已形成独立本地迁移提交但仍等待 GitHub workflow 权限完成远端推送；不足是旧交易仓库分支在远端验证前尚不能全部删除。
-下一步建议：验证 OpenWorkspace 独立远端和克隆一致性后，删除交易仓库全部旧非 main 分支。
+答：没有，Wind 位于 /Users/nbhsbgnb/Documents/wind_storage_mpc_project，OpenWorkspace 位于 /Users/nbhsbgnb/Documents/OpenWorkspace，Discord 位于 /Users/nbhsbgnb/Documents/discord_handbook_project，三者都有独立 GitHub 仓库；交易仓库本地和远端均只剩 main。
+下一步建议：以后任何新项目先建立独立目录和远端，不再借用交易仓库分支承载。
 讨论结果：________
 
 Q16：Context Token Budget Monitor 是否已经实现？
@@ -143,7 +143,7 @@ Q17：未来一到三个里程碑应是什么？
 [ ] Q10：确认飞书日报的脱敏、幂等和回执要求。
 [ ] Q11：批准下一次受控 IBKR Paper 全生命周期演练；未批准前不连接、不下单。
 [ ] Q12：确认运行产物统一目录和保留期。
-[ ] Q15：确认 OpenWorkspace 授权完成后立即删除旧分支。
+[x] Q15：OpenWorkspace 已独立推送并验证，交易旧分支已删除。
 [ ] Q17：确认 M1-M3 的量化验收阈值。
 
 边界提醒
