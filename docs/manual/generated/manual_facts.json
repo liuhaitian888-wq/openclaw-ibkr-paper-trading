@@ -1,0 +1,4512 @@
+{
+  "chapters": [
+    "Project Introduction",
+    "How to Read This Manual",
+    "System Overview",
+    "Complete System Architecture",
+    "Runtime Lifecycle",
+    "Data Flow, Signal Flow, Control Flow, and Error Flow",
+    "Module Communication Contract",
+    "Six-Layer Stock Pool",
+    "IBKR/TWS Integration",
+    "Risk and Execution Architecture",
+    "Database Architecture",
+    "Log and Observability Architecture",
+    "Autonomous Review Framework",
+    "Failure and Recovery Scenarios",
+    "Developer Operations",
+    "Source-Code Reference",
+    "Appendix"
+  ],
+  "chinese_name": "\u521d\u59cb\u67b6\u6784\u57fa\u7ebf\u7248",
+  "data_inventory": [
+    {
+      "columns": [
+        "sample",
+        "requested_at",
+        "symbol",
+        "timestamp",
+        "open",
+        "high",
+        "low",
+        "close",
+        "last",
+        "bid",
+        "ask",
+        "spread",
+        "volume",
+        "quote_source"
+      ],
+      "path": "data/ibkr_quotes.csv",
+      "row_count_without_header": 90,
+      "size_bytes": 13934
+    },
+    {
+      "columns": [
+        "symbol",
+        "company_name",
+        "asset_type",
+        "primary_exchange",
+        "listing_exchange",
+        "currency",
+        "country",
+        "sector",
+        "industry",
+        "is_etf",
+        "is_adr",
+        "is_otc",
+        "is_test_issue",
+        "financial_status",
+        "listing_status",
+        "CIK",
+        "ibkr_conid",
+        "data_source",
+        "last_updated_at",
+        "blocked_reason",
+        "enabled"
+      ],
+      "path": "data/security_master.csv",
+      "row_count_without_header": 13024,
+      "size_bytes": 2294513
+    },
+    {
+      "columns": [
+        "symbol",
+        "name",
+        "exchange",
+        "sector",
+        "enabled",
+        "tags",
+        "average_volume",
+        "pe_ratio",
+        "forward_pe",
+        "peg_ratio",
+        "debt_to_equity",
+        "revenue_growth_yoy",
+        "gross_margin",
+        "operating_margin",
+        "return_on_invested_capital",
+        "free_cash_flow_positive",
+        "earnings_positive",
+        "analyst_revision_positive"
+      ],
+      "path": "data/us_equity_universe.csv",
+      "row_count_without_header": 71,
+      "size_bytes": 7762
+    }
+  ],
+  "diagrams": [
+    {
+      "name": "complete_system_mind_map.svg",
+      "title": "Complete System Mind Map"
+    },
+    {
+      "name": "layered_system_architecture.svg",
+      "title": "Layered System Architecture"
+    },
+    {
+      "name": "mode9_lifecycle_flowchart.svg",
+      "title": "Mode 9 Runtime Lifecycle"
+    },
+    {
+      "name": "market_data_sequence.svg",
+      "title": "Market-Data Request and Callback Sequence"
+    },
+    {
+      "name": "trading_signal_order_flow.svg",
+      "title": "Trading Signal and Order Flow"
+    },
+    {
+      "name": "module_dependency_diagram.svg",
+      "title": "Module Communication Contract"
+    },
+    {
+      "name": "six_layer_stock_pool.svg",
+      "title": "Six-Layer Stock Pool"
+    },
+    {
+      "name": "database_er_diagram.svg",
+      "title": "Database Entity Relationship Overview"
+    },
+    {
+      "name": "logging_observability_flowchart.svg",
+      "title": "Logging and Observability"
+    },
+    {
+      "name": "autonomous_review_pipeline.svg",
+      "title": "Autonomous Review Pipeline"
+    },
+    {
+      "name": "tws_disconnect_recovery.svg",
+      "title": "TWS Disconnect and Recovery"
+    },
+    {
+      "name": "event_replay_example.svg",
+      "title": "End-to-End Event Replay Example"
+    }
+  ],
+  "generation_date_utc": "2026-07-14T00:01:49.328134+00:00",
+  "git_branch": "feature/android-integration-mvp",
+  "git_commit": "345fe379a8b06d1f7e1e1432edda1d78db54cb5f",
+  "git_commit_url": "https://github.com/liuhaitian888-wq/openclaw-ibkr-paper-trading/commit/345fe379a8b06d1f7e1e1432edda1d78db54cb5f",
+  "git_remote": "git@github.com:liuhaitian888-wq/openclaw-ibkr-paper-trading.git",
+  "git_status_short": "M OpenWorkspace/.gitignore\n M OpenWorkspace/Config/workspace.example.json\n M OpenWorkspace/Sources/OpenWorkspaceApp/AppViewModel.swift\n M OpenWorkspace/Sources/OpenWorkspaceApp/Lifecycle/StreamingCommandLine.swift\n M OpenWorkspace/Sources/OpenWorkspaceApp/OpenWorkspaceApp.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/DisplayManager/DisplayManager.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/Models/DeviceModels.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/Models/DisplayModels.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/Models/RuntimeModels.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/Models/StreamingModels.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/Models/WorkspaceConfiguration.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/StreamingManager/StreamingProvider.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/StreamingManager/SunshineProvider.swift\n M OpenWorkspace/Sources/OpenWorkspaceCore/WorkspaceManager/WorkspaceService.swift\n M OpenWorkspace/Tests/OpenWorkspaceCoreTests/BetterDisplayCommandBuilderTests.swift\n?? OpenWorkspace/Tests/OpenWorkspaceCoreTests/DeviceLayoutTransportTests.swift\n?? OpenWorkspace/Tests/OpenWorkspaceCoreTests/StableScreenModeTests.swift\n?? data/ibkr_quotes.csv\n?? docs/manual/\n?? output/pdf/ibkr_paper_trading_engineering_manual_v0.1.0_cn.pdf\n?? tmp/",
+  "manual_confirmation_required": [
+    "Full system validation remains incomplete for this draft baseline.",
+    "Some retention/cleanup policies are not encoded in source and are documented as not yet formalized.",
+    "TWS desktop/API settings must be confirmed from the TWS UI during an operational run.",
+    "Report-only modules marked NOT_STARTED or not connected in Mode 9 reports require owner prioritization."
+  ],
+  "manual_version": "v0.1.0",
+  "pool_layers": [
+    "MASTER_UNIVERSE",
+    "ELIGIBLE_UNIVERSE",
+    "SCAN_POOL",
+    "WATCH_POOL",
+    "SIGNAL_EXECUTION_READY_POOL",
+    "PAPER_EXECUTION_POSITION_POOL"
+  ],
+  "release_name": "Foundation Baseline",
+  "report_inventory": [
+    {
+      "keys": [
+        "account",
+        "buying_power",
+        "cash",
+        "currency",
+        "daily_pnl",
+        "errors",
+        "net_liquidation",
+        "open_order_count",
+        "pnl_timestamp",
+        "position_count",
+        "realized_pnl",
+        "source"
+      ],
+      "path": "reports/account/latest.json"
+    },
+    {
+      "keys": [
+        "buy_freeze_active",
+        "buying_power",
+        "cash",
+        "gross_position_value",
+        "live_trading_enabled",
+        "mode",
+        "net_liquidation",
+        "number_of_open_orders",
+        "number_of_positions",
+        "open_orders_age_sec",
+        "paper_only",
+        "pnl_age_sec"
+      ],
+      "path": "reports/account_dashboard/latest.json"
+    },
+    {
+      "keys": [
+        "account_execution_ready",
+        "blocking_reasons",
+        "delayed_data_used_for_execution",
+        "live_quote_confirmed",
+        "live_quote_required",
+        "open_orders_ready",
+        "paid_snapshot_used",
+        "pnl_ready",
+        "positions_ready",
+        "protection_coverage_ready",
+        "quotes_ready",
+        "regulatory_snapshot_used"
+      ],
+      "path": "reports/account_execution_readiness/latest.json"
+    },
+    {
+      "keys": [
+        "account_id",
+        "blocked_reason",
+        "buying_power",
+        "cash",
+        "force_refresh",
+        "freshness",
+        "gross_position_value",
+        "metadata",
+        "mode",
+        "net_liquidation",
+        "open_orders",
+        "orders_cancelled"
+      ],
+      "path": "reports/account_state/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_manager",
+        "agent_running",
+        "blocked_reason",
+        "canonical_pool_state",
+        "created_at",
+        "cycle",
+        "errors",
+        "event_risk",
+        "event_router",
+        "execution_enabled",
+        "gap_escape",
+        "gap_risk"
+      ],
+      "path": "reports/autonomous_agent/latest.json"
+    },
+    {
+      "keys": [
+        "buy_modules",
+        "buy_sell_use_same_cycle_snapshot_refs",
+        "discovery_run_id",
+        "fast_guidance_can_submit_orders",
+        "final_executor_enabled",
+        "news_can_submit_orders",
+        "pool_manager_can_submit_orders",
+        "scanner_can_submit_orders",
+        "sell_modules",
+        "timestamp"
+      ],
+      "path": "reports/buy_sell_modularization/latest.json"
+    },
+    {
+      "keys": [
+        "answers",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/buy_sell_separation/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_event_driven",
+        "buy_intent",
+        "buy_object_has_protection_plan_required",
+        "buy_object_has_protection_plan_status",
+        "buy_sell_decisions_archived_separately",
+        "buy_sell_engines_can_submit_orders_directly",
+        "buy_sell_use_same_snapshot_id",
+        "cycle_snapshot_is_decision_time_copy",
+        "fixed_30_second_cycle_used_for_execution",
+        "freshness_policy",
+        "ibkr_paper_orders_submitted",
+        "live_orders_submitted"
+      ],
+      "path": "reports/buy_sell_strategy_sync/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "records",
+        "timestamp"
+      ],
+      "path": "reports/candidate_scoring/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_ref",
+        "created_at",
+        "cycle_id",
+        "event_driven_snapshot",
+        "execution_state_ref",
+        "fixed_30_second_cycle_used_for_execution",
+        "immutable",
+        "market_data_ref",
+        "market_session_ref",
+        "news_state_ref",
+        "open_order_state_ref",
+        "pnl_state_ref"
+      ],
+      "path": "reports/cycle_snapshot/latest.json"
+    },
+    {
+      "keys": [
+        "last_insert_at",
+        "latest_rows_sample",
+        "missing_fields",
+        "remaining_gap",
+        "row_count",
+        "source",
+        "table_exists",
+        "timestamp"
+      ],
+      "path": "reports/daily_pnl/latest.json"
+    },
+    {
+      "keys": [
+        "buses",
+        "buses_logically_separated",
+        "decision_snapshots_reference_all_buses",
+        "logical_bus_count",
+        "timestamp"
+      ],
+      "path": "reports/data_bus_architecture/latest.json"
+    },
+    {
+      "keys": [
+        "candidate_count",
+        "candidates",
+        "discovery_run_id",
+        "ibkr_paper_order_submission",
+        "live_trading_enabled",
+        "local_simulation_enabled",
+        "orders_submitted",
+        "source",
+        "source_status",
+        "timestamp"
+      ],
+      "path": "reports/discovery_orchestrator/latest.json"
+    },
+    {
+      "keys": [
+        "config",
+        "source",
+        "status",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/event_risk/latest.json"
+    },
+    {
+      "keys": [
+        "action_count",
+        "events",
+        "report_only",
+        "source",
+        "submitted_orders",
+        "timestamp"
+      ],
+      "path": "reports/event_router/latest.json"
+    },
+    {
+      "keys": [
+        "blocked_reasons",
+        "buy_separated_from_sell",
+        "counts",
+        "intents",
+        "live_trading_used",
+        "market_order_used",
+        "order_submitted_count",
+        "paid_snapshot_used",
+        "ready_blocked_reasons",
+        "ready_for_next_active_session_5_minute_paper_test",
+        "regulatory_snapshot_used",
+        "source"
+      ],
+      "path": "reports/execution_ledger_split/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "fast_guidance_can_submit_orders",
+        "generated_order_intent_candidates",
+        "orders_submitted",
+        "records",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/fast_order_guidance/latest.json"
+    },
+    {
+      "keys": [
+        "all_news_sources_under_registry",
+        "buy_sell_use_same_cycle_snapshot_refs",
+        "discovery_enabled",
+        "discovery_run_id",
+        "discovery_universe_size",
+        "fast_guidance_generated_order_intents",
+        "hot_pool_size",
+        "ibkr_news_interfaces_failed",
+        "ibkr_news_interfaces_tested",
+        "ibkr_news_interfaces_work",
+        "ibkr_news_providers_available",
+        "ibkr_paper_orders_submitted"
+      ],
+      "path": "reports/final_auto_open_discovery_news_simulation_audit/latest.json"
+    },
+    {
+      "keys": [
+        "answers",
+        "cycle_id",
+        "full_paper_run_report",
+        "source",
+        "sqlite_tables",
+        "timestamp"
+      ],
+      "path": "reports/final_full_paper_automation_audit/latest.json"
+    },
+    {
+      "keys": [
+        "answers",
+        "features",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/final_mode9_infrastructure_audit/latest.json"
+    },
+    {
+      "keys": [
+        "findings",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/fixed_symbol_audit/latest.json"
+    },
+    {
+      "keys": [
+        "blocked_reason",
+        "execution_ready_after_refresh",
+        "force_refresh_ok",
+        "force_refresh_performed",
+        "open_orders_refreshed",
+        "orders_cancelled",
+        "orders_submitted",
+        "paid_market_data_request_used",
+        "pnl_refreshed",
+        "positions_refreshed",
+        "protection_coverage_refreshed",
+        "quotes_refreshed"
+      ],
+      "path": "reports/force_refresh_dry_run/latest.json"
+    },
+    {
+      "keys": [
+        "failed_stages",
+        "live_orders_submitted",
+        "market_orders_submitted",
+        "options_orders_submitted",
+        "orders_cancelled",
+        "orders_submitted",
+        "passed_stages",
+        "source",
+        "stages",
+        "timestamp"
+      ],
+      "path": "reports/full_paper_rollout/latest.json"
+    },
+    {
+      "keys": [
+        "auto_buy_enabled",
+        "auto_buy_inside_full_paper_run",
+        "blocked_reason",
+        "cycle_id",
+        "full_automatic_buy",
+        "full_paper_autonomous_long_run",
+        "full_paper_run_enabled",
+        "gap_escape_enabled",
+        "gap_escape_execution",
+        "live_orders_submitted",
+        "live_trading_enabled",
+        "market_orders_submitted"
+      ],
+      "path": "reports/full_paper_run/latest.json"
+    },
+    {
+      "keys": [
+        "config",
+        "live_enabled",
+        "paper_only",
+        "source",
+        "status",
+        "submitted_count",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/gap_escape/latest.json"
+    },
+    {
+      "keys": [
+        "account_net_liquidation",
+        "config",
+        "risk_events",
+        "source",
+        "status",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/gap_risk/latest.json"
+    },
+    {
+      "keys": [
+        "bootstrap",
+        "bus_status",
+        "callback_counts",
+        "callbacks_registered",
+        "connected",
+        "duration_seconds",
+        "errors",
+        "last_event_seen_at",
+        "orders_cancelled",
+        "orders_submitted",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used"
+      ],
+      "path": "reports/ibkr_callback_dry_run/latest.json"
+    },
+    {
+      "keys": [
+        "account_callbacks_wired",
+        "ask_fresh",
+        "bid_fresh",
+        "blocked_reason",
+        "bus_ok",
+        "bus_running",
+        "bus_state_sources",
+        "callback_wiring",
+        "callbacks_registered",
+        "execution_callbacks_wired",
+        "expected_live_bid_ask",
+        "ibkr_connected"
+      ],
+      "path": "reports/ibkr_callback_wiring/latest.json"
+    },
+    {
+      "keys": [
+        "IBKR_NEWS_AVAILABLE",
+        "discovery_run_id",
+        "providers",
+        "timestamp"
+      ],
+      "path": "reports/ibkr_news/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "interface_tests",
+        "timestamp"
+      ],
+      "path": "reports/ibkr_news_interface_tests/latest.json"
+    },
+    {
+      "keys": [
+        "cancel_scanner_subscriptions",
+        "candidate_count",
+        "discovery_run_id",
+        "live_tws_scanner_request_used",
+        "orders_submitted",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used",
+        "scanner_can_submit_orders",
+        "scanner_candidates",
+        "scanner_codes",
+        "scanner_result_origin",
+        "source"
+      ],
+      "path": "reports/ibkr_scanner/latest.json"
+    },
+    {
+      "keys": [
+        "last_insert_at",
+        "latest_rows_sample",
+        "missing_fields",
+        "remaining_gap",
+        "row_count",
+        "source",
+        "table_exists",
+        "timestamp"
+      ],
+      "path": "reports/lot_ledger/latest.json"
+    },
+    {
+      "keys": [
+        "broker_orders_aggregated_to_avoid_duplicate_stops",
+        "lots_reconstructable_from_executions",
+        "reconciliation_lots_created_from_current_positions",
+        "source",
+        "symbols",
+        "timestamp",
+        "total_protective_sell_quantity_can_exceed_position_quantity"
+      ],
+      "path": "reports/lot_protection/latest.json"
+    },
+    {
+      "keys": [
+        "bid_ask_persisted",
+        "execution_process_uses_delayed_data",
+        "last_close_volume_timestamp_persisted",
+        "latest_pool_report",
+        "market_data_type_1_locations",
+        "market_data_type_3_locations",
+        "mode9_latest",
+        "mode9_market_data_mode",
+        "mode9_uses_level1_streaming",
+        "mode9_uses_snapshot_polling",
+        "mode9_uses_tick_by_tick",
+        "raw_runtime_market_data_type"
+      ],
+      "path": "reports/market_data_audit/latest.json"
+    },
+    {
+      "keys": [
+        "calls",
+        "no_paid_market_data_requests",
+        "paid_snapshot_risk",
+        "regulatory_snapshot_blocked",
+        "regulatory_snapshot_used",
+        "remaining_risks",
+        "reqMktData_calls_audited",
+        "risky_calls_fixed",
+        "risky_calls_found",
+        "safe_for_monitoring_line",
+        "snapshot_market_data_blocked",
+        "snapshot_request_used"
+      ],
+      "path": "reports/market_data_billing_safety/latest.json"
+    },
+    {
+      "keys": [
+        "errors",
+        "rows",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/market_data_capability/latest.json"
+    },
+    {
+      "keys": [
+        "available_slots",
+        "hot_symbols",
+        "max_level1_streaming_symbols",
+        "new_event_symbols",
+        "overflow_symbols",
+        "planned_usage",
+        "policy_notes",
+        "protected_symbols",
+        "selected_symbols",
+        "tick_by_tick_symbols",
+        "timestamp"
+      ],
+      "path": "reports/market_data_lines/latest.json"
+    },
+    {
+      "keys": [
+        "cycle_id",
+        "expected_live_bid_ask",
+        "market_session_state",
+        "orders_cancelled",
+        "orders_submitted",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used",
+        "rows",
+        "source",
+        "summary",
+        "timestamp"
+      ],
+      "path": "reports/market_quote_crosscheck/latest.json"
+    },
+    {
+      "keys": [
+        "afterhours_close_et",
+        "allows_execution_readiness_check",
+        "allows_monitoring",
+        "allows_protective_order_execution",
+        "allows_quote_wait",
+        "blocked_reason",
+        "calendar_source",
+        "calendar_source_confidence",
+        "contract_details_available",
+        "contract_details_source",
+        "current_session_end_et",
+        "current_session_start_et"
+      ],
+      "path": "reports/market_session/latest.json"
+    },
+    {
+      "keys": [
+        "source",
+        "steps",
+        "timestamp"
+      ],
+      "path": "reports/mode9_cycle_audit/latest.json"
+    },
+    {
+      "keys": [
+        "current_limitations",
+        "latest_agent_created_at",
+        "latest_reported_mode9_buy_freeze",
+        "latest_strategy_run",
+        "mode9_buy_freeze",
+        "mode9_can_submit_paper_orders",
+        "mode9_pid",
+        "mode9_pid_file",
+        "mode9_standard_process",
+        "module_allowed_symbols",
+        "module_allowed_symbols_count",
+        "monitor_symbols"
+      ],
+      "path": "reports/mode9_execution_audit/latest.json"
+    },
+    {
+      "keys": [
+        "features",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/mode9_infrastructure_status/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_blocked_reason",
+        "account_state_stale",
+        "buy_submitted",
+        "created_at",
+        "errors",
+        "live_trading_enabled",
+        "orders_cancelled",
+        "orders_submitted",
+        "paid_market_data_request_used",
+        "paper_only",
+        "regulatory_snapshot_used",
+        "report_only"
+      ],
+      "path": "reports/mode9_report_only_infrastructure_cycle/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "modules",
+        "orders_submitted",
+        "timestamp"
+      ],
+      "path": "reports/module_isolation_audit/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_manager_connected_to_mode9",
+        "account_state_manager_enabled",
+        "allow_market_orders",
+        "allow_options_execution",
+        "blocked_reason",
+        "event_router_report_only",
+        "live_trading_enabled",
+        "mode9_buy_freeze",
+        "mode9_monitoring_line_enabled",
+        "orders_submitted",
+        "pool_manager_connected_to_mode9",
+        "pool_manager_report_only"
+      ],
+      "path": "reports/monitoring_line/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "news_can_submit_orders",
+        "news_candidate_events",
+        "timestamp"
+      ],
+      "path": "reports/news_candidate_router/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "orders_submitted",
+        "raw_news_events",
+        "timestamp"
+      ],
+      "path": "reports/news_event_monitor/latest.json"
+    },
+    {
+      "keys": [
+        "blocked_reason",
+        "open_orders",
+        "open_orders_age_sec",
+        "open_orders_count",
+        "open_orders_refresh_ok",
+        "open_orders_refresh_requested",
+        "open_orders_stale",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/open_order_state/latest.json"
+    },
+    {
+      "keys": [
+        "allowed_strategies",
+        "blocked_reason",
+        "cycle_id",
+        "event_type",
+        "forbidden",
+        "live_options_execution",
+        "note",
+        "options_execution_enabled",
+        "options_execution_paper_only",
+        "order_id",
+        "order_submitted",
+        "readback_status"
+      ],
+      "path": "reports/options_execution/latest.json"
+    },
+    {
+      "keys": [
+        "config",
+        "live_enabled",
+        "paper_only",
+        "source",
+        "status",
+        "submitted_count",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/options_hedge/latest.json"
+    },
+    {
+      "keys": [
+        "buy_sell_use_same_snapshot_id",
+        "conflicts",
+        "ibkr_paper_orders_submitted",
+        "live_orders_submitted",
+        "orders_submitted",
+        "routed_intents",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/order_conflicts/latest.json"
+    },
+    {
+      "keys": [
+        "buy_sell_use_same_cycle_snapshot_refs",
+        "discovery_run_id",
+        "intent_count",
+        "intents",
+        "live_trading_used",
+        "market_order_used",
+        "order_submitted_count",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used",
+        "snapshot_refs",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/order_intent_router/latest.json"
+    },
+    {
+      "keys": [
+        "paper_only",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/outside_rth_protection/latest.json"
+    },
+    {
+      "keys": [
+        "allowed_order_type",
+        "cycle_id",
+        "market_orders_allowed",
+        "paper_buy_max_new_positions_per_day",
+        "paper_buy_max_order_notional",
+        "records",
+        "run_minutes",
+        "source",
+        "submitted_count",
+        "timestamp"
+      ],
+      "path": "reports/paper_buy/latest.json"
+    },
+    {
+      "keys": [
+        "AUTO_ENABLE_IBKR_PAPER_ORDER_SUBMISSION",
+        "IBKR_PAPER_ORDER_SUBMISSION",
+        "LIVE_TRADING_ENABLED",
+        "blocked_reason",
+        "cycle_id",
+        "future_activation_conditions",
+        "gate_status",
+        "orders_submitted",
+        "paper_execution_enabled",
+        "paper_execution_interface_exists",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/paper_execution_gate/latest.json"
+    },
+    {
+      "keys": [
+        "cycle_id",
+        "paper_execution_enabled",
+        "records",
+        "timestamp"
+      ],
+      "path": "reports/paper_order_readiness/latest.json"
+    },
+    {
+      "keys": [
+        "account_pnl_snapshot",
+        "daily_pnl_summary",
+        "position_pnl_snapshots",
+        "source",
+        "stale_pnl_warning",
+        "structured_sqlite_columns",
+        "symbol_pnl_attribution",
+        "timestamp"
+      ],
+      "path": "reports/pnl_ledger/latest.json"
+    },
+    {
+      "keys": [
+        "account_level_pnl_available",
+        "pnl",
+        "pnl_subscription_available",
+        "req_pnl_available",
+        "req_pnl_single_available",
+        "source",
+        "symbol_level_pnl_available",
+        "timestamp"
+      ],
+      "path": "reports/pnl_state/latest.json"
+    },
+    {
+      "keys": [
+        "classification",
+        "layers",
+        "source",
+        "summary",
+        "timestamp"
+      ],
+      "path": "reports/pool_architecture/latest.json"
+    },
+    {
+      "keys": [
+        "blocked_symbols",
+        "current_positions_forced_into_monitor_pool",
+        "execution_active",
+        "global_security_master_count",
+        "mode9_trading_source_unchanged",
+        "open_orders_forced_into_monitor_pool",
+        "report_only",
+        "security_master_source_mode",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/pool_audit/latest.json"
+    },
+    {
+      "keys": [
+        "records",
+        "report_only",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/pool_membership/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "timestamp",
+        "transitions"
+      ],
+      "path": "reports/pool_transition/latest.json"
+    },
+    {
+      "keys": [
+        "account",
+        "errors",
+        "open_order_count",
+        "open_orders",
+        "orders_status",
+        "position_count",
+        "positions_status",
+        "source",
+        "status",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/position_guard/latest.json"
+    },
+    {
+      "keys": [
+        "lifecycle_exists",
+        "source",
+        "states",
+        "timestamp"
+      ],
+      "path": "reports/position_lifecycle/latest.json"
+    },
+    {
+      "keys": [
+        "buy_freeze",
+        "enabled",
+        "live_enabled",
+        "mode",
+        "paper_operation_mode",
+        "position_protection_repair_enabled",
+        "position_protection_repair_mode",
+        "records",
+        "repair_max_per_cycle",
+        "repair_preview_path",
+        "run_allowed",
+        "run_blocked_reason"
+      ],
+      "path": "reports/position_protection/latest.json"
+    },
+    {
+      "keys": [
+        "last_insert_at",
+        "latest_rows_sample",
+        "missing_fields",
+        "remaining_gap",
+        "row_count",
+        "source",
+        "table_exists",
+        "timestamp"
+      ],
+      "path": "reports/position_snapshots/latest.json"
+    },
+    {
+      "keys": [
+        "positions",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/position_state/latest.json"
+    },
+    {
+      "keys": [
+        "market_rule_id",
+        "min_tick",
+        "normalized_price",
+        "order_type",
+        "original_price",
+        "reason",
+        "rounding_direction",
+        "side",
+        "symbol",
+        "timestamp"
+      ],
+      "path": "reports/price_normalizer/latest.json"
+    },
+    {
+      "keys": [
+        "action_taken",
+        "active_processes",
+        "duplicate_pids",
+        "execution_writer_pid",
+        "killed_pids",
+        "lock_owner",
+        "lock_path",
+        "mode9_pid",
+        "reason",
+        "timestamp"
+      ],
+      "path": "reports/process_guard/latest.json"
+    },
+    {
+      "keys": [
+        "execution_allowed",
+        "report_only",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/profit_lock/latest.json"
+    },
+    {
+      "keys": [
+        "quotes",
+        "source",
+        "thresholds_sec",
+        "timestamp"
+      ],
+      "path": "reports/quote_state/latest.json"
+    },
+    {
+      "keys": [
+        "event_driven",
+        "fixed_30_second_polling_required_for_execution",
+        "latest_account_state",
+        "latest_execution_state",
+        "latest_open_order_state",
+        "latest_pnl_state",
+        "latest_position_state",
+        "latest_quote_state",
+        "latest_risk_state",
+        "source",
+        "state_version",
+        "timestamp"
+      ],
+      "path": "reports/realtime_account_state_bus/latest.json"
+    },
+    {
+      "keys": [
+        "account_state_event_driven",
+        "buy_intent",
+        "buy_sell_engines_can_submit_orders_directly",
+        "buy_sell_use_same_snapshot_id",
+        "cycle_snapshot_is_decision_time_copy",
+        "fixed_30_second_cycle_used_for_execution",
+        "freshness_policy",
+        "ibkr_paper_orders_submitted",
+        "live_orders_submitted",
+        "market_order_used",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used"
+      ],
+      "path": "reports/realtime_account_sync/latest.json"
+    },
+    {
+      "keys": [
+        "candidate_count",
+        "discovery_run_id",
+        "records",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/scanner_candidates/latest.json"
+    },
+    {
+      "keys": [
+        "data_sources",
+        "future_sources",
+        "record_count",
+        "records",
+        "report_only",
+        "source",
+        "source_mode",
+        "timestamp"
+      ],
+      "path": "reports/security_master/latest.json"
+    },
+    {
+      "keys": [
+        "ibkr_paper_orders_submitted",
+        "mode",
+        "records",
+        "simulation_run_id",
+        "timestamp"
+      ],
+      "path": "reports/simulation_orders/latest.json"
+    },
+    {
+      "keys": [
+        "mode",
+        "positions",
+        "simulated_pnl",
+        "simulation_run_id",
+        "timestamp"
+      ],
+      "path": "reports/simulation_pnl/latest.json"
+    },
+    {
+      "keys": [
+        "ibkr_paper_orders_submitted",
+        "live_orders_submitted",
+        "mode",
+        "orders_submitted",
+        "simulated_executions",
+        "simulated_fills_count",
+        "simulated_orders",
+        "simulated_orders_count",
+        "simulated_pnl",
+        "simulated_positions",
+        "simulation_run_id",
+        "source"
+      ],
+      "path": "reports/simulation_run/latest.json"
+    },
+    {
+      "keys": [
+        "database",
+        "source",
+        "tables",
+        "timestamp"
+      ],
+      "path": "reports/sqlite_audit/latest.json"
+    },
+    {
+      "keys": [
+        "append_only_event_tables",
+        "execution_decisions_use_realtime_bus_and_snapshot",
+        "no_partial_sqlite_rows_for_execution_decisions",
+        "required_tables",
+        "single_audit_writer",
+        "source",
+        "timestamp",
+        "transactions_enabled",
+        "wal_mode_enabled"
+      ],
+      "path": "reports/sqlite_ledger_integrity/latest.json"
+    },
+    {
+      "keys": [
+        "bus_status",
+        "cache_does_not_replace_real_ibkr",
+        "fields",
+        "local_cache_loaded",
+        "real_ibkr_subscriptions_started_after_cache",
+        "source",
+        "timestamp"
+      ],
+      "path": "reports/state_bootstrap/latest.json"
+    },
+    {
+      "keys": [
+        "blocked_reasons",
+        "execution_lock_must_be_ok",
+        "execution_ready",
+        "fixed_30_second_cycle_used_for_execution",
+        "market_session_must_be_active",
+        "mode",
+        "process_guard_must_be_ok",
+        "side",
+        "thresholds"
+      ],
+      "path": "reports/state_freshness_policy/latest.json"
+    },
+    {
+      "keys": [
+        "signals",
+        "source",
+        "strategies_can_submit_orders",
+        "strategy_signal_only",
+        "timestamp"
+      ],
+      "path": "reports/strategy_signals/latest.json"
+    },
+    {
+      "keys": [
+        "errors",
+        "rows",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/streaming_quote_diagnostics/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "structured_news_events",
+        "timestamp"
+      ],
+      "path": "reports/structured_news_events/latest.json"
+    },
+    {
+      "keys": [
+        "allowed_states",
+        "auto_return_to_fresh_on_new_callback",
+        "source",
+        "stale_did_disable_subscription",
+        "stale_is_field_status_not_stop_command",
+        "streams",
+        "timestamp"
+      ],
+      "path": "reports/subscription_health/latest.json"
+    },
+    {
+      "keys": [
+        "execution_allowed",
+        "report_only",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/take_profit/latest.json"
+    },
+    {
+      "keys": [
+        "auto_return_to_fresh_on_new_callback",
+        "compare_timestamps_per_field",
+        "events",
+        "freshness_statuses",
+        "latest_fields",
+        "newer_timestamp_normally_wins",
+        "older_callback_overwrote_newer_data",
+        "older_events_stored_append_only",
+        "real_ibkr_replaces_cache_when_valid",
+        "source",
+        "source_priority",
+        "stale_ask_independent_from_bid_last_position_pnl"
+      ],
+      "path": "reports/timestamp_reconciliation/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "records",
+        "timestamp"
+      ],
+      "path": "reports/top_candidates/latest.json"
+    },
+    {
+      "keys": [
+        "discovery_run_id",
+        "records",
+        "timestamp"
+      ],
+      "path": "reports/trade_pool_decisions/latest.json"
+    },
+    {
+      "keys": [
+        "execution_allowed",
+        "report_only",
+        "source",
+        "symbols",
+        "timestamp"
+      ],
+      "path": "reports/trailing_profit/latest.json"
+    },
+    {
+      "path": "logs/autonomous_agent.log",
+      "size": 2979
+    },
+    {
+      "path": "logs/autonomous_paper_runtime.launchd.err.log",
+      "size": 64131
+    },
+    {
+      "path": "logs/autonomous_paper_runtime.launchd.log",
+      "size": 0
+    },
+    {
+      "path": "logs/autonomous_paper_runtime.log",
+      "size": 0
+    },
+    {
+      "path": "logs/daily_feishu_scheduler.log",
+      "size": 15667
+    },
+    {
+      "path": "logs/live_dashboard.log",
+      "size": 0
+    },
+    {
+      "path": "logs/mode9_agent.launchd.err.log",
+      "size": 0
+    },
+    {
+      "path": "logs/mode9_agent.launchd.log",
+      "size": 0
+    },
+    {
+      "path": "logs/trading_api.log",
+      "size": 2912
+    }
+  ],
+  "repository_paths": [
+    "docs/PROJECT_HANDOFF_MANUAL_CN.md",
+    "docs/PROJECT_MAP.md",
+    "ARCHITECTURE.md",
+    "SECURITY_MODEL.md",
+    "TRADING_LOCK.md",
+    "trading/pool_state.py",
+    "trading/paper_audit_db.py",
+    "trading/tws_paper.py",
+    "trading/service.py",
+    "trading/risk.py",
+    "trading/autonomous_runtime.py",
+    "reports/mode9_infrastructure_status/latest.json",
+    "reports/sqlite_audit/latest.json",
+    "logs/trading_api.log",
+    "logs/autonomous_agent.log",
+    "trading_audit.sqlite3"
+  ],
+  "source_reference": [
+    {
+      "classes": "",
+      "functions": "",
+      "path": "trading/__init__.py",
+      "purpose": "Core types and safeguards for the trading service."
+    },
+    {
+      "classes": "",
+      "functions": "build_account_state, force_refresh_state, build_force_refresh_dry_run, refresh_streaming_quote_diagnostics, overlay_streaming_quotes, symbols_from_guard, require_fresh_state_for_execution, build_quote_states, quote_state_from_guard, quote_execution_readiness",
+      "path": "trading/account_state_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AuditLog",
+      "functions": "_notional",
+      "path": "trading/audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AuditEvent, AuditWriter",
+      "functions": "",
+      "path": "trading/audit_writer.py",
+      "purpose": "Single-writer audit queue for SQLite append-only ledgers."
+    },
+    {
+      "classes": "PipelineConfig",
+      "functions": "run_auto_open_pipeline, assert_simulation_safety, run_discovery_orchestrator, run_ibkr_scanner, run_news_pipeline, news_provider_status, ibkr_news_interface_tests, raw_news_fixture, structure_news_event, run_dynamic_pool",
+      "path": "trading/auto_open_pipeline.py",
+      "purpose": "Auto-open local discovery, news, dynamic pool, and simulation pipeline. This module is deliberately local/simulated. It can create candidates, guidance, order intents, and SIMULATE"
+    },
+    {
+      "classes": "Scanner, AutonomousRuntimeConfig, RuntimeCycleReport, AutonomousPaperRuntime",
+      "functions": "build_runtime, _read_open_orders, _report, _health_ready, _proposal_from_event, _quote_from_event, _float_or_none, _bool_env",
+      "path": "trading/autonomous_runtime.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_buy_intent, can_submit_order, submit_order",
+      "path": "trading/buy_decision_engine.py",
+      "purpose": "BUY decision engine. Emits BUY intents only; never calls IBKR directly."
+    },
+    {
+      "classes": "EvidenceItem, LlmPreReview, CandidateDraft, HardAuditConfig, HardAuditResult, CandidateReport",
+      "functions": "build_candidate_report, audit_candidate, normalize_draft, load_candidate_draft, candidate_draft_from_dict, write_candidate_report, candidate_report_from_dict, load_candidate_report, _profile_from_dict, _pre_review_from_dict",
+      "path": "trading/candidate_research.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "score",
+      "path": "trading/candidate_scoring.py",
+      "purpose": "Candidate scoring helpers."
+    },
+    {
+      "classes": "Settings",
+      "functions": "_read_bool, _load_or_create_api_key, _load_optional_file_value, _load_allowed_symbols, _symbols_from_file, _read_symbol_tuple, _read_optional_float",
+      "path": "trading/config.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "CycleSnapshot",
+      "functions": "create_cycle_snapshot, write_report",
+      "path": "trading/cycle_snapshot.py",
+      "purpose": "Immutable decision-time snapshots over the realtime account state bus."
+    },
+    {
+      "classes": "",
+      "functions": "render_dashboard_html",
+      "path": "trading/dashboard.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MarketDataBus, NewsTriggerBus, DiscoveryPoolBus",
+      "functions": "build_data_bus_architecture_report",
+      "path": "trading/data_buses.py",
+      "purpose": "Logical data bus architecture for realtime decisions."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/discovery_orchestrator.py",
+      "purpose": "Unified discovery orchestrator entrypoint."
+    },
+    {
+      "classes": "EventRiskConfig",
+      "functions": "load_event_risk_config, build_event_risk_report, recommended_event_action, load_local_events, write_report, _event_for_symbol, _latest_net_liquidation, _bool_env, _float_env, _now",
+      "path": "trading/event_risk_control.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_event_router_report, event, write_report, read_json",
+      "path": "trading/event_router.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_execution_and_pnl_ledgers, buy_intents, protective_sell_intents, gap_escape_intents, profit_sell_intents, event_risk_sell_intents, _sell_plan_intents, options_plan_intents, persist_intents, build_pnl_ledger_report",
+      "path": "trading/execution_ledger_split.py",
+      "purpose": "Build split BUY/SELL intent ledgers and structured PnL reports."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/fast_order_guidance.py",
+      "purpose": "Fast order guidance from scanner/news events. Guidance only; no order submission."
+    },
+    {
+      "classes": "GapEscapeConfig",
+      "functions": "load_gap_escape_config, build_gap_escape_report, gap_escape_row, gap_escape_blocked_reason, _trigger_reason, _active_stop_price, _active_stop_limit_price, _worst_loss_by_symbol, write_report, _bool_env",
+      "path": "trading/gap_escape_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "GapRiskConfig",
+      "functions": "load_gap_risk_config, build_gap_risk_report, gap_risk_row, classify_symbol_shock, write_report, _long_positions, _latest_net_liquidation, _dedupe_shocks, _float, _float_env",
+      "path": "trading/gap_risk_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "IbkrCallbackBridge",
+      "functions": "run_ibkr_callback_dry_run, stock_contract",
+      "path": "trading/ibkr_callback_bridge.py",
+      "purpose": "REAL_IBKR callback bridge into logical realtime data buses."
+    },
+    {
+      "classes": "",
+      "functions": "build_ibkr_callback_wiring_audit, callback_row, bus_state_sources, callback_defined, callback_wires_bus, latest_bus_timestamp_for_callback, callback_notes, callback_wired, tws_socket_available, update_realtime_reports",
+      "path": "trading/ibkr_callback_wiring_audit.py",
+      "purpose": "Audit whether real IBKR callbacks are wired into RealtimeAccountStateBus."
+    },
+    {
+      "classes": "",
+      "functions": "run_interface_tests",
+      "path": "trading/ibkr_news.py",
+      "purpose": "IBKR news interface diagnostics."
+    },
+    {
+      "classes": "_QuoteState, IbkrReadOnlyQuoteClient, IbkrReadOnlyQuoteSource, ParallelIbkrReadOnlyQuoteSource",
+      "functions": "_chunks, _env_bool",
+      "path": "trading/ibkr_readonly.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/ibkr_scanner.py",
+      "purpose": "IBKR scanner diagnostics and local discovery fallback."
+    },
+    {
+      "classes": "StreamingQuoteState, IbkrStreamingQuoteClient, IbkrStreamingQuoteSource",
+      "functions": "_clean_symbols, _log_event, streaming_blocked_reason",
+      "path": "trading/ibkr_streaming.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "Quote, Bar, QuoteSource, InMemoryQuoteCache, RingBuffer, SymbolRingBuffers",
+      "functions": "quote_stream, _bucket_start, _float_or_none, _int_or_none",
+      "path": "trading/market_data.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MarketDataLineConfig, MarketDataLinePlan, MarketDataLineManager",
+      "functions": "_unique",
+      "path": "trading/market_data_line_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_market_quote_crosscheck_report, crosscheck_row, classify_cross_validation_result, summarize, write_report, _markdown, _read_json, _now",
+      "path": "trading/market_quote_crosscheck.py",
+      "purpose": "Cross-validate market session expectations against received quotes."
+    },
+    {
+      "classes": "MarketSessionState, MarketSessionConfig, CalendarStatus, MarketSessionSnapshot, _ContractDetailsClient",
+      "functions": "config_from_env, current_market_session, write_market_session_report, fetch_ibkr_contract_details, market_session_md, classify_streaming_bid_ask_gap, parse_ibkr_trading_hours, _stock_contract, calendar_status, _state_for_time",
+      "path": "trading/market_session.py",
+      "purpose": "US equity market-session classification and reporting. This module is intentionally independent from quote acquisition. A missing bid/ask can be a normal closed-session outcome, so"
+    },
+    {
+      "classes": "TradeProposal, RiskDecision",
+      "functions": "",
+      "path": "trading/models.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StateFreshness, QuoteState, PnLState, ProtectionCoverageState, OpenOrderState, PositionState",
+      "functions": "",
+      "path": "trading/module_interfaces.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/news_candidate_router.py",
+      "purpose": "Route structured news into candidate/risk events."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/news_event_monitor.py",
+      "purpose": "News event monitor entrypoint."
+    },
+    {
+      "classes": "",
+      "functions": "normalize",
+      "path": "trading/news_event_structurer.py",
+      "purpose": "Normalize raw news events into structured news events."
+    },
+    {
+      "classes": "",
+      "functions": "build_registry",
+      "path": "trading/news_provider_registry.py",
+      "purpose": "Unified news provider registry for IBKR, RSS, SEC, earnings, cache, and fixtures."
+    },
+    {
+      "classes": "OptionHedgeConfig",
+      "functions": "load_option_hedge_config, build_options_hedge_report, option_hedge_plan, write_report, _markdown, _bool_env, _float_env, _now",
+      "path": "trading/options_hedge_planner.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "route_synchronized_intents, write_conflict_report, run",
+      "path": "trading/order_intent_router.py",
+      "purpose": "Order intent router. Emits synchronized intent events only."
+    },
+    {
+      "classes": "OrderIntent",
+      "functions": "make_intent_id, utc_now",
+      "path": "trading/order_intents.py",
+      "purpose": "Unified order intent model for Mode 9 paper automation ledgers."
+    },
+    {
+      "classes": "",
+      "functions": "log_order_rejection, rejection_result, _parse_ib_error",
+      "path": "trading/order_rejections.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "ensure_paper_automation_tables, insert_event, generic_decision_event, sqlite_table_summary, utc_now, _column_definitions",
+      "path": "trading/paper_audit_db.py",
+      "purpose": "SQLite logging helpers for Mode 9 paper automation."
+    },
+    {
+      "classes": "PaperEnvironmentAuditItem, PaperEnvironmentAuditReport",
+      "functions": "build_environment_audit, write_environment_audit, main, fetch_health, _audit_items, _health_items, _item, _report_status, _next_steps, _settings_snapshot",
+      "path": "trading/paper_environment_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/paper_execution_gate.py",
+      "purpose": "Future paper execution gate. Report-only and default false."
+    },
+    {
+      "classes": "",
+      "functions": "submit_order_if_enabled",
+      "path": "trading/paper_order_executor.py",
+      "purpose": "Future IBKR paper order executor interface. Disabled by default."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/pool_builder.py",
+      "purpose": "Dynamic six-layer pool builder."
+    },
+    {
+      "classes": "PoolMembership",
+      "functions": "build_pool_manager_report, discovery_eligibility, architecture_report, write_reports, read_json",
+      "path": "trading/pool_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PoolTransition, SymbolPoolState, PoolStateManager",
+      "functions": "quote_readiness, signal_failures, expired_signal, has_active_order, normalize_status, state_to_dict, state_from_dict, normalize_symbol, to_float, age_seconds",
+      "path": "trading/pool_state.py",
+      "purpose": "Canonical six-layer symbol pool state. This module keeps the six-layer pool logic separate from broker submission. It records why a symbol moves, but it does not place, cancel, or "
+    },
+    {
+      "classes": "PositionRecord, ProtectionStatus, ReadOnlyPositionsClient",
+      "functions": "read_positions, build_position_guard_report, write_report, evaluate_protection_status, _read_quotes, _read_streaming_quote_cache, _parse_timestamp, _float, _market_data_type_from_name, _env_bool",
+      "path": "trading/position_guard.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PositionLifecycle, PositionLifecycleManager",
+      "functions": "",
+      "path": "trading/position_lifecycle_manager.py",
+      "purpose": "Position lifecycle manager for simulation, paper, and live-forbidden modes."
+    },
+    {
+      "classes": "ProtectionRepairRecord, RepairPreviewProposal, StopConfig, RepairConfig, TestThenBulkSelection",
+      "functions": "run_position_protection, _repair_record_for_row, calculate_uncovered_qty, calculate_raw_stop_price, load_stop_config, load_repair_config, paper_operation_mode, build_repair_execution_plan, latest_test_repair_result, build_test_repair_result",
+      "path": "trading/position_protection.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PriceNormalization",
+      "functions": "normalize_order_price, normalize_order_price_record, rounding_direction, log_normalization, _decimal_tick, _round_to_tick",
+      "path": "trading/price_normalizer.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "ProcessInfo, ExecutionLock",
+      "functions": "current_execution_processes, stop_duplicate_autonomous_processes, write_process_guard_report, append_history, read_lock, process_cwd, process_belongs_to_project, _inherited_owner, _parent_mode9_owner, _pid_alive",
+      "path": "trading/process_guard.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_profit_lock_report, profit_lock_row, common_row, write_report, read_json, now",
+      "path": "trading/profit_lock.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StateUpdate, RealtimeAccountStateBus",
+      "functions": "bootstrap_bus_from_reports, update_to_dict, read_json, utc_now",
+      "path": "trading/realtime_account_state_bus.py",
+      "purpose": "Near real-time account-centered state bus."
+    },
+    {
+      "classes": "",
+      "functions": "run_realtime_account_sync, sqlite_ledger_integrity_report, write_report",
+      "path": "trading/realtime_account_sync.py",
+      "purpose": "Realtime account sync orchestration for BUY/SELL synchronized decisions."
+    },
+    {
+      "classes": "RiskLimits, RiskEngine",
+      "functions": "",
+      "path": "trading/risk.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_scanner_universe",
+      "path": "trading/scanner_universe_builder.py",
+      "purpose": "Build scanner candidates for the discovery universe."
+    },
+    {
+      "classes": "SecurityMasterRecord",
+      "functions": "build_security_master_report, load_seed_records, load_security_master_records, record_from_universe_row, record_from_security_master_row, records_from_nasdaq_trader_rows, exchange_name, write_report",
+      "path": "trading/security_master.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_sell_intent, priority, can_submit_order, submit_order",
+      "path": "trading/sell_decision_engine.py",
+      "purpose": "SELL decision engine. Emits SELL intents only; never calls IBKR directly."
+    },
+    {
+      "classes": "TradingService",
+      "functions": "",
+      "path": "trading/service.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "TradingSession, SessionSnapshot",
+      "functions": "classify_trading_session, _session_for_eastern, _as_utc",
+      "path": "trading/session_calendar.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SessionRiskPolicy, SessionOrderContext, PolicyDecision",
+      "functions": "default_session_policies, policy_for_session, validate_session_order, _policy, _bool_env, _int_env, _float_env",
+      "path": "trading/session_policy.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "run",
+      "path": "trading/simulated_order_executor.py",
+      "purpose": "Local simulated order executor."
+    },
+    {
+      "classes": "",
+      "functions": "refresh",
+      "path": "trading/simulated_pnl.py",
+      "purpose": "Local simulated PnL helpers."
+    },
+    {
+      "classes": "",
+      "functions": "refresh",
+      "path": "trading/simulated_position_ledger.py",
+      "purpose": "Local simulated position ledger helpers."
+    },
+    {
+      "classes": "StrategySimulationConfig",
+      "functions": "run_strategy_simulation, quote_source, default_prices, default_profiles, value_pool_record",
+      "path": "trading/simulation.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SQLiteEventStore",
+      "functions": "",
+      "path": "trading/sqlite_event_store.py",
+      "purpose": "Append-only SQLite event store with WAL enabled."
+    },
+    {
+      "classes": "StateBootstrapManager",
+      "functions": "source_timestamp, write_report, read_json",
+      "path": "trading/state_bootstrap_manager.py",
+      "purpose": "Bootstrap buses from local cache, then keep REAL_IBKR subscriptions available."
+    },
+    {
+      "classes": "FreshnessThresholds",
+      "functions": "evaluate_freshness, is_stale, write_report",
+      "path": "trading/state_freshness_policy.py",
+      "purpose": "Freshness policy for simulation and future IBKR paper execution readiness."
+    },
+    {
+      "classes": "ReconciledField, TimestampReconciler",
+      "functions": "should_accept, parse_time",
+      "path": "trading/state_timestamp_reconciler.py",
+      "purpose": "Timestamp reconciliation for cache, simulation, and REAL_IBKR events."
+    },
+    {
+      "classes": "CandidateProfile, ValueFilterConfig, FilterResult, ValuePoolFilter, MovingAverageConfig, SignalDecision",
+      "functions": "_average_available, _lower_is_better, _higher_is_better",
+      "path": "trading/strategy.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "ConservativeTrendConfig, ModulePosition, ModuleDecision, PortfolioRiskConfig, PortfolioRiskDecision, PortfolioRiskGate",
+      "functions": "_position_market_value, _is_regular_session",
+      "path": "trading/strategy_modules.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StrategySignal",
+      "functions": "create_strategy_signal, write_report, submit_order",
+      "path": "trading/strategy_signals.py",
+      "purpose": "Strategy signal only architecture."
+    },
+    {
+      "classes": "",
+      "functions": "build_subscription_health_report, default_streams, stream",
+      "path": "trading/subscription_health.py",
+      "purpose": "Always-listening subscription state reporting."
+    },
+    {
+      "classes": "",
+      "functions": "build_take_profit_report, take_profit_row, write_report, read_json, now",
+      "path": "trading/take_profit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "build_trailing_profit_report, trailing_profit_row, write_report, read_json, now",
+      "path": "trading/trailing_profit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "OrderConfirmation, TwsConnectionStatus, TwsPaperClient, TwsPaperBroker",
+      "functions": "normalize_us_stock_price",
+      "path": "trading/tws_paper.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "UniverseEntry, UniverseSelectionConfig, UniverseSelection",
+      "functions": "load_universe, select_universe, default_universe_symbols, symbols_csv, _entry_from_row, _clean_symbol_set, _float_or_none, _int_or_none, _bool_or_true, _bool_or_none",
+      "path": "trading/universe.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "attach_workflow_step, workflow_step, workflow_error_payload",
+      "path": "trading/workflow.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, read_rows, write_rows, upsert_candidate, row_from_report",
+      "path": "scripts/approve_candidate_to_universe.py",
+      "purpose": "Approve a hard-audited candidate report into the local universe CSV. This is the rule gate between LLM research and strategy modules. It refuses to write when Python hard audit rej"
+    },
+    {
+      "classes": "Level1AuditClient",
+      "functions": "main, _stock_contract",
+      "path": "scripts/audit_ibkr_level1_streaming.py",
+      "purpose": "Read-only IBKR Level 1 streaming capability audit. This script never places, modifies, or cancels orders. It only requests contract details and Level 1 market data subscriptions, t"
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/audit_paper_trading_readiness.py",
+      "purpose": "Audit local readiness for a one-share IBKR paper trial."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, latest_quote, order_payload, calculate_limit_price, quote_spread_bps, quote_payload, request_json, read_required, read_trade_session_token",
+      "path": "scripts/auto_paper_limit_from_quote.py",
+      "purpose": "Create a paper limit order from the latest IBKR quote. This is the fast local execution harness for testing the full paper-trading path. It reads a quote, builds a limit proposal, "
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, summarize_size",
+      "path": "scripts/benchmark_autonomous_agent_cycle.py",
+      "purpose": "Benchmark autonomous-agent cycle timings across universe sizes. This uses the same Trading API health check and IBKR read-only quote source as the autonomous agent, but disables th"
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, parse_symbols, parse_batch_sizes, summarize",
+      "path": "scripts/benchmark_ibkr_quote_batches.py",
+      "purpose": "Benchmark read-only IBKR quote request latency by batch size. This command only requests market data. It does not place orders."
+    },
+    {
+      "classes": "",
+      "functions": "main, latest_pnl_row, flatten_open_orders, daily_summary, audit_requests_for_date, write_json, float_or_none",
+      "path": "scripts/build_account_reports.py",
+      "purpose": "Build read-only account, position, open-order, and daily summary reports."
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/build_ibkr_callback_wiring_audit.py",
+      "purpose": "Build IBKR callback wiring audit reports."
+    },
+    {
+      "classes": "",
+      "functions": "main, _read_json, _latest_pool_report, _code_hits, _execution_uses_delayed, _runtime_market_data_type, _symbols_with_valid_bid_ask, _symbols_with_stale_quotes, _symbols_with_no_permission",
+      "path": "scripts/build_market_data_audit_report.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "main, build_report, audit_file, enclosing_function, arg_value, literal, symbol_source, market_data_type_nearby, action_taken, env_bool",
+      "path": "scripts/build_market_data_billing_safety.py",
+      "purpose": "Audit market data billing safety for IBKR reqMktData calls."
+    },
+    {
+      "classes": "",
+      "functions": "main, _read_json",
+      "path": "scripts/build_market_data_line_report.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "main, _read_json, _read_text, _bool_env",
+      "path": "scripts/build_mode9_execution_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "main, build_all_reports, seed_current_sqlite_snapshots, ensure_sqlite_tables, build_sqlite_audit, build_simple_table_report, build_lot_protection_report, build_outside_rth_protection_report, build_fixed_symbol_audit, build_cycle_audit",
+      "path": "scripts/build_mode9_infrastructure_status.py",
+      "purpose": "Build unified Mode 9 infrastructure status and audit reports."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_execution_gate.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_pre_submit_review.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_readiness_report.py",
+      "purpose": "Build a manual paper readiness report from a validate-only plan."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_session_runbook.py",
+      "purpose": "Generate a paper-trial operator runbook from current reports."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_session_status_page.py",
+      "purpose": "Generate a static HTML paper-trial status page."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_trial_evidence_bundle.py",
+      "purpose": "Build a current-state evidence bundle for the paper-trial workflow."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_trial_preflight_checklist.py",
+      "purpose": "Build a one-share IBKR paper-trial preflight checklist."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_trial_reconciliation.py",
+      "purpose": "Build a post-paper-trial reconciliation report."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_paper_validation_plan.py",
+      "purpose": "Build a validate-only paper trading plan from diagnostics JSON."
+    },
+    {
+      "classes": "",
+      "functions": "main, build_reports, layer_report, membership_records, record, write_outputs, markdown, read_universe, read_json, sqlite_tables",
+      "path": "scripts/build_pool_architecture_audit.py",
+      "purpose": "Audit whether the six-layer pool architecture is implemented and wired."
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/build_position_guard_report.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_project_completion_audit.py",
+      "purpose": "Build the current project completion audit."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_quote_quality_report.py",
+      "purpose": "Build a quote quality report from recorded IBKR quote samples."
+    },
+    {
+      "classes": "",
+      "functions": "main, load_nasdaq_trader_url, load_nasdaq_trader_file, parse_pipe_text, write_records",
+      "path": "scripts/build_security_master.py",
+      "purpose": "Build the persistent global security master. This is a data-prep tool only. It does not connect to TWS, request market data, or submit/cancel orders."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_strategy_catalog.py",
+      "purpose": "Build the strategy module catalog."
+    },
+    {
+      "classes": "",
+      "functions": "build_status, latest_agent_report, write_reports, _bool_env, main",
+      "path": "scripts/build_strategy_extension_status.py",
+      "purpose": "Build report-only status for strategy extensions not allowed to trade yet."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/build_strategy_validation_plan.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/check_ibkr_quotes.py",
+      "purpose": "Fetch read-only IBKR quotes and print the normalized cache snapshot. This command does not place orders. It is for checking what the current IBKR market-data permissions return for"
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/diagnose_market_data_channels.py",
+      "purpose": "Diagnose read-only IBKR market data channels in order. The script only requests market data. It does not place orders."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, read_json, files_modified_since, universe_summary, latest_pnl, parse_timestamp, api_running, api_health_status, file_age_seconds, top_skip_reasons",
+      "path": "scripts/generate_daily_feishu_update.py",
+      "purpose": "Generate a sanitized daily OpenClaw project update for Feishu."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/generate_strategy_dashboard.py",
+      "purpose": "Generate a local static strategy dashboard. The dashboard is a static HTML file with embedded simulation data. It does not connect to IBKR and does not place orders."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/hunt_paper_candidate.py",
+      "purpose": "Hunt for a validate payload without paper order submission."
+    },
+    {
+      "classes": "ReadOnlyOrdersClient",
+      "functions": "_number, parse_args, main, read_tws_orders",
+      "path": "scripts/list_tws_orders.py",
+      "purpose": "List current TWS open orders and recent executions. This command is read-only. It does not place, modify, or cancel orders."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/monitor_paper_trial_readiness.py",
+      "purpose": "Safely monitor readiness for a one-share IBKR paper trial."
+    },
+    {
+      "classes": "PnlSample, AccountPnlClient",
+      "functions": "parse_args, main, append_outputs, _float_or_none, _first_not_none, _sum_available",
+      "path": "scripts/record_account_pnl.py",
+      "purpose": "Record read-only IBKR paper account P&L samples over time. This script never places orders. It connects to TWS, requests account-level P&L and account summary values, then appends "
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/record_ibkr_quotes.py",
+      "purpose": "Record read-only IBKR quote snapshots to CSV for research."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/refresh_paper_trial_reports.py",
+      "purpose": "Refresh all paper-trial reports in safe order."
+    },
+    {
+      "classes": "",
+      "functions": "refresh_result, _find_order, main",
+      "path": "scripts/refresh_position_protection_test_result.py",
+      "purpose": "Refresh position protection test result from read-only TWS open-order output."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/refresh_strategy_dashboard.py",
+      "purpose": "Regenerate the static strategy dashboard on a timer. This script only writes HTML. It does not place orders and does not change any trading lock state."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/rehearse_paper_trial_workflow.py",
+      "purpose": "Run a simulated ready-environment rehearsal of the paper-trial workflow."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, fetch_quote",
+      "path": "scripts/review_candidate_report.py",
+      "purpose": "Build a Python hard-audit report from an OpenClaw/Gemini candidate draft. This script does not place orders and does not update the trading universe. It turns an agent/LLM proposal"
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/review_t_duplicate_stops.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/run_auto_open_discovery_news_simulation.py",
+      "purpose": "Run auto-open discovery/news/dynamic-pool/local-simulation pipeline."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main, fetch_quotes, require_trade_lock, evaluate_symbol, calculate_limit_price, quote_spread_bps, quote_payload, endpoint_for_mode, request_json",
+      "path": "scripts/run_auto_order_sequence.py",
+      "purpose": "Run an automatic module-style order sequence from current IBKR quotes. The sequence is intentionally simple and auditable: 1. Check gateway health. 2. Read current quotes. 3. Apply"
+    },
+    {
+      "classes": "",
+      "functions": "main, _replace",
+      "path": "scripts/run_autonomous_paper_runtime.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AgentCycle",
+      "functions": "parse_args, main, run_cycle, failed_cycle, build_quote_readiness, evaluate_lifecycle_state, lifecycle, sync_canonical_pool_state, pool_manager_records, quote_payloads_by_symbol",
+      "path": "scripts/run_autonomous_trading_agent.py",
+      "purpose": "Run the autonomous paper trading supervisor loop. The supervisor keeps working after TRADE_LOCK is enabled: it refreshes the universe, requests live IBKR quotes for the full monito"
+    },
+    {
+      "classes": "",
+      "functions": "main, run_once, configure_full_paper_env, build_preflight, build_trade_pool_decisions, build_paper_buy_report, build_options_execution_report, build_gap_escape_execution_result, build_full_paper_run_report, build_final_audit",
+      "path": "scripts/run_full_paper_automation.py",
+      "purpose": "Run staged Mode 9 full paper automation enablement. The script enables paper-only modules for reporting/preflight and only proceeds to execution-capable stages when hard safety gat"
+    },
+    {
+      "classes": "",
+      "functions": "main, configure_safe_env, stage0_preflight, stage1_readiness, current_position_and_open_order_symbols, market_session_blocks_quote_wait, stage2_protective_repair, run_record_account_pnl_once, stage2_precheck, stage2_blocked",
+      "path": "scripts/run_full_paper_rollout.py",
+      "purpose": "Run gated PAPER-only Mode 9 rollout stages."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/run_full_paper_trial_pipeline.py",
+      "purpose": "Run the full read-only-to-paper-gate trial pipeline."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/run_guarded_paper_trial_session.py",
+      "purpose": "Run the guarded IBKR paper-trial session workflow."
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/run_ibkr_callback_dry_run.py",
+      "purpose": "Run read-only REAL_IBKR callback bridge dry-run."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/run_ibkr_mean_reversion_pipeline.py",
+      "purpose": "Record read-only IBKR quotes and run mean-reversion diagnostics."
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/run_mean_reversion_diagnostics.py",
+      "purpose": "Run lightweight mean-reversion diagnostics on a CSV price file."
+    },
+    {
+      "classes": "",
+      "functions": "main, run_report_only_cycle, capture, summarize, mark_state_usage, write_and_return_billing_safety",
+      "path": "scripts/run_mode9_report_only_infrastructure_cycle.py",
+      "purpose": "Refresh Mode 9 report-only infrastructure without submitting orders."
+    },
+    {
+      "classes": "ScenarioQuoteSource",
+      "functions": "parse_args, main, run_module, build_source, build_universe_selection, monitor_symbols_from_records, scenario_price_series, default_price_series, endpoint_for_mode, submit_order",
+      "path": "scripts/run_pool_strategy_module.py",
+      "purpose": "Run the first modular pool strategy against validate/stage/paper endpoints. The module is long-only and paper-oriented. It scans a rotating pool, keeps a warm quote cache and per-s"
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/run_position_protection.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "",
+      "functions": "main",
+      "path": "scripts/run_realtime_account_sync.py",
+      "purpose": "Run realtime account state bus/snapshot/BUY-SELL sync reports."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/run_strategy_simulation.py",
+      "purpose": "Run a local paper-only strategy simulation. This command does not connect to IBKR and does not place orders. It exercises the market-data cache, bar builder, value filter, moving-a"
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, load_env_file, sanitize_text, clean_display_text, report_to_post_content, build_text_payload, build_post_payload, sign_payload, main",
+      "path": "scripts/send_feishu_report.py",
+      "purpose": "Send a Markdown/text report to a Feishu custom bot webhook. Environment: FEISHU_WEBHOOK_URL Required. Custom bot webhook URL. FEISHU_WEBHOOK_SECRET Optional. Bot signing secret."
+    },
+    {
+      "classes": "LiveDataCache",
+      "functions": "parse_args, parse_symbols, fetch_data, next_client_id, build_system_status, fetch_trading_api_health, token_present, token_present_file_from_env, token_present_file, read_text_file",
+      "path": "scripts/serve_live_dashboard.py",
+      "purpose": "Serve the IBKR read-only dashboard from localhost. The server keeps a single read-only market-data refresh path into TWS and serves cached dashboard data to browser tabs. This scri"
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "scripts/submit_single_paper_from_readiness.py",
+      "purpose": "Gate a single explicit paper limit order from readiness artifacts."
+    },
+    {
+      "classes": "TickByTickClient",
+      "functions": "parse_args, main, stock_contract",
+      "path": "scripts/test_ibkr_tick_by_tick.py",
+      "purpose": "Sample IBKR tick-by-tick read-only market data. This command requests tick-by-tick data for one symbol and prints the raw event shape returned by TWS. It does not place orders."
+    },
+    {
+      "classes": "",
+      "functions": "parse_args, main",
+      "path": "scripts/test_streaming_quotes.py",
+      "purpose": "Read-only smoke test for IBKR Level I streaming quotes. This script subscribes only to configured symbols, prints the latest cache, then cancels market-data subscriptions and disco"
+    },
+    {
+      "classes": "",
+      "functions": "",
+      "path": "tests/__init__.py",
+      "purpose": "Tests for the trading safeguards."
+    },
+    {
+      "classes": "AccountReportsTests",
+      "functions": "",
+      "path": "tests/test_account_reports.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AccountStateManagerTests",
+      "functions": "",
+      "path": "tests/test_account_state_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "FakeSettings, FakeService, FailingService, CapturingHandler, ApiServiceTests",
+      "functions": "",
+      "path": "tests/test_api_service.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AutoOpenPipelineTests",
+      "functions": "",
+      "path": "tests/test_auto_open_pipeline.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "AutonomousAgentTests",
+      "functions": "",
+      "path": "tests/test_autonomous_agent.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "FakeScanner, AutonomousRuntimeTests",
+      "functions": "_runtime, _ready_health, _event",
+      "path": "tests/test_autonomous_runtime.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "CandidateResearchTests",
+      "functions": "candidate",
+      "path": "tests/test_candidate_research.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "DailyFeishuUpdateTests",
+      "functions": "",
+      "path": "tests/test_daily_feishu_update.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "DashboardTests",
+      "functions": "",
+      "path": "tests/test_dashboard.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "EventRiskControlTests",
+      "functions": "",
+      "path": "tests/test_event_risk_control.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "EventRouterTests",
+      "functions": "",
+      "path": "tests/test_event_router.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PullbackQuoteSource, FullPaperTrialPipelineTests",
+      "functions": "",
+      "path": "tests/test_full_paper_trial_pipeline.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "GapEscapeManagerTests",
+      "functions": "_settings",
+      "path": "tests/test_gap_escape_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "GapRiskManagerTests",
+      "functions": "",
+      "path": "tests/test_gap_risk_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PullbackQuoteSource, GuardedPaperTrialSessionTests",
+      "functions": "guarded_config",
+      "path": "tests/test_guarded_paper_trial_session.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "IbkrCallbackBridgeTests",
+      "functions": "",
+      "path": "tests/test_ibkr_callback_bridge.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "IbkrCallbackWiringAuditTests",
+      "functions": "",
+      "path": "tests/test_ibkr_callback_wiring_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "OscillatingQuoteSource, IbkrMeanReversionPipelineTests",
+      "functions": "",
+      "path": "tests/test_ibkr_mean_reversion_pipeline.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "FakeQuoteSource, IbkrQuoteRecorderTests",
+      "functions": "",
+      "path": "tests/test_ibkr_quote_recorder.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "IbkrReadOnlyQuoteClientTests",
+      "functions": "",
+      "path": "tests/test_ibkr_readonly.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "FakeStreamingClient, IbkrStreamingQuoteTests",
+      "functions": "",
+      "path": "tests/test_ibkr_streaming.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MarketDataBillingSafetyTests",
+      "functions": "",
+      "path": "tests/test_market_data_billing_safety.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MarketQuoteCrosscheckTests",
+      "functions": "",
+      "path": "tests/test_market_quote_crosscheck.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MarketSessionTests",
+      "functions": "",
+      "path": "tests/test_market_session.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MeanReversionDiagnosticsTests",
+      "functions": "",
+      "path": "tests/test_mean_reversion_diagnostics.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "Mode9InfrastructureStatusTests",
+      "functions": "",
+      "path": "tests/test_mode9_infrastructure_status.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "Mode9ReportOnlyInfrastructureCycleTests",
+      "functions": "",
+      "path": "tests/test_mode9_report_only_infrastructure_cycle.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "MonitoringLineControlTests",
+      "functions": "",
+      "path": "tests/test_monitoring_line_control.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "OpenClawTradingClientTests",
+      "functions": "",
+      "path": "tests/test_openclaw_client.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "OptionsHedgePlannerTests",
+      "functions": "_settings",
+      "path": "tests/test_options_hedge_planner.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "OrderIntentAndPnlLedgerTests",
+      "functions": "",
+      "path": "tests/test_order_intents_and_pnl_ledger.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SequenceQuoteSource, PaperCandidateHuntTests",
+      "functions": "",
+      "path": "tests/test_paper_candidate_hunt.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperEnvironmentAuditTests",
+      "functions": "make_settings",
+      "path": "tests/test_paper_environment_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperExecutionGateTests",
+      "functions": "",
+      "path": "tests/test_paper_execution_gate.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperPreSubmitReviewTests",
+      "functions": "",
+      "path": "tests/test_paper_pre_submit_review.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperReadinessReportTests",
+      "functions": "",
+      "path": "tests/test_paper_readiness_report.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperSessionRunbookTests",
+      "functions": "",
+      "path": "tests/test_paper_session_runbook.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperSessionStatusPageTests",
+      "functions": "",
+      "path": "tests/test_paper_session_status_page.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperTrialEvidenceBundleTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_evidence_bundle.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperTrialPreflightChecklistTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_preflight_checklist.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperTrialReadinessMonitorTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_readiness_monitor.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperTrialReconciliationTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_reconciliation.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperTrialRehearsalTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_rehearsal.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "FailingQuoteSource, PaperTrialReportRefreshTests",
+      "functions": "",
+      "path": "tests/test_paper_trial_report_refresh.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PaperValidationPlanTests",
+      "functions": "",
+      "path": "tests/test_paper_validation_plan.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PoolArchitectureAuditTests",
+      "functions": "",
+      "path": "tests/test_pool_architecture_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PoolManagerTests",
+      "functions": "",
+      "path": "tests/test_pool_manager.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PoolStateTests",
+      "functions": "",
+      "path": "tests/test_pool_state.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PositionProtectionTests",
+      "functions": "_settings, _guard_row, _stop_config",
+      "path": "tests/test_position_protection.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PositionProtectionTestResultRefreshTests",
+      "functions": "",
+      "path": "tests/test_position_protection_test_result_refresh.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "PriceNormalizerTests",
+      "functions": "",
+      "path": "tests/test_price_normalizer.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "ProfitProtectionReportTests",
+      "functions": "",
+      "path": "tests/test_profit_protection_reports.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "ProjectCompletionAuditTests",
+      "functions": "",
+      "path": "tests/test_project_completion_audit.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "QuoteQualityReportTests",
+      "functions": "",
+      "path": "tests/test_quote_quality_report.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "RealtimeAccountSyncTests",
+      "functions": "",
+      "path": "tests/test_realtime_account_sync.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "RiskEngineTests",
+      "functions": "",
+      "path": "tests/test_risk.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SecurityMasterTests",
+      "functions": "",
+      "path": "tests/test_security_master.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "TradingServiceTests",
+      "functions": "make_settings, valid_payload, valid_limit_payload, ready_tws_status, not_ready_tws_status",
+      "path": "tests/test_service.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SessionCalendarTests",
+      "functions": "",
+      "path": "tests/test_session_calendar.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "SessionPolicyTests",
+      "functions": "_quote",
+      "path": "tests/test_session_policy.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StrategyFrameworkTests",
+      "functions": "",
+      "path": "tests/test_strategy.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StrategyCatalogTests",
+      "functions": "",
+      "path": "tests/test_strategy_catalog.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StrategyExtensionStatusTests",
+      "functions": "_settings",
+      "path": "tests/test_strategy_extension_status.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "ConservativeTrendModuleTests",
+      "functions": "bars_for",
+      "path": "tests/test_strategy_modules.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "StrategyValidationPlanTests",
+      "functions": "_write_quotes",
+      "path": "tests/test_strategy_validation_plan.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "TwsPaperBrokerTests",
+      "functions": "",
+      "path": "tests/test_tws_paper.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "UnifiedStrategyInterfaceTests",
+      "functions": "",
+      "path": "tests/test_unified_strategy_interface.py",
+      "purpose": "Project file."
+    },
+    {
+      "classes": "UniverseTests",
+      "functions": "",
+      "path": "tests/test_universe.py",
+      "purpose": "Project file."
+    }
+  ],
+  "sqlite_database": "/Users/nbhsbgnb/Documents/New project/trading_audit.sqlite3",
+  "sqlite_health": "quick_check_failed: database disk image is malformed",
+  "sqlite_table_count": 83,
+  "sqlite_tables": [
+    {
+      "columns": [
+        "timestamp_utc",
+        "account_id",
+        "currency",
+        "net_liquidation",
+        "daily_pnl",
+        "realized_pnl",
+        "unrealized_pnl",
+        "daily_return_pct",
+        "source",
+        "data_age_sec",
+        "stale",
+        "blocked_reason"
+      ],
+      "name": "account_pnl_snapshots",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 3,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "payload_json"
+      ],
+      "name": "account_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 21,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "account_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 583,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "payload_json"
+      ],
+      "name": "account_state_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 17,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "field_name",
+        "source_type",
+        "source_timestamp",
+        "current_age_sec",
+        "stale_threshold_sec",
+        "freshness_status",
+        "bus_status",
+        "payload_json"
+      ],
+      "name": "bootstrap_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 192,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "intent_id",
+        "decision",
+        "execution_allowed",
+        "order_submitted",
+        "blocked_reason",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "buy_decisions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 1143,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "source_type",
+        "callback_name",
+        "source_module",
+        "logical_bus",
+        "event_type_written",
+        "wired_to_realtime_bus",
+        "payload_json"
+      ],
+      "name": "callback_wiring_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 428,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "component_name",
+        "component_value",
+        "reason",
+        "payload_json"
+      ],
+      "name": "candidate_score_components",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 41910,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "scanner_score",
+        "news_score",
+        "fast_guidance_score",
+        "market_data_score",
+        "volume_score",
+        "gap_score",
+        "liquidity_score",
+        "strategy_score",
+        "risk_score",
+        "freshness_score",
+        "final_candidate_score",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "candidate_scores",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 4191,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "symbol",
+        "current_layer",
+        "updated_at",
+        "has_active_order",
+        "payload_json"
+      ],
+      "name": "canonical_pool_state",
+      "primary_key": "symbol or transition/event id when present",
+      "purpose": "Canonical stock-pool membership, transitions, and layer state.",
+      "readers": "pool reports, strategy selection, autonomous review",
+      "row_count": 66,
+      "writer": "trading/pool_state.py, trading/pool_manager.py, auto-open pipeline"
+    },
+    {
+      "columns": [
+        "transition_id",
+        "timestamp_utc",
+        "symbol",
+        "from_layer",
+        "to_layer",
+        "triggering_component",
+        "reason_code",
+        "explanation",
+        "score",
+        "market_data_timestamp",
+        "trace_id",
+        "payload_json"
+      ],
+      "name": "canonical_pool_transition_events",
+      "primary_key": "symbol or transition/event id when present",
+      "purpose": "Canonical stock-pool membership, transitions, and layer state.",
+      "readers": "pool reports, strategy selection, autonomous review",
+      "row_count": -1,
+      "writer": "trading/pool_state.py, trading/pool_manager.py, auto-open pipeline"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "cycle_id",
+        "snapshot_id",
+        "source_type",
+        "callback_name",
+        "req_id",
+        "conId",
+        "symbol",
+        "commission",
+        "currency",
+        "realized_pnl",
+        "state_version",
+        "payload_json"
+      ],
+      "name": "commission_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 0,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "cycle_id",
+        "snapshot_id",
+        "timestamp_utc",
+        "trigger_event_id",
+        "account_state_ref",
+        "position_state_ref",
+        "quote_state_ref",
+        "pnl_state_ref",
+        "open_order_state_ref",
+        "market_session_ref",
+        "pool_state_ref",
+        "news_state_ref",
+        "scanner_state_ref",
+        "trigger_state_ref",
+        "risk_state_ref",
+        "state_version_min",
+        "state_version_max",
+        "immutable",
+        "payload_json",
+        "created_at",
+        "execution_state_ref",
+        "market_data_ref"
+      ],
+      "name": "cycle_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 241,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "payload_json"
+      ],
+      "name": "daily_pnl",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 21,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "trading_date",
+        "account_id",
+        "currency",
+        "net_liquidation",
+        "daily_pnl",
+        "realized_pnl",
+        "unrealized_pnl",
+        "daily_return_pct",
+        "top_profit_symbol",
+        "top_loss_symbol",
+        "pnl_sample_time_utc",
+        "data_age_sec",
+        "stale",
+        "report_path"
+      ],
+      "name": "daily_pnl_summary",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 3,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "source_name",
+        "source_type",
+        "inclusion_reason",
+        "blocked_reason",
+        "score",
+        "payload_json"
+      ],
+      "name": "discovery_candidates",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 8205,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "status",
+        "sources_used",
+        "candidates_count",
+        "local_simulation_enabled",
+        "ibkr_paper_order_submission",
+        "live_trading_enabled",
+        "payload_json"
+      ],
+      "name": "discovery_runs",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 127,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "source_name",
+        "source_type",
+        "enabled",
+        "configured",
+        "available",
+        "used",
+        "status",
+        "candidate_count",
+        "error_message",
+        "report_path",
+        "payload_json"
+      ],
+      "name": "discovery_source_status",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 1651,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json",
+        "discovery_run_id",
+        "event_id",
+        "risk_level",
+        "action",
+        "buy_blocked",
+        "sell_review_required",
+        "reason"
+      ],
+      "name": "event_risk_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 634,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "intent_id",
+        "timestamp_utc",
+        "cycle_id",
+        "symbol",
+        "side",
+        "intent_type",
+        "order_type",
+        "source_module",
+        "strategy_source",
+        "pool_layer",
+        "market_session_state",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "position_qty_before",
+        "position_qty_after_expected",
+        "max_order_notional",
+        "risk_budget_ok",
+        "protection_plan_required",
+        "protection_plan_exists",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "readback_status",
+        "blocked_reason",
+        "report_path",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "state_version_min",
+        "state_version_max",
+        "source_signal_id",
+        "source_trigger_id",
+        "protection_plan_mode",
+        "protection_plan_status",
+        "protection_intent_id",
+        "protection_due_by",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "event_risk_sell_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 18,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "cycle_id",
+        "snapshot_id",
+        "source_module",
+        "event_type",
+        "symbol",
+        "state_version",
+        "payload_json",
+        "report_path"
+      ],
+      "name": "event_store",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 444,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "side",
+        "quantity",
+        "price",
+        "payload_json"
+      ],
+      "name": "execution_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 0,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "symbol",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "execution_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 211,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "discovery_run_id",
+        "guidance_id",
+        "symbol",
+        "source_event_id",
+        "source_type",
+        "urgency",
+        "confidence",
+        "direction",
+        "recommended_intent_type",
+        "reason",
+        "required_gates",
+        "allowed_to_submit_order",
+        "routed_to_order_intent_router",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "fast_order_guidance_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 1524,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "status",
+        "full_paper_run_enabled",
+        "auto_buy_enabled",
+        "gap_escape_enabled",
+        "options_execution_enabled",
+        "pool_manager_as_buy_source",
+        "live_trading_enabled",
+        "payload_json"
+      ],
+      "name": "full_paper_run_cycles",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 7,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json",
+        "intent_id",
+        "timestamp_utc",
+        "cycle_id",
+        "side",
+        "intent_type",
+        "order_type",
+        "source_module",
+        "strategy_source",
+        "pool_layer",
+        "market_session_state",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "position_qty_before",
+        "position_qty_after_expected",
+        "max_order_notional",
+        "risk_budget_ok",
+        "protection_plan_required",
+        "protection_plan_exists",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "readback_status",
+        "blocked_reason",
+        "report_path",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "state_version_min",
+        "state_version_max",
+        "source_signal_id",
+        "source_trigger_id",
+        "protection_plan_mode",
+        "protection_plan_status",
+        "protection_intent_id",
+        "protection_due_by",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "gap_escape_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 144,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json"
+      ],
+      "name": "gap_risk_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 630,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "source_type",
+        "callback_name",
+        "req_id",
+        "error_code",
+        "error_message",
+        "state_version",
+        "payload_json"
+      ],
+      "name": "ibkr_error_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 162,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "interface_name",
+        "status",
+        "provider_code",
+        "symbol",
+        "conId",
+        "headline_count",
+        "error_message",
+        "payload_json"
+      ],
+      "name": "ibkr_news_interface_tests",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 762,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "provider_code",
+        "provider_name",
+        "enabled",
+        "available",
+        "status",
+        "error_message",
+        "payload_json"
+      ],
+      "name": "ibkr_news_provider_status",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 762,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "discovery_run_id",
+        "source_type",
+        "scan_code",
+        "rank",
+        "symbol",
+        "conId",
+        "exchange",
+        "primaryExchange",
+        "currency",
+        "secType",
+        "distance",
+        "benchmark",
+        "projection",
+        "raw_payload_ref",
+        "included_in_discovery",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "ibkr_scanner_results",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 3048,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "status",
+        "tws_available",
+        "scanner_codes_tested",
+        "candidates_count",
+        "paid_snapshot_used",
+        "regulatory_snapshot_used",
+        "payload_json"
+      ],
+      "name": "ibkr_scanner_runs",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 127,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "lot_id",
+        "quantity",
+        "avg_cost",
+        "source",
+        "payload_json"
+      ],
+      "name": "lot_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 126,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json"
+      ],
+      "name": "market_data_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 126,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "market_session_state",
+        "quote_blocked_reason",
+        "cross_validation_result",
+        "payload_json"
+      ],
+      "name": "market_quote_crosscheck_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 42,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "session_state",
+        "expected_live_bid_ask",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "market_session_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 6,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "event_id",
+        "symbol",
+        "action",
+        "score_delta",
+        "routed_to_pool",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "news_candidate_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 508,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "symbol",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "open_order_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 211,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json"
+      ],
+      "name": "options_hedge_plans",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 126,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "strategy",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "blocked_reason",
+        "payload_json",
+        "event_type",
+        "readback_status"
+      ],
+      "name": "options_order_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 8,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "cycle_id",
+        "snapshot_id",
+        "symbol",
+        "conflict_type",
+        "buy_intent_id",
+        "sell_intent_id",
+        "decision",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "order_conflict_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 16,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "intent_id",
+        "timestamp_utc",
+        "cycle_id",
+        "symbol",
+        "side",
+        "intent_type",
+        "order_type",
+        "source_module",
+        "strategy_source",
+        "pool_layer",
+        "market_session_state",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "position_qty_before",
+        "position_qty_after_expected",
+        "max_order_notional",
+        "risk_budget_ok",
+        "protection_plan_required",
+        "protection_plan_exists",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "readback_status",
+        "blocked_reason",
+        "report_path",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "state_version_min",
+        "state_version_max",
+        "source_signal_id",
+        "source_trigger_id",
+        "protection_plan_mode",
+        "protection_plan_status",
+        "protection_intent_id",
+        "protection_due_by",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "order_intent_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 1784,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "side",
+        "order_type",
+        "payload_json"
+      ],
+      "name": "order_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 126,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "order_id",
+        "readback_ok",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "order_readback_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 0,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "idempotency_key",
+        "created_at",
+        "mode",
+        "status",
+        "proposal_json",
+        "details"
+      ],
+      "name": "order_requests",
+      "primary_key": "idempotency_key",
+      "purpose": "Idempotent order reservation and status ledger.",
+      "readers": "trading/service.py, API audit endpoints, developer diagnostics",
+      "row_count": 109,
+      "writer": "trading/audit.py"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json"
+      ],
+      "name": "outside_rth_protection_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 0,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "decision",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "blocked_reason",
+        "report_path",
+        "payload_json",
+        "pool_layer",
+        "inclusion_reason",
+        "market_session_state",
+        "expected_live_bid_ask",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "event_risk_ok",
+        "gap_risk_ok",
+        "position_sizing_ok",
+        "readback_status"
+      ],
+      "name": "paper_buy_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 189,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "paper_execution_enabled",
+        "live_trading_enabled",
+        "ibkr_paper_order_submission",
+        "gate_status",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "paper_execution_gate_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 127,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "readiness_key",
+        "ready",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "paper_order_readiness_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 2159,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "pnl_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 209,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "pool_name",
+        "payload_json",
+        "discovery_run_id",
+        "source",
+        "reason",
+        "score",
+        "included",
+        "excluded",
+        "blocked_reason",
+        "last_updated_at"
+      ],
+      "name": "pool_membership_history",
+      "primary_key": "symbol or transition/event id when present",
+      "purpose": "Canonical stock-pool membership, transitions, and layer state.",
+      "readers": "pool reports, strategy selection, autonomous review",
+      "row_count": 26998,
+      "writer": "trading/pool_state.py, trading/pool_manager.py, auto-open pipeline"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "source_type",
+        "source_name",
+        "reason",
+        "score",
+        "payload_json"
+      ],
+      "name": "pool_source_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 11761,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "from_pool",
+        "to_pool",
+        "decision",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "pool_transition_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 20509,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "lifecycle_id",
+        "symbol",
+        "account_id",
+        "mode",
+        "from_state",
+        "to_state",
+        "intent_id",
+        "order_id",
+        "pnl_ref",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "position_lifecycle_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 901,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "lifecycle_id",
+        "symbol",
+        "account_id",
+        "mode",
+        "current_state",
+        "candidate_id",
+        "signal_id",
+        "buy_intent_id",
+        "buy_order_id",
+        "position_id",
+        "protection_required",
+        "protection_plan_status",
+        "protection_intent_id",
+        "sell_intent_id",
+        "pnl_ref",
+        "created_at",
+        "updated_at",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "position_lifecycle_state",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 901,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "account_id",
+        "symbol",
+        "position_qty",
+        "avg_cost",
+        "market_price",
+        "bid",
+        "ask",
+        "market_value",
+        "unrealized_pnl",
+        "realized_pnl",
+        "daily_pnl",
+        "position_weight_pct",
+        "quote_age_sec",
+        "pnl_age_sec",
+        "protection_status",
+        "source",
+        "stale",
+        "blocked_reason"
+      ],
+      "name": "position_pnl_snapshots",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 18,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "payload_json"
+      ],
+      "name": "position_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 126,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "symbol",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "position_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 235,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "intent_id",
+        "timestamp_utc",
+        "cycle_id",
+        "symbol",
+        "side",
+        "intent_type",
+        "order_type",
+        "source_module",
+        "strategy_source",
+        "pool_layer",
+        "market_session_state",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "position_qty_before",
+        "position_qty_after_expected",
+        "max_order_notional",
+        "risk_budget_ok",
+        "protection_plan_required",
+        "protection_plan_exists",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "readback_status",
+        "blocked_reason",
+        "report_path",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "state_version_min",
+        "state_version_max",
+        "source_signal_id",
+        "source_trigger_id",
+        "protection_plan_mode",
+        "protection_plan_status",
+        "protection_intent_id",
+        "protection_due_by",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "profit_sell_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 18,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "order_type",
+        "quantity",
+        "payload_json"
+      ],
+      "name": "protective_order_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 63,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "intent_id",
+        "timestamp_utc",
+        "cycle_id",
+        "symbol",
+        "side",
+        "intent_type",
+        "order_type",
+        "source_module",
+        "strategy_source",
+        "pool_layer",
+        "market_session_state",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "position_qty_before",
+        "position_qty_after_expected",
+        "max_order_notional",
+        "risk_budget_ok",
+        "protection_plan_required",
+        "protection_plan_exists",
+        "execution_allowed",
+        "order_submitted",
+        "order_id",
+        "readback_status",
+        "blocked_reason",
+        "report_path",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "state_version_min",
+        "state_version_max",
+        "source_signal_id",
+        "source_trigger_id",
+        "protection_plan_mode",
+        "protection_plan_status",
+        "protection_intent_id",
+        "protection_due_by",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "protective_sell_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 6,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "quote_use_case",
+        "execution_allowed",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "quote_readiness_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 36,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "state_version",
+        "source_event_seq",
+        "source_module",
+        "symbol",
+        "bid",
+        "ask",
+        "last",
+        "freshness_age_sec",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "quote_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 305,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "discovery_run_id",
+        "event_id",
+        "source",
+        "provider_code",
+        "symbol",
+        "headline",
+        "source_url_or_ref",
+        "raw_payload_ref",
+        "payload_json"
+      ],
+      "name": "raw_news_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 508,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "account_id",
+        "symbol",
+        "realized_pnl",
+        "source",
+        "stale",
+        "blocked_reason"
+      ],
+      "name": "realized_pnl_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 3,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "event_type",
+        "payload_json"
+      ],
+      "name": "risk_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 882,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "cycle_id",
+        "snapshot_id",
+        "symbol",
+        "decision",
+        "execution_allowed",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "router_decisions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 370,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "source_type",
+        "scan_code",
+        "rank",
+        "score",
+        "included_in_discovery",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "scanner_candidates",
+      "primary_key": "timestamp/discovery_run_id/symbol",
+      "purpose": "Discovery and candidate-selection evidence.",
+      "readers": "pool manager, strategy review, AI review pipeline",
+      "row_count": 3048,
+      "writer": "discovery, scanner, news, candidate scoring modules"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "discovery_run_id",
+        "symbol",
+        "company_name",
+        "source_types",
+        "source_details",
+        "current_layer",
+        "first_seen_at",
+        "last_seen_at",
+        "included",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "security_master",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 4191,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "intent_id",
+        "intent_type",
+        "decision",
+        "execution_allowed",
+        "order_submitted",
+        "blocked_reason",
+        "payload_json",
+        "event_id",
+        "snapshot_id",
+        "state_version",
+        "simulated_order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted"
+      ],
+      "name": "sell_decisions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 127,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "simulation_run_id",
+        "simulated_execution_id",
+        "simulated_order_id",
+        "symbol",
+        "side",
+        "quantity",
+        "fill_price",
+        "fill_status",
+        "payload_json"
+      ],
+      "name": "simulated_execution_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 1143,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "simulation_run_id",
+        "simulated_order_id",
+        "intent_id",
+        "symbol",
+        "side",
+        "intent_type",
+        "order_type",
+        "quantity",
+        "limit_price",
+        "status",
+        "order_submitted",
+        "ibkr_paper_order_submitted",
+        "live_order_submitted",
+        "payload_json"
+      ],
+      "name": "simulated_order_ledger",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 1143,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "simulation_run_id",
+        "account_id",
+        "currency",
+        "simulated_cash",
+        "simulated_equity",
+        "simulated_daily_pnl",
+        "payload_json"
+      ],
+      "name": "simulated_pnl_snapshots",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 127,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "simulation_run_id",
+        "symbol",
+        "position_qty",
+        "avg_cost",
+        "market_price",
+        "market_value",
+        "unrealized_pnl",
+        "payload_json"
+      ],
+      "name": "simulated_position_snapshots",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 762,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "state_version",
+        "timestamp_utc",
+        "state_key",
+        "source_event_seq",
+        "source_module",
+        "stale_flag",
+        "payload_json"
+      ],
+      "name": "state_versions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 2117,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "symbol",
+        "decision",
+        "payload_json"
+      ],
+      "name": "strategy_decisions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 0,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "signal_id",
+        "timestamp_utc",
+        "cycle_id",
+        "snapshot_id",
+        "symbol",
+        "signal_type",
+        "direction",
+        "source_module",
+        "source_reason",
+        "confidence",
+        "urgency",
+        "score",
+        "linked_pool_ref",
+        "linked_news_ref",
+        "linked_scanner_ref",
+        "linked_position_ref",
+        "linked_pnl_ref",
+        "blocked_reason",
+        "payload_json"
+      ],
+      "name": "strategy_signals",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 418,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "discovery_run_id",
+        "event_id",
+        "source",
+        "provider_code",
+        "symbol",
+        "conId",
+        "company_name",
+        "event_type",
+        "headline",
+        "summary",
+        "sentiment",
+        "urgency",
+        "confidence",
+        "expected_impact",
+        "risk_level",
+        "action",
+        "reason",
+        "dedup_key",
+        "source_url_or_ref",
+        "raw_payload_ref",
+        "payload_json"
+      ],
+      "name": "structured_news_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 508,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "stream_name",
+        "callback_wired",
+        "callback_registered",
+        "subscription_requested",
+        "subscription_active",
+        "last_event_seen_at",
+        "last_event_source",
+        "freshness_status",
+        "waiting_reason",
+        "reconnect_count",
+        "last_reconnect_at",
+        "payload_json"
+      ],
+      "name": "subscription_state_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 132,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "trading_date",
+        "symbol",
+        "position_qty",
+        "market_value",
+        "daily_pnl",
+        "realized_pnl",
+        "unrealized_pnl",
+        "contribution_pct_of_total_pnl",
+        "contribution_pct_of_net_liquidation",
+        "rank_by_profit",
+        "rank_by_loss",
+        "stale",
+        "notes"
+      ],
+      "name": "symbol_pnl_attribution",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 18,
+      "writer": "account/PnL report builders"
+    },
+    {
+      "columns": [
+        "event_id",
+        "timestamp_utc",
+        "field_name",
+        "symbol",
+        "incoming_source_type",
+        "incoming_source_timestamp",
+        "previous_source_type",
+        "previous_source_timestamp",
+        "accepted",
+        "reason",
+        "state_version",
+        "payload_json"
+      ],
+      "name": "timestamp_reconciliation_events",
+      "primary_key": "event_id when present; otherwise append-only rowid",
+      "purpose": "Append-only runtime event evidence.",
+      "readers": "reports, review collector, replay diagnostics",
+      "row_count": 428,
+      "writer": "module-specific event writers via trading/paper_audit_db.py or SQLiteEventStore"
+    },
+    {
+      "columns": [
+        "timestamp",
+        "cycle_id",
+        "symbol",
+        "decision",
+        "execution_allowed",
+        "blocked_reason",
+        "payload_json",
+        "pool_layer",
+        "inclusion_reason",
+        "market_session_state",
+        "expected_live_bid_ask",
+        "bid_received",
+        "ask_received",
+        "quote_ready",
+        "spread_ok",
+        "event_risk_ok",
+        "gap_risk_ok",
+        "position_sizing_ok",
+        "order_submitted",
+        "order_id",
+        "readback_status"
+      ],
+      "name": "trade_pool_decisions",
+      "primary_key": "not declared as SQLite PRIMARY KEY unless noted by schema",
+      "purpose": "Runtime evidence table.",
+      "readers": "diagnostic reports and review tools",
+      "row_count": 4380,
+      "writer": "module-specific writer"
+    },
+    {
+      "columns": [
+        "timestamp_utc",
+        "account_id",
+        "symbol",
+        "unrealized_pnl",
+        "market_value",
+        "source",
+        "stale",
+        "blocked_reason"
+      ],
+      "name": "unrealized_pnl_snapshots",
+      "primary_key": "trading_date/timestamp/symbol depending on table",
+      "purpose": "PnL snapshots, summaries, and attribution evidence.",
+      "readers": "risk review, performance review, account dashboard",
+      "row_count": 18,
+      "writer": "account/PnL report builders"
+    }
+  ],
+  "validation_status": "Draft / Not yet fully system-validated"
+}

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="46" font-size="28" font-family="Arial" fill="#1F2937">Complete System Mind Map</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#6B7280"/></marker></defs>
+<line x1="230" y1="146.0" x2="300" y2="116.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="480" y1="116.0" x2="550" y2="106.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="730" y1="106.0" x2="550" y2="226.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="730" y1="226.0" x2="790" y2="186.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="960" y1="186.0" x2="790" y2="316.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="960" y1="316.0" x2="550" y2="396.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="730" y1="396.0" x2="300" y2="426.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="480" y1="426.0" x2="300" y2="116.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="60" y="110" width="170" height="72" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="76" y="140" font-size="17" font-family="Arial" fill="#1F2937">User/API</text>
+<text x="76" y="162" font-size="17" font-family="Arial" fill="#1F2937">Control</text>
+<rect x="300" y="80" width="180" height="72" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="316" y="110" font-size="17" font-family="Arial" fill="#1F2937">Mode 9 Runtime</text>
+<text x="316" y="132" font-size="17" font-family="Arial" fill="#1F2937">Scheduler</text>
+<rect x="550" y="70" width="180" height="72" rx="10" fill="#2F80ED" fill-opacity="0.13" stroke="#2F80ED" stroke-width="2"/>
+<text x="566" y="100" font-size="17" font-family="Arial" fill="#1F2937">Data + Research</text>
+<text x="566" y="122" font-size="17" font-family="Arial" fill="#1F2937">Scanner/News</text>
+<rect x="550" y="190" width="180" height="72" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="566" y="220" font-size="17" font-family="Arial" fill="#1F2937">Strategy + Pool</text>
+<text x="566" y="242" font-size="17" font-family="Arial" fill="#1F2937">Six layers</text>
+<rect x="790" y="150" width="170" height="72" rx="10" fill="#D64545" fill-opacity="0.13" stroke="#D64545" stroke-width="2"/>
+<text x="806" y="180" font-size="17" font-family="Arial" fill="#1F2937">Risk Gates</text>
+<text x="806" y="202" font-size="17" font-family="Arial" fill="#1F2937">Paper-only</text>
+<rect x="790" y="280" width="170" height="72" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="806" y="310" font-size="17" font-family="Arial" fill="#1F2937">Execution</text>
+<text x="806" y="332" font-size="17" font-family="Arial" fill="#1F2937">TWS adapter</text>
+<rect x="550" y="360" width="180" height="72" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="566" y="390" font-size="17" font-family="Arial" fill="#1F2937">SQLite/Reports</text>
+<text x="566" y="412" font-size="17" font-family="Arial" fill="#1F2937">Logs</text>
+<rect x="300" y="390" width="180" height="72" rx="10" fill="#D7A21D" fill-opacity="0.13" stroke="#D7A21D" stroke-width="2"/>
+<text x="316" y="420" font-size="17" font-family="Arial" fill="#1F2937">AI Review</text>
+<text x="316" y="442" font-size="17" font-family="Arial" fill="#1F2937">Evidence replay</text>
+</svg>

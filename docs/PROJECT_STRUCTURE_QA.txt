@@ -95,7 +95,7 @@ Q11：TWS 订单是否已经存入 SQL？
 
 Q12：Dashboard 与生成物在哪里？
 路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/output/pdf
-文件：derge_project_engineering_manual_cn.pdf。
+文件：derge_project_engineering_manual_cn.pdf、ibkr_paper_trading_engineering_manual_v0.1.0_cn.pdf。
 答：版本库只保留工程手册 PDF，运行时还会在忽略目录生成 SQLite、JSON、CSV、日志、HTML Dashboard、状态页和报告；不足是当前产物命名、保留期和权威来源尚未统一。
 下一步建议：统一到 .runtime/{db,logs,reports,dashboard,evidence}，并为每个产物写生成时间、输入版本和校验值。
 讨论结果：________
@@ -105,7 +105,9 @@ Q13：项目文档在哪里？
 文件：BOOK_BASED_RESEARCH_ROADMAP.md、CONTEXT_TOKEN_BUDGET_MONITOR_IDEA.md、HARDWARE_SOFTWARE_ROADMAP.md、NEXT_PHASE_AUTONOMOUS_PAPER_TRADING_PROMPT.md、PROJECT_HANDOFF_MANUAL_CN.md、PROJECT_MAP.md、RESEARCH_CANDIDATE_PIPELINE.md、STRATEGY_DEBT.md、STRATEGY_FLOW.md、STRATEGY_MODULES.md、YUGE_AUTONOMOUS_TRADING_BRIEF.md、PROJECT_STRUCTURE_QA.txt。
 路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs/trading_sessions
 文件：README.md、01_calendar_and_timezones.md、02_overnight_session.md、03_premarket_session.md、04_regular_session.md、05_afterhours_session.md、06_risk_by_session.md、07_order_types_by_session.md、08_monitoring_and_recovery.md、09_autonomous_runtime_runbook.md。
-答：文档覆盖架构、研究、策略债务、交接和各交易时段运行手册；不足是部分文档可能描述不同阶段，需要与代码和测试建立版本对应关系。
+路径：/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs/manual
+文件：README.md；diagrams/autonomous_review_pipeline.svg、complete_system_mind_map.svg、database_er_diagram.svg、event_replay_example.svg、layered_system_architecture.svg、logging_observability_flowchart.svg、market_data_sequence.svg、mode9_lifecycle_flowchart.svg、module_dependency_diagram.svg、six_layer_stock_pool.svg、trading_signal_order_flow.svg、tws_disconnect_recovery.svg；generated/manual_facts.json、manual_validation.json；queries/database_diagnostics.sql；scripts/build_manual.py、validate_manual.py。
+答：文档覆盖架构、研究、策略债务、交接、各交易时段和 28 页工程手册；不足是部分文档可能描述不同阶段，需要与代码和测试建立版本对应关系。
 下一步建议：每个里程碑更新能力矩阵，并由测试链接到对应文档约束。
 讨论结果：________
 

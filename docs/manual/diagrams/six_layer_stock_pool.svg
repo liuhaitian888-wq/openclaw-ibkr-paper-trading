@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="46" font-size="28" font-family="Arial" fill="#1F2937">Six-Layer Stock Pool</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#6B7280"/></marker></defs>
+<line x1="330" y1="107.5" x2="90" y2="182.5" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="330" y1="182.5" x2="90" y2="257.5" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="330" y1="257.5" x2="90" y2="332.5" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="330" y1="332.5" x2="90" y2="407.5" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="330" y1="407.5" x2="90" y2="482.5" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="330" y1="482.5" x2="500" y2="374.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="800" y1="244.0" x2="500" y2="374.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="90" y="80" width="240" height="55" rx="10" fill="#2F80ED" fill-opacity="0.13" stroke="#2F80ED" stroke-width="2"/>
+<text x="106" y="110" font-size="17" font-family="Arial" fill="#1F2937">MASTER_UNIVERSE</text>
+<rect x="90" y="155" width="240" height="55" rx="10" fill="#2F80ED" fill-opacity="0.13" stroke="#2F80ED" stroke-width="2"/>
+<text x="106" y="185" font-size="17" font-family="Arial" fill="#1F2937">ELIGIBLE_UNIVERSE</text>
+<rect x="90" y="230" width="240" height="55" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="106" y="260" font-size="17" font-family="Arial" fill="#1F2937">SCAN_POOL</text>
+<rect x="90" y="305" width="240" height="55" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="106" y="335" font-size="17" font-family="Arial" fill="#1F2937">WATCH_POOL</text>
+<rect x="90" y="380" width="240" height="55" rx="10" fill="#D64545" fill-opacity="0.13" stroke="#D64545" stroke-width="2"/>
+<text x="106" y="410" font-size="17" font-family="Arial" fill="#1F2937">SIGNAL_EXECUTION_READY_POOL</text>
+<rect x="90" y="455" width="240" height="55" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="106" y="485" font-size="17" font-family="Arial" fill="#1F2937">PAPER_EXECUTION_POSITION_POOL</text>
+<rect x="500" y="210" width="300" height="68" rx="10" fill="#D64545" fill-opacity="0.13" stroke="#D64545" stroke-width="2"/>
+<text x="516" y="240" font-size="17" font-family="Arial" fill="#1F2937">Demotion/removal</text>
+<text x="516" y="262" font-size="17" font-family="Arial" fill="#1F2937">failed eligibility, stale quote, expired signal, rejected order</text>
+<rect x="500" y="340" width="300" height="68" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="516" y="370" font-size="17" font-family="Arial" fill="#1F2937">Persistence</text>
+<text x="516" y="392" font-size="17" font-family="Arial" fill="#1F2937">canonical_pool_state + transition events</text>
+</svg>

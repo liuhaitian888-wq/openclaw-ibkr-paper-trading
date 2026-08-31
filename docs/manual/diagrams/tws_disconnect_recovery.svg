@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="46" font-size="28" font-family="Arial" fill="#1F2937">TWS Disconnect and Recovery</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#6B7280"/></marker></defs>
+<line x1="255" y1="129.0" x2="315" y2="129.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="495" y1="129.0" x2="555" y2="129.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="735" y1="129.0" x2="795" y2="129.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="975" y1="129.0" x2="315" y2="314.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="495" y1="314.0" x2="555" y2="314.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="735" y1="314.0" x2="795" y2="314.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="75" y="100" width="180" height="58" rx="10" fill="#6B7280" fill-opacity="0.13" stroke="#6B7280" stroke-width="2"/>
+<text x="91" y="130" font-size="17" font-family="Arial" fill="#1F2937">Callback error</text>
+<text x="91" y="152" font-size="17" font-family="Arial" fill="#1F2937">or timeout</text>
+<rect x="315" y="100" width="180" height="58" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="331" y="130" font-size="17" font-family="Arial" fill="#1F2937">Mark stale</text>
+<text x="331" y="152" font-size="17" font-family="Arial" fill="#1F2937">state bus</text>
+<rect x="555" y="100" width="180" height="58" rx="10" fill="#D64545" fill-opacity="0.13" stroke="#D64545" stroke-width="2"/>
+<text x="571" y="130" font-size="17" font-family="Arial" fill="#1F2937">Block execution</text>
+<rect x="795" y="100" width="180" height="58" rx="10" fill="#6B7280" fill-opacity="0.13" stroke="#6B7280" stroke-width="2"/>
+<text x="811" y="130" font-size="17" font-family="Arial" fill="#1F2937">Reconnect</text>
+<text x="811" y="152" font-size="17" font-family="Arial" fill="#1F2937">readonly/API</text>
+<rect x="315" y="285" width="180" height="58" rx="10" fill="#2F80ED" fill-opacity="0.13" stroke="#2F80ED" stroke-width="2"/>
+<text x="331" y="315" font-size="17" font-family="Arial" fill="#1F2937">Resync account</text>
+<text x="331" y="337" font-size="17" font-family="Arial" fill="#1F2937">positions/orders</text>
+<rect x="555" y="285" width="180" height="58" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="571" y="315" font-size="17" font-family="Arial" fill="#1F2937">Reconcile SQLite</text>
+<text x="571" y="337" font-size="17" font-family="Arial" fill="#1F2937">and reports</text>
+<rect x="795" y="285" width="180" height="58" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="811" y="315" font-size="17" font-family="Arial" fill="#1F2937">Resume only after</text>
+<text x="811" y="337" font-size="17" font-family="Arial" fill="#1F2937">fresh checks</text>
+</svg>

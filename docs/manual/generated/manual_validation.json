@@ -1,0 +1,14 @@
+{
+  "errors": [
+    "repository path does not exist: reports/mode9_infrastructure_status/latest.json",
+    "repository path does not exist: reports/sqlite_audit/latest.json",
+    "repository path does not exist: logs/trading_api.log",
+    "repository path does not exist: logs/autonomous_agent.log"
+  ],
+  "facts_path": "/Users/nbhsbgnb/.codex/worktrees/7c43/New project/docs/manual/generated/manual_facts.json",
+  "pdf_path": "/Users/nbhsbgnb/.codex/worktrees/7c43/New project/output/pdf/ibkr_paper_trading_engineering_manual_v0.1.0_cn.pdf",
+  "status": "failed",
+  "warnings": [
+    "PDF inspection failed: No module named 'pypdf'"
+  ]
+}

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="46" font-size="28" font-family="Arial" fill="#1F2937">Database Entity Relationship Overview</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#6B7280"/></marker></defs>
+<line x1="280" y1="135.0" x2="350" y2="105.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="560" y1="105.0" x2="630" y2="105.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="840" y1="105.0" x2="630" y2="255.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="280" y1="135.0" x2="350" y2="255.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="280" y1="135.0" x2="350" y2="405.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="840" y1="105.0" x2="630" y2="405.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="70" y="100" width="210" height="70" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="86" y="130" font-size="17" font-family="Arial" fill="#1F2937">cycle_snapshots</text>
+<rect x="350" y="70" width="210" height="70" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="366" y="100" font-size="17" font-family="Arial" fill="#1F2937">state_* events</text>
+<rect x="630" y="70" width="210" height="70" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="646" y="100" font-size="17" font-family="Arial" fill="#1F2937">order_intent_events</text>
+<rect x="350" y="220" width="210" height="70" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="366" y="250" font-size="17" font-family="Arial" fill="#1F2937">pool_* tables</text>
+<rect x="630" y="220" width="210" height="70" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="646" y="250" font-size="17" font-family="Arial" fill="#1F2937">order_requests</text>
+<rect x="350" y="370" width="210" height="70" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="366" y="400" font-size="17" font-family="Arial" fill="#1F2937">pnl/account tables</text>
+<rect x="630" y="370" width="210" height="70" rx="10" fill="#D7A21D" fill-opacity="0.13" stroke="#D7A21D" stroke-width="2"/>
+<text x="646" y="400" font-size="17" font-family="Arial" fill="#1F2937">reports/logs refs</text>
+</svg>

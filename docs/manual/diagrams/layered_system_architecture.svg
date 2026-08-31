@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="620" viewBox="0 0 1100 620">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="40" y="46" font-size="28" font-family="Arial" fill="#1F2937">Layered System Architecture</text>
+<defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#6B7280"/></marker></defs>
+<line x1="930" y1="114.0" x2="110" y2="179.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="930" y1="179.0" x2="110" y2="244.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="930" y1="244.0" x2="110" y2="309.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="930" y1="309.0" x2="110" y2="374.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<line x1="930" y1="374.0" x2="110" y2="439.0" stroke="#6B7280" stroke-width="2.5" marker-end="url(#arrow)"/>
+<rect x="110" y="90" width="820" height="48" rx="10" fill="#F2994A" fill-opacity="0.13" stroke="#F2994A" stroke-width="2"/>
+<text x="126" y="120" font-size="17" font-family="Arial" fill="#1F2937">User/control layer: menu, API, scripts, safety lock</text>
+<rect x="110" y="155" width="820" height="48" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="126" y="185" font-size="17" font-family="Arial" fill="#1F2937">Runtime and scheduler: Mode 9, process guard, lifecycle loop</text>
+<rect x="110" y="220" width="820" height="48" rx="10" fill="#2F80ED" fill-opacity="0.13" stroke="#2F80ED" stroke-width="2"/>
+<text x="126" y="250" font-size="17" font-family="Arial" fill="#1F2937">Data/research: IBKR read-only, scanner, news, security master</text>
+<rect x="110" y="285" width="820" height="48" rx="10" fill="#27AE60" fill-opacity="0.13" stroke="#27AE60" stroke-width="2"/>
+<text x="126" y="315" font-size="17" font-family="Arial" fill="#1F2937">Strategy/pool: six-layer pool, scoring, signals, intents</text>
+<rect x="110" y="350" width="820" height="48" rx="10" fill="#D64545" fill-opacity="0.13" stroke="#D64545" stroke-width="2"/>
+<text x="126" y="380" font-size="17" font-family="Arial" fill="#1F2937">Risk/execution: paper gates, price/spread/session/position checks</text>
+<rect x="110" y="415" width="820" height="48" rx="10" fill="#7B61FF" fill-opacity="0.13" stroke="#7B61FF" stroke-width="2"/>
+<text x="126" y="445" font-size="17" font-family="Arial" fill="#1F2937">Persistence/review: SQLite, JSON, JSONL, CSV, logs, reports</text>
+</svg>
