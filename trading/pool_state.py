@@ -195,6 +195,11 @@ class PoolStateManager:
             reason_code="ELIGIBLE",
             explanation="symbol passed hard eligibility checks",
             trace_id=trace_id,
+            # A periodic eligibility refresh is allowed to reset a symbol from
+            # WATCH_POOL (or any higher layer) back to the eligible universe.
+            # The transition guard still rejects any demotion not explicitly
+            # requested by a named workflow.
+            allow_demote=True,
         )
 
     def nominate_scan(

@@ -82,6 +82,15 @@ class PoolStateTests(unittest.TestCase):
         self.assertEqual(state.current_layer, "ELIGIBLE_UNIVERSE")
         self.assertEqual(state.transition_history[-1].reason_code, "SPREAD_TOO_WIDE")
 
+    def test_eligibility_refresh_can_normally_demote_watch_to_eligible(self) -> None:
+        mgr = self.manager()
+        self.add_ready_watch(mgr)
+
+        state = mgr.evaluate_eligibility("AAPL", contract_resolved=True, price=100, average_volume=2_000_000)
+
+        self.assertEqual(state.current_layer, "ELIGIBLE_UNIVERSE")
+        self.assertEqual(state.transition_history[-1].reason_code, "ELIGIBLE")
+
     def test_expired_signal_is_removed(self) -> None:
         mgr = self.manager()
         self.add_ready_watch(mgr)

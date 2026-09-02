@@ -92,6 +92,18 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(lifecycle["lifecycle_state"], "PAPER_READY")
         self.assertTrue(lifecycle["execution_enabled"])
 
+    def test_mode9_fresh_single_quote_but_low_universe_coverage_is_safe_mode(self) -> None:
+        lifecycle = self.lifecycle_for(
+            quote_readiness={
+                "quotes_available": True, "quote_execution_ready": True,
+                "safe_mode": True, "execution_allowed": False,
+                "blocked_reason": "universe_coverage_below_sla",
+            }
+        )
+
+        self.assertEqual(lifecycle["lifecycle_state"], "SAFE_MODE")
+        self.assertFalse(lifecycle["execution_enabled"])
+
     def test_mode9_disconnected_waits_without_execution(self) -> None:
         lifecycle = self.lifecycle_for(ibkr_connected=False)
 
@@ -126,6 +138,19 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertFalse(readiness["quote_execution_ready"])
         self.assertEqual(readiness["fresh_bid_count"], 1)
         self.assertEqual(readiness["fresh_ask_count"], 0)
+
+    def test_streaming_quote_age_is_enforced(self) -> None:
+        readiness = build_quote_readiness(
+            quotes=[],
+            streaming_report={
+                "streaming_quotes": {
+                    "AAPL": {"bid": 100.0, "ask": 100.1, "bid_age_ms": 20_000, "ask_age_ms": 20_000}
+                }
+            },
+            max_age_ms=1_000.0,
+        )
+
+        self.assertFalse(readiness["quote_execution_ready"])
 
     def test_waiting_lifecycle_states_do_not_run_strategy(self) -> None:
         for state in [
@@ -267,6 +292,26 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertFalse(report["order_submitted"])
         self.assertIn("ELIGIBLE_UNIVERSE", report["canonical_layer_counts"])
         self.assertIn("MARKET_CLOSED_WAITING", report["blocked_reason_counts"])
+
+    def test_canonical_pool_bridge_monitor_symbol_promotes_only_one_layer_at_a_time(self) -> None:
+        now = datetime.now(timezone.utc)
+        pool_manager = {"membership": {"records": [
+            {"symbol": "AAPL", "pool_name": "discovery_universe", "included": True, "source": "test"},
+            {"symbol": "AAPL", "pool_name": "monitor_pool", "included": True, "source": "test", "score": 80},
+        ]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            report = sync_canonical_pool_state(
+                pool_manager=pool_manager,
+                market_session={"session_state": "REGULAR", "expected_live_bid_ask": True, "order_type_allowed": True},
+                quote_readiness={"quotes_available": True, "quote_execution_ready": True},
+                quotes=[Quote("AAPL", 100.05, now, "test", bid=100.0, ask=100.1)],
+                streaming_report=streaming_report_payload(None),
+                lifecycle={"lifecycle_state": "SAFE_MODE", "execution_enabled": False},
+                ready_for_orders=True, trace_id="test-cycle", db_path=Path(tmp) / "audit.sqlite3",
+            )
+
+        self.assertEqual(report["status"], "ok")
+        self.assertIn("WATCH_POOL", report["canonical_layer_counts"])
 
 
 if __name__ == "__main__":

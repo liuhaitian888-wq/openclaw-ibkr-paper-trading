@@ -52,6 +52,7 @@ from trading.universe import (
     load_universe,
     select_universe,
 )
+from trading.universe_freshness import assess_universe_freshness
 
 
 DEFAULT_API_URL = "http://192.168.64.1:8787"
@@ -62,6 +63,7 @@ MODE9_LIFECYCLE_STATES = {
     "MARKET_CLOSED_WAITING",
     "WAITING_FOR_QUOTES",
     "QUOTES_STALE_WAITING",
+    "SAFE_MODE",
     "PAPER_READY",
     "PAPER_BLOCKED_BY_RISK",
     "PAPER_ORDER_SUBMITTED",
@@ -116,6 +118,7 @@ class AgentCycle:
     next_check_at: str
     market_session: Dict[str, object]
     quote_readiness: Dict[str, object]
+    universe_freshness: Dict[str, object]
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -163,6 +166,7 @@ class AgentCycle:
             "next_check_at": self.next_check_at,
             "market_session": self.market_session,
             "quote_readiness": self.quote_readiness,
+            "universe_freshness": self.universe_freshness,
         }
 
 
@@ -199,6 +203,7 @@ def main() -> int:
     can_submit_orders = args.strategy_mode in {"paper", "stage"} and not args.disable_strategy
     stop_duplicate_autonomous_processes(keep_pid=os.getpid())
     state: Dict[str, Dict[str, float]] = {}
+    freshness_rotation_state: Dict[str, int] = {}
     streaming_source = build_streaming_source(settings)
     args.report_dir.mkdir(parents=True, exist_ok=True)
     args.candidate_inbox.mkdir(parents=True, exist_ok=True)
@@ -215,7 +220,7 @@ def main() -> int:
                 execution_lock.heartbeat()
                 started = time.perf_counter()
                 try:
-                    result = run_cycle(args, api_key, settings, state, cycle, streaming_source)
+                    result = run_cycle(args, api_key, settings, state, cycle, streaming_source, freshness_rotation_state)
                 except Exception as exc:
                     result = failed_cycle(cycle, exc, started)
                 append_jsonl(args.report_dir / "cycles.jsonl", result.as_dict())
@@ -238,6 +243,7 @@ def run_cycle(
     state: Dict[str, Dict[str, float]],
     cycle: int,
     streaming_source: Optional[IbkrStreamingQuoteSource] = None,
+    freshness_rotation_state: Optional[Dict[str, int]] = None,
 ) -> AgentCycle:
     cycle_started = time.perf_counter()
     errors: List[str] = []
@@ -396,6 +402,25 @@ def run_cycle(
         streaming_report=streaming_report,
         max_age_ms=max(1000.0, args.quote_timeout * 1000.0),
     )
+    pool_records = pool_manager_records(pool_manager)
+    high_pool_symbols = [
+        str(row.get("symbol") or "") for row in pool_records
+        if row.get("pool_name") in {"monitor_pool", "hot_pool", "trade_pool"} and row.get("included")
+    ]
+    open_order_symbols = [
+        str(item.symbol or "") for item in account_state.open_orders
+    ] if "account_state" in locals() else []
+    universe_freshness = assess_universe_freshness(
+        universe_symbols=monitor_symbols,
+        quote_rows=quote_readiness["rows"],
+        held_symbols=held_symbols,
+        open_order_symbols=open_order_symbols,
+        high_pool_symbols=high_pool_symbols,
+        abnormal_symbols=[str(item.get("symbol") or "") for item in top_movers],
+        cycle=cycle,
+        rotation_state=freshness_rotation_state if freshness_rotation_state is not None else {},
+    )
+    quote_readiness = {**quote_readiness, **universe_freshness}
     lifecycle = evaluate_lifecycle_state(
         health=health,
         lock_state=lock_state,
@@ -483,6 +508,7 @@ def run_cycle(
         next_check_at=next_check_at(args.cycle_seconds),
         market_session=dict(market_session),
         quote_readiness=dict(quote_readiness),
+        universe_freshness=dict(universe_freshness),
     )
 
 
@@ -544,6 +570,7 @@ def failed_cycle(cycle: int, exc: Exception, started: float) -> AgentCycle:
             "fresh_ask_count": 0,
             "blocked_reason": "cycle_failed",
         },
+        universe_freshness={"safe_mode": True, "execution_allowed": False, "blocked_reason": "cycle_failed"},
     )
 
 
@@ -583,8 +610,12 @@ def build_quote_readiness(
             blocked = str(payload.get("blocked_reason") or "")
             bid_received = payload.get("bid") is not None
             ask_received = payload.get("ask") is not None
-            bid_fresh = bid_received and "stale_bid" not in blocked and "bid is missing" not in blocked
-            ask_fresh = ask_received and "stale_ask" not in blocked and "ask is missing" not in blocked
+            bid_age_ms = payload.get("bid_age_ms", payload.get("age_ms"))
+            ask_age_ms = payload.get("ask_age_ms", payload.get("age_ms"))
+            bid_age_ok = bid_age_ms is None or float(bid_age_ms) <= max_age_ms
+            ask_age_ok = ask_age_ms is None or float(ask_age_ms) <= max_age_ms
+            bid_fresh = bid_received and bid_age_ok and "stale_bid" not in blocked and "bid is missing" not in blocked
+            ask_fresh = ask_received and ask_age_ok and "stale_ask" not in blocked and "ask is missing" not in blocked
             fresh_bid_count += int(bid_fresh)
             fresh_ask_count += int(ask_fresh)
             quote_rows.append(
@@ -595,6 +626,8 @@ def build_quote_readiness(
                     "ask_received": ask_received,
                     "bid_fresh": bid_fresh,
                     "ask_fresh": ask_fresh,
+                    "bid_age_ms": bid_age_ms,
+                    "ask_age_ms": ask_age_ms,
                     "blocked_reason": blocked,
                 }
             )
@@ -613,7 +646,7 @@ def build_quote_readiness(
         "fresh_ask_count": fresh_ask_count,
         "quote_count": len(quote_rows),
         "blocked_reason": blocked_reason,
-        "rows": quote_rows[:40],
+        "rows": quote_rows,
     }
 
 
@@ -642,6 +675,8 @@ def evaluate_lifecycle_state(
     if not bool(quote_readiness.get("quote_execution_ready")):
         reason = str(quote_readiness.get("blocked_reason") or "stale_or_missing_bid_ask")
         return lifecycle("QUOTES_STALE_WAITING", reason, False)
+    if bool(quote_readiness.get("safe_mode")) or not bool(quote_readiness.get("execution_allowed", True)):
+        return lifecycle("SAFE_MODE", str(quote_readiness.get("blocked_reason") or "universe_freshness_sla_failed"), False)
     if not ready_for_orders:
         return lifecycle("PAPER_BLOCKED_BY_RISK", "tws_or_trading_api_not_ready_for_orders", False)
     if errors:
@@ -736,6 +771,8 @@ def sync_canonical_pool_state(
             and (
                 symbol in by_pool.get("tradable_universe", set())
                 or symbol in by_pool.get("stream_eligible_pool", set())
+                or symbol in by_pool.get("monitor_pool", set())
+                or symbol in by_pool.get("hot_pool", set())
                 or symbol in by_pool.get("trade_pool", set())
             )
         ):
