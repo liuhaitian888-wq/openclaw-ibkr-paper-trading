@@ -191,6 +191,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exchange", default="SMART")
     parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports" / "autonomous_agent")
     parser.add_argument("--candidate-inbox", type=Path, default=PROJECT_ROOT / "reports" / "agent_research" / "inbox")
+    parser.add_argument("--scanner-report", type=Path, default=PROJECT_ROOT / "reports" / "ibkr_scanner" / "latest.json")
     parser.add_argument("--candidate-auto-approve", action="store_true")
     parser.add_argument("--disable-strategy", action="store_true")
     return parser.parse_args()
@@ -377,6 +378,8 @@ def run_cycle(
         if float(item.get("position_qty") or 0) > 0
     ]
     monitor_symbols = list(dict.fromkeys([*held_symbols, *monitor_symbols]))
+    scanner_symbols = real_scanner_symbols(args.scanner_report)
+    monitor_symbols = list(dict.fromkeys([*monitor_symbols, *scanner_symbols]))
     timings["select_universe_ms"] = elapsed_ms(started)
     started = time.perf_counter()
     market_session = current_market_session(symbols=monitor_symbols[: min(12, len(monitor_symbols))]).to_dict()
@@ -396,29 +399,41 @@ def run_cycle(
     started = time.perf_counter()
     process_candidate_inbox(args, errors)
     timings["process_candidate_inbox_ms"] = elapsed_ms(started)
-    streaming_report = streaming_report_payload(streaming_source)
+    open_order_symbols = [
+        str(item.symbol or "") for item in account_state.open_orders
+    ] if "account_state" in locals() else []
+    canonical_levels = canonical_pool_levels(monitor_symbols)
+    high_pool_symbols = [
+        symbol for symbol, level in canonical_levels.items()
+        if level in {"WATCH_POOL", "SIGNAL_EXECUTION_READY_POOL", "PAPER_EXECUTION_POSITION_POOL"}
+    ]
+    rotation_event: Dict[str, object] = {}
+    if streaming_source is not None:
+        rotation_target = select_streaming_rotation(
+            universe_symbols=monitor_symbols,
+            critical_symbols=[*held_symbols, *open_order_symbols],
+            high_pool_symbols=high_pool_symbols,
+            abnormal_symbols=[*scanner_symbols, *(str(item.get("symbol") or "") for item in top_movers)],
+            slots=len(streaming_source.symbols),
+            cycle=cycle,
+        )
+        rotation_event = streaming_source.rotate_symbols(rotation_target)
+    streaming_report = {**streaming_report_payload(streaming_source), "rotation_event": rotation_event}
     quote_readiness = build_quote_readiness(
         quotes=quotes,
         streaming_report=streaming_report,
         max_age_ms=max(1000.0, args.quote_timeout * 1000.0),
     )
-    pool_records = pool_manager_records(pool_manager)
-    high_pool_symbols = [
-        str(row.get("symbol") or "") for row in pool_records
-        if row.get("pool_name") in {"monitor_pool", "hot_pool", "trade_pool"} and row.get("included")
-    ]
-    open_order_symbols = [
-        str(item.symbol or "") for item in account_state.open_orders
-    ] if "account_state" in locals() else []
     universe_freshness = assess_universe_freshness(
         universe_symbols=monitor_symbols,
         quote_rows=quote_readiness["rows"],
         held_symbols=held_symbols,
         open_order_symbols=open_order_symbols,
         high_pool_symbols=high_pool_symbols,
-        abnormal_symbols=[str(item.get("symbol") or "") for item in top_movers],
+        abnormal_symbols=[*scanner_symbols, *(str(item.get("symbol") or "") for item in top_movers)],
         cycle=cycle,
         rotation_state=freshness_rotation_state if freshness_rotation_state is not None else {},
+        pool_levels=canonical_levels,
     )
     quote_readiness = {**quote_readiness, **universe_freshness}
     lifecycle = evaluate_lifecycle_state(
@@ -612,10 +627,13 @@ def build_quote_readiness(
             ask_received = payload.get("ask") is not None
             bid_age_ms = payload.get("bid_age_ms", payload.get("age_ms"))
             ask_age_ms = payload.get("ask_age_ms", payload.get("age_ms"))
-            bid_age_ok = bid_age_ms is None or float(bid_age_ms) <= max_age_ms
-            ask_age_ok = ask_age_ms is None or float(ask_age_ms) <= max_age_ms
-            bid_fresh = bid_received and bid_age_ok and "stale_bid" not in blocked and "bid is missing" not in blocked
-            ask_fresh = ask_received and ask_age_ok and "stale_ask" not in blocked and "ask is missing" not in blocked
+            subscription_healthy = bool(payload.get("subscription_healthy", True))
+            # Streaming values are event-driven: an unchanged quote does not
+            # generate periodic Bid/Ask callbacks. Connection heartbeat,
+            # subscription status and field presence establish freshness;
+            # field age is retained for diagnosis but is not the sole gate.
+            bid_fresh = bid_received and subscription_healthy
+            ask_fresh = ask_received and subscription_healthy
             fresh_bid_count += int(bid_fresh)
             fresh_ask_count += int(ask_fresh)
             quote_rows.append(
@@ -629,6 +647,16 @@ def build_quote_readiness(
                     "bid_age_ms": bid_age_ms,
                     "ask_age_ms": ask_age_ms,
                     "blocked_reason": blocked,
+                    "subscription_status": payload.get("subscription_status", "UNKNOWN"),
+                    "subscription_healthy": subscription_healthy,
+                    "stale_reason": payload.get("stale_reason", ""),
+                    "rotation_state": payload.get("rotation_state", "UNKNOWN"),
+                    "bid_timestamp": payload.get("bid_timestamp", ""),
+                    "ask_timestamp": payload.get("ask_timestamp", ""),
+                    "last_timestamp": payload.get("last_timestamp", ""),
+                    "last_callback_timestamp": payload.get("last_callback_timestamp", ""),
+                    "last_age_ms": payload.get("last_age_ms"),
+                    "callback_age_ms": payload.get("callback_age_ms"),
                 }
             )
 
@@ -988,6 +1016,56 @@ def select_monitor_symbols(args: argparse.Namespace, allowed_symbols: List[str])
         if args.max_universe_symbols > 0 and len(monitor) >= args.max_universe_symbols:
             break
     return monitor, selection.symbols
+
+
+def real_scanner_symbols(path: Path, *, max_age_sec: float = 900.0, max_symbols: int = 12) -> List[str]:
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        timestamp = datetime.fromisoformat(str(payload.get("timestamp_utc") or "").replace("Z", "+00:00"))
+        if (datetime.now(timezone.utc) - timestamp.astimezone(timezone.utc)).total_seconds() > max_age_sec:
+            return []
+        return list(dict.fromkeys(
+            str(row.get("symbol") or "").upper()
+            for row in payload.get("rows", []) if isinstance(row, dict) and row.get("symbol")
+        ))[:max_symbols]
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return []
+
+
+def canonical_pool_levels(symbols: List[str]) -> Dict[str, str]:
+    manager = PoolStateManager()
+    manager.load()
+    return {
+        symbol: state.current_layer if (state := manager.get(symbol)) is not None else "MASTER_UNIVERSE"
+        for symbol in symbols
+    }
+
+
+def select_streaming_rotation(
+    *,
+    universe_symbols: List[str],
+    critical_symbols: List[str],
+    high_pool_symbols: List[str],
+    abnormal_symbols: List[str],
+    slots: int,
+    cycle: int,
+) -> List[str]:
+    """Fill finite L1 slots by priority and round-robin the remaining Universe."""
+    universe = list(dict.fromkeys(symbol.upper() for symbol in universe_symbols if symbol))
+    fixed = list(dict.fromkeys(
+        symbol.upper()
+        for symbol in [*critical_symbols, *high_pool_symbols, *abnormal_symbols]
+        if symbol and symbol.upper() in set(universe)
+    ))[:slots]
+    normal = [symbol for symbol in universe if symbol not in set(fixed)]
+    room = max(0, slots - len(fixed))
+    if not normal or room >= len(normal):
+        return [*fixed, *normal][:slots]
+    start = ((max(1, cycle) - 1) * room) % len(normal)
+    rotated = [normal[(start + offset) % len(normal)] for offset in range(room)]
+    return [*fixed, *rotated]
 
 
 def fetch_quotes(

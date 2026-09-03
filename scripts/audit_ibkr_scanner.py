@@ -92,6 +92,9 @@ def main() -> int:
         "latency_ms": round((time.monotonic() - started) * 1000, 3), "errors": client.errors,
         "rows": client.rows, "orders_submitted": 0, "scanner_subscription_cancelled": True,
     }
+    report_dir = ROOT / "reports" / "ibkr_scanner"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    (report_dir / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     for row in client.rows:
         insert_event("ibkr_scanner_results", {"timestamp_utc": payload["timestamp_utc"], "discovery_run_id": f"real-scanner-{request_id}", "source_type": "IBKR_SCANNER_REAL", "scan_code": args.scan_code, **row, "raw_payload_ref": "IBKR_API", "included_in_discovery": 1, "blocked_reason": "read-only audit", "payload_json": json.dumps(row, sort_keys=True)})
     print(json.dumps(payload, indent=2, sort_keys=True))

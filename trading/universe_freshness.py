@@ -30,6 +30,7 @@ def assess_universe_freshness(
     abnormal_symbols: Sequence[str],
     cycle: int,
     rotation_state: MutableMapping[str, int],
+    pool_levels: Mapping[str, str] | None = None,
     sla: FreshnessSla = FreshnessSla(),
 ) -> dict[str, Any]:
     """Return a JSON-safe execution decision and update normal rotation state."""
@@ -66,6 +67,10 @@ def assess_universe_freshness(
         }
 
     by_priority = {name: metrics(symbols) for name, symbols in priority.items()}
+    row_by_symbol = {str(row.get("symbol") or "").upper(): dict(row) for row in quote_rows}
+    priority_by_symbol = {
+        symbol: name for name, symbols in priority.items() for symbol in symbols
+    }
     total = len(universe)
     fresh_count = len(universe & fresh)
     coverage_ratio = 1.0 if total == 0 else fresh_count / total
@@ -93,6 +98,27 @@ def assess_universe_freshness(
         "stale_count": total - fresh_count,
         "universe_count": total,
         "by_priority": by_priority,
+        "symbol_details": [
+            {
+                "symbol": symbol,
+                "priority": priority_by_symbol[symbol],
+                "pool_level": (pool_levels or {}).get(symbol, "UNKNOWN"),
+                "fresh": symbol in fresh,
+                "subscription_status": row_by_symbol.get(symbol, {}).get("subscription_status", "ROTATED_OUT"),
+                "stale_reason": row_by_symbol.get(symbol, {}).get("stale_reason", "rotation_inactive"),
+                "rotation_state": row_by_symbol.get(symbol, {}).get("rotation_state", "ROTATED_OUT"),
+                "last_covered_cycle": rotation_state.get(symbol),
+                "bid_timestamp": row_by_symbol.get(symbol, {}).get("bid_timestamp", ""),
+                "ask_timestamp": row_by_symbol.get(symbol, {}).get("ask_timestamp", ""),
+                "last_timestamp": row_by_symbol.get(symbol, {}).get("last_timestamp", ""),
+                "last_callback_timestamp": row_by_symbol.get(symbol, {}).get("last_callback_timestamp", ""),
+                "bid_age_ms": row_by_symbol.get(symbol, {}).get("bid_age_ms"),
+                "ask_age_ms": row_by_symbol.get(symbol, {}).get("ask_age_ms"),
+                "last_age_ms": row_by_symbol.get(symbol, {}).get("last_age_ms"),
+                "callback_age_ms": row_by_symbol.get(symbol, {}).get("callback_age_ms"),
+            }
+            for symbol in sorted(universe)
+        ],
         "rotation": {
             "cycle": cycle,
             "normal_revisit_cycles": sla.normal_revisit_cycles,

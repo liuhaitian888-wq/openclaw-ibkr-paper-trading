@@ -1,6 +1,7 @@
 import json
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence
@@ -41,6 +42,7 @@ class StreamingQuoteState:
     bid_timestamp: Optional[datetime] = None
     ask_timestamp: Optional[datetime] = None
     last_timestamp: Optional[datetime] = None
+    last_callback_timestamp: Optional[datetime] = None
     market_data_type: Optional[int] = None
     errors: List[str] = field(default_factory=list)
 
@@ -95,6 +97,7 @@ class IbkrStreamingQuoteClient(EWrapper, EClient):
             for symbol in ticker_id_to_symbol.values()
         }
         self.errors: List[str] = []
+        self.server_time_received_at: Optional[datetime] = None
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.ready.set()
@@ -118,11 +121,15 @@ class IbkrStreamingQuoteClient(EWrapper, EClient):
             state.errors.append(message)
         _log_event("subscription_error", ticker_id=reqId, symbol=None if state is None else state.symbol, error=message)
 
+    def currentTime(self, time: int) -> None:  # noqa: N802,A002
+        self.server_time_received_at = datetime.now(timezone.utc)
+
     def tickPrice(self, reqId: int, tickType: int, price: float, attrib: object) -> None:  # noqa: N802,E501
-        if price <= 0:
-            return
         state = self._state(reqId)
         if state is None:
+            return
+        state.last_callback_timestamp = datetime.now(timezone.utc)
+        if price <= 0:
             return
         if tickType == BID_PRICE_TICK:
             state.bid = float(price)
@@ -144,6 +151,7 @@ class IbkrStreamingQuoteClient(EWrapper, EClient):
         state = self._state(reqId)
         if state is None:
             return
+        state.last_callback_timestamp = datetime.now(timezone.utc)
         if tickType == VOLUME_SIZE_TICK and size >= 0:
             state.volume = int(size)
 
@@ -151,12 +159,14 @@ class IbkrStreamingQuoteClient(EWrapper, EClient):
         state = self._state(reqId)
         if state is None:
             return
+        state.last_callback_timestamp = datetime.now(timezone.utc)
         _log_event("quote_update", ticker_id=reqId, symbol=state.symbol, tick_type=tickType, value=value)
 
     def marketDataType(self, reqId: int, marketDataType: int) -> None:  # noqa: N802,N803
         state = self._state(reqId)
         if state is None:
             return
+        state.last_callback_timestamp = datetime.now(timezone.utc)
         state.market_data_type = int(marketDataType)
         _log_event(
             "quote_update",
@@ -200,9 +210,13 @@ class IbkrStreamingQuoteSource:
             ticker_id_start + index: symbol
             for index, symbol in enumerate(self.symbols)
         }
+        self._active_ticker_by_symbol = {symbol: ticker_id for ticker_id, symbol in self._ticker_id_to_symbol.items()}
+        self._next_ticker_id = ticker_id_start + len(self._ticker_id_to_symbol)
         self._client = client_factory(self._ticker_id_to_symbol)
         self._thread: Optional[threading.Thread] = None
         self._started = False
+        self._started_at: Optional[datetime] = None
+        self._last_heartbeat_request = 0.0
 
     def start(self, timeout: float = 5.0) -> bool:
         if not self.symbols:
@@ -228,13 +242,15 @@ class IbkrStreamingQuoteSource:
                 )
                 _log_event("subscription_requested", ticker_id=ticker_id, symbol=symbol, snapshot=False)
             self._started = True
+            self._started_at = datetime.now(timezone.utc)
+            self._request_connection_heartbeat(force=True)
             return True
         except Exception as exc:
             self._client.errors.append(f"IBKR streaming quote source failed: {exc}")
             return False
 
     def stop(self) -> None:
-        for ticker_id in self._ticker_id_to_symbol:
+        for ticker_id in self._active_ticker_by_symbol.values():
             try:
                 self._client.cancelMktData(ticker_id)
             except Exception as exc:
@@ -264,10 +280,10 @@ class IbkrStreamingQuoteSource:
         return state.age_ms()
 
     def is_stale(self, symbol: str) -> bool:
-        age = self.quote_age_ms(symbol)
-        stale = age is None or age > self._stale_ms
+        diagnostic = self.subscription_diagnostic(symbol)
+        stale = not bool(diagnostic["subscription_healthy"])
         if stale:
-            _log_event("quote_stale", symbol=symbol.strip().upper(), age_ms=age, stale_ms=self._stale_ms)
+            _log_event("quote_stale", symbol=symbol.strip().upper(), reason=diagnostic["stale_reason"])
         return stale
 
     def stale_symbols(self) -> List[str]:
@@ -282,11 +298,15 @@ class IbkrStreamingQuoteSource:
         return self._started
 
     def report(self) -> Dict[str, object]:
+        self._request_connection_heartbeat()
         quotes = {}
-        for symbol, state in self._client.quote_states.items():
+        diagnostics = {symbol: self.subscription_diagnostic(symbol) for symbol in self.symbols}
+        for symbol in self.symbols:
+            state = self._client.quote_states[symbol]
             quote = state.to_quote()
             if quote is None:
                 continue
+            diagnostic = diagnostics[symbol]
             quotes[symbol] = {
                 "bid": quote.bid,
                 "ask": quote.ask,
@@ -301,6 +321,7 @@ class IbkrStreamingQuoteSource:
                 "market_data_type_raw": state.market_data_type,
                 "timestamp": quote.timestamp.isoformat(),
                 "source": quote.source,
+                **diagnostic,
             }
         return {
             "streaming_symbols": list(self.symbols),
@@ -308,7 +329,91 @@ class IbkrStreamingQuoteSource:
             "streaming_stale_symbols": self.stale_symbols(),
             "streaming_errors": self.errors,
             "streaming_quotes": quotes,
+            "subscription_diagnostics": list(diagnostics.values()),
+            "connection_healthy": self.connection_healthy(),
+            "heartbeat_age_ms": self.heartbeat_age_ms(),
         }
+
+    def rotate_symbols(self, symbols: Sequence[str]) -> Dict[str, object]:
+        """Rotate finite live slots without disconnecting the source."""
+        target, errors = _clean_symbols(symbols, len(self._active_ticker_by_symbol))
+        current = set(self.symbols)
+        wanted = set(target)
+        removed = [symbol for symbol in self.symbols if symbol not in wanted]
+        added = [symbol for symbol in target if symbol not in current]
+        for symbol in removed:
+            ticker_id = self._active_ticker_by_symbol.pop(symbol)
+            self._client.cancelMktData(ticker_id)
+        for symbol in added:
+            ticker_id = self._next_ticker_id
+            self._next_ticker_id += 1
+            self._client.ticker_id_to_symbol[ticker_id] = symbol
+            self._client.quote_states[symbol] = StreamingQuoteState(symbol=symbol)
+            self._active_ticker_by_symbol[symbol] = ticker_id
+            self._client.reqMktData(ticker_id, self._stock_contract(symbol, self._exchange), "", False, False, [])
+        self.symbols = tuple(target)
+        self.configuration_errors.extend(errors)
+        return {"added": added, "removed": removed, "active_symbols": list(self.symbols)}
+
+    def heartbeat_age_ms(self) -> Optional[float]:
+        received = getattr(self._client, "server_time_received_at", None)
+        if received is None:
+            return None
+        return round((datetime.now(timezone.utc) - received).total_seconds() * 1000, 3)
+
+    def connection_healthy(self) -> bool:
+        if not self._started or not self._client.isConnected():
+            return False
+        age = self.heartbeat_age_ms()
+        if age is not None:
+            return age <= 90_000
+        return self._started_at is not None and (datetime.now(timezone.utc) - self._started_at).total_seconds() <= 15
+
+    def subscription_diagnostic(self, symbol: str) -> Dict[str, object]:
+        clean = symbol.strip().upper()
+        state = self._client.quote_states.get(clean)
+        active = clean in self._active_ticker_by_symbol
+        connection_ok = self.connection_healthy()
+        if not active:
+            status, reason = "ROTATED_OUT", "rotation_inactive"
+        elif not connection_ok:
+            status, reason = "DISCONNECTED", "connection_heartbeat_stale"
+        elif state is None:
+            status, reason = "PENDING", "no_subscription_state"
+        elif state.errors:
+            status, reason = "FAILED", "subscription_error"
+        elif state.market_data_type not in {1, None}:
+            status, reason = "NONLIVE", f"market_data_type_{state.market_data_type_name()}"
+        elif state.bid is None or state.ask is None:
+            status, reason = "PENDING", "bid_or_ask_missing"
+        else:
+            status = "ACTIVE_LIVE"
+            callback_age = _age_ms(state.last_callback_timestamp)
+            reason = "quiet_no_field_change" if callback_age is not None and callback_age > self._stale_ms else ""
+        return {
+            "symbol": clean,
+            "subscription_status": status,
+            "subscription_healthy": status == "ACTIVE_LIVE",
+            "stale_reason": reason,
+            "rotation_state": "ACTIVE_SLOT" if active else "ROTATED_OUT",
+            "bid_timestamp": _iso(state.bid_timestamp if state else None),
+            "ask_timestamp": _iso(state.ask_timestamp if state else None),
+            "last_timestamp": _iso(state.last_timestamp if state else None),
+            "last_callback_timestamp": _iso(state.last_callback_timestamp if state else None),
+            "bid_age_ms": None if state is None else state.field_age_ms("bid"),
+            "ask_age_ms": None if state is None else state.field_age_ms("ask"),
+            "last_age_ms": None if state is None else state.field_age_ms("last"),
+            "callback_age_ms": None if state is None else _age_ms(state.last_callback_timestamp),
+        }
+
+    def _request_connection_heartbeat(self, *, force: bool = False) -> None:
+        now = time.monotonic()
+        if not force and now - self._last_heartbeat_request < 15:
+            return
+        self._last_heartbeat_request = now
+        request = getattr(self._client, "reqCurrentTime", None)
+        if request is not None and self._client.isConnected():
+            request()
 
     def diagnostics(self) -> Dict[str, object]:
         now = datetime.now(timezone.utc)
@@ -388,6 +493,16 @@ def _clean_symbols(symbols: Sequence[str], max_symbols: int) -> tuple[tuple[str,
         errors.append(f"streaming symbols truncated to STREAMING_MAX_SYMBOLS={limit}")
         valid = valid[:limit]
     return tuple(valid), errors
+
+
+def _age_ms(timestamp: Optional[datetime]) -> Optional[float]:
+    if timestamp is None:
+        return None
+    return round((datetime.now(timezone.utc) - timestamp).total_seconds() * 1000, 3)
+
+
+def _iso(timestamp: Optional[datetime]) -> str:
+    return "" if timestamp is None else timestamp.isoformat()
 
 
 def _log_event(event: str, **payload: object) -> None:

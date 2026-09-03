@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,6 +10,8 @@ from scripts.run_autonomous_trading_agent import (
     evaluate_lifecycle_state,
     failed_cycle,
     mode9_buy_freeze,
+    real_scanner_symbols,
+    select_streaming_rotation,
     should_run_strategy_now,
     streaming_report_payload,
     sync_canonical_pool_state,
@@ -139,14 +142,26 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(readiness["fresh_bid_count"], 1)
         self.assertEqual(readiness["fresh_ask_count"], 0)
 
-    def test_streaming_quote_age_is_enforced(self) -> None:
+    def test_unchanged_streaming_quote_is_fresh_when_subscription_is_healthy(self) -> None:
         readiness = build_quote_readiness(
             quotes=[],
             streaming_report={
                 "streaming_quotes": {
-                    "AAPL": {"bid": 100.0, "ask": 100.1, "bid_age_ms": 20_000, "ask_age_ms": 20_000}
+                    "AAPL": {"bid": 100.0, "ask": 100.1, "bid_age_ms": 20_000, "ask_age_ms": 20_000, "subscription_healthy": True}
                 }
             },
+            max_age_ms=1_000.0,
+        )
+
+        self.assertTrue(readiness["quote_execution_ready"])
+
+    def test_failed_streaming_subscription_is_not_fresh(self) -> None:
+        readiness = build_quote_readiness(
+            quotes=[],
+            streaming_report={"streaming_quotes": {"AAPL": {
+                "bid": 100.0, "ask": 100.1, "subscription_healthy": False,
+                "subscription_status": "FAILED", "stale_reason": "subscription_error",
+            }}},
             max_age_ms=1_000.0,
         )
 
@@ -184,6 +199,33 @@ class AutonomousAgentTests(unittest.TestCase):
                 cycle=4,
             )
         )
+
+    def test_streaming_rotation_keeps_priority_and_rotates_normal_symbols(self) -> None:
+        kwargs = {
+            "universe_symbols": ["POS", "HIGH", "HOT", "A", "B", "C", "D"],
+            "critical_symbols": ["POS"], "high_pool_symbols": ["HIGH"],
+            "abnormal_symbols": ["HOT"], "slots": 5,
+        }
+
+        first = select_streaming_rotation(cycle=1, **kwargs)
+        second = select_streaming_rotation(cycle=2, **kwargs)
+
+        self.assertEqual(first[:3], ["POS", "HIGH", "HOT"])
+        self.assertEqual(second[:3], ["POS", "HIGH", "HOT"])
+        self.assertNotEqual(first[3:], second[3:])
+
+    def test_real_scanner_expands_universe_with_bounded_fresh_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "scanner.json"
+            report.write_text(json.dumps({
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "rows": [{"symbol": f"S{index}"} for index in range(20)],
+            }), encoding="utf-8")
+
+            symbols = real_scanner_symbols(report)
+
+        self.assertEqual(len(symbols), 12)
+        self.assertEqual(symbols[0], "S0")
 
     def test_update_market_state_ranks_intracycle_movers(self) -> None:
         state = {
