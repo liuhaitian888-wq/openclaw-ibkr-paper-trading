@@ -110,7 +110,7 @@ def daily_summary(open_orders: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def audit_requests_for_date(day: object) -> list[dict[str, Any]]:
-    db = PROJECT_ROOT / "trading_audit.sqlite3"
+    db = PROJECT_ROOT / "trading_audit_v2.sqlite3"
     if not db.exists():
         return []
     rows: list[dict[str, Any]] = []

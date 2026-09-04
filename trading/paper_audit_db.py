@@ -11,7 +11,7 @@ from typing import Any, Mapping
 from trading.config import PROJECT_ROOT
 
 
-DB_PATH = PROJECT_ROOT / "trading_audit.sqlite3"
+DB_PATH = PROJECT_ROOT / "trading_audit_v2.sqlite3"
 
 ORDER_INTENT_COLUMNS = (
     "event_id TEXT, intent_id TEXT, timestamp_utc TEXT, cycle_id TEXT, snapshot_id TEXT, state_version INTEGER, "

@@ -8,6 +8,7 @@ from trading.config import PROJECT_ROOT
 from trading.security_master import DEFAULT_SECURITY_MASTER, build_security_master_report
 from trading.universe import load_universe, select_universe, UniverseSelectionConfig
 from trading.strategy import ValueFilterConfig, ValuePoolFilter
+from trading.storage_guard import rotate_jsonl
 
 
 ARCH_DIR = PROJECT_ROOT / "reports" / "pool_architecture"
@@ -152,15 +153,81 @@ def write_reports(architecture: Mapping[str, Any], membership: Mapping[str, Any]
     ARCH_DIR.mkdir(parents=True, exist_ok=True)
     MEMBERSHIP_DIR.mkdir(parents=True, exist_ok=True)
     AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Read previous state for delta comparison
+    latest_path = MEMBERSHIP_DIR / "latest.json"
+    previous_membership = read_json(latest_path)
+    
     (ARCH_DIR / "latest.json").write_text(json.dumps(architecture, indent=2, sort_keys=True), encoding="utf-8")
     (MEMBERSHIP_DIR / "latest.json").write_text(json.dumps(membership, indent=2, sort_keys=True), encoding="utf-8")
-    with (MEMBERSHIP_DIR / "history.jsonl").open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(membership, sort_keys=True) + "\n")
+    
+    # Write deltas to history.jsonl
+    deltas = compute_membership_deltas(previous_membership, membership)
+    if deltas:
+        history_path = MEMBERSHIP_DIR / "history.jsonl"
+        with history_path.open("a", encoding="utf-8") as handle:
+            for delta in deltas:
+                handle.write(json.dumps(delta, sort_keys=True) + "\n")
+        rotate_jsonl(history_path, max_size_mb=100, retention_days=14)
+    
     (AUDIT_DIR / "latest.json").write_text(json.dumps(audit, indent=2, sort_keys=True), encoding="utf-8")
     lines = ["# Pool Architecture", "", architecture["summary"], "", "| Pool | Symbols | Connected | Execution | Remaining |", "|---|---:|---:|---:|---|"]
     for row in architecture["layers"]:
         lines.append(f"| {row['pool_name']} | {row['symbol_count']} | {row['connected_to_mode9']} | {row['execution_active']} | {row['remaining_gap']} |")
     (ARCH_DIR / "latest.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def compute_membership_deltas(previous: Mapping[str, Any], current: Mapping[str, Any]) -> list[dict[str, Any]]:
+    prev_records = { (r["symbol"], r["pool_name"]): r for r in previous.get("records", []) if isinstance(r, dict) }
+    curr_records = { (r["symbol"], r["pool_name"]): r for r in current.get("records", []) if isinstance(r, dict) }
+    
+    deltas = []
+    now = current.get("timestamp")
+    
+    # All unique (symbol, pool) pairs
+    all_keys = set(prev_records.keys()) | set(curr_records.keys())
+    
+    for key in all_keys:
+        prev = prev_records.get(key)
+        curr = curr_records.get(key)
+        
+        if prev != curr:
+            # If curr is None, it was removed from the pool
+            if curr is None:
+                deltas.append({
+                    "timestamp": now,
+                    "symbol": key[0],
+                    "pool_name": key[1],
+                    "event": "removed",
+                    "from_pool": key[1],
+                    "to_pool": None,
+                    "reason": "removed from universe/selection",
+                    "source": "pool_manager_delta"
+                })
+            elif prev is None:
+                # New entry
+                deltas.append({
+                    "timestamp": now,
+                    "symbol": key[0],
+                    "pool_name": key[1],
+                    "event": "added",
+                    "from_pool": None,
+                    "to_pool": key[1],
+                    "reason": curr.get("reason"),
+                    "source": curr.get("source")
+                })
+            else:
+                # Changed entry
+                deltas.append({
+                    "timestamp": now,
+                    "symbol": key[0],
+                    "pool_name": key[1],
+                    "event": "changed",
+                    "prev_state": prev,
+                    "curr_state": curr,
+                    "source": "pool_manager_delta"
+                })
+    return deltas
 
 
 def read_json(path: Path) -> dict[str, Any]:

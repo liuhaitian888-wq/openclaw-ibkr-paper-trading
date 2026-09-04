@@ -128,7 +128,7 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         "source": "pool_audit",
         "files_checked": {key: str(value) for key, value in files.items()},
         "file_exists": {key: value.exists() for key, value in files.items()},
-        "sqlite_tables": sqlite_tables(PROJECT_ROOT / "trading_audit.sqlite3"),
+        "sqlite_tables": sqlite_tables(PROJECT_ROOT / "trading_audit_v2.sqlite3"),
         "persistent_pool_files": [str(path) for path in persistent_pool_files],
         "answers": answers,
     }

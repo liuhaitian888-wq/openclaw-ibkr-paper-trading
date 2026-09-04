@@ -18,7 +18,7 @@ from trading.account_state_manager import build_account_state
 from trading.pool_manager import build_pool_manager_report
 
 
-DB_PATH = PROJECT_ROOT / "trading_audit.sqlite3"
+DB_PATH = PROJECT_ROOT / "trading_audit_v2.sqlite3"
 REQUIRED_TABLES = {
     "account_snapshots": "timestamp TEXT, payload_json TEXT",
     "account_state_snapshots": "timestamp TEXT, payload_json TEXT",

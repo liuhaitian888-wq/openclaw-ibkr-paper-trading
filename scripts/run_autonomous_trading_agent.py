@@ -40,6 +40,7 @@ from trading.options_hedge_planner import build_options_hedge_report
 from trading.pool_manager import build_pool_manager_report
 from trading.pool_state import PoolStateManager
 from trading.position_guard import build_position_guard_report
+from trading.storage_guard import rotate_jsonl, check_disk_usage
 from trading.position_protection import run_position_protection
 from trading.process_guard import ExecutionLock, stop_duplicate_autonomous_processes
 from trading.profit_lock import build_profit_lock_report
@@ -165,6 +166,35 @@ class AgentCycle:
             "quote_readiness": self.quote_readiness,
         }
 
+    def compact_dict(self) -> Dict[str, object]:
+        """Returns a compact summary of the cycle for long-term logging."""
+        pool_counts = {}
+        if isinstance(self.pool_manager, dict) and isinstance(self.pool_manager.get("architecture"), dict):
+            for layer in self.pool_manager["architecture"].get("layers", []):
+                pool_counts[layer.get("pool_name")] = layer.get("symbol_count")
+
+        return {
+            "cycle": self.cycle,
+            "created_at": self.created_at,
+            "lifecycle_state": self.lifecycle_state,
+            "market_session_state": self.market_session_state,
+            "ibkr_connected": self.ibkr_connected,
+            "ready_for_orders": self.ready_for_orders,
+            "execution_enabled": self.execution_enabled,
+            "order_submitted": self.order_submitted,
+            "blocked_reason": self.blocked_reason,
+            "quote_count": self.quote_count,
+            "monitor_symbol_count": len(self.monitor_symbols),
+            "strategy_decisions_count": int(self.strategy_run.get("submitted_count") or 0) if isinstance(self.strategy_run, dict) else 0,
+            "research_tasks_count": len(self.research_tasks),
+            "pool_counts": pool_counts,
+            "timings_total_ms": self.timings.get("cycle_total_ms"),
+            "account_summary": {
+                "position_count": self.account_state_manager.get("position_count") if isinstance(self.account_state_manager, dict) else 0,
+                "open_order_count": self.account_state_manager.get("open_order_count") if isinstance(self.account_state_manager, dict) else 0,
+            }
+        }
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -218,7 +248,9 @@ def main() -> int:
                     result = run_cycle(args, api_key, settings, state, cycle, streaming_source)
                 except Exception as exc:
                     result = failed_cycle(cycle, exc, started)
-                append_jsonl(args.report_dir / "cycles.jsonl", result.as_dict())
+                append_jsonl(args.report_dir / "cycles.jsonl", result.compact_dict())
+                rotate_jsonl(args.report_dir / "cycles.jsonl", max_size_mb=100, retention_days=14)
+                check_disk_usage(args.report_dir)
                 write_json(args.report_dir / "latest.json", result.as_dict())
                 write_text(args.report_dir / "latest.md", cycle_markdown(result.as_dict()))
                 elapsed = time.perf_counter() - started

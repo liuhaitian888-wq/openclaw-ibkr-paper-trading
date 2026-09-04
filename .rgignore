@@ -1,0 +1,10 @@
+*.jsonl
+*.jsonl.gz
+trading_audit.sqlite3*
+trading_audit_v2.sqlite3*
+.runtime/
+.venv/
+__pycache__/
+logs/
+!reports/**/latest.json
+!reports/**/latest.md

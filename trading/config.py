@@ -153,7 +153,7 @@ class Settings:
             streaming_tws_host=os.getenv("STREAMING_TWS_HOST", os.getenv("TWS_HOST", "127.0.0.1")),
             streaming_tws_port=int(os.getenv("STREAMING_TWS_PORT", os.getenv("TWS_PORT", "7497"))),
             streaming_client_id=int(os.getenv("STREAMING_CLIENT_ID", "32")),
-            audit_db=Path(os.getenv("AUDIT_DB", str(PROJECT_ROOT / "trading_audit.sqlite3"))),
+            audit_db=Path(os.getenv("AUDIT_DB", str(PROJECT_ROOT / "trading_audit_v2.sqlite3"))),
         )
 
 

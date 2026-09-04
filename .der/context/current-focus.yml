@@ -1,0 +1,10 @@
+schema_version: 0.1.0
+project_id: PROJ-IBKR-000001
+name: IBKR finance knowledge
+status: registered
+current_focus:
+  - Preserve separation between development work and trading operations.
+  - Keep finance/trading notes resumable without storing secrets.
+next_actions:
+  - Define the current trading/research objective before implementation resumes.
+updated: 2026-07-29

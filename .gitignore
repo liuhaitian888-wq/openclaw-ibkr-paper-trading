@@ -10,7 +10,12 @@ __pycache__/
 .runtime/
 .secrets/
 trading_audit.sqlite3*
+trading_audit_v2.sqlite3*
 handbook/
 logs/
 reports/
+!reports/**/latest.json
+!reports/**/latest.md
+*.jsonl
+*.jsonl.gz
 dashboard/*.html
