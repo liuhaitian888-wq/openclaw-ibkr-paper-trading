@@ -7,6 +7,7 @@ mkdir -p .secrets
 read -r "webhook_url?Paste FEISHU_WEBHOOK_URL: "
 read -rs "webhook_secret?Paste FEISHU_WEBHOOK_SECRET: "
 printf '\n'
+read -r "target_name?Paste FEISHU_TARGET_NAME (for example: deehub): "
 
 if [[ -z "$webhook_url" ]]; then
   echo "FEISHU_WEBHOOK_URL is required." >&2
@@ -17,6 +18,9 @@ fi
   printf 'FEISHU_WEBHOOK_URL=%q\n' "$webhook_url"
   if [[ -n "$webhook_secret" ]]; then
     printf 'FEISHU_WEBHOOK_SECRET=%q\n' "$webhook_secret"
+  fi
+  if [[ -n "$target_name" ]]; then
+    printf 'FEISHU_TARGET_NAME=%q\n' "$target_name"
   fi
 } > .secrets/feishu_webhook.env
 
