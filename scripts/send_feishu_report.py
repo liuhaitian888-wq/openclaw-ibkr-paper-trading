@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--title", default="OpenClaw 项目进展更新")
     parser.add_argument("--env-file", type=Path, default=DEFAULT_ENV_FILE)
     parser.add_argument("--msg-type", choices=("post", "text"), default="post")
+    parser.add_argument("--require-target", default="", help="Require FEISHU_TARGET_NAME/FEISHU_WEBHOOK_NAME to match before sending.")
     return parser.parse_args()
 
 
@@ -130,9 +131,27 @@ def sign_payload(payload: dict[str, object], secret: str | None) -> dict[str, ob
     return payload
 
 
+def configured_target_name() -> str:
+    return (
+        os.getenv("FEISHU_TARGET_NAME", "")
+        or os.getenv("FEISHU_WEBHOOK_NAME", "")
+        or os.getenv("FEISHU_CHAT_NAME", "")
+    ).strip()
+
+
+def require_target(expected: str) -> None:
+    if not expected:
+        return
+    actual = configured_target_name()
+    if actual.lower() != expected.strip().lower():
+        seen = actual or "missing"
+        raise SystemExit(f"Feishu target mismatch: expected {expected}, configured {seen}")
+
+
 def main() -> int:
     args = parse_args()
     load_env_file(args.env_file)
+    require_target(args.require_target)
     webhook_url = os.getenv("FEISHU_WEBHOOK_URL", "").strip()
     if not webhook_url:
         raise SystemExit("FEISHU_WEBHOOK_URL is required")

@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import sys
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -11,14 +12,19 @@ from zoneinfo import ZoneInfo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 BEIJING = ZoneInfo("Asia/Shanghai")
 BERLIN = ZoneInfo("Europe/Berlin")
 NEW_YORK = ZoneInfo("America/New_York")
+
+from scripts.daily_trading_report_view import read_daily_report, render_daily_report_feishu
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "reports" / "daily_feishu")
+    parser.add_argument("--test-title", action="store_true", help="Prefix the report title with the Feishu test marker.")
     return parser.parse_args()
 
 
@@ -422,6 +428,21 @@ def pnl_lines(pnl: dict[str, str], now_utc: datetime) -> str:
 
 
 def build_report() -> str:
+    daily_report = read_daily_report()
+    if daily_report:
+        return render_daily_report_feishu(daily_report)
+    return build_legacy_report()
+
+
+def build_feishu_report(*, test_title: bool = False) -> str:
+    daily_report = read_daily_report()
+    if daily_report:
+        return render_daily_report_feishu(daily_report, test=test_title)
+    legacy = build_legacy_report()
+    return "【测试】" + legacy if test_title else legacy
+
+
+def build_legacy_report() -> str:
     now_bj = datetime.now(BEIJING)
     now_berlin = now_bj.astimezone(BERLIN)
     now_utc = datetime.now(timezone.utc)
@@ -506,7 +527,7 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     now_bj = datetime.now(BEIJING)
     output = args.output_dir / f"openclaw_daily_update_{now_bj:%Y%m%d}.md"
-    output.write_text(build_report(), encoding="utf-8")
+    output.write_text(build_feishu_report(test_title=args.test_title), encoding="utf-8")
     print(output)
     return 0
 

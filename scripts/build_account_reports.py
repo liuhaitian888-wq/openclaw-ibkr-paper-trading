@@ -15,6 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from trading.position_guard import build_position_guard_report
 from trading.account_state_manager import build_account_state, account_execution_readiness_payload
+from scripts.daily_trading_report_view import render_daily_report_markdown
 
 
 REPORT_DIR = PROJECT_ROOT / "reports" / "account"
@@ -200,6 +201,9 @@ def latest_lifecycle() -> dict[str, Any]:
         return {}
     return {
         "lifecycle_state": payload.get("lifecycle_state"),
+        "mode9_running": bool(payload.get("agent_running")),
+        "market_session_state": payload.get("market_session_state"),
+        "expected_live_bid_ask": (payload.get("market_session") or {}).get("expected_live_bid_ask") if isinstance(payload.get("market_session"), dict) else None,
         "ibkr_connected": payload.get("ibkr_connected"),
         "execution_enabled": payload.get("execution_enabled"),
         "blocked_reason": payload.get("blocked_reason"),
@@ -223,22 +227,7 @@ def write_daily_report(payload: dict[str, Any]) -> None:
 
 
 def render_daily_markdown(payload: dict[str, Any]) -> str:
-    funnel = payload.get("lifecycle_funnel", {})
-    quality = payload.get("data_quality", {})
-    snapshot = payload.get("account_snapshot", {})
-    return "\n".join([
-        "# Paper Trading Daily Diagnostic Report",
-        "",
-        f"- Date UTC: {payload.get('date_utc')}",
-        f"- Report only: {payload.get('report_only')}",
-        f"- Mode 9 should run: {payload.get('mode9_should_run')}",
-        f"- Account execution ready: {quality.get('account_execution_ready')}",
-        f"- PnL freshness: {(snapshot.get('pnl_freshness') or {}).get('freshness')} age_sec={(snapshot.get('pnl_freshness') or {}).get('age_sec')}",
-        f"- Position/Open order/Protection ready: {quality.get('positions_ready')} / {quality.get('open_orders_ready')} / {quality.get('protection_coverage_ready')}",
-        f"- Signal -> decision -> intent -> risk -> submit -> ack -> partial -> fill -> execution -> commission: {funnel.get('signals')} -> {funnel.get('strategy_decisions')} -> {funnel.get('order_intents')} -> {funnel.get('risk_checks')} -> {funnel.get('submitted')} -> {funnel.get('broker_ack')} -> {funnel.get('partial_fill')} -> {funnel.get('filled')} -> {funnel.get('executions')} -> {funnel.get('commissions')}",
-        f"- Blocking reasons: {quality.get('blocking_reasons')}",
-        "- Report-originated order mutations: submitted=0 cancelled=0",
-    ]) + "\n"
+    return render_daily_report_markdown(payload)
 
 
 def audit_requests_for_date(day: object) -> list[dict[str, Any]]:

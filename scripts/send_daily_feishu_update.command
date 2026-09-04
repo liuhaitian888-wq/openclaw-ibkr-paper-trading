@@ -8,4 +8,5 @@ REPORT_PATH="$(
 )"
 
 .venv313/bin/python scripts/send_feishu_report.py "$REPORT_PATH" \
-  --title "OpenClaw 每日项目进展更新"
+  --title "买 der · Paper Trading 日报" \
+  --require-target "deehub"
