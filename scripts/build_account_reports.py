@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build read-only account, position, open-order, and daily summary reports."""
+"""Build read-only account, position, open-order, and daily diagnostic reports."""
 
 import csv
 import json
@@ -14,9 +14,11 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from trading.position_guard import build_position_guard_report
+from trading.account_state_manager import build_account_state, account_execution_readiness_payload
 
 
 REPORT_DIR = PROJECT_ROOT / "reports" / "account"
+DAILY_REPORT_DIR = PROJECT_ROOT / "reports" / "daily_trading"
 
 
 def main() -> int:
@@ -26,12 +28,26 @@ def main() -> int:
     open_orders = flatten_open_orders(guard)
     positions = [row for row in guard.get("symbols", []) if float(row.get("position_qty") or 0) != 0]
     daily = daily_summary(open_orders)
+    account_state = build_account_state(position_guard_report=guard, account_snapshot=account_from_guard_and_pnl(guard, pnl), write_reports_enabled=True)
+    readiness = account_execution_readiness_payload(account_state)
+    diagnostic = daily_diagnostic_report(account_state, readiness)
     timestamp = datetime.now(timezone.utc).isoformat()
 
-    account = {
-        "timestamp": timestamp,
+    account = account_from_guard_and_pnl(guard, pnl)
+    account.update({"timestamp": timestamp, "position_count": len(positions), "open_order_count": len(open_orders), "status": guard.get("status"), "errors": guard.get("errors", [])})
+    write_json(REPORT_DIR / "latest.json", account)
+    write_json(REPORT_DIR / "positions_latest.json", {"timestamp": timestamp, "positions": positions})
+    write_json(REPORT_DIR / "open_orders_latest.json", {"timestamp": timestamp, "open_orders": open_orders})
+    write_json(REPORT_DIR / "daily_summary_latest.json", {"timestamp": timestamp, **daily})
+    write_daily_report(diagnostic)
+    print(json.dumps({"account": account, "daily_summary": daily, "daily_diagnostic": diagnostic}, indent=2, sort_keys=True))
+    return 0
+
+
+def account_from_guard_and_pnl(guard: dict[str, Any], pnl: dict[str, str]) -> dict[str, Any]:
+    return {
         "source": "account_reports",
-        "account": guard.get("account") or pnl.get("account"),
+        "account": first_present(guard.get("account"), pnl.get("account")),
         "currency": pnl.get("currency"),
         "daily_pnl": float_or_none(pnl.get("daily_pnl")),
         "realized_pnl": float_or_none(pnl.get("realized_pnl")),
@@ -39,18 +55,11 @@ def main() -> int:
         "net_liquidation": float_or_none(pnl.get("net_liquidation")),
         "cash": float_or_none(pnl.get("total_cash_value")),
         "buying_power": float_or_none(pnl.get("buying_power")),
+        "available_funds": float_or_none(pnl.get("available_funds")),
+        "excess_liquidity": float_or_none(pnl.get("excess_liquidity")),
+        "gross_position_value": float_or_none(pnl.get("gross_position_value")),
         "pnl_timestamp": pnl.get("timestamp"),
-        "position_count": len(positions),
-        "open_order_count": len(open_orders),
-        "status": guard.get("status"),
-        "errors": guard.get("errors", []),
     }
-    write_json(REPORT_DIR / "latest.json", account)
-    write_json(REPORT_DIR / "positions_latest.json", {"timestamp": timestamp, "positions": positions})
-    write_json(REPORT_DIR / "open_orders_latest.json", {"timestamp": timestamp, "open_orders": open_orders})
-    write_json(REPORT_DIR / "daily_summary_latest.json", {"timestamp": timestamp, **daily})
-    print(json.dumps({"account": account, "daily_summary": daily}, indent=2, sort_keys=True))
-    return 0
 
 
 def latest_pnl_row() -> dict[str, str]:
@@ -109,6 +118,129 @@ def daily_summary(open_orders: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def daily_diagnostic_report(account_state: Any, readiness: dict[str, Any]) -> dict[str, Any]:
+    today = datetime.now(timezone.utc).date()
+    start = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+    end = datetime.now(timezone.utc)
+    metrics = audit_metrics(start, end)
+    snapshot = account_state_payload_without_sensitive_id(account_state)
+    quote_rows = [row for row in readiness.get("blocking_reasons", [])]
+    lifecycle = latest_lifecycle()
+    return {
+        "timestamp": end.isoformat(),
+        "source": "daily_trading_diagnostic_report",
+        "report_only": True,
+        "date_utc": today.isoformat(),
+        "account_snapshot": snapshot,
+        "lifecycle_funnel": metrics,
+        "data_quality": {
+            "account_execution_ready": readiness.get("account_execution_ready"),
+            "quotes_ready": readiness.get("quotes_ready"),
+            "positions_ready": readiness.get("positions_ready"),
+            "open_orders_ready": readiness.get("open_orders_ready"),
+            "pnl_ready": readiness.get("pnl_ready"),
+            "protection_coverage_ready": readiness.get("protection_coverage_ready"),
+            "blocking_reasons": readiness.get("blocking_reasons", []),
+            "quote_blockers": quote_rows,
+        },
+        "runtime": lifecycle,
+        "mode9_should_run": bool(readiness.get("account_execution_ready")) and lifecycle.get("ibkr_connected") is True,
+        "orders_submitted_by_report": 0,
+        "orders_cancelled_by_report": 0,
+    }
+
+
+def audit_metrics(start: datetime, end: datetime) -> dict[str, Any]:
+    db = PROJECT_ROOT / "trading_audit.sqlite3"
+    if not db.exists():
+        return empty_metrics()
+    start_text, end_text = start.isoformat(), end.isoformat()
+    uri = f"file:{db}?mode=ro&immutable=1"
+    con = sqlite3.connect(uri, uri=True)
+    try:
+        return {
+            "signals": table_count(con, "strategy_signals", "timestamp_utc", start_text, end_text),
+            "strategy_decisions": table_count(con, "strategy_decisions", "timestamp", start_text, end_text),
+            "order_intents": table_count(con, "order_intent_events", "timestamp_utc", start_text, end_text),
+            "risk_checks": table_count(con, "risk_events", "timestamp", start_text, end_text),
+            "risk_rejected": table_count_where(con, "risk_events", "timestamp", start_text, end_text, "json_valid(payload_json) AND (json_extract(payload_json, '$.approved') = 0 OR json_extract(payload_json, '$.execution_allowed') = 0)"),
+            "submitted": table_count(con, "order_requests", "created_at", start_text, end_text),
+            "broker_ack": table_count(con, "broker_orders", "first_seen_at", start_text, end_text),
+            "partial_fill": table_count_where(con, "broker_orders", "first_seen_at", start_text, end_text, "filled > 0 AND remaining > 0"),
+            "filled": table_count_where(con, "broker_orders", "first_seen_at", start_text, end_text, "completed = 1 OR upper(canonical_status) = 'FILLED' OR upper(status) = 'FILLED'"),
+            "executions": table_count(con, "executions", "executed_at", start_text, end_text),
+            "commissions": table_count(con, "commission_events", "timestamp_utc", start_text, end_text),
+            "quote_blocks": table_count_where(con, "quote_readiness_events", "timestamp", start_text, end_text, "execution_allowed = 0"),
+        }
+    finally:
+        con.close()
+
+
+def empty_metrics() -> dict[str, int]:
+    return {key: 0 for key in ["signals", "strategy_decisions", "order_intents", "risk_checks", "risk_rejected", "submitted", "broker_ack", "partial_fill", "filled", "executions", "commissions", "quote_blocks"]}
+
+
+def table_count(con: sqlite3.Connection, table: str, column: str, start: str, end: str) -> int:
+    return table_count_where(con, table, column, start, end, "1 = 1")
+
+
+def table_count_where(con: sqlite3.Connection, table: str, column: str, start: str, end: str, predicate: str) -> int:
+    try:
+        value = con.execute(f"SELECT count(*) FROM {table} WHERE {column} >= ? AND {column} < ? AND {predicate}", (start, end)).fetchone()[0]
+    except sqlite3.OperationalError:
+        return 0
+    return int(value or 0)
+
+
+def latest_lifecycle() -> dict[str, Any]:
+    path = PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+    return {
+        "lifecycle_state": payload.get("lifecycle_state"),
+        "ibkr_connected": payload.get("ibkr_connected"),
+        "execution_enabled": payload.get("execution_enabled"),
+        "blocked_reason": payload.get("blocked_reason"),
+        "safe_mode": payload.get("lifecycle_state") == "SAFE_MODE",
+    }
+
+
+def account_state_payload_without_sensitive_id(account_state: Any) -> dict[str, Any]:
+    snapshot = getattr(account_state, "account_snapshot", None)
+    if snapshot is None:
+        return {}
+    from dataclasses import asdict
+
+    return asdict(snapshot)
+
+
+def write_daily_report(payload: dict[str, Any]) -> None:
+    DAILY_REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    write_json(DAILY_REPORT_DIR / "latest.json", payload)
+    (DAILY_REPORT_DIR / "latest.md").write_text(render_daily_markdown(payload), encoding="utf-8")
+
+
+def render_daily_markdown(payload: dict[str, Any]) -> str:
+    funnel = payload.get("lifecycle_funnel", {})
+    quality = payload.get("data_quality", {})
+    snapshot = payload.get("account_snapshot", {})
+    return "\n".join([
+        "# Paper Trading Daily Diagnostic Report",
+        "",
+        f"- Date UTC: {payload.get('date_utc')}",
+        f"- Report only: {payload.get('report_only')}",
+        f"- Mode 9 should run: {payload.get('mode9_should_run')}",
+        f"- Account execution ready: {quality.get('account_execution_ready')}",
+        f"- PnL freshness: {(snapshot.get('pnl_freshness') or {}).get('freshness')} age_sec={(snapshot.get('pnl_freshness') or {}).get('age_sec')}",
+        f"- Position/Open order/Protection ready: {quality.get('positions_ready')} / {quality.get('open_orders_ready')} / {quality.get('protection_coverage_ready')}",
+        f"- Signal -> decision -> intent -> risk -> submit -> ack -> partial -> fill -> execution -> commission: {funnel.get('signals')} -> {funnel.get('strategy_decisions')} -> {funnel.get('order_intents')} -> {funnel.get('risk_checks')} -> {funnel.get('submitted')} -> {funnel.get('broker_ack')} -> {funnel.get('partial_fill')} -> {funnel.get('filled')} -> {funnel.get('executions')} -> {funnel.get('commissions')}",
+        f"- Blocking reasons: {quality.get('blocking_reasons')}",
+        "- Report-originated order mutations: submitted=0 cancelled=0",
+    ]) + "\n"
+
+
 def audit_requests_for_date(day: object) -> list[dict[str, Any]]:
     db = PROJECT_ROOT / "trading_audit.sqlite3"
     if not db.exists():
@@ -146,6 +278,13 @@ def float_or_none(value: object) -> float | None:
         return None if value in (None, "") else float(value)
     except (TypeError, ValueError):
         return None
+
+
+def first_present(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, ""):
+            return value
+    return None
 
 
 if __name__ == "__main__":

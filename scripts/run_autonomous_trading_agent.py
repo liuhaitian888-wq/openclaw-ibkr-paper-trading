@@ -26,7 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trading.account_state_manager import build_account_state
+from trading.account_state_manager import account_execution_readiness_payload, build_account_state
 from trading.config import Settings
 from trading.event_risk_control import build_event_risk_report
 from trading.event_router import build_event_router_report
@@ -287,6 +287,34 @@ def run_cycle(
     timings["position_guard_ms"] = elapsed_ms(started)
     started = time.perf_counter()
     try:
+        account_state = build_account_state(
+            settings=settings,
+            force_refresh=env_bool("MODE9_ACCOUNT_STATE_FORCE_REFRESH", False),
+            position_guard_report=position_guard,
+        )
+        account_readiness = account_execution_readiness_payload(account_state)
+        account_state_manager = {
+            "source": "account_state_manager",
+            "timestamp": account_state.timestamp,
+            "used_cached_state": account_state.used_cached_state,
+            "force_refresh_required": account_state.force_refresh.force_refresh_required if account_state.force_refresh else None,
+            "force_refresh_performed": account_state.force_refresh.force_refresh_performed if account_state.force_refresh else None,
+            "force_refresh_ok": account_state.force_refresh.force_refresh_ok if account_state.force_refresh else None,
+            "state_stale": account_state.state_stale,
+            "blocked_reason": account_state.blocked_reason,
+            "account_execution_ready": account_readiness.get("account_execution_ready"),
+            "account_blocking_reasons": account_readiness.get("blocking_reasons", []),
+            "position_count": len(account_state.positions),
+            "open_order_count": len(account_state.open_orders),
+            "protection_coverage_count": len(account_state.protection_coverage),
+        }
+    except Exception as exc:
+        account_readiness = {"account_execution_ready": False, "blocking_reasons": [str(exc)]}
+        account_state_manager = {"status": "error", "error": str(exc), "account_execution_ready": False}
+        errors.append(f"account state manager refresh failed: {exc}")
+    timings["account_state_manager_refresh_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
+    try:
         pool_manager = build_pool_manager_report(position_guard=position_guard, universe_file=args.universe_file)
     except Exception as exc:
         pool_manager = {"status": "error", "error": str(exc), "layers": []}
@@ -443,6 +471,7 @@ def run_cycle(
         ibkr_connected=ibkr_connected,
         market_session=market_session,
         quote_readiness=quote_readiness,
+        account_readiness=account_readiness if "account_readiness" in locals() else {},
         errors=errors,
     )
 
@@ -686,6 +715,7 @@ def evaluate_lifecycle_state(
     ibkr_connected: bool,
     market_session: Dict[str, object],
     quote_readiness: Dict[str, object],
+    account_readiness: Dict[str, object] | None = None,
     errors: List[str],
 ) -> Dict[str, object]:
     if not isinstance(health, dict) or not health:
@@ -705,6 +735,12 @@ def evaluate_lifecycle_state(
         return lifecycle("QUOTES_STALE_WAITING", reason, False)
     if bool(quote_readiness.get("safe_mode")) or not bool(quote_readiness.get("execution_allowed", True)):
         return lifecycle("SAFE_MODE", str(quote_readiness.get("blocked_reason") or "universe_freshness_sla_failed"), False)
+    account_readiness = account_readiness or {}
+    if account_readiness and not bool(account_readiness.get("account_execution_ready")):
+        reasons = account_readiness.get("blocking_reasons")
+        if isinstance(reasons, list) and reasons:
+            return lifecycle("SAFE_MODE", "account_execution_readiness_failed: " + "; ".join(str(item) for item in reasons[:5]), False)
+        return lifecycle("SAFE_MODE", "account_execution_readiness_failed", False)
     if not ready_for_orders:
         return lifecycle("PAPER_BLOCKED_BY_RISK", "tws_or_trading_api_not_ready_for_orders", False)
     if errors:

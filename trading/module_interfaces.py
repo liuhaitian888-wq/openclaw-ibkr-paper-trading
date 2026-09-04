@@ -3,6 +3,16 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class FieldSnapshot:
+    value: Any
+    source: str
+    source_timestamp: str | None
+    received_timestamp: str
+    age_sec: float | None
+    freshness: str
+
+
+@dataclass(frozen=True)
 class StateFreshness:
     account_summary_age_sec: float | None
     positions_age_sec: float | None
@@ -112,6 +122,32 @@ class PositionState:
 
 
 @dataclass(frozen=True)
+class AccountSnapshot:
+    timestamp: str
+    account_id: FieldSnapshot
+    net_liquidation: FieldSnapshot
+    total_cash_value: FieldSnapshot
+    buying_power: FieldSnapshot
+    available_funds: FieldSnapshot
+    excess_liquidity: FieldSnapshot
+    gross_position_value: FieldSnapshot
+    daily_pnl: FieldSnapshot
+    realized_pnl: FieldSnapshot
+    unrealized_pnl: FieldSnapshot
+    positions: list[PositionState]
+    gross_exposure: FieldSnapshot
+    net_exposure: FieldSnapshot
+    open_orders: list[OpenOrderState]
+    executions: list[dict[str, Any]]
+    protective_order_coverage: list[ProtectionCoverageState]
+    account_callback_freshness: FieldSnapshot
+    pnl_freshness: FieldSnapshot
+    position_freshness: FieldSnapshot
+    order_freshness: FieldSnapshot
+    data_quality: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class ForceRefreshResult:
     force_refresh_required: bool
     force_refresh_performed: bool
@@ -145,4 +181,5 @@ class AccountState:
     blocked_reason: str = ""
     used_cached_state: bool = False
     force_refresh: ForceRefreshResult | None = None
+    account_snapshot: AccountSnapshot | None = None
     metadata: dict[str, Any] = field(default_factory=dict)

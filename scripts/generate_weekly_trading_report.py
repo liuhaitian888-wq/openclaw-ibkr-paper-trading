@@ -78,9 +78,15 @@ def collect_weekly_report(root: Path, db_path: Path, end: datetime) -> dict[str,
     database_available = db_path.exists()
     metrics: dict[str, Any] = {
         "strategy_decisions": 0,
+        "signals": 0,
+        "order_intents": 0,
+        "risk_checks": 0,
         "orders_requested": 0,
         "broker_orders_seen": 0,
+        "partial_fills": 0,
+        "filled_orders": 0,
         "executions": 0,
+        "commissions": 0,
         "risk_rejections": 0,
         "ibkr_errors": 0,
         "quote_blocks": 0,
@@ -94,11 +100,17 @@ def collect_weekly_report(root: Path, db_path: Path, end: datetime) -> dict[str,
         uri = f"file:{db_path}?mode=ro&immutable=1"
         with sqlite3.connect(uri, uri=True) as con:
             metrics.update(
+                signals=table_count(con, "strategy_signals", "timestamp_utc", start_text, end_text),
                 strategy_decisions=table_count(con, "strategy_decisions", "timestamp", start_text, end_text),
+                order_intents=table_count(con, "order_intent_events", "timestamp_utc", start_text, end_text),
+                risk_checks=table_count(con, "risk_events", "timestamp", start_text, end_text),
                 orders_requested=table_count(con, "order_requests", "created_at", start_text, end_text),
                 broker_orders_seen=table_count(con, "broker_orders", "first_seen_at", start_text, end_text),
+                partial_fills=int(query_one(con, "SELECT count(*) FROM broker_orders WHERE first_seen_at >= ? AND first_seen_at < ? AND filled > 0 AND remaining > 0", (start_text, end_text)) or 0),
+                filled_orders=int(query_one(con, "SELECT count(*) FROM broker_orders WHERE first_seen_at >= ? AND first_seen_at < ? AND (completed = 1 OR upper(canonical_status) = 'FILLED' OR upper(status) = 'FILLED')", (start_text, end_text)) or 0),
                 executions=table_count(con, "executions", "executed_at", start_text, end_text),
-                risk_rejections=table_count(con, "risk_events", "timestamp", start_text, end_text),
+                commissions=table_count(con, "commission_events", "timestamp_utc", start_text, end_text),
+                risk_rejections=int(query_one(con, "SELECT count(*) FROM risk_events WHERE timestamp >= ? AND timestamp < ? AND json_valid(payload_json) AND (json_extract(payload_json, '$.approved') = 0 OR json_extract(payload_json, '$.execution_allowed') = 0)", (start_text, end_text)) or 0),
                 ibkr_errors=table_count(con, "ibkr_error_events", "timestamp_utc", start_text, end_text),
                 quote_blocks=int(query_one(con, "SELECT count(*) FROM quote_readiness_events WHERE timestamp >= ? AND timestamp < ? AND execution_allowed = 0", (start_text, end_text)) or 0),
                 scanner_runs=table_count(con, "ibkr_scanner_runs", "timestamp", start_text, end_text),
@@ -127,6 +139,7 @@ def collect_weekly_report(root: Path, db_path: Path, end: datetime) -> dict[str,
     fresh_l1 = sum(bool(row.get("has_bid") and row.get("has_ask")) for row in stream_rows if isinstance(row, dict))
     scanner = read_json(root / "reports/ibkr_scanner/latest.json")
     account = read_json(root / "reports/account_state/latest.json")
+    account_snapshot = account.get("account_snapshot") if isinstance(account.get("account_snapshot"), dict) else {}
     position_guard = read_json(root / "reports/position_guard/latest.json")
     positions = account.get("positions") if isinstance(account.get("positions"), list) else []
     if not positions and isinstance(position_guard.get("symbols"), list):
@@ -152,9 +165,16 @@ def collect_weekly_report(root: Path, db_path: Path, end: datetime) -> dict[str,
             "unrealized_pnl": metrics["unrealized_pnl"],
         },
         "orders_and_fills": {
+            "signals": metrics["signals"],
+            "strategy_decisions": metrics["strategy_decisions"],
+            "order_intents": metrics["order_intents"],
+            "risk_checks": metrics["risk_checks"],
             "requests": metrics["orders_requested"],
             "broker_orders_seen": metrics["broker_orders_seen"],
+            "partial_fills": metrics["partial_fills"],
+            "filled_orders": metrics["filled_orders"],
             "executions": metrics["executions"],
+            "commissions": metrics["commissions"],
         },
         "risk_and_data_quality": {
             "risk_rejections": metrics["risk_rejections"],
@@ -174,9 +194,11 @@ def collect_weekly_report(root: Path, db_path: Path, end: datetime) -> dict[str,
         "account_and_positions": {
             "mode": account.get("mode"),
             "state_stale": account.get("state_stale"),
+            "snapshot": account_snapshot,
             "position_count": len(positions),
             "open_order_count": len(open_orders),
             "pnl_available": any(value is not None for value in (metrics["daily_pnl"], metrics["realized_pnl"], metrics["unrealized_pnl"])),
+            "data_quality": account_snapshot.get("data_quality", {}),
         },
         "remaining_blockers": blockers,
         "database_available": database_available,
@@ -204,7 +226,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 ## Orders, fills, and risk
 
-- Order requests / broker orders / executions: {orders['requests']} / {orders['broker_orders_seen']} / {orders['executions']}
+- Signal -> decision -> intent -> risk -> submit -> ack -> partial -> fill -> execution -> commission: {orders['signals']} -> {orders['strategy_decisions']} -> {orders['order_intents']} -> {orders['risk_checks']} -> {orders['requests']} -> {orders['broker_orders_seen']} -> {orders['partial_fills']} -> {orders['filled_orders']} -> {orders['executions']} -> {orders['commissions']}
 - Risk rejections / quote blocks: {risk['risk_rejections']} / {risk['quote_blocks']}
 - IBKR errors or disconnects: {risk['ibkr_errors_or_disconnects']}
 
@@ -222,6 +244,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 - Mode / stale: {account['mode']} / {account['state_stale']}
 - Positions / open orders: {account['position_count']} / {account['open_order_count']}
 - PnL available: {account['pnl_available']}
+- Missing account fields: {(account.get('data_quality') or {}).get('missing_fields', [])}
 
 ## Remaining blockers
 
