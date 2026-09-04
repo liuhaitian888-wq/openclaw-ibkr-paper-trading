@@ -15,7 +15,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 BEIJING = ZoneInfo("Asia/Shanghai")
-BERLIN = ZoneInfo("Europe/Berlin")
 NEW_YORK = ZoneInfo("America/New_York")
 
 from scripts.daily_trading_report_view import read_daily_report, render_daily_report_feishu
@@ -444,7 +443,6 @@ def build_feishu_report(*, test_title: bool = False) -> str:
 
 def build_legacy_report() -> str:
     now_bj = datetime.now(BEIJING)
-    now_berlin = now_bj.astimezone(BERLIN)
     now_utc = datetime.now(timezone.utc)
     since = now_utc - timedelta(hours=24)
     universe_total, universe_enabled, sectors = universe_summary()
@@ -468,7 +466,7 @@ def build_legacy_report() -> str:
     )
     report = f"""OpenClaw 每日项目进展更新
 
-时间：{now_bj.strftime('%Y-%m-%d %H:%M')} 北京时间 / {now_berlin.strftime('%H:%M')} 德国时间
+时间：{now_bj.strftime('%Y-%m-%d %H:%M')} 北京时间
 窗口：过去 24 小时
 
 一、今日交易与运行状态

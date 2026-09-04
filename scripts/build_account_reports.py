@@ -5,9 +5,10 @@ import csv
 import json
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -20,6 +21,7 @@ from scripts.daily_trading_report_view import render_daily_report_markdown
 
 REPORT_DIR = PROJECT_ROOT / "reports" / "account"
 DAILY_REPORT_DIR = PROJECT_ROOT / "reports" / "daily_trading"
+NEW_YORK = ZoneInfo("America/New_York")
 
 
 def main() -> int:
@@ -88,8 +90,8 @@ def flatten_open_orders(guard: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def daily_summary(open_orders: list[dict[str, Any]]) -> dict[str, Any]:
-    today = datetime.now(timezone.utc).date()
-    requests = audit_requests_for_date(today)
+    trading_day = recent_complete_trading_day()
+    requests = audit_requests_for_date(trading_day)
     buy_count = 0
     sell_count = 0
     submitted_notional = 0.0
@@ -106,7 +108,7 @@ def daily_summary(open_orders: list[dict[str, Any]]) -> dict[str, Any]:
     open_sell_orders = sum(1 for order in open_orders if str(order.get("action", "")).upper() == "SELL")
     open_buy_orders = sum(1 for order in open_orders if str(order.get("action", "")).upper() == "BUY")
     return {
-        "date_utc": today.isoformat(),
+        "trading_date": trading_day.isoformat(),
         "daily_order_count": len(requests),
         "daily_sell_order_count": sell_count,
         "daily_buy_order_count": buy_count,
@@ -120,8 +122,8 @@ def daily_summary(open_orders: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def daily_diagnostic_report(account_state: Any, readiness: dict[str, Any]) -> dict[str, Any]:
-    today = datetime.now(timezone.utc).date()
-    start = datetime.combine(today, datetime.min.time(), tzinfo=timezone.utc)
+    trading_day = recent_complete_trading_day()
+    start = datetime.combine(trading_day, datetime.min.time(), tzinfo=NEW_YORK).astimezone(timezone.utc)
     end = datetime.now(timezone.utc)
     metrics = audit_metrics(start, end)
     snapshot = account_state_payload_without_sensitive_id(account_state)
@@ -131,7 +133,9 @@ def daily_diagnostic_report(account_state: Any, readiness: dict[str, Any]) -> di
         "timestamp": end.isoformat(),
         "source": "daily_trading_diagnostic_report",
         "report_only": True,
-        "date_utc": today.isoformat(),
+        "date_utc": end.date().isoformat(),
+        "trading_date": trading_day.isoformat(),
+        "trading_timezone": "America/New_York",
         "account_snapshot": snapshot,
         "lifecycle_funnel": metrics,
         "data_quality": {
@@ -246,7 +250,7 @@ def audit_requests_for_date(day: object) -> list[dict[str, Any]]:
         for row in con.execute("select * from order_requests order by created_at"):
             created_at = str(row["created_at"])
             try:
-                created_date = datetime.fromisoformat(created_at).astimezone(timezone.utc).date()
+                created_date = datetime.fromisoformat(created_at).astimezone(NEW_YORK).date()
             except ValueError:
                 continue
             if created_date != day:
@@ -274,6 +278,17 @@ def first_present(*values: Any) -> Any:
         if value not in (None, ""):
             return value
     return None
+
+
+def recent_complete_trading_day(now_utc: datetime | None = None) -> object:
+    now_utc = now_utc or datetime.now(timezone.utc)
+    now_ny = now_utc.astimezone(NEW_YORK)
+    trading_day = now_ny.date()
+    if now_ny.time() < time(17, 0):
+        trading_day -= timedelta(days=1)
+    while trading_day.weekday() >= 5:
+        trading_day -= timedelta(days=1)
+    return trading_day
 
 
 if __name__ == "__main__":

@@ -6,26 +6,20 @@ cd "$PROJECT_DIR"
 
 mkdir -p .runtime logs
 
-BEIJING_DATE="$(TZ=Asia/Shanghai date +%Y%m%d)"
-BEIJING_HOUR="$(TZ=Asia/Shanghai date +%H)"
-MARKER=".runtime/daily_feishu_sent_${BEIJING_DATE}"
 LOG_FILE="logs/daily_feishu_scheduler.log"
+PYTHON_BIN="${PYTHON_BIN:-/Users/nbhsbgnb/Documents/New project/.venv313/bin/python}"
+NOW_ARG="${FEISHU_SCHEDULER_NOW:+--now=$FEISHU_SCHEDULER_NOW}"
 
 log() {
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" >> "$LOG_FILE"
 }
 
-if [[ -f "$MARKER" ]]; then
-  log "skip: already sent for Beijing date $BEIJING_DATE"
+if ! SCHEDULER_STATUS="$("$PYTHON_BIN" scripts/daily_feishu_scheduler.py due $NOW_ARG)"; then
+  log "skip: $SCHEDULER_STATUS"
   exit 0
 fi
 
-if (( 10#$BEIJING_HOUR < 8 || 10#$BEIJING_HOUR > 11 )); then
-  log "skip: outside Beijing send window, hour=$BEIJING_HOUR"
-  exit 0
-fi
-
-log "send: starting daily Feishu update for Beijing date $BEIJING_DATE"
+log "send: starting daily Feishu update: $SCHEDULER_STATUS"
 scripts/send_daily_feishu_update.command >> "$LOG_FILE" 2>&1
-touch "$MARKER"
-log "send: completed daily Feishu update for Beijing date $BEIJING_DATE"
+"$PYTHON_BIN" scripts/daily_feishu_scheduler.py mark-sent $NOW_ARG >> "$LOG_FILE"
+log "send: completed daily Feishu update"

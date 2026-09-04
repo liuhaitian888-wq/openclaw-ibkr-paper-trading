@@ -45,7 +45,7 @@ def build_daily_report_view(report: Mapping[str, Any]) -> DailyReportView:
         ("现在 PAPER_READY 吗？", paper_ready_answer(report, quality, runtime, positions, coverage)),
         ("下一步系统要解决什么？", next_steps_answer(report, quality, runtime, positions, coverage)),
     ]
-    return DailyReportView(TITLE, str(report.get("date_utc") or ""), status, qa)
+    return DailyReportView(TITLE, str(report.get("trading_date") or report.get("date_utc") or ""), status, qa)
 
 
 def render_daily_report_markdown(report: Mapping[str, Any], *, title: str = TITLE) -> str:
