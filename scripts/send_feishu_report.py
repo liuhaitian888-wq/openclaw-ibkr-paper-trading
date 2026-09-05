@@ -207,6 +207,7 @@ def upload_image(path: Path) -> str:
 
 
 def sign_payload(payload: dict[str, object], secret: str | None) -> dict[str, object]:
+    payload = dict(payload)
     if secret:
         timestamp = str(int(time.time()))
         string_to_sign = f"{timestamp}\n{secret}".encode("utf-8")
@@ -216,6 +217,40 @@ def sign_payload(payload: dict[str, object], secret: str | None) -> dict[str, ob
         payload["timestamp"] = timestamp
         payload["sign"] = sign
     return payload
+
+
+def send_webhook_payload(payload: dict[str, object], *, timeout: int = 15) -> str:
+    webhook_url = os.getenv("FEISHU_WEBHOOK_URL", "").strip()
+    if not webhook_url:
+        raise RuntimeError("FEISHU_WEBHOOK_URL is required")
+    signed_payload = sign_payload(payload, os.getenv("FEISHU_WEBHOOK_SECRET"))
+    request = urllib.request.Request(
+        webhook_url,
+        data=json.dumps(signed_payload, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            response_text = response.read().decode("utf-8")
+            validate_feishu_response(response_text, context="Feishu webhook")
+            return response_text
+    except urllib.error.HTTPError as exc:
+        body = sanitize_text(exc.read().decode("utf-8", errors="replace"))
+        raise RuntimeError(f"Feishu webhook failed: HTTP {exc.code}: {body}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Feishu webhook failed: {sanitize_text(str(exc))}") from exc
+
+
+def validate_feishu_response(response_text: str, *, context: str) -> None:
+    try:
+        payload = json.loads(response_text)
+    except json.JSONDecodeError:
+        return
+    code = payload.get("code")
+    if code in (None, 0):
+        return
+    raise RuntimeError(f"{context} failed: code={code} msg={sanitize_text(str(payload.get('msg') or ''))}")
 
 
 def configured_target_name() -> str:
@@ -239,9 +274,6 @@ def main() -> int:
     args = parse_args()
     load_env_file(args.env_file)
     require_target(args.require_target)
-    webhook_url = os.getenv("FEISHU_WEBHOOK_URL", "").strip()
-    if not webhook_url:
-        raise SystemExit("FEISHU_WEBHOOK_URL is required")
     if args.msg_type == "image":
         capability = feishu_image_capability()
         if not capability["ready"]:
@@ -256,19 +288,10 @@ def main() -> int:
     else:
         text = sanitize_text(args.report.read_text(encoding="utf-8"))
         payload = build_post_payload(args.title, text)
-    payload = sign_payload(payload, os.getenv("FEISHU_WEBHOOK_SECRET"))
-    request = urllib.request.Request(
-        webhook_url,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={"Content-Type": "application/json; charset=utf-8"},
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            print(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = sanitize_text(exc.read().decode("utf-8", errors="replace"))
-        raise SystemExit(f"Feishu webhook failed: HTTP {exc.code}: {body}") from exc
+        print(send_webhook_payload(payload))
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
     return 0
 
 

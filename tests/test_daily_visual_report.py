@@ -19,8 +19,10 @@ from scripts.send_feishu_report import (
     build_image_payload,
     feishu_image_capability,
     sanitize_text,
+    tenant_access_token,
     upload_image,
 )
+from scripts.send_daily_visual_feishu_update import send_daily_visual_update
 
 
 def sample_report(*, daily_pnl=0.0, daily_freshness="FRESH", coverage=None, lifecycle="PAPER_READY"):
@@ -72,6 +74,22 @@ def sample_report(*, daily_pnl=0.0, daily_freshness="FRESH", coverage=None, life
 
 def png_bytes(width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT):
     return b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\rIHDR" + width.to_bytes(4, "big") + height.to_bytes(4, "big") + b"\x08\x02\x00\x00\x00"
+
+
+class FakeHTTPResponse:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self):
+        if isinstance(self.payload, bytes):
+            return self.payload
+        return json.dumps(self.payload).encode("utf-8")
 
 
 class DailyVisualReportTests(unittest.TestCase):
@@ -179,6 +197,97 @@ class DailyVisualReportTests(unittest.TestCase):
 
             self.assertEqual(upload_image(path), "img_v2_key")
 
+    def test_token_success_from_app_credentials(self):
+        payload = {"code": 0, "tenant_access_token": "tenant-token"}
+        with patch.dict("os.environ", {"FEISHU_APP_ID": "app-id", "FEISHU_APP_SECRET": "app-secret"}, clear=True), patch(
+            "urllib.request.urlopen", return_value=FakeHTTPResponse(payload)
+        ):
+            self.assertEqual(tenant_access_token(), "tenant-token")
+
+    def test_token_failure_is_reported_without_secret(self):
+        payload = {"code": 999, "msg": "bad credential"}
+        with patch.dict("os.environ", {"FEISHU_APP_ID": "app-id", "FEISHU_APP_SECRET": "app-secret"}, clear=True), patch(
+            "urllib.request.urlopen", return_value=FakeHTTPResponse(payload)
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                tenant_access_token()
+
+        self.assertIn("code=999", str(raised.exception))
+        self.assertNotIn("app-secret", str(raised.exception))
+
+    def test_png_upload_success_and_image_key_parsing(self):
+        payload = {"code": 0, "data": {"image_key": "img_v2_daily"}}
+        with tempfile.TemporaryDirectory() as tmp, patch.dict("os.environ", {"FEISHU_TENANT_ACCESS_TOKEN": "tenant-token"}, clear=True), patch(
+            "urllib.request.urlopen", return_value=FakeHTTPResponse(payload)
+        ):
+            path = Path(tmp) / "latest.png"
+            path.write_bytes(png_bytes())
+
+            self.assertEqual(upload_image(path), "img_v2_daily")
+
+    def test_deehub_image_send_success(self):
+        manifest = {
+            "image_path": "/tmp/latest.png",
+            "html_path": "/tmp/latest.html",
+            "image_size": 123,
+            "image_width": DEFAULT_WIDTH,
+            "image_height": DEFAULT_HEIGHT,
+        }
+        sent_payloads = []
+
+        def capture_payload(payload):
+            sent_payloads.append(payload)
+            return '{"code":0,"msg":"success"}'
+
+        with tempfile.TemporaryDirectory() as tmp, patch("scripts.send_daily_visual_feishu_update.load_env_file"), patch(
+            "scripts.send_daily_visual_feishu_update.require_target"
+        ), patch("scripts.send_daily_visual_feishu_update.write_local_qa_markdown", return_value=Path(tmp) / "latest.md"), patch(
+            "scripts.send_daily_visual_feishu_update.write_visual_report", return_value=manifest
+        ), patch(
+            "scripts.send_daily_visual_feishu_update.feishu_image_capability", return_value={"ready": True}
+        ), patch(
+            "scripts.send_daily_visual_feishu_update.upload_image", return_value="img_v2_daily"
+        ), patch(
+            "scripts.send_daily_visual_feishu_update.send_webhook_payload", side_effect=capture_payload
+        ):
+            result = send_daily_visual_update(output_dir=Path(tmp))
+
+        self.assertEqual(result["status"], "sent")
+        self.assertEqual(sent_payloads, [{"msg_type": "image", "content": {"image_key": "img_v2_daily"}}])
+
+    def test_image_failure_sends_short_error_notification_only(self):
+        manifest = {
+            "image_path": "/tmp/latest.png",
+            "html_path": "/tmp/latest.html",
+            "image_size": 123,
+            "image_width": DEFAULT_WIDTH,
+            "image_height": DEFAULT_HEIGHT,
+        }
+        sent_payloads = []
+
+        def capture_payload(payload):
+            sent_payloads.append(payload)
+            return '{"code":0,"msg":"success"}'
+
+        with tempfile.TemporaryDirectory() as tmp, patch("scripts.send_daily_visual_feishu_update.load_env_file"), patch(
+            "scripts.send_daily_visual_feishu_update.require_target"
+        ), patch("scripts.send_daily_visual_feishu_update.write_local_qa_markdown", return_value=Path(tmp) / "latest.md"), patch(
+            "scripts.send_daily_visual_feishu_update.write_visual_report", return_value=manifest
+        ), patch(
+            "scripts.send_daily_visual_feishu_update.feishu_image_capability",
+            return_value={"ready": False, "blocked_reason": "missing Feishu image upload credentials or FEISHU_IMAGE_KEY"},
+        ), patch(
+            "scripts.send_daily_visual_feishu_update.send_webhook_payload", side_effect=capture_payload
+        ):
+            result = send_daily_visual_update(output_dir=Path(tmp))
+
+        self.assertEqual(result["status"], "image_failed")
+        self.assertTrue(result["failure_notification_sent"])
+        self.assertEqual(len(sent_payloads), 1)
+        self.assertEqual(sent_payloads[0]["msg_type"], "text")
+        self.assertIn("买 der 日报图片发送失败", sent_payloads[0]["content"]["text"])
+        self.assertNotIn("今天系统正常吗", sent_payloads[0]["content"]["text"])
+
     def test_account_id_sanitization(self):
         text = render_html(sample_report())
 
@@ -197,13 +306,29 @@ class DailyVisualReportTests(unittest.TestCase):
         self.assertIn("[redacted-feishu-webhook]", text)
         self.assertNotIn("abcdef-secret-token", text)
 
-    def test_daily_command_keeps_text_fallback_after_image_failure(self):
+    def test_daily_command_sends_only_visual_report(self):
         command = (Path(__file__).resolve().parents[1] / "scripts" / "send_daily_feishu_update.command").read_text(encoding="utf-8")
-        image_index = command.index("--msg-type image")
-        text_index = command.rindex("scripts/send_feishu_report.py \"$REPORT_PATH\"")
 
-        self.assertIn("--msg-type image || true", command)
-        self.assertLess(image_index, text_index)
+        self.assertIn("scripts/send_daily_visual_feishu_update.py", command)
+        self.assertNotIn("generate_daily_feishu_update.py", command)
+        self.assertNotIn("scripts/send_feishu_report.py \"$REPORT_PATH\"", command)
+        self.assertNotIn("--msg-type image || true", command)
+
+    def test_if_due_marks_sent_only_after_visual_success(self):
+        command = (Path(__file__).resolve().parents[1] / "scripts" / "send_daily_feishu_update_if_due.command").read_text(encoding="utf-8")
+        send_index = command.index("if scripts/send_daily_feishu_update.command")
+        mark_index = command.index("mark-sent")
+        fail_index = command.index("not marking sent")
+
+        self.assertLess(send_index, mark_index)
+        self.assertLess(mark_index, fail_index)
+
+    def test_configure_script_accepts_image_upload_credentials_without_fixed_image_key(self):
+        command = (Path(__file__).resolve().parents[1] / "scripts" / "configure_feishu_webhook.command").read_text(encoding="utf-8")
+
+        self.assertIn("FEISHU_APP_ID", command)
+        self.assertIn("FEISHU_APP_SECRET", command)
+        self.assertNotIn("FEISHU_IMAGE_KEY=", command)
 
 
 if __name__ == "__main__":

@@ -19,7 +19,11 @@ if ! SCHEDULER_STATUS="$("$PYTHON_BIN" scripts/daily_feishu_scheduler.py due $NO
   exit 0
 fi
 
-log "send: starting daily Feishu update: $SCHEDULER_STATUS"
-scripts/send_daily_feishu_update.command >> "$LOG_FILE" 2>&1
-"$PYTHON_BIN" scripts/daily_feishu_scheduler.py mark-sent $NOW_ARG >> "$LOG_FILE"
-log "send: completed daily Feishu update"
+log "send: starting daily Feishu visual update: $SCHEDULER_STATUS"
+if scripts/send_daily_feishu_update.command >> "$LOG_FILE" 2>&1; then
+  "$PYTHON_BIN" scripts/daily_feishu_scheduler.py mark-sent $NOW_ARG >> "$LOG_FILE"
+  log "send: completed daily Feishu visual update"
+else
+  log "send: daily Feishu visual update failed; not marking sent"
+  exit 1
+fi
