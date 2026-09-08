@@ -56,6 +56,38 @@ class RiskEngineTests(unittest.TestCase):
         self.assertFalse(decision.approved)
         self.assertIn("Quantity", decision.reason)
 
+    def test_missing_protective_stop_is_rejected(self) -> None:
+        proposal = TradeProposal("AAPL", "BUY", 1, 190.0, None)
+
+        decision = RiskEngine(self.limits).validate(proposal)
+
+        self.assertFalse(decision.approved)
+        self.assertIn("Protective stop", decision.reason)
+
+    def test_symbol_and_gross_exposure_limits_are_not_bypassable(self) -> None:
+        symbol_limits = RiskLimits(
+            trading_enabled=True,
+            allowed_symbols=frozenset({"AAPL"}),
+            max_quantity=20,
+            max_order_value=2_000.0,
+            max_risk_per_order=100.0,
+            max_symbol_exposure=1_000.0,
+        )
+        gross_limits = RiskLimits(
+            trading_enabled=True,
+            allowed_symbols=frozenset({"AAPL"}),
+            max_quantity=20,
+            max_order_value=2_000.0,
+            max_risk_per_order=100.0,
+            max_gross_exposure=800.0,
+        )
+
+        symbol = RiskEngine(symbol_limits).validate(self.proposal, current_symbol_exposure=400.0)
+        gross = RiskEngine(gross_limits).validate(self.proposal, current_gross_exposure=700.0)
+
+        self.assertIn("Symbol exposure", symbol.reason)
+        self.assertIn("Gross exposure", gross.reason)
+
 
 if __name__ == "__main__":
     unittest.main()

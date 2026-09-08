@@ -7,12 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 from trading.realtime_account_state_bus import RealtimeAccountStateBus
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "state_bootstrap"
+REPORT_DIR = REPORT_ROOT / "state_bootstrap"
 
 
 class StateBootstrapManager:
@@ -23,12 +24,12 @@ class StateBootstrapManager:
     def bootstrap(self, *, start_real_ibkr_subscriptions: bool = True) -> dict[str, Any]:
         now = datetime.now(timezone.utc)
         fields = [
-            ("account", PROJECT_ROOT / "reports" / "account_state" / "latest.json", 5.0),
-            ("position", PROJECT_ROOT / "reports" / "position_guard" / "latest.json", 5.0),
-            ("quote", PROJECT_ROOT / "reports" / "quote_state" / "latest.json", 2.0),
-            ("pnl", PROJECT_ROOT / "reports" / "pnl_ledger" / "latest.json", 5.0),
-            ("open_order", PROJECT_ROOT / "reports" / "open_order_state" / "latest.json", 5.0),
-            ("execution", PROJECT_ROOT / "reports" / "simulation_run" / "latest.json", 5.0),
+            ("account", REPORT_ROOT / "account_state" / "latest.json", 5.0),
+            ("position", REPORT_ROOT / "position_guard" / "latest.json", 5.0),
+            ("quote", REPORT_ROOT / "quote_state" / "latest.json", 2.0),
+            ("pnl", REPORT_ROOT / "pnl_ledger" / "latest.json", 5.0),
+            ("open_order", REPORT_ROOT / "open_order_state" / "latest.json", 5.0),
+            ("execution", REPORT_ROOT / "simulation_run" / "latest.json", 5.0),
         ]
         rows = []
         for field, path, threshold in fields:

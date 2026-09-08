@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Build unified Mode 9 infrastructure status and audit reports."""
+from contextlib import closing
 
 import json
 import os
@@ -14,11 +15,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import AUDIT_DB, REPORT_ROOT
+
 from trading.account_state_manager import build_account_state
 from trading.pool_manager import build_pool_manager_report
 
 
-DB_PATH = PROJECT_ROOT / "trading_audit_v2.sqlite3"
+DB_PATH = AUDIT_DB
 REQUIRED_TABLES = {
     "account_snapshots": "timestamp TEXT, payload_json TEXT",
     "account_state_snapshots": "timestamp TEXT, payload_json TEXT",
@@ -96,16 +99,16 @@ def build_all_reports() -> None:
 
 def seed_current_sqlite_snapshots() -> None:
     now = utc_now()
-    account = read_json(PROJECT_ROOT / "reports" / "account" / "latest.json")
-    positions = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
-    orders = read_json(PROJECT_ROOT / "reports" / "list_tws_orders_latest.json")
-    gap = read_json(PROJECT_ROOT / "reports" / "gap_risk" / "latest.json")
-    escape = read_json(PROJECT_ROOT / "reports" / "gap_escape" / "latest.json")
-    event = read_json(PROJECT_ROOT / "reports" / "event_risk" / "latest.json")
-    options = read_json(PROJECT_ROOT / "reports" / "options_hedge" / "latest.json")
-    pool = read_json(PROJECT_ROOT / "reports" / "pool_membership" / "latest.json")
-    account_state = read_json(PROJECT_ROOT / "reports" / "account_state" / "latest.json")
-    with sqlite3.connect(DB_PATH) as con:
+    account = read_json(REPORT_ROOT / "account" / "latest.json")
+    positions = read_json(REPORT_ROOT / "position_guard" / "latest.json")
+    orders = read_json(REPORT_ROOT / "list_tws_orders_latest.json")
+    gap = read_json(REPORT_ROOT / "gap_risk" / "latest.json")
+    escape = read_json(REPORT_ROOT / "gap_escape" / "latest.json")
+    event = read_json(REPORT_ROOT / "event_risk" / "latest.json")
+    options = read_json(REPORT_ROOT / "options_hedge" / "latest.json")
+    pool = read_json(REPORT_ROOT / "pool_membership" / "latest.json")
+    account_state = read_json(REPORT_ROOT / "account_state" / "latest.json")
+    with closing(sqlite3.connect(DB_PATH)) as con, con:
         if account:
             con.execute("INSERT INTO account_snapshots VALUES (?, ?)", (now, json.dumps(account, sort_keys=True)))
             con.execute("INSERT INTO daily_pnl VALUES (?, ?)", (now, json.dumps(account, sort_keys=True)))
@@ -151,7 +154,7 @@ def seed_current_sqlite_snapshots() -> None:
 
 
 def ensure_sqlite_tables() -> None:
-    with sqlite3.connect(DB_PATH) as con:
+    with closing(sqlite3.connect(DB_PATH)) as con, con:
         for table, columns in REQUIRED_TABLES.items():
             con.execute(f"CREATE TABLE IF NOT EXISTS {table} ({columns})")
 
@@ -159,7 +162,7 @@ def ensure_sqlite_tables() -> None:
 def build_sqlite_audit() -> dict[str, Any]:
     now = utc_now()
     reports = {}
-    with sqlite3.connect(DB_PATH) as con:
+    with closing(sqlite3.connect(DB_PATH)) as con, con:
         con.row_factory = sqlite3.Row
         for table, columns in REQUIRED_TABLES.items():
             exists = table_exists(con, table)
@@ -188,7 +191,7 @@ def build_simple_table_report(name: str, sqlite_report: Mapping[str, Any]) -> No
 
 
 def build_lot_protection_report() -> None:
-    position_guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    position_guard = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     rows = []
     for item in position_guard.get("symbols", []):
         if not isinstance(item, dict) or float(item.get("position_qty") or 0) <= 0:
@@ -220,8 +223,8 @@ def build_lot_protection_report() -> None:
 
 
 def build_outside_rth_protection_report() -> None:
-    orders = read_json(PROJECT_ROOT / "reports" / "list_tws_orders_latest.json").get("open_orders", [])
-    position_guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    orders = read_json(REPORT_ROOT / "list_tws_orders_latest.json").get("open_orders", [])
+    position_guard = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     rows = []
     conversion = []
     for item in position_guard.get("symbols", []):
@@ -330,7 +333,7 @@ def build_cycle_audit() -> None:
 
 
 def build_infrastructure_status() -> None:
-    process_guard = read_json(PROJECT_ROOT / "reports" / "process_guard" / "latest.json")
+    process_guard = read_json(REPORT_ROOT / "process_guard" / "latest.json")
     lock_ok = bool((process_guard.get("lock_owner") or {}).get("process_name") == "mode9_autonomous_agent")
     rows = [feature_status(name, process_guard, lock_ok) for name in FEATURES]
     payload = {"timestamp": utc_now(), "source": "mode9_infrastructure_status", "features": rows}
@@ -454,8 +457,8 @@ def feature_status(name: str, process_guard: Mapping[str, Any], lock_ok: bool) -
 
 
 def build_final_audit() -> None:
-    infra = read_json(PROJECT_ROOT / "reports" / "mode9_infrastructure_status" / "latest.json")
-    process_guard = read_json(PROJECT_ROOT / "reports" / "process_guard" / "latest.json")
+    infra = read_json(REPORT_ROOT / "mode9_infrastructure_status" / "latest.json")
+    process_guard = read_json(REPORT_ROOT / "process_guard" / "latest.json")
     features = infra.get("features", [])
     payload = {
         "timestamp": utc_now(),
@@ -493,7 +496,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def write_json_report(name: str, payload: Mapping[str, Any], *, markdown: str | None = None, history: bool = False) -> None:
-    directory = PROJECT_ROOT / "reports" / name
+    directory = REPORT_ROOT / name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     if markdown is not None:
@@ -504,7 +507,7 @@ def write_json_report(name: str, payload: Mapping[str, Any], *, markdown: str | 
 
 
 def write_extra_report(directory_name: str, stem: str, payload: Mapping[str, Any], *, markdown: str | None = None) -> None:
-    directory = PROJECT_ROOT / "reports" / directory_name
+    directory = REPORT_ROOT / directory_name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / f"{stem}.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     if markdown is not None:

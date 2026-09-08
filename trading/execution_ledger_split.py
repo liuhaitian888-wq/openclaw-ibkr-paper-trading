@@ -1,6 +1,7 @@
 """Build split BUY/SELL intent ledgers and structured PnL reports."""
 
 from __future__ import annotations
+from contextlib import closing
 
 import json
 import sqlite3
@@ -8,19 +9,20 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.order_intents import OrderIntent, make_intent_id, utc_now
 from trading.paper_audit_db import DB_PATH, ensure_paper_automation_tables, insert_event
 
 
-EXECUTION_SPLIT_DIR = PROJECT_ROOT / "reports" / "execution_ledger_split"
-PNL_LEDGER_DIR = PROJECT_ROOT / "reports" / "pnl_ledger"
-SEPARATION_DIR = PROJECT_ROOT / "reports" / "buy_sell_separation"
+EXECUTION_SPLIT_DIR = REPORT_ROOT / "execution_ledger_split"
+PNL_LEDGER_DIR = REPORT_ROOT / "pnl_ledger"
+SEPARATION_DIR = REPORT_ROOT / "buy_sell_separation"
 
 
 def build_execution_and_pnl_ledgers(*, cycle_id: str | None = None) -> dict[str, Any]:
     ensure_paper_automation_tables()
-    full = read_json(PROJECT_ROOT / "reports" / "full_paper_run" / "latest.json")
+    full = read_json(REPORT_ROOT / "full_paper_run" / "latest.json")
     cycle = cycle_id or str(full.get("cycle_id") or f"ledger-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}")
     intents = [
         *buy_intents(cycle),
@@ -43,7 +45,7 @@ def build_execution_and_pnl_ledgers(*, cycle_id: str | None = None) -> dict[str,
 
 
 def buy_intents(cycle_id: str) -> list[OrderIntent]:
-    paper_buy = read_json(PROJECT_ROOT / "reports" / "paper_buy" / "latest.json")
+    paper_buy = read_json(REPORT_ROOT / "paper_buy" / "latest.json")
     records = paper_buy.get("records", []) if isinstance(paper_buy.get("records"), list) else []
     intents = []
     for index, row in enumerate(records):
@@ -86,7 +88,7 @@ def buy_intents(cycle_id: str) -> list[OrderIntent]:
 
 
 def protective_sell_intents(cycle_id: str) -> list[OrderIntent]:
-    preview = read_json(PROJECT_ROOT / "reports" / "position_protection" / "repair_preview.json")
+    preview = read_json(REPORT_ROOT / "position_protection" / "repair_preview.json")
     rows = preview.get("proposals", []) if isinstance(preview.get("proposals"), list) else []
     if not rows:
         rows = preview.get("records", []) if isinstance(preview.get("records"), list) else []
@@ -136,8 +138,8 @@ def protective_sell_intents(cycle_id: str) -> list[OrderIntent]:
 
 
 def gap_escape_intents(cycle_id: str) -> list[OrderIntent]:
-    report = read_json(PROJECT_ROOT / "reports" / "gap_escape" / "execution_result.json")
-    full = read_json(PROJECT_ROOT / "reports" / "full_paper_run" / "latest.json")
+    report = read_json(REPORT_ROOT / "gap_escape" / "execution_result.json")
+    full = read_json(REPORT_ROOT / "full_paper_run" / "latest.json")
     symbols = held_symbols()
     blocked = str(report.get("blocked_reason") or full.get("blocked_reason") or "execution_disabled")
     return [
@@ -230,7 +232,7 @@ def _sell_plan_intents(
 
 
 def options_plan_intents(cycle_id: str) -> list[OrderIntent]:
-    report = read_json(PROJECT_ROOT / "reports" / "options_execution" / "latest.json")
+    report = read_json(REPORT_ROOT / "options_execution" / "latest.json")
     return [
         OrderIntent(
             intent_id=make_intent_id(cycle_id, "OPTIONS", "OPTIONS_COVERED_COLLAR_PLAN", 0),
@@ -290,9 +292,9 @@ def persist_intents(intents: Sequence[OrderIntent]) -> None:
 
 def build_pnl_ledger_report() -> dict[str, Any]:
     ensure_paper_automation_tables()
-    account = read_json(PROJECT_ROOT / "reports" / "account" / "latest.json")
-    positions = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
-    account_state = read_json(PROJECT_ROOT / "reports" / "account_state" / "latest.json")
+    account = read_json(REPORT_ROOT / "account" / "latest.json")
+    positions = read_json(REPORT_ROOT / "position_guard" / "latest.json")
+    account_state = read_json(REPORT_ROOT / "account_state" / "latest.json")
     freshness = account_state.get("freshness") if isinstance(account_state.get("freshness"), Mapping) else {}
     now = utc_now()
     account_id = str(account.get("account") or account_state.get("account_id") or "")
@@ -385,7 +387,7 @@ def persist_pnl(
     summary_row: Mapping[str, Any],
     attribution_rows: Sequence[Mapping[str, Any]],
 ) -> None:
-    with sqlite3.connect(DB_PATH) as con:
+    with closing(sqlite3.connect(DB_PATH)) as con, con:
         insert_direct(con, "account_pnl_snapshots", account_row)
         insert_direct(con, "daily_pnl_summary", summary_row)
         for row in position_rows:
@@ -550,7 +552,7 @@ def read_json(path: Path) -> dict[str, Any]:
 
 
 def held_symbols() -> list[tuple[str, float]]:
-    guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    guard = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     rows = []
     for row in guard.get("symbols", []) if isinstance(guard.get("symbols"), list) else []:
         if isinstance(row, Mapping) and float(row.get("position_qty") or 0) > 0:
@@ -559,7 +561,7 @@ def held_symbols() -> list[tuple[str, float]]:
 
 
 def read_market_session_state() -> str:
-    market = read_json(PROJECT_ROOT / "reports" / "market_session" / "latest.json")
+    market = read_json(REPORT_ROOT / "market_session" / "latest.json")
     return str(market.get("session_state") or "UNKNOWN")
 
 

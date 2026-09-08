@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import sys
 import urllib.error
 import urllib.request
 from datetime import date, datetime, timedelta, timezone
@@ -11,14 +12,20 @@ from zoneinfo import ZoneInfo
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from trading.production_paths import REPORT_ROOT
 BEIJING = ZoneInfo("Asia/Shanghai")
-BERLIN = ZoneInfo("Europe/Berlin")
 NEW_YORK = ZoneInfo("America/New_York")
+
+from scripts.daily_trading_report_view import read_daily_report, render_daily_report_feishu
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=PROJECT_ROOT / "reports" / "daily_feishu")
+    parser.add_argument("--output-dir", type=Path, default=REPORT_ROOT / "daily_feishu")
+    parser.add_argument("--test-title", action="store_true", help="Prefix the report title with the Feishu test marker.")
     return parser.parse_args()
 
 
@@ -53,7 +60,7 @@ def universe_summary() -> tuple[int, int, dict[str, int]]:
 
 
 def latest_pnl() -> dict[str, str]:
-    path = PROJECT_ROOT / "reports" / "pnl_timeseries.csv"
+    path = REPORT_ROOT / "pnl_timeseries.csv"
     if not path.exists():
         return {}
     with path.open(newline="", encoding="utf-8") as handle:
@@ -144,20 +151,20 @@ def explain_zero_submissions(
 
 
 def build_status_snapshot(now_utc: datetime, latest_agent: dict[str, object], pool_reports: list[Path], pnl: dict[str, str]) -> dict[str, object]:
-    process_guard = read_json(PROJECT_ROOT / "reports" / "process_guard" / "latest.json")
+    process_guard = read_json(REPORT_ROOT / "process_guard" / "latest.json")
     mode9_pid = process_guard.get("mode9_pid")
-    process_guard_age = file_age_seconds(PROJECT_ROOT / "reports" / "process_guard" / "latest.json", now_utc)
+    process_guard_age = file_age_seconds(REPORT_ROOT / "process_guard" / "latest.json", now_utc)
     latest_created = parse_timestamp(str(latest_agent.get("created_at") or ""))
     agent_age = None if latest_created is None else (now_utc - latest_created.astimezone(timezone.utc)).total_seconds()
-    cycles_age = file_age_seconds(PROJECT_ROOT / "reports" / "autonomous_agent" / "cycles.jsonl", now_utc)
+    cycles_age = file_age_seconds(REPORT_ROOT / "autonomous_agent" / "cycles.jsonl", now_utc)
     api_ok, api_detail, api_payload = api_health_status()
-    monitoring_line = read_json(PROJECT_ROOT / "reports" / "monitoring_line" / "latest.json")
-    full_paper = read_json(PROJECT_ROOT / "reports" / "full_paper_run" / "latest.json")
-    market_session = read_json(PROJECT_ROOT / "reports" / "market_session" / "latest.json")
-    crosscheck = read_json(PROJECT_ROOT / "reports" / "market_quote_crosscheck" / "latest.json")
-    split = read_json(PROJECT_ROOT / "reports" / "execution_ledger_split" / "latest.json")
-    pnl_ledger = read_json(PROJECT_ROOT / "reports" / "pnl_ledger" / "latest.json")
-    auto_open = read_json(PROJECT_ROOT / "reports" / "final_auto_open_discovery_news_simulation_audit" / "latest.json")
+    monitoring_line = read_json(REPORT_ROOT / "monitoring_line" / "latest.json")
+    full_paper = read_json(REPORT_ROOT / "full_paper_run" / "latest.json")
+    market_session = read_json(REPORT_ROOT / "market_session" / "latest.json")
+    crosscheck = read_json(REPORT_ROOT / "market_quote_crosscheck" / "latest.json")
+    split = read_json(REPORT_ROOT / "execution_ledger_split" / "latest.json")
+    pnl_ledger = read_json(REPORT_ROOT / "pnl_ledger" / "latest.json")
+    auto_open = read_json(REPORT_ROOT / "final_auto_open_discovery_news_simulation_audit" / "latest.json")
     position = latest_agent.get("position_protection") if isinstance(latest_agent.get("position_protection"), dict) else {}
     strategy = latest_agent.get("strategy_run") if isinstance(latest_agent.get("strategy_run"), dict) else {}
     skip_reasons = top_skip_reasons(pool_reports)
@@ -422,12 +429,26 @@ def pnl_lines(pnl: dict[str, str], now_utc: datetime) -> str:
 
 
 def build_report() -> str:
+    daily_report = read_daily_report()
+    if daily_report:
+        return render_daily_report_feishu(daily_report)
+    return build_legacy_report()
+
+
+def build_feishu_report(*, test_title: bool = False) -> str:
+    daily_report = read_daily_report()
+    if daily_report:
+        return render_daily_report_feishu(daily_report, test=test_title)
+    legacy = build_legacy_report()
+    return "【测试】" + legacy if test_title else legacy
+
+
+def build_legacy_report() -> str:
     now_bj = datetime.now(BEIJING)
-    now_berlin = now_bj.astimezone(BERLIN)
     now_utc = datetime.now(timezone.utc)
     since = now_utc - timedelta(hours=24)
     universe_total, universe_enabled, sectors = universe_summary()
-    latest_agent = read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json")
+    latest_agent = read_json(REPORT_ROOT / "autonomous_agent" / "latest.json")
     pool_reports = files_modified_since("reports/pool_strategy_module_*.json", since)
     auto_reports = files_modified_since("reports/auto_order_sequence_*.json", since)
     pnl = latest_pnl()
@@ -447,7 +468,7 @@ def build_report() -> str:
     )
     report = f"""OpenClaw 每日项目进展更新
 
-时间：{now_bj.strftime('%Y-%m-%d %H:%M')} 北京时间 / {now_berlin.strftime('%H:%M')} 德国时间
+时间：{now_bj.strftime('%Y-%m-%d %H:%M')} 北京时间
 窗口：过去 24 小时
 
 一、今日交易与运行状态
@@ -501,12 +522,15 @@ def build_report() -> str:
     return report
 
 
+from trading.production_guard import guarded_service
+
+@guarded_service("reports")
 def main() -> int:
     args = parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
     now_bj = datetime.now(BEIJING)
     output = args.output_dir / f"openclaw_daily_update_{now_bj:%Y%m%d}.md"
-    output.write_text(build_report(), encoding="utf-8")
+    output.write_text(build_feishu_report(test_title=args.test_title), encoding="utf-8")
     print(output)
     return 0
 

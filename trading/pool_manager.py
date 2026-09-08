@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.security_master import DEFAULT_SECURITY_MASTER, build_security_master_report
 from trading.universe import load_universe, select_universe, UniverseSelectionConfig
@@ -11,9 +12,9 @@ from trading.strategy import ValueFilterConfig, ValuePoolFilter
 from trading.storage_guard import rotate_jsonl
 
 
-ARCH_DIR = PROJECT_ROOT / "reports" / "pool_architecture"
-MEMBERSHIP_DIR = PROJECT_ROOT / "reports" / "pool_membership"
-AUDIT_DIR = PROJECT_ROOT / "reports" / "pool_audit"
+ARCH_DIR = REPORT_ROOT / "pool_architecture"
+MEMBERSHIP_DIR = REPORT_ROOT / "pool_membership"
+AUDIT_DIR = REPORT_ROOT / "pool_audit"
 DEFAULT_UNIVERSE = PROJECT_ROOT / "data" / "us_equity_universe.csv"
 
 
@@ -42,8 +43,8 @@ def build_pool_manager_report(
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
     security_master = build_security_master_report(universe_file, security_master_file=security_master_file)
-    position_guard = dict(position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json"))
-    latest_agent = dict(latest_agent or read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json"))
+    position_guard = dict(position_guard or read_json(REPORT_ROOT / "position_guard" / "latest.json"))
+    latest_agent = dict(latest_agent or read_json(REPORT_ROOT / "autonomous_agent" / "latest.json"))
     held_symbols = sorted({
         str(row.get("symbol", "")).upper()
         for row in position_guard.get("symbols", [])

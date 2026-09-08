@@ -1,14 +1,20 @@
+from contextlib import closing
 import csv
 import json
 import os
+import threading
+import time
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import AUDIT_DB, REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.module_interfaces import (
+    AccountSnapshot,
     AccountState,
+    FieldSnapshot,
     ForceRefreshResult,
     OpenOrderState,
     PnLState,
@@ -21,16 +27,16 @@ from trading.position_guard import build_position_guard_report
 from trading.ibkr_streaming import IbkrStreamingQuoteSource
 
 
-ACCOUNT_STATE_DIR = PROJECT_ROOT / "reports" / "account_state"
-POSITION_STATE_DIR = PROJECT_ROOT / "reports" / "position_state"
-QUOTE_STATE_DIR = PROJECT_ROOT / "reports" / "quote_state"
-PNL_STATE_DIR = PROJECT_ROOT / "reports" / "pnl_state"
-ACCOUNT_DASHBOARD_DIR = PROJECT_ROOT / "reports" / "account_dashboard"
-MONITORING_LINE_DIR = PROJECT_ROOT / "reports" / "monitoring_line"
-OPEN_ORDER_STATE_DIR = PROJECT_ROOT / "reports" / "open_order_state"
-ACCOUNT_EXECUTION_READINESS_DIR = PROJECT_ROOT / "reports" / "account_execution_readiness"
-FORCE_REFRESH_DRY_RUN_DIR = PROJECT_ROOT / "reports" / "force_refresh_dry_run"
-STREAMING_QUOTE_DIAGNOSTICS_DIR = PROJECT_ROOT / "reports" / "streaming_quote_diagnostics"
+ACCOUNT_STATE_DIR = REPORT_ROOT / "account_state"
+POSITION_STATE_DIR = REPORT_ROOT / "position_state"
+QUOTE_STATE_DIR = REPORT_ROOT / "quote_state"
+PNL_STATE_DIR = REPORT_ROOT / "pnl_state"
+ACCOUNT_DASHBOARD_DIR = REPORT_ROOT / "account_dashboard"
+MONITORING_LINE_DIR = REPORT_ROOT / "monitoring_line"
+OPEN_ORDER_STATE_DIR = REPORT_ROOT / "open_order_state"
+ACCOUNT_EXECUTION_READINESS_DIR = REPORT_ROOT / "account_execution_readiness"
+FORCE_REFRESH_DRY_RUN_DIR = REPORT_ROOT / "force_refresh_dry_run"
+STREAMING_QUOTE_DIAGNOSTICS_DIR = REPORT_ROOT / "streaming_quote_diagnostics"
 
 DEFAULT_STALE_SEC = 60.0
 DEFAULT_QUOTE_STALE_SEC = 10.0
@@ -57,25 +63,25 @@ def build_account_state(
     settings = settings or Settings.load()
     force_result = force_refresh_state(settings=settings, perform=force_refresh)
     if force_refresh and force_result.force_refresh_ok:
-        position_guard_report = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
-    guard = dict(position_guard_report or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json"))
+        position_guard_report = read_json(REPORT_ROOT / "position_guard" / "latest.json")
+    guard = dict(position_guard_report or read_json(REPORT_ROOT / "position_guard" / "latest.json"))
     if streaming_diagnostics is None and position_guard_report is None and env_bool("ACCOUNT_STATE_STREAMING_REFRESH_ENABLED", True):
         streaming_diagnostics = refresh_streaming_quote_diagnostics(settings=settings, symbols=symbols_from_guard(guard))
     if streaming_diagnostics:
         guard = overlay_streaming_quotes(guard, streaming_diagnostics)
-    account = dict(account_snapshot or read_json(PROJECT_ROOT / "reports" / "account" / "latest.json"))
-    orders = dict(read_json(PROJECT_ROOT / "reports" / "list_tws_orders_latest.json"))
-    protection = dict(read_json(PROJECT_ROOT / "reports" / "position_protection" / "latest.json"))
-    repair_preview = dict(read_json(PROJECT_ROOT / "reports" / "position_protection" / "repair_preview.json"))
+    account = dict(account_snapshot or read_json(REPORT_ROOT / "account" / "latest.json"))
+    orders = dict(read_json(REPORT_ROOT / "list_tws_orders_latest.json"))
+    protection = dict(read_json(REPORT_ROOT / "position_protection" / "latest.json"))
+    repair_preview = dict(read_json(REPORT_ROOT / "position_protection" / "repair_preview.json"))
     pnl_latest = latest_pnl_row()
     now = utc_now()
 
     freshness = build_freshness(
-        account_path=PROJECT_ROOT / "reports" / "account" / "latest.json",
-        positions_path=PROJECT_ROOT / "reports" / "position_guard" / "latest.json",
-        open_orders_path=PROJECT_ROOT / "reports" / "list_tws_orders_latest.json",
-        pnl_path=PROJECT_ROOT / "reports" / "pnl_timeseries.csv",
-        protection_path=PROJECT_ROOT / "reports" / "position_protection" / "latest.json",
+        account_path=REPORT_ROOT / "account" / "latest.json",
+        positions_path=REPORT_ROOT / "position_guard" / "latest.json",
+        open_orders_path=REPORT_ROOT / "list_tws_orders_latest.json",
+        pnl_path=REPORT_ROOT / "pnl_timeseries.csv",
+        protection_path=REPORT_ROOT / "position_protection" / "latest.json",
         position_rows=guard.get("symbols", []),
     )
     if isinstance(guard.get("open_orders"), list):
@@ -83,6 +89,15 @@ def build_account_state(
             account_summary_age_sec=freshness.account_summary_age_sec,
             positions_age_sec=freshness.positions_age_sec,
             open_orders_age_sec=freshness.positions_age_sec,
+            quotes_age_sec=freshness.quotes_age_sec,
+            pnl_age_sec=freshness.pnl_age_sec,
+            protection_coverage_age_sec=freshness.positions_age_sec,
+        )
+    if freshness.account_summary_age_sec is None and pnl_has_account_summary(pnl_latest):
+        freshness = StateFreshness(
+            account_summary_age_sec=freshness.pnl_age_sec,
+            positions_age_sec=freshness.positions_age_sec,
+            open_orders_age_sec=freshness.open_orders_age_sec,
             quotes_age_sec=freshness.quotes_age_sec,
             pnl_age_sec=freshness.pnl_age_sec,
             protection_coverage_age_sec=freshness.protection_coverage_age_sec,
@@ -93,6 +108,15 @@ def build_account_state(
     open_orders = [open_order_state(row, now=now, age=freshness.open_orders_age_sec) for row in open_order_rows if isinstance(row, Mapping)]
     coverage = [coverage_state(row, now=now, age=freshness.protection_coverage_age_sec) for row in guard.get("symbols", []) if isinstance(row, Mapping) and float(row.get("position_qty") or 0) > 0]
     pnl = build_pnl_states(account=account, latest_pnl=pnl_latest, positions=positions, now=now, pnl_age_sec=freshness.pnl_age_sec)
+    snapshot = build_account_snapshot(
+        now=now,
+        account=account,
+        pnl_latest=pnl_latest,
+        positions=positions,
+        open_orders=open_orders,
+        coverage=coverage,
+        freshness=freshness,
+    )
 
     state_stale, blocked_reason = stale_status(freshness)
     if force_refresh and not force_result.force_refresh_ok:
@@ -101,13 +125,13 @@ def build_account_state(
     state = AccountState(
         timestamp=now,
         mode=settings.trading_mode,
-        account_id=str(account.get("account") or guard.get("account") or pnl_latest.get("account") or ""),
-        net_liquidation=float_or_none(account.get("net_liquidation") or pnl_latest.get("net_liquidation")),
-        cash=float_or_none(account.get("cash") or pnl_latest.get("total_cash_value")),
-        buying_power=float_or_none(account.get("buying_power") or pnl_latest.get("buying_power")),
-        gross_position_value=float_or_none(pnl_latest.get("gross_position_value")) or sum_float(item.market_value for item in positions),
-        realized_pnl=float_or_none(account.get("realized_pnl") or pnl_latest.get("realized_pnl")),
-        unrealized_pnl=float_or_none(account.get("unrealized_pnl") or pnl_latest.get("unrealized_pnl")),
+        account_id=str(first_present(account.get("account"), guard.get("account"), pnl_latest.get("account"), "")),
+        net_liquidation=float_or_none(first_present(account.get("net_liquidation"), pnl_latest.get("net_liquidation"))),
+        cash=float_or_none(first_present(account.get("cash"), pnl_latest.get("total_cash_value"))),
+        buying_power=float_or_none(first_present(account.get("buying_power"), pnl_latest.get("buying_power"))),
+        gross_position_value=float_or_none(first_present(pnl_latest.get("gross_position_value"), sum_float(item.market_value for item in positions))),
+        realized_pnl=float_or_none(first_present(account.get("realized_pnl"), pnl_latest.get("realized_pnl"))),
+        unrealized_pnl=float_or_none(first_present(account.get("unrealized_pnl"), pnl_latest.get("unrealized_pnl"))),
         positions=positions,
         quotes=quotes,
         open_orders=open_orders,
@@ -118,6 +142,7 @@ def build_account_state(
         blocked_reason=blocked_reason,
         used_cached_state=not force_refresh,
         force_refresh=force_result,
+        account_snapshot=snapshot,
         metadata={
             "source": "account_state_manager",
             "report_only": True,
@@ -144,6 +169,7 @@ def force_refresh_state(*, settings: Settings | None = None, perform: bool = Tru
         guard = build_position_guard_report(settings=settings)
     except Exception as exc:
         return ForceRefreshResult(True, True, False, False, False, False, False, False, f"force refresh failed: {exc}")
+    pnl_ok, pnl_blocked = refresh_pnl_sample(settings=settings)
     diagnostics = refresh_streaming_quote_diagnostics(settings=settings, symbols=symbols_from_guard(guard))
     guard = overlay_streaming_quotes(guard, diagnostics)
     ok = guard.get("status") in {"ok", "warning"} and bool(guard.get("symbols") is not None)
@@ -161,17 +187,72 @@ def force_refresh_state(*, settings: Settings | None = None, perform: bool = Tru
         blocked = "; ".join(item["blocked_reason"] for item in sell_quote_results if not item["ok"]) or "force refresh completed but at least one execution quote is stale"
     elif not protection_ok:
         blocked = "force refresh completed but protection coverage is missing"
+    elif not pnl_ok:
+        blocked = pnl_blocked or "force refresh completed but PnL is missing"
     return ForceRefreshResult(
         force_refresh_required=True,
         force_refresh_performed=True,
-        force_refresh_ok=ok and quotes_ok and protection_ok,
+        force_refresh_ok=ok and quotes_ok and protection_ok and pnl_ok,
         positions_refreshed=ok,
         open_orders_refreshed=ok,
         quotes_refreshed=quotes_ok,
-        pnl_refreshed=False,
+        pnl_refreshed=pnl_ok,
         protection_coverage_refreshed=protection_ok,
         blocked_reason=blocked,
     )
+
+
+def refresh_pnl_sample(*, settings: Settings | None = None) -> tuple[bool, str]:
+    settings = settings or Settings.load()
+    try:
+        from scripts.record_account_pnl import AccountPnlClient, append_outputs
+    except Exception as exc:
+        return False, f"PnL refresh import failed: {exc}"
+    client = AccountPnlClient("", os.getenv("ACCOUNT_STATE_PNL_CURRENCY", "").strip().upper())
+    timeout = float(os.getenv("ACCOUNT_STATE_PNL_TIMEOUT", str(settings.tws_status_timeout)))
+    try:
+        client.connect(settings.tws_host, settings.tws_port, clientId=int(os.getenv("ACCOUNT_STATE_PNL_CLIENT_ID", str(settings.tws_client_id + 1500))))
+        threading.Thread(target=client.run_loop, daemon=True).start()
+        if not client.ready.wait(timeout):
+            return False, "TWS PnL handshake timed out"
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline and not client.accounts:
+            time.sleep(0.05)
+        account = client.accounts[0] if client.accounts else ""
+        if not account:
+            return False, "No managed account returned by TWS"
+        if not account.startswith("DU"):
+            return False, "managed account is not an IBKR Paper DU account"
+        client.account = account
+        client.reqAccountSummary(19101, "All", "NetLiquidation,TotalCashValue,AvailableFunds,ExcessLiquidity,BuyingPower,GrossPositionValue,UnrealizedPnL,RealizedPnL")
+        client.reqPnL(19201, account, "")
+        client.reqAccountUpdates(True, account)
+        client.summary_ready.wait(timeout)
+        client.pnl_ready.wait(timeout)
+        client.portfolio_ready.wait(min(timeout, 1.0))
+        sample = client.sample()
+        append_outputs(REPORT_ROOT / "pnl_timeseries.csv", REPORT_ROOT / "pnl_timeseries.jsonl", sample)
+        if sample.daily_pnl is None and sample.realized_pnl is None and sample.unrealized_pnl is None:
+            return False, "PnL refresh returned no PnL fields"
+        return True, ""
+    except Exception as exc:
+        return False, f"PnL refresh failed: {exc}"
+    finally:
+        try:
+            client.cancelPnL(19201)
+        except Exception:
+            pass
+        try:
+            if client.account:
+                client.reqAccountUpdates(False, client.account)
+        except Exception:
+            pass
+        try:
+            client.cancelAccountSummary(19101)
+        except Exception:
+            pass
+        if client.isConnected():
+            client.disconnect()
 
 
 def build_force_refresh_dry_run(*, settings: Settings | None = None) -> dict[str, Any]:
@@ -293,6 +374,109 @@ def require_fresh_state_for_execution(state: AccountState | None = None, *, sett
     if refreshed.state_stale:
         return ForceRefreshResult(True, result.force_refresh_performed, False, result.positions_refreshed, result.open_orders_refreshed, result.quotes_refreshed, result.pnl_refreshed, result.protection_coverage_refreshed, refreshed.blocked_reason or "account state is stale")
     return result
+
+
+def build_account_snapshot(
+    *,
+    now: str,
+    account: Mapping[str, Any],
+    pnl_latest: Mapping[str, Any],
+    positions: list[PositionState],
+    open_orders: list[OpenOrderState],
+    coverage: list[ProtectionCoverageState],
+    freshness: StateFreshness,
+) -> AccountSnapshot:
+    account_time = str(first_present(account.get("timestamp"), account.get("pnl_timestamp"), None) or "")
+    pnl_time = str(first_present(pnl_latest.get("timestamp"), account.get("pnl_timestamp"), None) or "")
+    gross_exposure_value = sum_float(abs(item.market_value) if item.market_value is not None else None for item in positions)
+    net_exposure_value = sum_float(item.market_value for item in positions)
+    gross_position_value = first_present(
+        account.get("gross_position_value"),
+        pnl_latest.get("gross_position_value"),
+        gross_exposure_value,
+    )
+    return AccountSnapshot(
+        timestamp=now,
+        account_id=field_snapshot(first_present(account.get("account"), pnl_latest.get("account")), "account_report", account_time, now, freshness.account_summary_age_sec, sensitive=True),
+        net_liquidation=field_snapshot(first_present(account.get("net_liquidation"), pnl_latest.get("net_liquidation")), "account_report/pnl_timeseries", account_time or pnl_time, now, freshness.account_summary_age_sec),
+        total_cash_value=field_snapshot(first_present(account.get("cash"), pnl_latest.get("total_cash_value")), "account_report/pnl_timeseries", account_time or pnl_time, now, freshness.account_summary_age_sec),
+        buying_power=field_snapshot(first_present(account.get("buying_power"), pnl_latest.get("buying_power")), "account_report/pnl_timeseries", account_time or pnl_time, now, freshness.account_summary_age_sec),
+        available_funds=field_snapshot(first_present(account.get("available_funds"), pnl_latest.get("available_funds")), "pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        excess_liquidity=field_snapshot(first_present(account.get("excess_liquidity"), pnl_latest.get("excess_liquidity")), "pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        gross_position_value=field_snapshot(gross_position_value, "pnl_timeseries/positions", pnl_time, now, freshness.pnl_age_sec),
+        daily_pnl=field_snapshot(first_present(account.get("daily_pnl"), pnl_latest.get("daily_pnl")), "account_report/pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        realized_pnl=field_snapshot(first_present(account.get("realized_pnl"), pnl_latest.get("realized_pnl")), "account_report/pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        unrealized_pnl=field_snapshot(first_present(account.get("unrealized_pnl"), pnl_latest.get("unrealized_pnl")), "account_report/pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        positions=positions,
+        gross_exposure=field_snapshot(gross_exposure_value, "positions", now, now, freshness.positions_age_sec),
+        net_exposure=field_snapshot(net_exposure_value, "positions", now, now, freshness.positions_age_sec),
+        open_orders=open_orders,
+        executions=latest_executions(),
+        protective_order_coverage=coverage,
+        account_callback_freshness=field_snapshot(freshness.account_summary_age_sec, "account_report", account_time, now, freshness.account_summary_age_sec),
+        pnl_freshness=field_snapshot(freshness.pnl_age_sec, "pnl_timeseries", pnl_time, now, freshness.pnl_age_sec),
+        position_freshness=field_snapshot(freshness.positions_age_sec, "position_guard", now, now, freshness.positions_age_sec),
+        order_freshness=field_snapshot(freshness.open_orders_age_sec, "open_orders", now, now, freshness.open_orders_age_sec),
+        data_quality={
+            "account_summary_fresh": freshness.account_summary_age_sec is not None and freshness.account_summary_age_sec <= DEFAULT_STALE_SEC * 10,
+            "pnl_fresh": freshness.pnl_age_sec is not None and freshness.pnl_age_sec <= DEFAULT_STALE_SEC * 10,
+            "positions_fresh": freshness.positions_age_sec is not None and freshness.positions_age_sec <= DEFAULT_STALE_SEC * 2,
+            "open_orders_fresh": freshness.open_orders_age_sec is not None and freshness.open_orders_age_sec <= DEFAULT_STALE_SEC * 2,
+            "protection_coverage_fresh": freshness.protection_coverage_age_sec is not None and freshness.protection_coverage_age_sec <= DEFAULT_STALE_SEC * 2,
+            "missing_fields": snapshot_missing_fields(account, pnl_latest, gross_position_value),
+        },
+    )
+
+
+def field_snapshot(value: Any, source: str, source_timestamp: str | None, received_timestamp: str, age_sec: float | None, *, sensitive: bool = False) -> FieldSnapshot:
+    present = value not in (None, "")
+    freshness = "MISSING"
+    if present:
+        freshness = "FRESH" if age_sec is not None and age_sec <= DEFAULT_STALE_SEC * 10 else "STALE"
+    if sensitive and present:
+        value = redact_account_id(str(value))
+    return FieldSnapshot(
+        value=value if present else "MISSING",
+        source=source,
+        source_timestamp=source_timestamp or None,
+        received_timestamp=received_timestamp,
+        age_sec=age_sec,
+        freshness=freshness,
+    )
+
+
+def snapshot_missing_fields(account: Mapping[str, Any], pnl_latest: Mapping[str, Any], gross_position_value: Any) -> list[str]:
+    checks = {
+        "NetLiquidation": first_present(account.get("net_liquidation"), pnl_latest.get("net_liquidation")),
+        "TotalCashValue": first_present(account.get("cash"), pnl_latest.get("total_cash_value")),
+        "BuyingPower": first_present(account.get("buying_power"), pnl_latest.get("buying_power")),
+        "AvailableFunds": first_present(account.get("available_funds"), pnl_latest.get("available_funds")),
+        "ExcessLiquidity": first_present(account.get("excess_liquidity"), pnl_latest.get("excess_liquidity")),
+        "GrossPositionValue": gross_position_value,
+        "DailyPnL": first_present(account.get("daily_pnl"), pnl_latest.get("daily_pnl")),
+        "RealizedPnL": first_present(account.get("realized_pnl"), pnl_latest.get("realized_pnl")),
+        "UnrealizedPnL": first_present(account.get("unrealized_pnl"), pnl_latest.get("unrealized_pnl")),
+    }
+    return [name for name, value in checks.items() if value in (None, "")]
+
+
+def latest_executions(*, limit: int = 20) -> list[dict[str, Any]]:
+    db = AUDIT_DB
+    if not db.exists():
+        return []
+    try:
+        import sqlite3
+
+        uri = f"file:{db}?mode=ro&immutable=1"
+        with closing(sqlite3.connect(uri, uri=True)) as con, con:
+            con.row_factory = sqlite3.Row
+            rows = con.execute(
+                "SELECT exec_id, order_id, symbol, side, shares, price, executed_at FROM executions ORDER BY first_seen_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+    except Exception:
+        return []
 
 
 def build_quote_states(rows: Any, *, now: str) -> list[QuoteState]:
@@ -727,6 +911,7 @@ def account_dashboard_payload(state: AccountState) -> dict[str, Any]:
         "timestamp": state.timestamp,
         "source": "account_dashboard",
         "mode": state.mode,
+        "account_snapshot": asdict(state.account_snapshot) if state.account_snapshot else {},
         "net_liquidation": state.net_liquidation,
         "cash": state.cash,
         "buying_power": state.buying_power,
@@ -930,7 +1115,7 @@ def monitoring_line_md(payload: Mapping[str, Any]) -> str:
 
 
 def latest_pnl_row() -> dict[str, Any]:
-    path = PROJECT_ROOT / "reports" / "pnl_timeseries.csv"
+    path = REPORT_ROOT / "pnl_timeseries.csv"
     if not path.exists():
         return {}
     try:
@@ -939,6 +1124,10 @@ def latest_pnl_row() -> dict[str, Any]:
         return dict(rows[-1]) if rows else {}
     except Exception:
         return {}
+
+
+def pnl_has_account_summary(row: Mapping[str, Any]) -> bool:
+    return any(row.get(name) not in (None, "") for name in ("net_liquidation", "total_cash_value", "available_funds", "excess_liquidity", "buying_power"))
 
 
 def file_age(path: Path) -> float | None:
@@ -972,6 +1161,19 @@ def float_or_none(value: Any) -> float | None:
         return None if value in (None, "") else float(value)
     except (TypeError, ValueError):
         return None
+
+
+def first_present(*values: Any) -> Any:
+    for value in values:
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def redact_account_id(value: str) -> str:
+    if value.startswith("DU") and len(value) > 4:
+        return f"{value[:2]}...{value[-2:]}"
+    return value
 
 
 def sum_float(values: Any) -> float | None:

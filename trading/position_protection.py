@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.account_state_manager import require_fresh_state_for_execution
 from trading.market_data import Quote
@@ -14,7 +15,7 @@ from trading.process_guard import read_lock
 from trading.tws_paper import TwsPaperBroker
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "position_protection"
+REPORT_DIR = REPORT_ROOT / "position_protection"
 ACTIVE_ORDER_STATUSES = {"Submitted", "PreSubmitted", "Accepted", "ApiPending", "PendingSubmit"}
 
 # STRATEGY_DEBT[STOP-001]:

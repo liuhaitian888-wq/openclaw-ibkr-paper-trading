@@ -131,13 +131,19 @@ class TradingApiHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+from trading.production_guard import guarded_service
+
+@guarded_service("api")
 def main() -> None:
     settings = Settings.load()
     TradingApiHandler.service = TradingService(settings)
     server = ThreadingHTTPServer((settings.api_host, settings.api_port), TradingApiHandler)
     print(f"Trading API listening on http://{settings.api_host}:{settings.api_port}")
     print(f"Mode: {settings.trading_mode}; paper transmit: {settings.allow_paper_transmit}")
-    server.serve_forever()
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":

@@ -7,11 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "timestamp_reconciliation"
+REPORT_DIR = REPORT_ROOT / "timestamp_reconciliation"
 SOURCE_PRIORITY = {"REAL_IBKR": 5, "LIVE_EXTERNAL": 4, "LOCAL_CACHE": 3, "SIMULATION": 2, "TEST_FIXTURE": 1}
 FRESHNESS_STATUSES = {
     "FRESH",

@@ -3,16 +3,17 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.price_normalizer import normalize_order_price
 from trading.profit_lock import common_row
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "take_profit"
+REPORT_DIR = REPORT_ROOT / "take_profit"
 
 
 def build_take_profit_report(position_guard: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    position_guard = position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    position_guard = position_guard or read_json(REPORT_ROOT / "position_guard" / "latest.json")
     threshold = float(os.getenv("TAKE_PROFIT_TRIGGER_PCT", "0.10"))
     fraction = float(os.getenv("TAKE_PROFIT_FRACTION", "0.25"))
     rows = [take_profit_row(row, threshold=threshold, fraction=fraction) for row in position_guard.get("symbols", []) if isinstance(row, Mapping) and float(row.get("position_qty") or 0) > 0]

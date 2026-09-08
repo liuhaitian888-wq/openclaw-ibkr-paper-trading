@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "security_master"
+REPORT_DIR = REPORT_ROOT / "security_master"
 DEFAULT_UNIVERSE = PROJECT_ROOT / "data" / "us_equity_universe.csv"
 DEFAULT_SECURITY_MASTER = PROJECT_ROOT / "data" / "security_master.csv"
 

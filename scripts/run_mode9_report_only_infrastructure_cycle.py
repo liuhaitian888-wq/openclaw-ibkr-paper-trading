@@ -12,6 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from scripts.build_mode9_infrastructure_status import build_all_reports
 from scripts.build_market_data_billing_safety import build_report as build_market_data_billing_safety_report, write_report as write_market_data_billing_safety_report
 from trading.account_state_manager import build_account_state, build_force_refresh_dry_run
@@ -29,7 +31,7 @@ from trading.take_profit import build_take_profit_report
 from trading.trailing_profit import build_trailing_profit_report
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "mode9_report_only_infrastructure_cycle"
+REPORT_DIR = REPORT_ROOT / "mode9_report_only_infrastructure_cycle"
 
 
 def main() -> int:

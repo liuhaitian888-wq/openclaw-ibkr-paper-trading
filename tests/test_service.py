@@ -59,6 +59,7 @@ def valid_limit_payload(key: str = "limit-0001") -> dict:
         "side": "BUY",
         "quantity": 1,
         "limit_price": 300.0,
+        "stop_price": 290.0,
         "idempotency_key": key,
     }
 
@@ -233,7 +234,7 @@ class TradingServiceTests(unittest.TestCase):
             )
 
     @patch("trading.service.TwsPaperBroker")
-    def test_limit_paper_order_uses_session_token_without_stop_price(
+    def test_limit_paper_order_without_stop_is_rejected_before_tws(
         self,
         broker_class: object,
     ) -> None:
@@ -247,6 +248,7 @@ class TradingServiceTests(unittest.TestCase):
                 max_order_value=400.0,
             )
             payload = valid_limit_payload()
+            payload.pop("stop_price")
             payload["source"] = "openclaw"
             payload["trade_session_token"] = "session-ok"
             broker_class.return_value.submit_limit.return_value = OrderConfirmation(
@@ -262,21 +264,12 @@ class TradingServiceTests(unittest.TestCase):
 
             result = service.submit_limit(payload, transmit=True)
 
-            self.assertEqual(result["status"], "PAPER_LIMIT_SUBMITTED")
-            self.assertEqual(result["confirmation_status"], "CONFIRMED")
-            self.assertEqual(result["preflight"]["lock_state"], "TRADE_LOCK")
-            self.assertEqual(result["order_id"], 200)
+            self.assertEqual(result["status"], "REJECTED")
+            self.assertFalse(result["approved"])
+            self.assertIn("Protective stop", result["reason"])
             self.assertIn("service_total_ms", result["timings"])
             self.assertIn("service_risk_ms", result["timings"])
-            self.assertEqual(result["timings"]["broker_total_ms"], 2.0)
-            record = service.audit_order("limit-0001")["order"]
-            self.assertIn("execution_intent=paper_transmit", record["details"])
-            self.assertIn("transmit=true", record["details"])
-            broker_class.return_value.submit_limit.assert_called_once_with(
-                unittest.mock.ANY,
-                transmit=True,
-                outside_rth=True,
-            )
+            broker_class.return_value.submit_limit.assert_not_called()
 
     @patch("trading.service.TwsPaperBroker")
     def test_bracket_paper_order_records_pending_confirmation_when_only_parent_acknowledged(

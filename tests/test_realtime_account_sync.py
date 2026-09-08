@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -96,7 +97,7 @@ class RealtimeAccountSyncTests(unittest.TestCase):
             writer.submit_event_store(event_id="e1", source_module="test", event_type="x")
             writer.submit_event_store(event_id="e2", source_module="test", event_type="x")
             written = writer.flush()
-            with sqlite3.connect(store.db_path) as con:
+            with closing(sqlite3.connect(store.db_path)) as con, con:
                 count = con.execute("select count(*) from event_store").fetchone()[0]
             journal_mode = store.journal_mode()
 

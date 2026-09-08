@@ -5,13 +5,14 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "event_risk"
+REPORT_DIR = REPORT_ROOT / "event_risk"
 LOCAL_EVENT_PATHS = (
     PROJECT_ROOT / "data" / "event_risk.json",
-    PROJECT_ROOT / "reports" / "event_risk" / "local_events.json",
+    REPORT_ROOT / "event_risk" / "local_events.json",
 )
 
 
@@ -131,7 +132,7 @@ def _event_for_symbol(events: Mapping[str, Any], symbol: str) -> dict[str, Any]:
 
 
 def _latest_net_liquidation() -> float | None:
-    path = PROJECT_ROOT / "reports" / "account" / "latest.json"
+    path = REPORT_ROOT / "account" / "latest.json"
     if not path.exists():
         return None
     try:

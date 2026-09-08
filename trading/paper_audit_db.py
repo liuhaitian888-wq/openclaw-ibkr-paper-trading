@@ -1,6 +1,7 @@
 """SQLite logging helpers for Mode 9 paper automation."""
 
 from __future__ import annotations
+from contextlib import closing
 
 import json
 import sqlite3
@@ -8,10 +9,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import AUDIT_DB
 from trading.config import PROJECT_ROOT
 
 
-DB_PATH = PROJECT_ROOT / "trading_audit_v2.sqlite3"
+DB_PATH = AUDIT_DB
 
 ORDER_INTENT_COLUMNS = (
     "event_id TEXT, intent_id TEXT, timestamp_utc TEXT, cycle_id TEXT, snapshot_id TEXT, state_version INTEGER, "
@@ -117,7 +119,7 @@ GENERIC_DECISION_COLUMNS = {
 
 
 def ensure_paper_automation_tables(db_path: Path = DB_PATH) -> None:
-    with sqlite3.connect(db_path) as con:
+    with closing(sqlite3.connect(db_path)) as con, con:
         for table, columns in PAPER_AUTOMATION_TABLES.items():
             con.execute(f"CREATE TABLE IF NOT EXISTS {table} ({columns})")
             existing = {row[1] for row in con.execute(f"PRAGMA table_info({table})")}
@@ -138,7 +140,7 @@ def insert_event(table: str, values: Mapping[str, Any], *, db_path: Path = DB_PA
     if "payload_json" in row and row["payload_json"] is None:
         row["payload_json"] = json.dumps(dict(values), sort_keys=True)
     placeholders = ", ".join("?" for _ in columns)
-    with sqlite3.connect(db_path) as con:
+    with closing(sqlite3.connect(db_path)) as con, con:
         con.execute(
             f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})",
             [row.get(column) for column in columns],
@@ -190,7 +192,7 @@ def generic_decision_event(
 def sqlite_table_summary(db_path: Path = DB_PATH) -> dict[str, Any]:
     ensure_paper_automation_tables(db_path)
     summary: dict[str, Any] = {}
-    with sqlite3.connect(db_path) as con:
+    with closing(sqlite3.connect(db_path)) as con, con:
         con.row_factory = sqlite3.Row
         for table in PAPER_AUTOMATION_TABLES:
             count = con.execute(f"SELECT count(*) FROM {table}").fetchone()[0]

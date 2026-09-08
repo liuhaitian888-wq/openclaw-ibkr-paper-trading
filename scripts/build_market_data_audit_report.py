@@ -10,13 +10,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
 
-REPORT_PATH = PROJECT_ROOT / "reports" / "market_data_audit" / "latest.json"
+
+REPORT_PATH = REPORT_ROOT / "market_data_audit" / "latest.json"
 
 
 def main() -> int:
-    latest_agent = _read_json(PROJECT_ROOT / "reports/autonomous_agent/latest.json")
-    latest_runtime = _read_json(PROJECT_ROOT / "reports/autonomous_runtime_status.json")
+    latest_agent = _read_json(REPORT_ROOT / "autonomous_agent/latest.json")
+    latest_runtime = _read_json(REPORT_ROOT / "autonomous_runtime_status.json")
     latest_pool = _latest_pool_report()
     code_hits = _code_hits()
     report = {
@@ -67,7 +69,7 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def _latest_pool_report() -> dict[str, Any]:
-    paths = sorted((PROJECT_ROOT / "reports").glob("pool_strategy_module_*.json"))
+    paths = sorted((REPORT_ROOT).glob("pool_strategy_module_*.json"))
     if not paths:
         return {}
     path = paths[-1]

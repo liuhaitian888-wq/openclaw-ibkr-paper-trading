@@ -11,12 +11,13 @@ from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.wrapper import EWrapper
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.ibkr_readonly import ParallelIbkrReadOnlyQuoteSource
 from trading.market_data import Quote
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "position_guard"
+REPORT_DIR = REPORT_ROOT / "position_guard"
 
 
 @dataclass(frozen=True)
@@ -322,7 +323,7 @@ def _read_quotes(settings: Settings, symbols: Sequence[str]) -> dict[str, Any]:
 
 
 def _read_streaming_quote_cache(symbols: Sequence[str]) -> dict[str, Any]:
-    latest = PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json"
+    latest = REPORT_ROOT / "autonomous_agent" / "latest.json"
     if not latest.exists():
         return {}
     try:

@@ -7,11 +7,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "position_lifecycle"
+REPORT_DIR = REPORT_ROOT / "position_lifecycle"
 LIFECYCLE_STATES = {
     "CANDIDATE",
     "BUY_SIGNAL_CREATED",

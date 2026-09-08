@@ -74,7 +74,8 @@ Engineering tasks:
 
 - Add a research report that compares backtest and paper behavior.
 - Add transaction cost and slippage assumptions to all strategy reports.
-- Add benchmark comparison against SPY/QQQ.
+- Add benchmark comparison against XNDX first, and retain QQQ as an auxiliary
+  historical benchmark.
 - Add a first stationarity and cointegration research notebook/script before
   allowing pairs trading into paper mode.
 

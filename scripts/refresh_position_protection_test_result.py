@@ -11,11 +11,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from trading.position_protection import ACTIVE_ORDER_STATUSES, write_test_repair_result
 
 
-RESULT_PATH = PROJECT_ROOT / "reports" / "position_protection" / "test_repair_result.json"
-ORDERS_PATH = PROJECT_ROOT / "reports" / "list_tws_orders_latest.json"
+RESULT_PATH = REPORT_ROOT / "position_protection" / "test_repair_result.json"
+ORDERS_PATH = REPORT_ROOT / "list_tws_orders_latest.json"
 
 
 def refresh_result(result: dict[str, Any], orders_payload: dict[str, Any]) -> dict[str, Any]:

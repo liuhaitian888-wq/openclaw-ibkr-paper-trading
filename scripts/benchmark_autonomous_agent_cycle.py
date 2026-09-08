@@ -18,6 +18,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from scripts.run_autonomous_trading_agent import DEFAULT_API_URL, read_required, run_cycle
 from trading.config import Settings
 from trading.universe import DEFAULT_UNIVERSE_FILE
@@ -37,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quote-timeout", type=float, default=8.0)
     parser.add_argument("--market-data-type", type=int, default=1)
     parser.add_argument("--exchange", default="SMART")
-    parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports" / "autonomous_agent" / "benchmarks")
+    parser.add_argument("--report-dir", type=Path, default=REPORT_ROOT / "autonomous_agent" / "benchmarks")
     return parser.parse_args()
 
 
@@ -70,7 +72,7 @@ def main() -> int:
                 market_data_type=args.market_data_type,
                 exchange=args.exchange,
                 report_dir=args.report_dir,
-                candidate_inbox=PROJECT_ROOT / "reports" / "agent_research" / "inbox",
+                candidate_inbox=REPORT_ROOT / "agent_research" / "inbox",
                 candidate_auto_approve=False,
             )
             result = run_cycle(cycle_args, api_key, settings, state, sample)

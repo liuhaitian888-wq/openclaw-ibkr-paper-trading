@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "event_router"
+REPORT_DIR = REPORT_ROOT / "event_router"
 
 
 def build_event_router_report(
@@ -19,12 +20,12 @@ def build_event_router_report(
     pool_membership: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
-    position_guard = position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
-    gap_risk = gap_risk or read_json(PROJECT_ROOT / "reports" / "gap_risk" / "latest.json")
-    gap_escape = gap_escape or read_json(PROJECT_ROOT / "reports" / "gap_escape" / "latest.json")
-    event_risk = event_risk or read_json(PROJECT_ROOT / "reports" / "event_risk" / "latest.json")
-    outside_rth = outside_rth or read_json(PROJECT_ROOT / "reports" / "outside_rth_protection" / "latest.json")
-    pool_membership = pool_membership or read_json(PROJECT_ROOT / "reports" / "pool_membership" / "latest.json")
+    position_guard = position_guard or read_json(REPORT_ROOT / "position_guard" / "latest.json")
+    gap_risk = gap_risk or read_json(REPORT_ROOT / "gap_risk" / "latest.json")
+    gap_escape = gap_escape or read_json(REPORT_ROOT / "gap_escape" / "latest.json")
+    event_risk = event_risk or read_json(REPORT_ROOT / "event_risk" / "latest.json")
+    outside_rth = outside_rth or read_json(REPORT_ROOT / "outside_rth_protection" / "latest.json")
+    pool_membership = pool_membership or read_json(REPORT_ROOT / "pool_membership" / "latest.json")
     events = []
     for row in position_guard.get("symbols", []):
         if isinstance(row, Mapping) and row.get("risk_action_needed"):

@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.buy_decision_engine import build_buy_intent
 from trading.config import PROJECT_ROOT
@@ -162,7 +163,7 @@ def sqlite_ledger_integrity_report() -> dict[str, Any]:
 
 
 def write_report(name: str, payload: dict[str, Any]) -> None:
-    directory = PROJECT_ROOT / "reports" / name
+    directory = REPORT_ROOT / name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True, default=str), encoding="utf-8")
     lines = [f"# {name}", "", f"- timestamp: {payload.get('timestamp')}"]

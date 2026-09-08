@@ -9,11 +9,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+from trading.production_paths import REPORT_ROOT, RUNTIME_ROOT
 from trading.config import PROJECT_ROOT
 
 
-EXECUTION_LOCK_PATH = PROJECT_ROOT / ".runtime" / "execution_writer.lock"
-REPORT_DIR = PROJECT_ROOT / "reports" / "process_guard"
+EXECUTION_LOCK_PATH = RUNTIME_ROOT / "execution_writer.lock"
+REPORT_DIR = REPORT_ROOT / "process_guard"
 
 EXECUTION_CAPABLE_MARKERS = (
     "scripts/run_autonomous_trading_agent.py",

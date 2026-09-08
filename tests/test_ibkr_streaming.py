@@ -20,6 +20,7 @@ class FakeStreamingClient:
         self.ready = self.inner.ready
         self.ready.set()
         self.quote_states = self.inner.quote_states
+        self.ticker_id_to_symbol = self.inner.ticker_id_to_symbol
         self.errors = self.inner.errors
         self.connected = False
         self.market_data_type = None
@@ -117,6 +118,23 @@ class IbkrStreamingQuoteTests(unittest.TestCase):
 
         self.assertTrue(source.is_stale("AAPL"))
 
+    def test_unchanged_quote_is_not_stale_when_live_subscription_is_healthy(self) -> None:
+        source = IbkrStreamingQuoteSource(
+            symbols=["AAPL"], stale_ms=3000, client_factory=FakeStreamingClient,
+        )
+        source.start(timeout=0.01)
+        state = source._client.quote_states["AAPL"]
+        state.bid = 100.0
+        state.ask = 100.2
+        state.timestamp = datetime.now(timezone.utc) - timedelta(minutes=5)
+        state.last_callback_timestamp = state.timestamp
+
+        diagnostic = source.subscription_diagnostic("AAPL")
+
+        self.assertFalse(source.is_stale("AAPL"))
+        self.assertEqual(diagnostic["subscription_status"], "ACTIVE_LIVE")
+        self.assertEqual(diagnostic["stale_reason"], "quiet_no_field_change")
+
     def test_shutdown_cancels_subscriptions(self) -> None:
         source = IbkrStreamingQuoteSource(
             symbols=["AAPL", "MSFT"],
@@ -127,6 +145,34 @@ class IbkrStreamingQuoteTests(unittest.TestCase):
 
         self.assertEqual(source._client.cancelled, [30000, 30001])
         self.assertFalse(source._client.connected)
+
+    def test_rotation_replaces_only_inactive_slot(self) -> None:
+        source = IbkrStreamingQuoteSource(
+            symbols=["AAPL", "MSFT"], max_symbols=2, client_factory=FakeStreamingClient,
+        )
+        source.start(timeout=0.01)
+
+        result = source.rotate_symbols(["AAPL", "NVDA"])
+
+        self.assertEqual(result["removed"], ["MSFT"])
+        self.assertEqual(result["added"], ["NVDA"])
+        self.assertEqual(source.symbols, ("AAPL", "NVDA"))
+
+    def test_restart_rebuilds_client_and_resubscribes(self) -> None:
+        clients = []
+
+        def factory(mapping):
+            client = FakeStreamingClient(mapping)
+            clients.append(client)
+            return client
+
+        source = IbkrStreamingQuoteSource(symbols=["AAPL", "MSFT"], client_factory=factory)
+        source.start(timeout=0.01)
+
+        self.assertTrue(source.restart(timeout=0.01))
+
+        self.assertEqual(len(clients), 2)
+        self.assertEqual([item[1] for item in clients[1].requests], ["AAPL", "MSFT"])
 
     def test_streaming_errors_are_recorded_per_symbol(self) -> None:
         client = IbkrStreamingQuoteClient({30000: "AAPL"})

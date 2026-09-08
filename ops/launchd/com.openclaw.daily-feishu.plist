@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.openclaw.daily-feishu</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>/Users/nbhsbgnb/.codex/worktrees/7c43/New project/scripts/send_daily_feishu_update_if_due.command</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/nbhsbgnb/.codex/worktrees/7c43/New project</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>StartInterval</key>
+  <integer>60</integer>
+
+  <key>StandardOutPath</key>
+  <string>/Users/nbhsbgnb/.codex/worktrees/7c43/New project/logs/daily_feishu_launchd.out</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/nbhsbgnb/.codex/worktrees/7c43/New project/logs/daily_feishu_launchd.err</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+    <key>PYTHON_BIN</key>
+    <string>/Users/nbhsbgnb/Documents/New project/.venv313/bin/python</string>
+    <key>TZ</key>
+    <string>Asia/Shanghai</string>
+  </dict>
+</dict>
+</plist>

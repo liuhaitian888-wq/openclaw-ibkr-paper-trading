@@ -4,10 +4,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
-REPORT_PATH = PROJECT_ROOT / "reports" / "market_data_lines" / "latest.json"
+REPORT_PATH = REPORT_ROOT / "market_data_lines" / "latest.json"
 
 
 @dataclass(frozen=True)

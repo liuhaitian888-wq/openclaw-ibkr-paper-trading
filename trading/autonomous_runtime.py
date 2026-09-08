@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping, Protocol, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.market_data import Quote
 from trading.models import TradeProposal
@@ -32,8 +33,8 @@ class AutonomousRuntimeConfig:
     kill_switch: bool = False
     cycle_sleep_seconds: float = 30.0
     max_cycles: int = 0
-    status_path: Path = PROJECT_ROOT / "reports" / "autonomous_runtime_status.json"
-    events_path: Path = PROJECT_ROOT / "reports" / "autonomous_runtime_events.jsonl"
+    status_path: Path = REPORT_ROOT / "autonomous_runtime_status.json"
+    events_path: Path = REPORT_ROOT / "autonomous_runtime_events.jsonl"
 
     @classmethod
     def from_env(cls) -> "AutonomousRuntimeConfig":
@@ -42,8 +43,8 @@ class AutonomousRuntimeConfig:
             kill_switch=_bool_env("AUTONOMOUS_KILL_SWITCH", False),
             cycle_sleep_seconds=float(os.getenv("AUTONOMOUS_CYCLE_SLEEP_SECONDS", "30")),
             max_cycles=int(os.getenv("AUTONOMOUS_MAX_CYCLES", "0")),
-            status_path=Path(os.getenv("AUTONOMOUS_STATUS_PATH", str(PROJECT_ROOT / "reports" / "autonomous_runtime_status.json"))),
-            events_path=Path(os.getenv("AUTONOMOUS_EVENTS_PATH", str(PROJECT_ROOT / "reports" / "autonomous_runtime_events.jsonl"))),
+            status_path=Path(os.getenv("AUTONOMOUS_STATUS_PATH", str(REPORT_ROOT / "autonomous_runtime_status.json"))),
+            events_path=Path(os.getenv("AUTONOMOUS_EVENTS_PATH", str(REPORT_ROOT / "autonomous_runtime_events.jsonl"))),
         )
 
 

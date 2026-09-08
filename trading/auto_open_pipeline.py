@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.order_intents import OrderIntent, make_intent_id
 from trading.paper_audit_db import ensure_paper_automation_tables, insert_event
@@ -143,7 +144,7 @@ def run_discovery_orchestrator(run_id: str, config: PipelineConfig) -> dict[str,
         ("STATIC_SEED", "STATIC", True, True, seed_symbols, "seed universe"),
         ("MANUAL_WATCHLIST", "MANUAL", True, True, env_symbols("MANUAL_WATCHLIST", "AAPL,MSFT,NVDA"), "manual watchlist"),
         ("TWS_IBKR_SCANNER", "IBKR_SCANNER", config.scanner_enabled, tws_available(), [], "scanner source is handled by ibkr_scanner"),
-        ("CACHED_SCANNER", "CACHED_SCANNER", config.scanner_enabled, (PROJECT_ROOT / "reports" / "scanner_candidates" / "latest.json").exists(), cached_scanner_symbols(), "cached scanner"),
+        ("CACHED_SCANNER", "CACHED_SCANNER", config.scanner_enabled, (REPORT_ROOT / "scanner_candidates" / "latest.json").exists(), cached_scanner_symbols(), "cached scanner"),
         ("MOCK_SCANNER", "MOCK_SCANNER", config.scanner_enabled, config.mock_scanner_enabled, ["AMD", "MU", "PLTR", "SMCI"], "configured mock scanner"),
         ("EXTERNAL_MARKET_DATA_SOURCES", "EXTERNAL", config.external_sources_enabled, True, ["QQQ", "SPY", "IWM"], "local external fixture"),
         ("IBKR_NEWS", "IBKR_NEWS", config.news_trigger_enabled, True, [], "news source is handled by news pipeline"),
@@ -1173,7 +1174,7 @@ def add_pool_membership(rows: list[dict[str, Any]], run_id: str, symbol: str, po
 
 
 def write_report(name: str, payload: Mapping[str, Any], *, append_history: bool = False) -> None:
-    directory = PROJECT_ROOT / "reports" / name
+    directory = REPORT_ROOT / name
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     lines = [f"# {name}", "", f"- timestamp: {payload.get('timestamp')}"]
@@ -1207,7 +1208,7 @@ def load_universe_rows(path: Path = DEFAULT_UNIVERSE) -> list[dict[str, str]]:
 
 
 def current_position_symbols() -> list[str]:
-    data = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    data = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     return sorted({
         str(row.get("symbol", "")).upper()
         for row in data.get("symbols", [])
@@ -1216,12 +1217,12 @@ def current_position_symbols() -> list[str]:
 
 
 def open_order_symbols_from_reports() -> list[str]:
-    data = read_json(PROJECT_ROOT / "reports" / "open_order_state" / "latest.json")
+    data = read_json(REPORT_ROOT / "open_order_state" / "latest.json")
     rows = data.get("open_orders", []) if isinstance(data.get("open_orders"), list) else []
     symbols = {str(row.get("symbol", "")).upper() for row in rows if isinstance(row, Mapping)}
     if symbols:
         return sorted(symbols)
-    position_guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    position_guard = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     return sorted({
         str(row.get("symbol", "")).upper()
         for row in position_guard.get("symbols", [])
@@ -1230,7 +1231,7 @@ def open_order_symbols_from_reports() -> list[str]:
 
 
 def research_symbols() -> list[str]:
-    latest = read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json")
+    latest = read_json(REPORT_ROOT / "autonomous_agent" / "latest.json")
     return sorted({
         str(row.get("symbol", "")).upper()
         for row in latest.get("research_tasks", [])
@@ -1239,7 +1240,7 @@ def research_symbols() -> list[str]:
 
 
 def cached_scanner_symbols() -> list[str]:
-    data = read_json(PROJECT_ROOT / "reports" / "scanner_candidates" / "latest.json")
+    data = read_json(REPORT_ROOT / "scanner_candidates" / "latest.json")
     rows = data.get("records", []) if isinstance(data.get("records"), list) else []
     return sorted({str(row.get("symbol", "")).upper() for row in rows if isinstance(row, Mapping) and row.get("symbol")})
 
@@ -1274,7 +1275,7 @@ def tws_available() -> bool:
 
 
 def market_session_state() -> str:
-    data = read_json(PROJECT_ROOT / "reports" / "market_session" / "latest.json")
+    data = read_json(REPORT_ROOT / "market_session" / "latest.json")
     return str(data.get("session_state") or "UNKNOWN")
 
 

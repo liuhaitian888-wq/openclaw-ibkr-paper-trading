@@ -5,6 +5,7 @@ from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP
 from pathlib import Path
 from typing import Literal
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
@@ -13,7 +14,7 @@ Side = Literal["BUY", "SELL"]
 RoundingDirection = Literal["floor", "ceil", "nearest"]
 
 DEFAULT_US_STOCK_MIN_TICK = Decimal("0.01")
-REPORT_DIR = PROJECT_ROOT / "reports" / "price_normalizer"
+REPORT_DIR = REPORT_ROOT / "price_normalizer"
 
 
 @dataclass(frozen=True)

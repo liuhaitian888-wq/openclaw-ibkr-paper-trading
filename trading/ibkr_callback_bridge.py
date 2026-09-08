@@ -18,6 +18,7 @@ from ibapi.order import Order
 from ibapi.order_state import OrderState
 from ibapi.wrapper import EWrapper
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT, Settings
 from trading.data_buses import MarketDataBus, build_data_bus_architecture_report
@@ -27,7 +28,7 @@ from trading.state_timestamp_reconciler import TimestampReconciler
 from trading.subscription_health import build_subscription_health_report
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "ibkr_callback_dry_run"
+REPORT_DIR = REPORT_ROOT / "ibkr_callback_dry_run"
 
 
 class IbkrCallbackBridge(EWrapper, EClient):
@@ -39,6 +40,8 @@ class IbkrCallbackBridge(EWrapper, EClient):
         self.reconciler = TimestampReconciler(audit_writer=self.audit_writer)
         self.symbols_by_req_id = dict(symbols_by_req_id or {})
         self.ready = threading.Event()
+        self.managed_accounts_ready = threading.Event()
+        self.managed_accounts: list[str] = []
         self.open_order_end = threading.Event()
         self.position_end = threading.Event()
         self.exec_details_end = threading.Event()
@@ -50,6 +53,18 @@ class IbkrCallbackBridge(EWrapper, EClient):
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.ready.set()
         self._record_callback("nextValidId", req_id=orderId, field_name="connection_state", raw_value=orderId, state_key="risk", payload={"next_valid_id": orderId})
+
+    def managedAccounts(self, accountsList: str) -> None:  # noqa: N802,N803
+        self.managed_accounts = [item.strip() for item in accountsList.split(",") if item.strip()]
+        self.managed_accounts_ready.set()
+        self._record_callback(
+            "managedAccounts",
+            field_name="managed_accounts",
+            raw_value=len(self.managed_accounts),
+            normalized_value=len(self.managed_accounts),
+            state_key="account",
+            payload={"managed_account_count": len(self.managed_accounts)},
+        )
 
     def connectionClosed(self) -> None:  # noqa: N802
         self._record_callback("connectionClosed", field_name="connection_state", raw_value="closed", state_key="risk", payload={"connection_closed": True}, stale_flag=True)
@@ -250,7 +265,8 @@ def run_ibkr_callback_dry_run(*, duration_seconds: float = 60.0, symbols: list[s
         thread.start()
         connected = bridge.ready.wait(settings.tws_status_timeout)
         if connected:
-            account = ""
+            bridge.managed_accounts_ready.wait(settings.tws_status_timeout)
+            account = bridge.managed_accounts[0] if bridge.managed_accounts else ""
             try:
                 bridge.reqAccountUpdates(True, account)
                 requested.append("reqAccountUpdates")
@@ -272,8 +288,10 @@ def run_ibkr_callback_dry_run(*, duration_seconds: float = 60.0, symbols: list[s
             except Exception as exc:
                 bridge.errors.append(f"reqExecutions failed: {exc}")
             try:
+                if not account:
+                    raise RuntimeError("managed Paper account was not returned")
                 bridge.reqPnL(9902, account, "")
-                requested.append("reqPnL")
+                requested.append("reqPnL:managed_account")
             except Exception as exc:
                 bridge.errors.append(f"reqPnL failed: {exc}")
             for index, symbol in enumerate(symbols or []):

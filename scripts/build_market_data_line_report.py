@@ -7,13 +7,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from trading.config import Settings
 from trading.market_data_line_manager import MarketDataLineManager
 
 
 def main() -> int:
     settings = Settings.load()
-    latest_agent = _read_json(PROJECT_ROOT / "reports/autonomous_agent/latest.json")
+    latest_agent = _read_json(REPORT_ROOT / "autonomous_agent/latest.json")
     from scripts.list_tws_orders import read_tws_orders
 
     orders = read_tws_orders(

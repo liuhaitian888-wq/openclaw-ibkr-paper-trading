@@ -20,10 +20,11 @@ from zoneinfo import ZoneInfo
 from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.wrapper import EWrapper
+from trading.production_paths import REPORT_ROOT
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-REPORT_DIR = PROJECT_ROOT / "reports" / "market_session"
+REPORT_DIR = REPORT_ROOT / "market_session"
 NY = ZoneInfo("America/New_York")
 LOCAL = ZoneInfo(os.getenv("OPENCLAW_LOCAL_TIMEZONE", "Europe/Berlin"))
 

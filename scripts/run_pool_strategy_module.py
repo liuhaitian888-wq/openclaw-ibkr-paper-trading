@@ -21,6 +21,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
+
 from trading.config import Settings
 from trading.dashboard import render_dashboard_html
 from trading.ibkr_readonly import IbkrReadOnlyQuoteSource, ParallelIbkrReadOnlyQuoteSource
@@ -133,7 +136,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-consecutive-losses", type=int, default=3)
     parser.add_argument("--allow-new-entries-outside-rth", action="store_true")
     parser.add_argument("--buy-freeze", action="store_true")
-    parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
+    parser.add_argument("--report-dir", type=Path, default=REPORT_ROOT)
     parser.add_argument(
         "--dashboard-output",
         type=Path,
@@ -142,6 +145,9 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+from trading.production_guard import guarded_service
+
+@guarded_service("pool-strategy")
 def main() -> int:
     started = time.perf_counter()
     args = parse_args()

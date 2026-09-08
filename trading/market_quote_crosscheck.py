@@ -7,12 +7,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.market_session import write_market_session_report
 from trading.paper_audit_db import insert_event
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "market_quote_crosscheck"
+REPORT_DIR = REPORT_ROOT / "market_quote_crosscheck"
 ACTIVE_SESSIONS = {"PREMARKET", "REGULAR", "AFTERHOURS", "EARLY_CLOSE"}
 CLOSED_SESSIONS = {"CLOSED", "WEEKEND", "HOLIDAY"}
 
@@ -26,7 +27,7 @@ def build_market_quote_crosscheck_report(
     write_sqlite: bool = True,
 ) -> dict[str, Any]:
     market_session = dict(market_session or write_market_session_report(symbols=symbols))
-    streaming_diagnostics = dict(streaming_diagnostics or _read_json(PROJECT_ROOT / "reports" / "streaming_quote_diagnostics" / "latest.json"))
+    streaming_diagnostics = dict(streaming_diagnostics or _read_json(REPORT_ROOT / "streaming_quote_diagnostics" / "latest.json"))
     rows_by_symbol = {
         str(row.get("symbol", "")).upper(): row
         for row in streaming_diagnostics.get("rows", [])

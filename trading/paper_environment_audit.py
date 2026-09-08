@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 
 
@@ -74,7 +75,7 @@ def main() -> int:
     parser.add_argument("--api-timeout", type=float, default=5.0)
     parser.add_argument("--health-json", type=Path)
     parser.add_argument("--no-api-health", action="store_true")
-    parser.add_argument("--output", type=Path, default=PROJECT_ROOT / "reports" / "paper_environment_audit.json")
+    parser.add_argument("--output", type=Path, default=REPORT_ROOT / "paper_environment_audit.json")
     args = parser.parse_args()
 
     settings = Settings.load()

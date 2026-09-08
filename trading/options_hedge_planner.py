@@ -4,10 +4,11 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "options_hedge"
+REPORT_DIR = REPORT_ROOT / "options_hedge"
 
 
 @dataclass(frozen=True)

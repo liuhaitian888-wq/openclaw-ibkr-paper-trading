@@ -12,6 +12,16 @@ from trading.subscription_health import build_subscription_health_report
 
 
 class IbkrCallbackBridgeTests(unittest.TestCase):
+    def test_managed_accounts_callback_caches_accounts_without_exposing_ids_in_payload(self) -> None:
+        bridge = IbkrCallbackBridge()
+
+        bridge.managedAccounts("DU123,DU456")
+
+        self.assertEqual(bridge.managed_accounts, ["DU123", "DU456"])
+        self.assertTrue(bridge.managed_accounts_ready.is_set())
+        self.assertEqual(bridge.callback_counts["managedAccounts"], 1)
+        self.assertNotIn("DU123", str(bridge.account_bus.latest_account_state.payload))
+
     def test_data_bus_architecture_has_four_logical_buses(self) -> None:
         report = build_data_bus_architecture_report()
 

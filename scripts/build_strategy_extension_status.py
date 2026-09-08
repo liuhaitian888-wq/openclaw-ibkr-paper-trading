@@ -11,10 +11,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from trading.config import Settings
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "strategy_extensions"
+REPORT_DIR = REPORT_ROOT / "strategy_extensions"
 
 
 def build_status(settings: Settings, agent_latest: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -85,7 +87,7 @@ def build_status(settings: Settings, agent_latest: dict[str, Any] | None = None)
 
 
 def latest_agent_report() -> dict[str, Any]:
-    path = PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json"
+    path = REPORT_ROOT / "autonomous_agent" / "latest.json"
     if not path.exists():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))

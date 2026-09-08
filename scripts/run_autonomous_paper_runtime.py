@@ -14,6 +14,9 @@ from trading.process_guard import ExecutionLock
 from trading.strategy import MovingAverageConfig, RotatingStrategyScanner, StrategyScannerConfig, TacticalRiskConfig
 
 
+from trading.production_guard import guarded_service
+
+@guarded_service("execution")
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the session-aware autonomous IBKR paper runtime.")
     parser.add_argument("--symbols", default="AAPL,MSFT,SPY")

@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -13,6 +14,7 @@ FRESH_QUOTE = {"bid": 100.0, "ask": 100.1, "last": 100.05, "timestamp": NOW}
 class PoolStateTests(unittest.TestCase):
     def manager(self) -> PoolStateManager:
         self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
         return PoolStateManager(db_path=Path(self.tmp.name) / "audit.sqlite3", now=NOW)
 
     def add_ready_watch(self, mgr: PoolStateManager, symbol: str = "AAPL"):
@@ -81,6 +83,15 @@ class PoolStateTests(unittest.TestCase):
 
         self.assertEqual(state.current_layer, "ELIGIBLE_UNIVERSE")
         self.assertEqual(state.transition_history[-1].reason_code, "SPREAD_TOO_WIDE")
+
+    def test_eligibility_refresh_can_normally_demote_watch_to_eligible(self) -> None:
+        mgr = self.manager()
+        self.add_ready_watch(mgr)
+
+        state = mgr.evaluate_eligibility("AAPL", contract_resolved=True, price=100, average_volume=2_000_000)
+
+        self.assertEqual(state.current_layer, "ELIGIBLE_UNIVERSE")
+        self.assertEqual(state.transition_history[-1].reason_code, "ELIGIBLE")
 
     def test_expired_signal_is_removed(self) -> None:
         mgr = self.manager()
@@ -227,7 +238,7 @@ class PoolStateTests(unittest.TestCase):
         self.add_ready_watch(mgr)
         mgr.promote_to_watch("AAPL", strategy="value_pullback", quote={"bid": 90, "ask": 110, "timestamp": NOW}, entry_reason="still watching", score=70)
 
-        with sqlite3.connect(db) as con:
+        with closing(sqlite3.connect(db)) as con, con:
             reasons = [row[0] for row in con.execute("select reason_code from canonical_pool_transition_events")]
 
         self.assertIn("WATCH_PROMOTED", reasons)

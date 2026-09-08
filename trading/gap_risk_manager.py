@@ -5,10 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "gap_risk"
+REPORT_DIR = REPORT_ROOT / "gap_risk"
 
 
 @dataclass(frozen=True)
@@ -164,7 +165,7 @@ def _long_positions(position_guard: Mapping[str, Any]) -> list[Mapping[str, Any]
 
 
 def _latest_net_liquidation() -> float | None:
-    path = PROJECT_ROOT / "reports" / "account" / "latest.json"
+    path = REPORT_ROOT / "account" / "latest.json"
     if not path.exists():
         return None
     try:

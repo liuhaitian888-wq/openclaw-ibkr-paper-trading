@@ -1,3 +1,4 @@
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -40,7 +41,7 @@ class OrderIntentAndPnlLedgerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             db = Path(directory) / "audit.sqlite3"
             ensure_paper_automation_tables(db)
-            with sqlite3.connect(db) as con:
+            with closing(sqlite3.connect(db)) as con, con:
                 account_cols = {row[1] for row in con.execute("PRAGMA table_info(account_pnl_snapshots)")}
                 position_cols = {row[1] for row in con.execute("PRAGMA table_info(position_pnl_snapshots)")}
                 daily_cols = {row[1] for row in con.execute("PRAGMA table_info(daily_pnl_summary)")}

@@ -166,9 +166,11 @@ class IbkrReadOnlyQuoteSource:
             for index, symbol in enumerate(clean_symbols)
         }
         client = IbkrReadOnlyQuoteClient(req_id_to_symbol)
+        worker = None
         try:
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             if not client.ready.wait(self._timeout):
                 self.last_errors = list(client.errors) + ["TWS API handshake timed out"]
                 return []
@@ -205,6 +207,10 @@ class IbkrReadOnlyQuoteSource:
                     pass
             if client.isConnected():
                 client.disconnect()
+            if worker is not None:
+                worker.join(timeout=2.0)
+                if worker.is_alive():
+                    raise RuntimeError("IBKR quote worker did not terminate")
 
     @staticmethod
     def _stock_contract(

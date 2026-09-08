@@ -24,6 +24,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from trading.config import Settings
 from trading.ibkr_readonly import IbkrReadOnlyQuoteSource
 from trading.market_data import Quote
@@ -56,7 +58,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--exchange", default="SMART")
     parser.add_argument("--market-data-type", type=int, default=3)
     parser.add_argument("--api-timeout", type=float, default=30.0)
-    parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
+    parser.add_argument("--report-dir", type=Path, default=REPORT_ROOT)
     return parser.parse_args()
 
 

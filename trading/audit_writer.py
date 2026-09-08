@@ -64,9 +64,10 @@ class AuditWriter:
 
     def flush(self) -> int:
         events = [(event.table, event.values) for event in self._queue]
-        self._queue.clear()
         if events:
             self.store.append_many(events)
+            for _ in events:
+                self._queue.popleft()
             self.flush_count += 1
         return len(events)
 

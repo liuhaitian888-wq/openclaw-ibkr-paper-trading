@@ -18,6 +18,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from scripts.build_market_data_billing_safety import build_report as build_billing_safety_report
 from scripts.run_full_paper_rollout import current_position_and_open_order_symbols
 from trading.config import Settings
@@ -29,12 +31,12 @@ from trading.pool_manager import build_pool_manager_report
 from trading.process_guard import ExecutionLock, current_execution_processes, read_lock
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "full_paper_run"
-FINAL_DIR = PROJECT_ROOT / "reports" / "final_full_paper_automation_audit"
-TRADE_POOL_DIR = PROJECT_ROOT / "reports" / "trade_pool_decisions"
-PAPER_BUY_DIR = PROJECT_ROOT / "reports" / "paper_buy"
-OPTIONS_EXECUTION_DIR = PROJECT_ROOT / "reports" / "options_execution"
-GAP_ESCAPE_DIR = PROJECT_ROOT / "reports" / "gap_escape"
+REPORT_DIR = REPORT_ROOT / "full_paper_run"
+FINAL_DIR = REPORT_ROOT / "final_full_paper_automation_audit"
+TRADE_POOL_DIR = REPORT_ROOT / "trade_pool_decisions"
+PAPER_BUY_DIR = REPORT_ROOT / "paper_buy"
+OPTIONS_EXECUTION_DIR = REPORT_ROOT / "options_execution"
+GAP_ESCAPE_DIR = REPORT_ROOT / "gap_escape"
 
 
 def main() -> int:

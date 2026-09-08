@@ -19,6 +19,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from ibapi.client import EClient
 from ibapi.contract import Contract
 from ibapi.wrapper import EWrapper
@@ -92,6 +94,8 @@ class AccountPnlClient(EWrapper, EClient):
         self.portfolio_ready = threading.Event()
         self.accounts: List[str] = []
         self.summary: Dict[str, float] = {}
+        self.summary_currency = currency
+        self.account_time = ""
         self.pnl_values: Dict[str, float] = {}
         self.portfolio_values: Dict[str, Dict[str, float]] = {}
         self.errors: List[str] = []
@@ -112,7 +116,7 @@ class AccountPnlClient(EWrapper, EClient):
     ) -> None:
         if self.account and account != self.account:
             return
-        if currency and currency != self.currency:
+        if self.currency and currency and currency != self.currency:
             return
         parsed = _float_or_none(value)
         if parsed is not None:
@@ -120,6 +124,22 @@ class AccountPnlClient(EWrapper, EClient):
 
     def accountSummaryEnd(self, reqId: int) -> None:  # noqa: N802
         self.summary_ready.set()
+
+    def updateAccountValue(self, key: str, val: str, currency: str, accountName: str) -> None:  # noqa: N802,N803
+        if self.account and accountName != self.account:
+            return
+        if self.currency and currency and currency != self.currency:
+            return
+        parsed = _float_or_none(val)
+        if parsed is None:
+            return
+        self.summary[key] = parsed
+        if currency:
+            self.summary_currency = currency
+        self.summary_ready.set()
+
+    def updateAccountTime(self, timeStamp: str) -> None:  # noqa: N802,N803
+        self.account_time = timeStamp
 
     def pnl(  # noqa: N802
         self,
@@ -189,7 +209,7 @@ class AccountPnlClient(EWrapper, EClient):
         return PnlSample(
             timestamp=datetime.now(timezone.utc).isoformat(),
             account=account,
-            currency=self.currency,
+            currency=self.summary_currency,
             daily_pnl=self.pnl_values.get("daily_pnl"),
             unrealized_pnl=_first_not_none(
                 portfolio_unrealized,
@@ -221,12 +241,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--port", type=int)
     parser.add_argument("--client-id", type=int, default=150)
     parser.add_argument("--account", default="")
-    parser.add_argument("--currency", default="EUR")
+    parser.add_argument("--currency", default="")
     parser.add_argument("--interval-seconds", type=float, default=10.0)
     parser.add_argument("--samples", type=int, default=6)
     parser.add_argument("--timeout", type=float, default=10.0)
-    parser.add_argument("--csv-output", type=Path, default=PROJECT_ROOT / "reports" / "pnl_timeseries.csv")
-    parser.add_argument("--jsonl-output", type=Path, default=PROJECT_ROOT / "reports" / "pnl_timeseries.jsonl")
+    parser.add_argument("--csv-output", type=Path, default=REPORT_ROOT / "pnl_timeseries.csv")
+    parser.add_argument("--jsonl-output", type=Path, default=REPORT_ROOT / "pnl_timeseries.jsonl")
     return parser.parse_args()
 
 
@@ -238,7 +258,7 @@ def main() -> int:
         raise SystemExit("--samples must be positive")
 
     settings = Settings.load()
-    client = AccountPnlClient(args.account.strip(), args.currency.strip().upper() or "EUR")
+    client = AccountPnlClient(args.account.strip(), args.currency.strip().upper())
     host = args.host or settings.tws_host
     port = args.port or settings.tws_port
 

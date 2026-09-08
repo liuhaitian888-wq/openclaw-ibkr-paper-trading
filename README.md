@@ -483,6 +483,20 @@ OpenClaw channel message to the moment the OpenClaw client process starts. To
 measure true channel-to-order latency, pass the original message timestamp into
 the client and compare it with `openclaw_command_started_at`.
 
+## Weekly Paper trading report
+
+Generate the sanitized, read-only weekly review with:
+
+```bash
+.venv313/bin/python scripts/generate_weekly_trading_report.py
+```
+
+The command writes current and dated JSON/Markdown files under
+`reports/weekly_trading`. It aggregates strategy decisions, PnL, orders and
+executions, risk and quote blocks, disconnects, lifecycle time, Scanner/L1
+coverage, positions, and remaining blockers. It never connects to TWS, submits
+orders, or includes account identifiers, API keys, webhooks, or session tokens.
+
 ## Related projects
 
 Non-trading projects were split out of this gateway so this folder stays focused

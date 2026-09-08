@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+import trading.account_state_manager as account_module
 from trading.account_state_manager import (
     account_dashboard_payload,
     build_account_state,
@@ -239,20 +240,21 @@ class AccountStateManagerTests(unittest.TestCase):
         self.assertTrue(dashboard["paper_only"])
 
     def test_report_files_are_written(self) -> None:
-        state = build_account_state(
-            position_guard_report={"account": "DU123", "symbols": []},
-            account_snapshot={"account": "DU123"},
-            write_reports_enabled=True,
-        )
+        with tempfile.TemporaryDirectory() as root, patch.multiple(account_module, **{k: Path(root) / v.name for k, v in vars(account_module).items() if k.endswith("_DIR") and isinstance(v, Path)}):
+            state = build_account_state(
+                position_guard_report={"account": "DU123", "symbols": []},
+                account_snapshot={"account": "DU123"},
+                write_reports_enabled=True,
+            )
 
-        self.assertEqual(state.metadata["orders_submitted"], 0)
-        self.assertTrue(Path("reports/account_state/latest.json").exists())
-        self.assertTrue(Path("reports/quote_state/latest.json").exists())
-        self.assertTrue(Path("reports/account_dashboard/latest.json").exists())
-        payload = json.loads(Path("reports/account_state/latest.json").read_text())
-        self.assertEqual(payload["orders_submitted"], 0)
-        quote_payload = json.loads(Path("reports/quote_state/latest.json").read_text())
-        self.assertIn("thresholds_sec", quote_payload)
+            self.assertEqual(state.metadata["orders_submitted"], 0)
+            self.assertTrue(Path(root + "/account_state/latest.json").exists())
+            self.assertTrue(Path(root + "/quote_state/latest.json").exists())
+            self.assertTrue(Path(root + "/account_dashboard/latest.json").exists())
+            payload = json.loads(Path(root + "/account_state/latest.json").read_text())
+            self.assertEqual(payload["orders_submitted"], 0)
+            quote_payload = json.loads(Path(root + "/quote_state/latest.json").read_text())
+            self.assertIn("thresholds_sec", quote_payload)
 
 
 if __name__ == "__main__":

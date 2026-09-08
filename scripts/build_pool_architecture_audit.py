@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Audit whether the six-layer pool architecture is implemented and wired."""
+from contextlib import closing
 
 import csv
 import json
@@ -13,10 +14,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import AUDIT_DB, REPORT_ROOT
 
-ARCH_DIR = PROJECT_ROOT / "reports" / "pool_architecture"
-MEMBERSHIP_DIR = PROJECT_ROOT / "reports" / "pool_membership"
-AUDIT_DIR = PROJECT_ROOT / "reports" / "pool_audit"
+
+ARCH_DIR = REPORT_ROOT / "pool_architecture"
+MEMBERSHIP_DIR = REPORT_ROOT / "pool_membership"
+AUDIT_DIR = REPORT_ROOT / "pool_audit"
 LAYERS = [
     "security_master",
     "discovery_universe",
@@ -47,8 +50,8 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         "mode9": PROJECT_ROOT / "scripts" / "run_autonomous_trading_agent.py",
         "strategy_module": PROJECT_ROOT / "scripts" / "run_pool_strategy_module.py",
     }
-    latest_agent = read_json(PROJECT_ROOT / "reports" / "autonomous_agent" / "latest.json")
-    position_guard = read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    latest_agent = read_json(REPORT_ROOT / "autonomous_agent" / "latest.json")
+    position_guard = read_json(REPORT_ROOT / "position_guard" / "latest.json")
     universe_rows = read_universe(files["universe_csv"])
     security_master_rows = read_universe(files["security_master_csv"])
     mode9_source = files["mode9"].read_text(encoding="utf-8") if files["mode9"].exists() else ""
@@ -67,7 +70,7 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     pool_manager_exists = files["pool_manager_py"].exists()
     event_router_exists = files["event_router_py"].exists()
     persistent_security_master = security_master_exists and files["security_master_csv"].exists()
-    persistent_pool_files = list((PROJECT_ROOT / "reports").glob("pool_membership/*.json")) + list((PROJECT_ROOT / "data").glob("*pool*"))
+    persistent_pool_files = list((REPORT_ROOT).glob("pool_membership/*.json")) + list((PROJECT_ROOT / "data").glob("*pool*"))
 
     layers = [
         layer_report(
@@ -128,7 +131,7 @@ def build_reports() -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
         "source": "pool_audit",
         "files_checked": {key: str(value) for key, value in files.items()},
         "file_exists": {key: value.exists() for key, value in files.items()},
-        "sqlite_tables": sqlite_tables(PROJECT_ROOT / "trading_audit_v2.sqlite3"),
+        "sqlite_tables": sqlite_tables(AUDIT_DB),
         "persistent_pool_files": [str(path) for path in persistent_pool_files],
         "answers": answers,
     }
@@ -221,7 +224,7 @@ def read_json(path: Path) -> dict[str, Any]:
 def sqlite_tables(path: Path) -> list[str]:
     if not path.exists():
         return []
-    with sqlite3.connect(path) as con:
+    with closing(sqlite3.connect(path)) as con, con:
         return [row[0] for row in con.execute("select name from sqlite_master where type='table' order by name")]
 
 

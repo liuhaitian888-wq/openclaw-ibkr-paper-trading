@@ -5,6 +5,7 @@ It records why a symbol moves, but it does not place, cancel, or modify orders.
 """
 
 from __future__ import annotations
+from contextlib import closing
 
 import json
 import sqlite3
@@ -195,6 +196,11 @@ class PoolStateManager:
             reason_code="ELIGIBLE",
             explanation="symbol passed hard eligibility checks",
             trace_id=trace_id,
+            # A periodic eligibility refresh is allowed to reset a symbol from
+            # WATCH_POOL (or any higher layer) back to the eligible universe.
+            # The transition guard still rejects any demotion not explicitly
+            # requested by a named workflow.
+            allow_demote=True,
         )
 
     def nominate_scan(
@@ -428,7 +434,7 @@ class PoolStateManager:
 
     def save(self) -> None:
         ensure_paper_automation_tables(self.db_path)
-        with sqlite3.connect(self.db_path) as con:
+        with closing(sqlite3.connect(self.db_path)) as con, con:
             con.execute("DELETE FROM canonical_pool_state")
             for state in self._states.values():
                 payload = state_to_dict(state)
@@ -445,7 +451,7 @@ class PoolStateManager:
 
     def load(self) -> None:
         ensure_paper_automation_tables(self.db_path)
-        with sqlite3.connect(self.db_path) as con:
+        with closing(sqlite3.connect(self.db_path)) as con, con:
             con.row_factory = sqlite3.Row
             rows = con.execute("SELECT payload_json FROM canonical_pool_state").fetchall()
         self._states = {}

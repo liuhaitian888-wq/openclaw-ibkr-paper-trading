@@ -13,8 +13,10 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "market_data_billing_safety"
+
+REPORT_DIR = REPORT_ROOT / "market_data_billing_safety"
 
 
 def main() -> int:

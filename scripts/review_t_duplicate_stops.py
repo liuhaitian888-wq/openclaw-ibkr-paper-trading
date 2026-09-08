@@ -9,11 +9,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from trading.config import Settings
 from trading.position_guard import build_position_guard_report
 
 
-REPORT_PATH = PROJECT_ROOT / "reports" / "position_guard" / "t_duplicate_stop_review.json"
+REPORT_PATH = REPORT_ROOT / "position_guard" / "t_duplicate_stop_review.json"
 
 
 def main() -> int:

@@ -15,6 +15,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from trading.production_paths import REPORT_ROOT
+
 from scripts.build_account_reports import main as build_account_reports_main
 from scripts.build_market_data_billing_safety import build_report as build_billing_safety_report
 from scripts.list_tws_orders import read_tws_orders
@@ -33,8 +35,8 @@ from trading.process_guard import ExecutionLock, current_execution_processes, re
 from trading.tws_paper import TwsPaperBroker
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "full_paper_rollout"
-POSITION_PROTECTION_DIR = PROJECT_ROOT / "reports" / "position_protection"
+REPORT_DIR = REPORT_ROOT / "full_paper_rollout"
+POSITION_PROTECTION_DIR = REPORT_ROOT / "position_protection"
 ACTIVE_ORDER_STATUSES = {"Submitted", "PreSubmitted", "Accepted", "ApiPending", "PendingSubmit"}
 
 
@@ -212,8 +214,8 @@ def stage1_readiness(settings: Settings) -> dict[str, Any]:
         for attempt in range(1, max_attempts + 1):
             force = build_force_refresh_dry_run(settings=settings)
             account = build_account_state(settings=settings, force_refresh=False, write_reports_enabled=True)
-            readiness = read_json(PROJECT_ROOT / "reports" / "account_execution_readiness" / "latest.json")
-            diagnostics = read_json(PROJECT_ROOT / "reports" / "streaming_quote_diagnostics" / "latest.json")
+            readiness = read_json(REPORT_ROOT / "account_execution_readiness" / "latest.json")
+            diagnostics = read_json(REPORT_ROOT / "streaming_quote_diagnostics" / "latest.json")
             attempts.append({
                 "attempt": attempt,
                 "force_refresh_ok": bool(force.get("force_refresh_ok")),
@@ -248,7 +250,7 @@ def stage1_readiness(settings: Settings) -> dict[str, Any]:
             os.environ.pop("ACCOUNT_STATE_STREAMING_WAIT_SECONDS", None)
         else:
             os.environ["ACCOUNT_STATE_STREAMING_WAIT_SECONDS"] = original_wait
-    billing = read_json(PROJECT_ROOT / "reports" / "market_data_billing_safety" / "latest.json")
+    billing = read_json(REPORT_ROOT / "market_data_billing_safety" / "latest.json")
     state_stale = bool(account.state_stale) if account is not None else True
     checks = {
         "account_execution_ready": bool(readiness.get("account_execution_ready")),

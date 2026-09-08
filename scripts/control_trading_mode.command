@@ -8,8 +8,10 @@ if [[ ! -d "$DEFAULT_SHARED_DIR" && -d "/Volumes/openclaw_shared" ]]; then
 fi
 SHARED_DIR="${OPENCLAW_SHARED_DIR:-$DEFAULT_SHARED_DIR}"
 TOKEN_FILE="$SHARED_DIR/trade_session_token"
-RUNTIME_DIR="$PROJECT_DIR/.runtime"
-LOG_DIR="$PROJECT_DIR/logs"
+STATE_ROOT="${OPENCLAW_STATE_DIR:-$HOME/.local/state/openclaw}"
+export OPENCLAW_STATE_DIR="$STATE_ROOT"
+RUNTIME_DIR="$STATE_ROOT/runtime"
+LOG_DIR="$STATE_ROOT/logs"
 PID_FILE="$RUNTIME_DIR/trading_api.pid"
 POOL_PID_FILE="$RUNTIME_DIR/pool_strategy.pid"
 AGENT_PID_FILE="$RUNTIME_DIR/autonomous_agent.pid"
@@ -379,7 +381,7 @@ start_autonomous_agent_background() {
       echo "Started autonomous agent with launchd."
       echo "PID: ${pid:-pending}"
       echo "Log: $PROJECT_DIR/logs/mode9_agent.launchd.log"
-      echo "Latest state: $PROJECT_DIR/reports/autonomous_agent/latest.json"
+      echo "Latest state: $STATE_ROOT/reports/autonomous_agent/latest.json"
       return 0
     fi
     echo "launchd start failed; falling back to detached background mode."
@@ -468,7 +470,7 @@ PY
   echo "Started autonomous agent in detached background."
   echo "PID: $pid"
   echo "Log: $AGENT_LOG_FILE"
-  echo "Latest state: $PROJECT_DIR/reports/autonomous_agent/latest.json"
+  echo "Latest state: $STATE_ROOT/reports/autonomous_agent/latest.json"
 }
 
 set_dev_lock_env() {
@@ -634,7 +636,8 @@ payload = {
     "allow_market_orders": False,
     "orders_submitted": 0,
 }
-directory = root / "reports" / "monitoring_line"
+from trading.production_paths import REPORT_ROOT
+directory = REPORT_ROOT / "monitoring_line"
 directory.mkdir(parents=True, exist_ok=True)
 (directory / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 (directory / "latest.md").write_text("# Monitoring Line\n\n- mode9_monitoring_line_enabled: False\n- mode9_buy_freeze: True\n- live_trading_enabled: False\n- six_layer_pools_execution_active: False\n- orders_submitted: 0\n", encoding="utf-8")
@@ -644,8 +647,8 @@ PY
 }
 
 run_monitor_status() {
-  if [[ -f "$PROJECT_DIR/reports/monitoring_line/latest.json" ]]; then
-    cat "$PROJECT_DIR/reports/monitoring_line/latest.json"
+  if [[ -f "$STATE_ROOT/reports/monitoring_line/latest.json" ]]; then
+    cat "$STATE_ROOT/reports/monitoring_line/latest.json"
     echo
   else
     echo "No monitoring line report found."
@@ -676,7 +679,8 @@ run_market_session() {
 from trading.market_session import write_market_session_report
 
 payload = write_market_session_report()
-print(open("reports/market_session/latest.md", encoding="utf-8").read())
+from trading.production_paths import REPORT_ROOT
+print((REPORT_ROOT / "market_session/latest.md").read_text(encoding="utf-8"))
 PY
 }
 
@@ -725,7 +729,8 @@ payload = {
     "orders_submitted": 0,
     "orders_cancelled": 0,
 }
-directory = root / "reports" / "full_paper_rollout"
+from trading.production_paths import REPORT_ROOT
+directory = REPORT_ROOT / "full_paper_rollout"
 directory.mkdir(parents=True, exist_ok=True)
 (directory / "rollout_precheck.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 (directory / "rollout_precheck.md").write_text(

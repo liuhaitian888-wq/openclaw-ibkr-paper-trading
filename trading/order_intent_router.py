@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 from typing import Sequence
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 from trading.order_intents import OrderIntent
 from trading.sell_decision_engine import priority
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "order_conflicts"
+REPORT_DIR = REPORT_ROOT / "order_conflicts"
 
 
 def route_synchronized_intents(intents: Sequence[OrderIntent], *, audit_writer: AuditWriter | None = None) -> dict:

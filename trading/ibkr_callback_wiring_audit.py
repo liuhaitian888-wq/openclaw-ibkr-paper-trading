@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 
 
@@ -99,18 +100,18 @@ EVENT_TYPES = {
     "nextValidId": "risk_state_events",
 }
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "ibkr_callback_wiring"
+REPORT_DIR = REPORT_ROOT / "ibkr_callback_wiring"
 
 
 def build_ibkr_callback_wiring_audit() -> dict[str, Any]:
     now = utc_now()
-    bus = read_json(PROJECT_ROOT / "reports" / "realtime_account_state_bus" / "latest.json")
-    sync = read_json(PROJECT_ROOT / "reports" / "realtime_account_sync" / "latest.json")
-    freshness = read_json(PROJECT_ROOT / "reports" / "state_freshness_policy" / "latest.json")
-    market = read_json(PROJECT_ROOT / "reports" / "market_session" / "latest.json")
-    streaming = read_json(PROJECT_ROOT / "reports" / "streaming_quote_diagnostics" / "latest.json")
+    bus = read_json(REPORT_ROOT / "realtime_account_state_bus" / "latest.json")
+    sync = read_json(REPORT_ROOT / "realtime_account_sync" / "latest.json")
+    freshness = read_json(REPORT_ROOT / "state_freshness_policy" / "latest.json")
+    market = read_json(REPORT_ROOT / "market_session" / "latest.json")
+    streaming = read_json(REPORT_ROOT / "streaming_quote_diagnostics" / "latest.json")
     ibkr_connected = tws_socket_available()
-    dry_run = read_json(PROJECT_ROOT / "reports" / "ibkr_callback_dry_run" / "latest.json")
+    dry_run = read_json(REPORT_ROOT / "ibkr_callback_dry_run" / "latest.json")
     callback_rows = [callback_row(name, bus, dry_run) for name in CALLBACKS]
     callbacks_registered = any(row["callback_registered"] for row in callback_rows)
     ask_fresh = "stale_ask" not in freshness.get("blocked_reasons", [])
@@ -289,7 +290,7 @@ def tws_socket_available() -> bool:
 
 def update_realtime_reports(wiring_report: dict[str, Any]) -> None:
     for name in ["realtime_account_state_bus", "realtime_account_sync"]:
-        path = PROJECT_ROOT / "reports" / name / "latest.json"
+        path = REPORT_ROOT / name / "latest.json"
         payload = read_json(path)
         if not payload:
             continue

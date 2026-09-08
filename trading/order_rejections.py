@@ -4,11 +4,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.models import TradeProposal
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "order_rejections"
+REPORT_DIR = REPORT_ROOT / "order_rejections"
 
 
 def log_order_rejection(

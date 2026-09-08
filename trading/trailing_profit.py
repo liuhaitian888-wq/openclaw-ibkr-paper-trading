@@ -3,17 +3,18 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.price_normalizer import normalize_order_price
 from trading.profit_lock import common_row
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "trailing_profit"
+REPORT_DIR = REPORT_ROOT / "trailing_profit"
 STATE_PATH = REPORT_DIR / "state.json"
 
 
 def build_trailing_profit_report(position_guard: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    position_guard = position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    position_guard = position_guard or read_json(REPORT_ROOT / "position_guard" / "latest.json")
     trigger_pct = float(os.getenv("TRAILING_PROFIT_TRIGGER_PCT", "0.08"))
     trail_pct = float(os.getenv("TRAILING_PROFIT_DISTANCE_PCT", "0.04"))
     state = read_json(STATE_PATH)

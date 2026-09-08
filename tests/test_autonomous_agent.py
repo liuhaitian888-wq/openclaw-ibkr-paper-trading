@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -9,6 +10,8 @@ from scripts.run_autonomous_trading_agent import (
     evaluate_lifecycle_state,
     failed_cycle,
     mode9_buy_freeze,
+    real_scanner_symbols,
+    select_streaming_rotation,
     should_run_strategy_now,
     streaming_report_payload,
     sync_canonical_pool_state,
@@ -92,6 +95,18 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(lifecycle["lifecycle_state"], "PAPER_READY")
         self.assertTrue(lifecycle["execution_enabled"])
 
+    def test_mode9_fresh_single_quote_but_low_universe_coverage_is_safe_mode(self) -> None:
+        lifecycle = self.lifecycle_for(
+            quote_readiness={
+                "quotes_available": True, "quote_execution_ready": True,
+                "safe_mode": True, "execution_allowed": False,
+                "blocked_reason": "universe_coverage_below_sla",
+            }
+        )
+
+        self.assertEqual(lifecycle["lifecycle_state"], "SAFE_MODE")
+        self.assertFalse(lifecycle["execution_enabled"])
+
     def test_mode9_disconnected_waits_without_execution(self) -> None:
         lifecycle = self.lifecycle_for(ibkr_connected=False)
 
@@ -127,6 +142,31 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertEqual(readiness["fresh_bid_count"], 1)
         self.assertEqual(readiness["fresh_ask_count"], 0)
 
+    def test_unchanged_streaming_quote_is_fresh_when_subscription_is_healthy(self) -> None:
+        readiness = build_quote_readiness(
+            quotes=[],
+            streaming_report={
+                "streaming_quotes": {
+                    "AAPL": {"bid": 100.0, "ask": 100.1, "bid_age_ms": 20_000, "ask_age_ms": 20_000, "subscription_healthy": True}
+                }
+            },
+            max_age_ms=1_000.0,
+        )
+
+        self.assertTrue(readiness["quote_execution_ready"])
+
+    def test_failed_streaming_subscription_is_not_fresh(self) -> None:
+        readiness = build_quote_readiness(
+            quotes=[],
+            streaming_report={"streaming_quotes": {"AAPL": {
+                "bid": 100.0, "ask": 100.1, "subscription_healthy": False,
+                "subscription_status": "FAILED", "stale_reason": "subscription_error",
+            }}},
+            max_age_ms=1_000.0,
+        )
+
+        self.assertFalse(readiness["quote_execution_ready"])
+
     def test_waiting_lifecycle_states_do_not_run_strategy(self) -> None:
         for state in [
             "API_NOT_READY",
@@ -159,6 +199,33 @@ class AutonomousAgentTests(unittest.TestCase):
                 cycle=4,
             )
         )
+
+    def test_streaming_rotation_keeps_priority_and_rotates_normal_symbols(self) -> None:
+        kwargs = {
+            "universe_symbols": ["POS", "HIGH", "HOT", "A", "B", "C", "D"],
+            "critical_symbols": ["POS"], "high_pool_symbols": ["HIGH"],
+            "abnormal_symbols": ["HOT"], "slots": 5,
+        }
+
+        first = select_streaming_rotation(cycle=1, **kwargs)
+        second = select_streaming_rotation(cycle=2, **kwargs)
+
+        self.assertEqual(first[:3], ["POS", "HIGH", "HOT"])
+        self.assertEqual(second[:3], ["POS", "HIGH", "HOT"])
+        self.assertNotEqual(first[3:], second[3:])
+
+    def test_real_scanner_expands_universe_with_bounded_fresh_candidates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            report = Path(tmp) / "scanner.json"
+            report.write_text(json.dumps({
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "rows": [{"symbol": f"S{index}"} for index in range(20)],
+            }), encoding="utf-8")
+
+            symbols = real_scanner_symbols(report)
+
+        self.assertEqual(len(symbols), 12)
+        self.assertEqual(symbols[0], "S0")
 
     def test_update_market_state_ranks_intracycle_movers(self) -> None:
         state = {
@@ -267,6 +334,26 @@ class AutonomousAgentTests(unittest.TestCase):
         self.assertFalse(report["order_submitted"])
         self.assertIn("ELIGIBLE_UNIVERSE", report["canonical_layer_counts"])
         self.assertIn("MARKET_CLOSED_WAITING", report["blocked_reason_counts"])
+
+    def test_canonical_pool_bridge_monitor_symbol_promotes_only_one_layer_at_a_time(self) -> None:
+        now = datetime.now(timezone.utc)
+        pool_manager = {"membership": {"records": [
+            {"symbol": "AAPL", "pool_name": "discovery_universe", "included": True, "source": "test"},
+            {"symbol": "AAPL", "pool_name": "monitor_pool", "included": True, "source": "test", "score": 80},
+        ]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            report = sync_canonical_pool_state(
+                pool_manager=pool_manager,
+                market_session={"session_state": "REGULAR", "expected_live_bid_ask": True, "order_type_allowed": True},
+                quote_readiness={"quotes_available": True, "quote_execution_ready": True},
+                quotes=[Quote("AAPL", 100.05, now, "test", bid=100.0, ask=100.1)],
+                streaming_report=streaming_report_payload(None),
+                lifecycle={"lifecycle_state": "SAFE_MODE", "execution_enabled": False},
+                ready_for_orders=True, trace_id="test-cycle", db_path=Path(tmp) / "audit.sqlite3",
+            )
+
+        self.assertEqual(report["status"], "ok")
+        self.assertIn("WATCH_POOL", report["canonical_layer_counts"])
 
 
 if __name__ == "__main__":

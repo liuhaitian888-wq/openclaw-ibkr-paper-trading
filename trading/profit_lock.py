@@ -3,15 +3,16 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.price_normalizer import normalize_order_price
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "profit_lock"
+REPORT_DIR = REPORT_ROOT / "profit_lock"
 
 
 def build_profit_lock_report(position_guard: Mapping[str, Any] | None = None) -> dict[str, Any]:
-    position_guard = position_guard or read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json")
+    position_guard = position_guard or read_json(REPORT_ROOT / "position_guard" / "latest.json")
     threshold = float(os.getenv("PROFIT_LOCK_TRIGGER_PCT", "0.05"))
     rows = [profit_lock_row(row, threshold=threshold) for row in position_guard.get("symbols", []) if isinstance(row, Mapping) and float(row.get("position_qty") or 0) > 0]
     report = {"timestamp": now(), "source": "profit_lock", "report_only": True, "execution_allowed": False, "symbols": rows}

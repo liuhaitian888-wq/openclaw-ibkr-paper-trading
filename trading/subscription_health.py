@@ -6,11 +6,12 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "subscription_health"
+REPORT_DIR = REPORT_ROOT / "subscription_health"
 ALLOWED_STATES = ["ACTIVE", "IDLE", "WAITING_FOR_FIRST_EVENT", "STALE_BUT_LISTENING", "DISCONNECTED", "ERROR"]
 
 

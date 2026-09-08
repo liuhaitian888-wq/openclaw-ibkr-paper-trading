@@ -7,11 +7,12 @@ import os
 from dataclasses import asdict, dataclass
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT
 from trading.realtime_account_state_bus import RealtimeAccountStateBus, StateUpdate
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "state_freshness_policy"
+REPORT_DIR = REPORT_ROOT / "state_freshness_policy"
 
 
 @dataclass(frozen=True)

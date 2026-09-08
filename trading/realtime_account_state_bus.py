@@ -8,11 +8,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "realtime_account_state_bus"
+REPORT_DIR = REPORT_ROOT / "realtime_account_state_bus"
 
 
 @dataclass(frozen=True)
@@ -130,12 +131,12 @@ class RealtimeAccountStateBus:
 
 def bootstrap_bus_from_reports(audit_writer: AuditWriter | None = None) -> RealtimeAccountStateBus:
     bus = RealtimeAccountStateBus(audit_writer=audit_writer)
-    bus.update("account", read_json(PROJECT_ROOT / "reports" / "account_state" / "latest.json"), source_module="bootstrap_reports")
-    bus.update("position", read_json(PROJECT_ROOT / "reports" / "position_guard" / "latest.json"), source_module="bootstrap_reports")
-    bus.update("quote", read_json(PROJECT_ROOT / "reports" / "quote_state" / "latest.json"), source_module="bootstrap_reports")
-    bus.update("pnl", read_json(PROJECT_ROOT / "reports" / "pnl_ledger" / "latest.json"), source_module="bootstrap_reports")
-    bus.update("open_order", read_json(PROJECT_ROOT / "reports" / "open_order_state" / "latest.json"), source_module="bootstrap_reports")
-    bus.update("execution", read_json(PROJECT_ROOT / "reports" / "simulation_run" / "latest.json"), source_module="bootstrap_simulation")
+    bus.update("account", read_json(REPORT_ROOT / "account_state" / "latest.json"), source_module="bootstrap_reports")
+    bus.update("position", read_json(REPORT_ROOT / "position_guard" / "latest.json"), source_module="bootstrap_reports")
+    bus.update("quote", read_json(REPORT_ROOT / "quote_state" / "latest.json"), source_module="bootstrap_reports")
+    bus.update("pnl", read_json(REPORT_ROOT / "pnl_ledger" / "latest.json"), source_module="bootstrap_reports")
+    bus.update("open_order", read_json(REPORT_ROOT / "open_order_state" / "latest.json"), source_module="bootstrap_reports")
+    bus.update("execution", read_json(REPORT_ROOT / "simulation_run" / "latest.json"), source_module="bootstrap_simulation")
     bus.update("risk", {"source": "risk_state", "execution_allowed": False, "live_trading_enabled": False}, source_module="bootstrap_reports")
     return bus
 

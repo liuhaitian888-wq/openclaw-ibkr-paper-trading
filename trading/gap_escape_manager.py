@@ -4,12 +4,13 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.config import PROJECT_ROOT, Settings
 from trading.price_normalizer import normalize_order_price
 from trading.process_guard import read_lock
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "gap_escape"
+REPORT_DIR = REPORT_ROOT / "gap_escape"
 
 
 @dataclass(frozen=True)

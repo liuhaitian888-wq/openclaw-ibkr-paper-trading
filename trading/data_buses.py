@@ -6,12 +6,13 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 from trading.realtime_account_state_bus import RealtimeAccountStateBus
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "data_bus_architecture"
+REPORT_DIR = REPORT_ROOT / "data_bus_architecture"
 
 
 class MarketDataBus:

@@ -26,7 +26,9 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from trading.account_state_manager import build_account_state
+from trading.production_paths import REPORT_ROOT
+
+from trading.account_state_manager import account_execution_readiness_payload, build_account_state
 from trading.config import Settings
 from trading.event_risk_control import build_event_risk_report
 from trading.event_router import build_event_router_report
@@ -53,6 +55,7 @@ from trading.universe import (
     load_universe,
     select_universe,
 )
+from trading.universe_freshness import assess_universe_freshness
 
 
 DEFAULT_API_URL = "http://192.168.64.1:8787"
@@ -63,6 +66,7 @@ MODE9_LIFECYCLE_STATES = {
     "MARKET_CLOSED_WAITING",
     "WAITING_FOR_QUOTES",
     "QUOTES_STALE_WAITING",
+    "SAFE_MODE",
     "PAPER_READY",
     "PAPER_BLOCKED_BY_RISK",
     "PAPER_ORDER_SUBMITTED",
@@ -117,6 +121,7 @@ class AgentCycle:
     next_check_at: str
     market_session: Dict[str, object]
     quote_readiness: Dict[str, object]
+    universe_freshness: Dict[str, object]
 
     def as_dict(self) -> Dict[str, object]:
         return {
@@ -164,6 +169,7 @@ class AgentCycle:
             "next_check_at": self.next_check_at,
             "market_session": self.market_session,
             "quote_readiness": self.quote_readiness,
+            "universe_freshness": self.universe_freshness,
         }
 
     def compact_dict(self) -> Dict[str, object]:
@@ -215,21 +221,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--quote-timeout", type=float, default=8.0)
     parser.add_argument("--market-data-type", type=int, default=1)
     parser.add_argument("--exchange", default="SMART")
-    parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports" / "autonomous_agent")
-    parser.add_argument("--candidate-inbox", type=Path, default=PROJECT_ROOT / "reports" / "agent_research" / "inbox")
+    parser.add_argument("--report-dir", type=Path, default=REPORT_ROOT / "autonomous_agent")
+    parser.add_argument("--candidate-inbox", type=Path, default=REPORT_ROOT / "agent_research" / "inbox")
+    parser.add_argument("--scanner-report", type=Path, default=REPORT_ROOT / "ibkr_scanner" / "latest.json")
     parser.add_argument("--candidate-auto-approve", action="store_true")
     parser.add_argument("--disable-strategy", action="store_true")
     return parser.parse_args()
 
 
+from trading.production_guard import guarded_service
+
+@guarded_service("execution")
 def main() -> int:
     args = parse_args()
     api_key = read_required(args.api_key_file, "OPENCLAW_API_KEY")
     settings = Settings.load()
     can_submit_orders = args.strategy_mode in {"paper", "stage"} and not args.disable_strategy
-    stop_duplicate_autonomous_processes(keep_pid=os.getpid())
     state: Dict[str, Dict[str, float]] = {}
-    streaming_source = build_streaming_source(settings)
+    freshness_rotation_state: Dict[str, int] = {}
+    streaming_source = None
     args.report_dir.mkdir(parents=True, exist_ok=True)
     args.candidate_inbox.mkdir(parents=True, exist_ok=True)
     cycle = 0
@@ -240,12 +250,13 @@ def main() -> int:
         prefer_mode9=True,
     ) as execution_lock:
         try:
+            streaming_source = build_streaming_source(settings)
             while args.cycles <= 0 or cycle < args.cycles:
                 cycle += 1
                 execution_lock.heartbeat()
                 started = time.perf_counter()
                 try:
-                    result = run_cycle(args, api_key, settings, state, cycle, streaming_source)
+                    result = run_cycle(args, api_key, settings, state, cycle, streaming_source, freshness_rotation_state)
                 except Exception as exc:
                     result = failed_cycle(cycle, exc, started)
                 append_jsonl(args.report_dir / "cycles.jsonl", result.compact_dict())
@@ -270,6 +281,7 @@ def run_cycle(
     state: Dict[str, Dict[str, float]],
     cycle: int,
     streaming_source: Optional[IbkrStreamingQuoteSource] = None,
+    freshness_rotation_state: Optional[Dict[str, int]] = None,
 ) -> AgentCycle:
     cycle_started = time.perf_counter()
     errors: List[str] = []
@@ -310,6 +322,34 @@ def run_cycle(
         position_guard = {"status": "error", "error": str(exc), "symbols": []}
         errors.append(f"position guard failed: {exc}")
     timings["position_guard_ms"] = elapsed_ms(started)
+    started = time.perf_counter()
+    try:
+        account_state = build_account_state(
+            settings=settings,
+            force_refresh=env_bool("MODE9_ACCOUNT_STATE_FORCE_REFRESH", False),
+            position_guard_report=position_guard,
+        )
+        account_readiness = account_execution_readiness_payload(account_state)
+        account_state_manager = {
+            "source": "account_state_manager",
+            "timestamp": account_state.timestamp,
+            "used_cached_state": account_state.used_cached_state,
+            "force_refresh_required": account_state.force_refresh.force_refresh_required if account_state.force_refresh else None,
+            "force_refresh_performed": account_state.force_refresh.force_refresh_performed if account_state.force_refresh else None,
+            "force_refresh_ok": account_state.force_refresh.force_refresh_ok if account_state.force_refresh else None,
+            "state_stale": account_state.state_stale,
+            "blocked_reason": account_state.blocked_reason,
+            "account_execution_ready": account_readiness.get("account_execution_ready"),
+            "account_blocking_reasons": account_readiness.get("blocking_reasons", []),
+            "position_count": len(account_state.positions),
+            "open_order_count": len(account_state.open_orders),
+            "protection_coverage_count": len(account_state.protection_coverage),
+        }
+    except Exception as exc:
+        account_readiness = {"account_execution_ready": False, "blocking_reasons": [str(exc)]}
+        account_state_manager = {"status": "error", "error": str(exc), "account_execution_ready": False}
+        errors.append(f"account state manager refresh failed: {exc}")
+    timings["account_state_manager_refresh_ms"] = elapsed_ms(started)
     started = time.perf_counter()
     try:
         pool_manager = build_pool_manager_report(position_guard=position_guard, universe_file=args.universe_file)
@@ -403,6 +443,8 @@ def run_cycle(
         if float(item.get("position_qty") or 0) > 0
     ]
     monitor_symbols = list(dict.fromkeys([*held_symbols, *monitor_symbols]))
+    scanner_symbols = real_scanner_symbols(args.scanner_report)
+    monitor_symbols = list(dict.fromkeys([*monitor_symbols, *scanner_symbols]))
     timings["select_universe_ms"] = elapsed_ms(started)
     started = time.perf_counter()
     market_session = current_market_session(symbols=monitor_symbols[: min(12, len(monitor_symbols))]).to_dict()
@@ -422,12 +464,45 @@ def run_cycle(
     started = time.perf_counter()
     process_candidate_inbox(args, errors)
     timings["process_candidate_inbox_ms"] = elapsed_ms(started)
-    streaming_report = streaming_report_payload(streaming_source)
+    open_order_symbols = [
+        str(item.symbol or "") for item in account_state.open_orders
+    ] if "account_state" in locals() else []
+    canonical_levels = canonical_pool_levels(monitor_symbols)
+    high_pool_symbols = [
+        symbol for symbol, level in canonical_levels.items()
+        if level in {"WATCH_POOL", "SIGNAL_EXECUTION_READY_POOL", "PAPER_EXECUTION_POSITION_POOL"}
+    ]
+    rotation_event: Dict[str, object] = {}
+    if streaming_source is not None:
+        if not streaming_source.connection_healthy():
+            streaming_source.restart(timeout=settings.tws_status_timeout)
+        rotation_target = select_streaming_rotation(
+            universe_symbols=monitor_symbols,
+            critical_symbols=[*held_symbols, *open_order_symbols],
+            high_pool_symbols=high_pool_symbols,
+            abnormal_symbols=[*scanner_symbols, *(str(item.get("symbol") or "") for item in top_movers)],
+            slots=len(streaming_source.symbols),
+            cycle=cycle,
+        )
+        rotation_event = streaming_source.rotate_symbols(rotation_target)
+    streaming_report = {**streaming_report_payload(streaming_source), "rotation_event": rotation_event}
     quote_readiness = build_quote_readiness(
         quotes=quotes,
         streaming_report=streaming_report,
         max_age_ms=max(1000.0, args.quote_timeout * 1000.0),
     )
+    universe_freshness = assess_universe_freshness(
+        universe_symbols=monitor_symbols,
+        quote_rows=quote_readiness["rows"],
+        held_symbols=held_symbols,
+        open_order_symbols=open_order_symbols,
+        high_pool_symbols=high_pool_symbols,
+        abnormal_symbols=[*scanner_symbols, *(str(item.get("symbol") or "") for item in top_movers)],
+        cycle=cycle,
+        rotation_state=freshness_rotation_state if freshness_rotation_state is not None else {},
+        pool_levels=canonical_levels,
+    )
+    quote_readiness = {**quote_readiness, **universe_freshness}
     lifecycle = evaluate_lifecycle_state(
         health=health,
         lock_state=lock_state,
@@ -435,6 +510,7 @@ def run_cycle(
         ibkr_connected=ibkr_connected,
         market_session=market_session,
         quote_readiness=quote_readiness,
+        account_readiness=account_readiness if "account_readiness" in locals() else {},
         errors=errors,
     )
 
@@ -515,6 +591,7 @@ def run_cycle(
         next_check_at=next_check_at(args.cycle_seconds),
         market_session=dict(market_session),
         quote_readiness=dict(quote_readiness),
+        universe_freshness=dict(universe_freshness),
     )
 
 
@@ -576,6 +653,7 @@ def failed_cycle(cycle: int, exc: Exception, started: float) -> AgentCycle:
             "fresh_ask_count": 0,
             "blocked_reason": "cycle_failed",
         },
+        universe_freshness={"safe_mode": True, "execution_allowed": False, "blocked_reason": "cycle_failed"},
     )
 
 
@@ -615,8 +693,15 @@ def build_quote_readiness(
             blocked = str(payload.get("blocked_reason") or "")
             bid_received = payload.get("bid") is not None
             ask_received = payload.get("ask") is not None
-            bid_fresh = bid_received and "stale_bid" not in blocked and "bid is missing" not in blocked
-            ask_fresh = ask_received and "stale_ask" not in blocked and "ask is missing" not in blocked
+            bid_age_ms = payload.get("bid_age_ms", payload.get("age_ms"))
+            ask_age_ms = payload.get("ask_age_ms", payload.get("age_ms"))
+            subscription_healthy = bool(payload.get("subscription_healthy", True))
+            # Streaming values are event-driven: an unchanged quote does not
+            # generate periodic Bid/Ask callbacks. Connection heartbeat,
+            # subscription status and field presence establish freshness;
+            # field age is retained for diagnosis but is not the sole gate.
+            bid_fresh = bid_received and subscription_healthy
+            ask_fresh = ask_received and subscription_healthy
             fresh_bid_count += int(bid_fresh)
             fresh_ask_count += int(ask_fresh)
             quote_rows.append(
@@ -627,7 +712,19 @@ def build_quote_readiness(
                     "ask_received": ask_received,
                     "bid_fresh": bid_fresh,
                     "ask_fresh": ask_fresh,
+                    "bid_age_ms": bid_age_ms,
+                    "ask_age_ms": ask_age_ms,
                     "blocked_reason": blocked,
+                    "subscription_status": payload.get("subscription_status", "UNKNOWN"),
+                    "subscription_healthy": subscription_healthy,
+                    "stale_reason": payload.get("stale_reason", ""),
+                    "rotation_state": payload.get("rotation_state", "UNKNOWN"),
+                    "bid_timestamp": payload.get("bid_timestamp", ""),
+                    "ask_timestamp": payload.get("ask_timestamp", ""),
+                    "last_timestamp": payload.get("last_timestamp", ""),
+                    "last_callback_timestamp": payload.get("last_callback_timestamp", ""),
+                    "last_age_ms": payload.get("last_age_ms"),
+                    "callback_age_ms": payload.get("callback_age_ms"),
                 }
             )
 
@@ -645,7 +742,7 @@ def build_quote_readiness(
         "fresh_ask_count": fresh_ask_count,
         "quote_count": len(quote_rows),
         "blocked_reason": blocked_reason,
-        "rows": quote_rows[:40],
+        "rows": quote_rows,
     }
 
 
@@ -657,6 +754,7 @@ def evaluate_lifecycle_state(
     ibkr_connected: bool,
     market_session: Dict[str, object],
     quote_readiness: Dict[str, object],
+    account_readiness: Dict[str, object] | None = None,
     errors: List[str],
 ) -> Dict[str, object]:
     if not isinstance(health, dict) or not health:
@@ -674,6 +772,14 @@ def evaluate_lifecycle_state(
     if not bool(quote_readiness.get("quote_execution_ready")):
         reason = str(quote_readiness.get("blocked_reason") or "stale_or_missing_bid_ask")
         return lifecycle("QUOTES_STALE_WAITING", reason, False)
+    if bool(quote_readiness.get("safe_mode")) or not bool(quote_readiness.get("execution_allowed", True)):
+        return lifecycle("SAFE_MODE", str(quote_readiness.get("blocked_reason") or "universe_freshness_sla_failed"), False)
+    account_readiness = account_readiness or {}
+    if account_readiness and not bool(account_readiness.get("account_execution_ready")):
+        reasons = account_readiness.get("blocking_reasons")
+        if isinstance(reasons, list) and reasons:
+            return lifecycle("SAFE_MODE", "account_execution_readiness_failed: " + "; ".join(str(item) for item in reasons[:5]), False)
+        return lifecycle("SAFE_MODE", "account_execution_readiness_failed", False)
     if not ready_for_orders:
         return lifecycle("PAPER_BLOCKED_BY_RISK", "tws_or_trading_api_not_ready_for_orders", False)
     if errors:
@@ -768,6 +874,8 @@ def sync_canonical_pool_state(
             and (
                 symbol in by_pool.get("tradable_universe", set())
                 or symbol in by_pool.get("stream_eligible_pool", set())
+                or symbol in by_pool.get("monitor_pool", set())
+                or symbol in by_pool.get("hot_pool", set())
                 or symbol in by_pool.get("trade_pool", set())
             )
         ):
@@ -983,6 +1091,56 @@ def select_monitor_symbols(args: argparse.Namespace, allowed_symbols: List[str])
         if args.max_universe_symbols > 0 and len(monitor) >= args.max_universe_symbols:
             break
     return monitor, selection.symbols
+
+
+def real_scanner_symbols(path: Path, *, max_age_sec: float = 900.0, max_symbols: int = 12) -> List[str]:
+    if not path.exists():
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        timestamp = datetime.fromisoformat(str(payload.get("timestamp_utc") or "").replace("Z", "+00:00"))
+        if (datetime.now(timezone.utc) - timestamp.astimezone(timezone.utc)).total_seconds() > max_age_sec:
+            return []
+        return list(dict.fromkeys(
+            str(row.get("symbol") or "").upper()
+            for row in payload.get("rows", []) if isinstance(row, dict) and row.get("symbol")
+        ))[:max_symbols]
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return []
+
+
+def canonical_pool_levels(symbols: List[str]) -> Dict[str, str]:
+    manager = PoolStateManager()
+    manager.load()
+    return {
+        symbol: state.current_layer if (state := manager.get(symbol)) is not None else "MASTER_UNIVERSE"
+        for symbol in symbols
+    }
+
+
+def select_streaming_rotation(
+    *,
+    universe_symbols: List[str],
+    critical_symbols: List[str],
+    high_pool_symbols: List[str],
+    abnormal_symbols: List[str],
+    slots: int,
+    cycle: int,
+) -> List[str]:
+    """Fill finite L1 slots by priority and round-robin the remaining Universe."""
+    universe = list(dict.fromkeys(symbol.upper() for symbol in universe_symbols if symbol))
+    fixed = list(dict.fromkeys(
+        symbol.upper()
+        for symbol in [*critical_symbols, *high_pool_symbols, *abnormal_symbols]
+        if symbol and symbol.upper() in set(universe)
+    ))[:slots]
+    normal = [symbol for symbol in universe if symbol not in set(fixed)]
+    room = max(0, slots - len(fixed))
+    if not normal or room >= len(normal):
+        return [*fixed, *normal][:slots]
+    start = ((max(1, cycle) - 1) * room) % len(normal)
+    rotated = [normal[(start + offset) % len(normal)] for offset in range(room)]
+    return [*fixed, *rotated]
 
 
 def fetch_quotes(

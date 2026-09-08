@@ -7,11 +7,12 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
+from trading.production_paths import REPORT_ROOT
 from trading.audit_writer import AuditWriter
 from trading.config import PROJECT_ROOT
 
 
-REPORT_DIR = PROJECT_ROOT / "reports" / "strategy_signals"
+REPORT_DIR = REPORT_ROOT / "strategy_signals"
 
 
 @dataclass(frozen=True)

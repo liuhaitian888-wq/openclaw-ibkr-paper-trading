@@ -1,6 +1,7 @@
 """Append-only SQLite event store with WAL enabled."""
 
 from __future__ import annotations
+from contextlib import closing
 
 import json
 import sqlite3
@@ -17,11 +18,11 @@ class SQLiteEventStore:
         self.enable_wal()
 
     def enable_wal(self) -> str:
-        with sqlite3.connect(self.db_path) as con:
+        with closing(sqlite3.connect(self.db_path)) as con, con:
             return str(con.execute("PRAGMA journal_mode=WAL").fetchone()[0]).lower()
 
     def journal_mode(self) -> str:
-        with sqlite3.connect(self.db_path) as con:
+        with closing(sqlite3.connect(self.db_path)) as con, con:
             return str(con.execute("PRAGMA journal_mode").fetchone()[0]).lower()
 
     def append(self, table: str, values: Mapping[str, Any]) -> None:
@@ -30,7 +31,7 @@ class SQLiteEventStore:
     def append_many(self, events: Sequence[tuple[str, Mapping[str, Any]]]) -> None:
         ensure_paper_automation_tables(self.db_path)
         self.enable_wal()
-        with sqlite3.connect(self.db_path) as con:
+        with closing(sqlite3.connect(self.db_path)) as con, con:
             con.execute("BEGIN")
             for table, values in events:
                 self._insert_with_connection(con, table, values)
