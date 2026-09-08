@@ -11,7 +11,7 @@
 | Reports | 最终目标 `${STATE_ROOT}/reports`、运行状态 `${STATE_ROOT}/runtime`；当前 M/P 的旧 reports/runtime 未迁移或归档，已备份。代码默认路径已集中；安装中的旧 launchd 配置仍待数据验收，不可运行生产入口 |
 | Delivery | 最终目标 `${STATE_ROOT}/delivery.json`；当前旧 S=`~/.local/state/paper-report-delivery` 的 ledger 原封保留且 PAUSED，daily-feishu disabled/未加载；新 root 也有 PAUSED、MAINTENANCE。staging 保留旧历史及 50 个 legacy marker，不允许重放 |
 | Control | 六个 openclaw jobs 已持久 disable 并 bootout；既有 STOP 菜单未经正式收口，不使用它恢复。已授权维护操作不要求损坏源预先 integrity PASS，但正式切换仍需完整验收 |
-| Health Check | 停写 PASS、备份 PASS、当前 worktree 160744 行 staging 逐行保全 PASS、目标 SQLite integrity PASS；整体 **STOP**：旧快照 72 行 state 未证明、恢复独有 1 行未裁决、1811 个候选 key 组与目标 schema/业务 invariant 未验收。SQLite 生命周期已修复、离线 fd 回归通过；生产持续运行验收未进行 |
+| Health Check | 停写 PASS、备份 PASS、当前 worktree 160744 行 staging 逐行保全 PASS、目标 SQLite integrity PASS；整体 **STOP**：旧快照 72 行 state 未证明、恢复独有 1 行已获健康 state 全字段佐证并保存独立 supplement；损坏总遗失量仍 UNKNOWN、1811 个候选 key 组与目标 schema/业务 invariant 未验收。SQLite 生命周期已修复、离线 fd 回归通过；生产持续运行验收未进行 |
 | Last Verified | 2026-09-09；维护观察六 job 未加载、禁用，未见本项目 DB/ledger 打开句柄。维护证据 `/Users/nbhsbgnb/.local/state/openclaw/maintenance/20260908T192959`；摘要 `docs/production-audit/MAINTENANCE.md` |
 
 最终固定路径是目标，不是已发布配置。launchd 目前仍保存旧路径但不能自动拉起；不允许将 staging 或 Git merge 工作区当作已验收生产版本。旧 worktree 待单独审计，不删除。
