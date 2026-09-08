@@ -454,13 +454,16 @@ class PoolStateManager:
         with closing(sqlite3.connect(self.db_path)) as con, con:
             con.row_factory = sqlite3.Row
             rows = con.execute("SELECT payload_json FROM canonical_pool_state").fetchall()
-        self._states = {}
+        loaded_states = {}
         for row in rows:
             payload = json.loads(row["payload_json"])
             state = state_from_dict(payload)
             if expired_signal(state, now=self.now()) and not has_active_order(state):
                 state = replace(state, current_layer="ELIGIBLE_UNIVERSE", execution_state={**state.execution_state, "status": "EXPIRED"})
-            self._states[state.symbol] = state
+            if state.symbol in loaded_states:
+                raise ValueError(f"Ambiguous canonical state for {state.symbol}: resolve version lineage before loading")
+            loaded_states[state.symbol] = state
+        self._states = loaded_states
 
     def get(self, symbol: str) -> SymbolPoolState | None:
         return self._states.get(normalize_symbol(symbol))

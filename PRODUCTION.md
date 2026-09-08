@@ -17,3 +17,5 @@
 最终固定路径是目标，不是已发布配置。launchd 目前仍保存旧路径但不能自动拉起；不允许将 staging 或 Git merge 工作区当作已验收生产版本。旧 worktree 待单独审计，不删除。
 
 快速只读检查：`scripts/check_gateway_health.command --json`（扩展诊断加 `--maintenance`）。当前预期 NOT_READY：PAUSED/MAINTENANCE、未批准生产 manifest、目标 DB 未发布。完整测试仅在 worktree 使用 `scripts/run_worktree_tests.py`；主工作区仅 smoke。
+
+数据收口最新证据：维护目录 `final-review/`。Schema 候选已事务化重建并保留原表；当前门禁仍 STOP：state 初始化链/两条不连续历史、跨账户 occurrence 分组及 PFE 活跃订单与池状态归属未验收。72 条缺失旧载荷仅保留历史歧义标签，不作为永久独立阻塞。未发布正式 manifest、未发送。
