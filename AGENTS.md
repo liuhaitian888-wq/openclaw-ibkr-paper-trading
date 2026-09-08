@@ -18,3 +18,7 @@
 - Startup must validate workspace, approved commit/branch/state manifest, maintenance gate, and a held kernel service lock; log deployment identity and paths. Reject duplicates instead of killing them.
 - Recheck the dependency chain before retries. UNKNOWN or non-idempotent outcomes require reconciliation and must never be automatically replayed. Distinguish entity identity, event occurrence, and exact-content fingerprints; never add BUY/SELL blindly to a key.
 - Keep source backups and provenance until reconciliation is complete. Do not delete uncommitted/unmerged worktrees or legacy state based on filename or age alone.
+
+- Module dependency changes belong in the shared reporting.health registry/resolver. Persist stale/recovery/operation state locally; network restoration never implies business permission.
+- Recovery callbacks must be bounded read-only/idempotent operations. UNKNOWN/STARTED side effects survive restart and never auto-replay. Do not install an unverified adapter merely to turn health green.
+- Treat manual/external broker orders as normal exposure. Absence of a local strategy intent is not sufficient to claim ownership or cancel an order. Verify account/environment and retain broker exposure for risk checks.

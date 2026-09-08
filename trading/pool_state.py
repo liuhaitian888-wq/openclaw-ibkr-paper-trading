@@ -455,15 +455,22 @@ class PoolStateManager:
             con.row_factory = sqlite3.Row
             rows = con.execute("SELECT payload_json FROM canonical_pool_state").fetchall()
         loaded_states = {}
+        expired_symbols = []
         for row in rows:
             payload = json.loads(row["payload_json"])
             state = state_from_dict(payload)
             if expired_signal(state, now=self.now()) and not has_active_order(state):
-                state = replace(state, current_layer="ELIGIBLE_UNIVERSE", execution_state={**state.execution_state, "status": "EXPIRED"})
+                expired_symbols.append(state.symbol)
             if state.symbol in loaded_states:
                 raise ValueError(f"Ambiguous canonical state for {state.symbol}: resolve version lineage before loading")
             loaded_states[state.symbol] = state
         self._states = loaded_states
+        for symbol in expired_symbols:
+            state = self._states[symbol]
+            self._states[symbol] = replace(state, execution_state={**state.execution_state, "status": "EXPIRED"})
+            self._transition(self._states[symbol], "ELIGIBLE_UNIVERSE", component="state_loader",
+                reason_code="SIGNAL_EXPIRED_ON_LOAD", explanation="Current load observed expired signal; historical gaps are not reconstructed",
+                trace_id="state-loader", allow_demote=True, allow_same=True)
 
     def get(self, symbol: str) -> SymbolPoolState | None:
         return self._states.get(normalize_symbol(symbol))

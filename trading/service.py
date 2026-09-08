@@ -54,6 +54,7 @@ class TradingService:
                 "latest_reconciliation": self._audit.latest_reconciliation(),
                 "external_order_block": self._audit.has_unresolved_external_orders(),
                 "unresolved_external_orders": self._audit.unresolved_external_orders(),
+                "broker_exposure": self._audit.broker_exposure(),
                 "recent_order_count": len(recent_orders),
                 "recent_orders": [
                     {
@@ -229,7 +230,7 @@ class TradingService:
             )
             timings["service_broker_submit_ms"] = self._elapsed_ms(broker_started)
         except Exception as exc:
-            self._audit.update(proposal.idempotency_key, "FAILED", str(exc))
+            self._audit.update(proposal.idempotency_key, "UNKNOWN", str(exc))
             log_order_rejection(proposal=proposal, error=exc)
             raise attach_workflow_step(exc, "service_broker_submit") from exc
         timings.update(confirmation.timings)
@@ -345,7 +346,7 @@ class TradingService:
             )
             timings["service_broker_submit_ms"] = self._elapsed_ms(broker_started)
         except Exception as exc:
-            self._audit.update(proposal.idempotency_key, "FAILED", str(exc))
+            self._audit.update(proposal.idempotency_key, "UNKNOWN", str(exc))
             log_order_rejection(proposal=proposal, error=exc)
             raise attach_workflow_step(exc, "service_broker_submit") from exc
         timings.update(confirmation.timings)
@@ -483,6 +484,10 @@ class TradingService:
         payload: Mapping[str, Any],
         transmit: bool,
     ) -> None:
+        from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE
+        if CODE_ROOT == PRODUCTION_WORKSPACE:
+            from trading.production_guard import require_module_gate
+            require_module_gate("ORDER_SUBMISSION_ALLOWED", duplicate_or_unknown=self._audit.get(str(payload.get("idempotency_key", ""))) is not None)
         if self._audit.has_unresolved_external_orders():
             raise PermissionError(
                 "Trading is blocked by an unreconciled external TWS order"

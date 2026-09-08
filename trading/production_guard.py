@@ -47,6 +47,7 @@ def production_service(service):
     from trading.production_diagnostics import command
     if command(['git','-C',str(CODE_ROOT),'status','--porcelain','--untracked-files=normal']).strip():
         raise RuntimeError('Production workspace has unapproved changes')
+    require_module_gate('PRODUCTION_START_ALLOWED')
     with instance_lock(RUNTIME_ROOT/(service+'.lock')):
         with ResourceMonitor(service):yield
 
@@ -58,3 +59,60 @@ def guarded_service(service):
             with production_service(service):return func(*args,**kwargs)
         return run
     return decorate
+
+
+def module_gate(action, *, duplicate_or_unknown=True):
+    """Read persistent evidence only. Missing evidence blocks, never opens a socket."""
+    from contextlib import closing
+    import sqlite3
+    from reporting.health import resolve_modules, safety_gate
+    observations={}
+    try:
+        path=RUNTIME_ROOT/'recovery.sqlite3'
+        with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as c:
+            observations={k:json.loads(v) for k,v in c.execute('SELECT name,payload FROM module_observations')}
+        manifest=json.loads((STATE_ROOT/'production.json').read_text())
+    except (OSError,ValueError,sqlite3.Error):manifest={}
+    actual=context()
+    facts={**manifest.get('safety',{}),'manifest_approved':manifest.get('ready') is True and manifest.get('commit')==actual['commit'] and manifest.get('branch')==actual['branch'],
+        'maintenance':(STATE_ROOT/'MAINTENANCE').exists(),
+        'trading_paused':(STATE_ROOT/'PAUSED').exists(),
+        'delivery_paused':(STATE_ROOT/'PAUSED').exists() or (STATE_ROOT/'DELIVERY_PAUSED').exists(),
+        'duplicate_or_unknown':duplicate_or_unknown}
+    if action=='ORDER_SUBMISSION_ALLOWED':
+        account=observations.get('ACCOUNT',{})
+        facts['identity_verified']=bool(facts.get('identity_verified') is True and manifest.get('account')
+            and account.get('account')==manifest.get('account') and account.get('environment')==manifest.get('environment'))
+    return safety_gate(action,resolve_modules(observations),facts)
+
+
+def require_module_gate(action, *, duplicate_or_unknown=True):
+    result=module_gate(action,duplicate_or_unknown=duplicate_or_unknown)
+    if not result['allowed']:raise PermissionError('; '.join(result['reasons']))
+
+
+def guarded_broker_operation(func):
+    """Protect every production broker submission, including protective orders."""
+    import inspect
+    @functools.wraps(func)
+    def wrapped(*args,**kwargs):
+        from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE
+        if CODE_ROOT != PRODUCTION_WORKSPACE:
+            return func(*args,**kwargs)  # Worktree suite blocks TCP; production entry guard rejects this workspace.
+        from reporting.recovery import RecoveryCoordinator
+        bound=inspect.signature(func).bind(*args,**kwargs);bound.apply_defaults()
+        proposal=bound.arguments.get('proposal')
+        identity=bound.arguments.get('order_ref') or getattr(proposal,'idempotency_key',None)
+        if not identity:raise PermissionError('Durable operation identity required')
+        require_module_gate('ORDER_SUBMISSION_ALLOWED',duplicate_or_unknown=False)
+        store=RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
+        key='order:'+str(identity)
+        if not store.begin_operation(key,'order',{'entrypoint':func.__name__}):raise PermissionError('Duplicate/uncertain broker operation')
+        try:
+            result=func(*args,**kwargs)
+        except BaseException:
+            store.finish_operation(key,'UNKNOWN')
+            raise
+        store.finish_operation(key,'UNKNOWN' if result.pending_confirmation else 'CONFIRMED')
+        return result
+    return wrapped

@@ -32,8 +32,15 @@ REPORT_DIR = REPORT_ROOT / "ibkr_callback_dry_run"
 
 
 class IbkrCallbackBridge(EWrapper, EClient):
-    def __init__(self, *, symbols_by_req_id: Mapping[int, str] | None = None, audit_writer: AuditWriter | None = None) -> None:
+    def __init__(self, *, symbols_by_req_id: Mapping[int, str] | None = None, audit_writer: AuditWriter | None = None, coordinator=None, expected_account=None) -> None:
         EClient.__init__(self, self)
+        self.coordinator = coordinator
+        self.expected_account = expected_account
+        if coordinator is None:
+            from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE, RUNTIME_ROOT
+            if CODE_ROOT == PRODUCTION_WORKSPACE:
+                from reporting.recovery import RecoveryCoordinator
+                self.coordinator = RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
         self.audit_writer = audit_writer or AuditWriter()
         self.account_bus = RealtimeAccountStateBus(audit_writer=self.audit_writer)
         self.market_data_bus = MarketDataBus(self.account_bus)
@@ -49,6 +56,12 @@ class IbkrCallbackBridge(EWrapper, EClient):
         self.errors: list[str] = []
         self.callback_counts: dict[str, int] = {}
         self.last_event_seen_at: dict[str, str] = {}
+
+    def _publish_end(self, module):
+        if self.coordinator:
+            valid = bool(self.expected_account and self.managed_accounts == [self.expected_account])
+            self.coordinator.observe(module, 'HEALTHY' if valid else 'DEGRADED',
+                freshness='FRESH' if valid else 'UNKNOWN', reason='Completed callback readback; account scope '+('verified' if valid else 'unverified'))
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.ready.set()
@@ -67,6 +80,10 @@ class IbkrCallbackBridge(EWrapper, EClient):
         )
 
     def connectionClosed(self) -> None:  # noqa: N802
+        if self.coordinator:
+            self.coordinator.observe('IBKR_CONNECTION','OFFLINE',freshness='STALE',reason='IBKR connectionClosed')
+            for module in ('ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','MARKET_DATA'):
+                self.coordinator.observe(module,'DEGRADED',freshness='STALE',reason='Broker session lost')
         self._record_callback("connectionClosed", field_name="connection_state", raw_value="closed", state_key="risk", payload={"connection_closed": True}, stale_flag=True)
 
     def error(self, reqId: int, *args: object) -> None:
@@ -135,6 +152,7 @@ class IbkrCallbackBridge(EWrapper, EClient):
         self._record_callback("position", con_id=getattr(contract, "conId", None), symbol=getattr(contract, "symbol", ""), field_name="position", raw_value=position, normalized_value=float(position), state_key="position", payload={"account": account, "position": float(position), "avg_cost": avgCost})
 
     def positionEnd(self) -> None:  # noqa: N802
+        self._publish_end('POSITIONS')
         self.position_end.set()
         self._record_callback("positionEnd", field_name="position_end", raw_value=True, normalized_value=True, state_key="position", payload={"position_end": True})
 
@@ -148,6 +166,7 @@ class IbkrCallbackBridge(EWrapper, EClient):
         self._record_callback("openOrder", req_id=orderId, con_id=getattr(contract, "conId", None), symbol=getattr(contract, "symbol", ""), field_name="open_order", raw_value=getattr(order, "action", ""), normalized_value=getattr(orderState, "status", ""), state_key="open_order", payload={"order_id": orderId, "action": getattr(order, "action", ""), "order_type": getattr(order, "orderType", ""), "status": getattr(orderState, "status", "")})
 
     def openOrderEnd(self) -> None:  # noqa: N802
+        self._publish_end('ORDERS')
         self.open_order_end.set()
         self._record_callback("openOrderEnd", field_name="open_order_end", raw_value=True, normalized_value=True, state_key="open_order", payload={"open_order_end": True})
 
@@ -158,6 +177,7 @@ class IbkrCallbackBridge(EWrapper, EClient):
         self._record_callback("execDetails", req_id=reqId, con_id=getattr(contract, "conId", None), symbol=getattr(contract, "symbol", ""), field_name="execution", raw_value=getattr(execution, "execId", ""), normalized_value=getattr(execution, "execId", ""), state_key="execution", payload={"exec_id": getattr(execution, "execId", ""), "side": getattr(execution, "side", ""), "shares": float(getattr(execution, "shares", 0) or 0), "price": float(getattr(execution, "price", 0) or 0)})
 
     def execDetailsEnd(self, reqId: int) -> None:  # noqa: N802
+        self._publish_end('EXECUTIONS')
         self.exec_details_end.set()
         self._record_callback("execDetailsEnd", req_id=reqId, field_name="execution_end", raw_value=True, normalized_value=True, state_key="execution", payload={"exec_details_end": True})
 

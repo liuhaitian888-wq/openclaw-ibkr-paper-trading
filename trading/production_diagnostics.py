@@ -104,11 +104,14 @@ class ResourceMonitor:
     def __init__(self, service, interval=60):
         self.service=service;self.interval=max(10,interval);self.stop_event=threading.Event();self.thread=None
         self.logger=logging.getLogger('production.resources.'+service);self.logger.propagate=False
-        self.history=[];self.handler=None
+        self.history=[];self.handler=None;self.coordinator=None
     def __enter__(self):
         LOG_ROOT.mkdir(parents=True,exist_ok=True)
         self.handler=RotatingFileHandler(LOG_ROOT/(self.service+'-resources.log'),maxBytes=5*1024*1024,backupCount=3)
         self.logger.addHandler(self.handler);self.logger.setLevel(logging.INFO)
+        from reporting.recovery import RecoveryCoordinator
+        from trading.production_paths import RUNTIME_ROOT
+        self.coordinator=RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
         self.logger.info(json.dumps({'startup':context(),'cwd':os.getcwd()}))
         self.thread=threading.Thread(target=self.run,name='resource-monitor-'+self.service,daemon=True);self.thread.start()
         return self
@@ -120,6 +123,12 @@ class ResourceMonitor:
                 sample['fd_monotonic_growth']=len(self.history)==5 and all(a<b for a,b in zip(self.history,self.history[1:]))
                 if sample['fd_monotonic_growth'] and sample['fd_status']=='OK':sample['fd_status']='WARNING'
             self.logger.info(json.dumps(sample))
+            try:
+                self.coordinator.observe('DIAGNOSTICS','HEALTHY',reason='Local process sample written')
+                self.coordinator.observe('LOCAL_STATE','HEALTHY',reason='Recovery journal transaction committed')
+                self.coordinator.tick()
+            except Exception as exc:
+                self.logger.error(json.dumps({'recovery_persistence_failure':str(exc)}))
             if self.stop_event.wait(self.interval):break
     def __exit__(self,*exc):
         self.stop_event.set()

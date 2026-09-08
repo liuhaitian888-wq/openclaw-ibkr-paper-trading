@@ -21,6 +21,8 @@ SUBMITTED_ORDER_STATUSES = {
     "Filled",
 }
 
+from trading.production_guard import guarded_broker_operation
+
 def normalize_us_stock_price(price: float) -> float:
     return float(Decimal(str(price)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
@@ -345,9 +347,13 @@ class TwsPaperBroker:
 
             client.reqExecutions(9001, ExecutionFilter())
             client.executions_received.wait(max(0.0, deadline - time.perf_counter()))
+            if not client.open_orders_received.is_set() or not client.executions_received.is_set():
+                raise RuntimeError("Incomplete broker readback; reconciliation remains UNKNOWN")
             return BrokerSnapshot(
                 orders=tuple(
-                    client.broker_orders[key] for key in sorted(client.broker_orders)
+                    {**client.broker_orders[key], "verified_account":client.accounts[0], "environment":"PAPER",
+                     "external_evidence":not client.broker_orders[key].get("order_ref") and client.broker_orders[key].get("client_id")==0}
+                    for key in sorted(client.broker_orders)
                 ),
                 executions=tuple(
                     client.executions[key] for key in sorted(client.executions)
@@ -358,6 +364,7 @@ class TwsPaperBroker:
             if client.isConnected():
                 client.disconnect()
 
+    @guarded_broker_operation
     def submit_bracket(
         self,
         proposal: TradeProposal,
@@ -471,6 +478,7 @@ class TwsPaperBroker:
             if client.isConnected():
                 client.disconnect()
 
+    @guarded_broker_operation
     def submit_limit(
         self,
         proposal: TradeProposal,
@@ -535,6 +543,7 @@ class TwsPaperBroker:
             if client.isConnected():
                 client.disconnect()
 
+    @guarded_broker_operation
     def submit_stop(
         self,
         *,
@@ -609,6 +618,7 @@ class TwsPaperBroker:
             if client.isConnected():
                 client.disconnect()
 
+    @guarded_broker_operation
     def submit_stop_limit(
         self,
         *,

@@ -38,3 +38,11 @@
 - 每个长期资源必须有 owner；短连接在 finally/context manager 关闭，长期 IBKR worker 退出后才可替换。禁止提高 ulimit 掩盖泄漏，禁止扫描 fd 强关，禁止启动时杀掉另一实例。
 - Runtime/ledger/快照/报告在 persistent state；tmp 可清理、cache 可重建、logs 有容量上限；数据库和 UNKNOWN delivery history 不是缓存。
 - retry 前重验依赖，UNKNOWN/non-idempotent outcome 不自动重发。旧库恢复与冲突裁决未通过，不切换、不删源、不恢复发送/交易。
+
+## Network/recovery acceptance
+
+- Reuse reporting.health resolver and reporting.recovery coordinator; add leaf adapters rather than a second health framework.
+- Every state transition that invalidates live data must survive restart in the local recovery journal. Network ONLINE never clears STALE/UNKNOWN by itself.
+- Adapter stages are bounded and read-only/idempotent; no automatic orders or report sends from reconnect callbacks. Use the existing durable submission/delivery gates.
+- Fault tests cover startup/offline, short/long loss, independent IBKR/Feishu outages, restoration, stale-after-connect, loss during recovery, restart/UNKNOWN, backlog, external order/position changes, SQLite lock, duplicate recovery and 320 socket-pair recovery cycles. Mock adapter success is not live broker reconciliation proof.
+- Full offline suite in worktree, then commit/Git promotion; main smoke only. No production activation to test recovery.

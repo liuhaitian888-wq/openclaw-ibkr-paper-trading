@@ -313,3 +313,68 @@ SQLite calls use `closing(connection)` outside the transaction context, releasin
 `ResourceMonitor` belongs to the service context and samples every 60 seconds. It records PID/PPID/uptime/RSS/CPU/threads/children, FD categories and soft-limit thresholds, plus startup commit/branch/cwd/state. Five strictly rising samples warn; 70% warns and 85% is critical. It does not close another owner's fd or restart services. Resource logs rotate at 5 MiB, three backups (20 MiB/service bound). Existing Mode 9 cycle JSONL rotation remains 100 MiB/14 days. Full state/log size scans are opt-in maintenance checks, not per-cycle work.
 
 Reuse `scripts/check_gateway_health.command` for a concise read-only smoke; `--json` exposes evidence, `--maintenance --json` adds directory/process/watchdog diagnostics. Missing deployment/migration approval, legacy cwd, duplicate service, unknown FD trend or stale dependencies yields NOT_READY. IBKR listener presence is not a successful broker handshake; failure-notification ACKs are not report delivery success. Smoke never starts services, migrates, sends, or trades. Continuous production FD stability remains a separate authorized post-maintenance observation, not something an offline test can certify.
+
+## Shared dependencies, recovery and ownership (2026-09-09)
+
+The module graph is `reporting.health.MODULE_DEPENDENCIES`; the existing delivery probes remain leaf observations. `resolve_modules` is the common pure resolver used by recovery and the production smoke module view. Unknown/missing observations are DEGRADED, never inferred healthy. Freshness is separately FRESH/STALE/UNKNOWN. Transport recovery does not establish account, market or reconciliation readiness.
+
+```mermaid
+flowchart LR
+ Network --> IBKR
+ Network --> Feishu
+ IBKR --> Account
+ IBKR --> Market
+ Account --> Positions
+ Account --> Orders
+ Account --> Executions
+ Positions --> Risk
+ Orders --> Risk
+ Account --> Risk
+ DB --> Canonical
+ DB --> Financial
+ DB --> Audit
+ DB --> Events
+ DB --> Runtime
+ Canonical --> Strategy
+ Market --> Strategy
+ Risk --> Strategy
+ Strategy --> Submission
+ Executions --> Submission
+ DB --> Report
+ Canonical --> Report
+ Financial --> Report
+ Report --> Delivery
+ Feishu --> Delivery
+ DeliveryLedger --> Delivery
+ Runtime --> Watchdog
+ Runtime --> Manifest
+```
+
+| Module | Existing implementation / inventory finding |
+|---|---|
+| Supervisor/runner | EXISTS: run_autonomous_trading_agent, ExecutionLock, production_guard; guard+process lock serve different purposes |
+| IBKR connection | EXISTS: ibkr_streaming/tws_paper/callback_bridge; PARTIAL unified live observations |
+| Market data | EXISTS: streaming, subscription_health, data_quality_gate; freshness stays independent |
+| Account/positions/open orders/executions | EXISTS: account_state_manager, realtime buses, broker snapshot; PARTIAL unified producer observations |
+| Strategy/risk/submission | EXISTS: strategy modules, risk gates, TradingService/TwsPaperBroker; shared gate added at service and broker boundary |
+| Pool/canonical | EXISTS: pool_state; historical gaps retained; duplicate load fails and current expired-signal demotion now emits a transition |
+| Audit/event store | EXISTS: AuditLog/paper_audit_db/sqlite_event_store; distinct storage contracts, not duplicate network dependencies |
+| Financial ledger | EXISTS: execution_ledger_split/report aggregation; current ownership acceptance is separate from historical observations |
+| Reports/archive | EXISTS: reporting generation + build_account_reports; archive/local computation has no Internet dependency |
+| Feishu/delivery ledger | EXISTS: production report_delivery_guard plus sandbox reporting.delivery; different scopes, not interchangeable transports |
+| Scheduler/watchdog | EXISTS: report_production_scheduler and launchd; all installed production jobs remain disabled |
+| Health | Previously DUPLICATED views; PARTIAL producer coverage. Shared resolver now backs smoke without replacing leaf probes |
+| Recovery | Previously PARTIAL report retry and direct streaming restart. Durable dependency coordinator added to existing reporting.recovery; live adapters must supply bounded read-only checks |
+| Runtime/manifest | EXISTS: independent state root, production guard; manifest is still unpublished and no activation is implied |
+
+Coordinator state lives in runtime/recovery.sqlite3: observations, change events, recovery jobs/backoff and unique operation attempts. Network loss invalidates downstream live observations durably. Network recovery leaves them STALE until refreshed. Tick execution uses a process lock plus a kernel file lock, dependency order and persistent backoff. There are no new per-module recovery threads. Crash-interrupted read-only recovery first requires adapter readback. STARTED/UNKNOWN side effects survive restart and cannot be automatically retried.
+
+Recovery order: connect → authenticate → identity → refresh → freshness → reconcile → backlog. Adapters must return explicit proof at each step and bound their I/O. Backlog evaluation may inspect/reconcile; it must not send or submit. The generic coordinator deliberately does not grant an arbitrary callback side-effect permission. Existing streaming reconnect remains an owned Trading adapter; not all live producers have yet been converted to coordinator adapters. Missing adapters/observations stay visibly DEGRADED, so the code must not be advertised as fully deployed automatic recovery.
+
+Safety gates: PRODUCTION_START_ALLOWED requires local DB/state/manifest; ORDER_SUBMISSION_ALLOWED additionally requires fresh dependency chain, identity/ownership/risk, reconciliation and no PAUSED/UNKNOWN; FEISHU_SEND_ALLOWED uses report/delivery dependencies, duplicate guard and delivery pause. The current shared PAUSED still blocks delivery as well; this review does not change it. Gates are read-only and fail closed. Broker submission boundaries durably reserve an operation identity before invoking transport; errors after invocation are UNKNOWN. The existing delivery ledger already reserves its attempt before POST and holds uncertainty. No global Internet ping grants authority.
+
+Ownership: SYSTEM_OWNED requires scoped broker+intent/source linkage; MANUAL_EXTERNAL requires positive external evidence, not just absence from a table; otherwise UNKNOWN. Manual orders are kept in broker_exposure, never auto-modified, and are not automatically classified as unresolved solely for being external. Risk readiness must include all broker orders/positions, not only system-owned ones. The new ownership helper does not itself grant risk approval or infer missing strategy lineage.
+
+PFE correction: fresh readback reports clientId 3130, orderRef protect-pfe-20260710010237229135, permId 911411084. The backed-up position_protection/test_repair_execute.json records that same ref and orderId 1 as submitted_protective_sell_stop, SELL 8 STP 23.01 GTC in PAPER repair_test mode. position_protection generates that ref and uses base clientId + 930. Therefore system protection origin is established; MANUAL_EXTERNAL would be false. The normalized ownership registry still needs this legacy provenance binding before automated modification is allowed; no fake run or strategy intent is inserted.
+
+Account isolation uses account/environment/source/run/occurrence. DU123 and x remain LEGACY_SCOPE; missing historical scope is preserved, not assigned to DUQ503649. AAPL/ABT historical gaps remain HISTORICAL_GAP; only a newly observed current decision may produce a new transition. Canonical readiness still requires a current validated initialization and market/account observations; this review does not publish a stale snapshot.

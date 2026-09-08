@@ -242,6 +242,9 @@ def main() -> int:
     streaming_source = None
     args.report_dir.mkdir(parents=True, exist_ok=True)
     args.candidate_inbox.mkdir(parents=True, exist_ok=True)
+    from reporting.recovery import RecoveryCoordinator, observe_mode9_cycle
+    from trading.production_paths import RUNTIME_ROOT
+    coordinator = RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
     cycle = 0
     with ExecutionLock(
         process_name="mode9_autonomous_agent",
@@ -263,6 +266,8 @@ def main() -> int:
                 rotate_jsonl(args.report_dir / "cycles.jsonl", max_size_mb=100, retention_days=14)
                 check_disk_usage(args.report_dir)
                 write_json(args.report_dir / "latest.json", result.as_dict())
+                observe_mode9_cycle(coordinator, result.as_dict())
+                coordinator.tick()
                 write_text(args.report_dir / "latest.md", cycle_markdown(result.as_dict()))
                 elapsed = time.perf_counter() - started
                 if args.cycles > 0 and cycle >= args.cycles:
@@ -301,6 +306,8 @@ def run_cycle(
         account_state = build_account_state(settings=settings, force_refresh=False)
         account_state_manager = {
             "source": "account_state_manager",
+            "account_id": account_state.account_id,
+            "environment": settings.trading_mode,
             "timestamp": account_state.timestamp,
             "used_cached_state": account_state.used_cached_state,
             "force_refresh_required": account_state.force_refresh.force_refresh_required if account_state.force_refresh else None,
@@ -332,6 +339,8 @@ def run_cycle(
         account_readiness = account_execution_readiness_payload(account_state)
         account_state_manager = {
             "source": "account_state_manager",
+            "account_id": account_state.account_id,
+            "environment": settings.trading_mode,
             "timestamp": account_state.timestamp,
             "used_cached_state": account_state.used_cached_state,
             "force_refresh_required": account_state.force_refresh.force_refresh_required if account_state.force_refresh else None,

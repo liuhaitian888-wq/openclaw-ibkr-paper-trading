@@ -238,6 +238,12 @@ class AuditLog:
                     ).fetchall()
                 }
                 for order in orders:
+                    from trading.order_ownership import classify_order
+                    order = dict(order)
+                    order["ownership"] = classify_order(order, order.get("verified_intents", []),
+                        account=str(order.get("verified_account", "")),
+                        environment=str(order.get("environment", "")),
+                        external_evidence=order.get("external_evidence") is True)
                     order_ref = str(order.get("order_ref", ""))
                     external = not order_ref or order_ref not in known_refs
                     self._upsert_broker_order(
@@ -307,12 +313,18 @@ class AuditLog:
                        canonical_status, filled, remaining, last_seen_at
                 FROM broker_orders
                 WHERE is_external = 1 AND completed = 0
+                  AND COALESCE(json_extract(raw_json, '$.ownership.ownership'), 'UNKNOWN') != 'MANUAL_EXTERNAL'
                   AND status NOT IN (?, ?, ?, ?)
                 ORDER BY order_id ASC
                 """,
                 terminal,
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def broker_exposure(self):
+        with closing(self._connect()) as connection:
+            return [dict(row) for row in connection.execute(
+                "SELECT account,symbol,order_id,perm_id,side,quantity,remaining,status,raw_json FROM broker_orders WHERE completed=0")]
 
     def latest_reconciliation(self) -> Optional[Dict[str, Any]]:
         with closing(self._connect()) as connection:
@@ -461,6 +473,7 @@ class AuditLog:
             """
             SELECT COUNT(*) AS count FROM broker_orders
             WHERE is_external = 1 AND completed = 0
+                  AND COALESCE(json_extract(raw_json, '$.ownership.ownership'), 'UNKNOWN') != 'MANUAL_EXTERNAL'
               AND status NOT IN (?, ?, ?, ?)
             """,
             terminal,

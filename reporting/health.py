@@ -41,3 +41,93 @@ class Health:
         return result
     def preflight(self,now=None):return [self.health(d,now) for d in DELIVERY_REQUIRED]
     def snapshot(self):return [self.health(d) for d in DEPENDENCIES]
+
+# Shared module resolver. Existing delivery probes remain the leaf-observation API.
+MODULE_DEPENDENCIES = {
+ 'NETWORK': (), 'DATABASE': (), 'LOCAL_STATE': ('DATABASE',),
+ 'AUDIT': ('DATABASE',), 'DIAGNOSTICS': (), 'REPORT_ARCHIVE': (),
+ 'IBKR_CONNECTION': ('NETWORK',), 'MARKET_DATA': ('IBKR_CONNECTION',),
+ 'ACCOUNT': ('IBKR_CONNECTION',), 'POSITIONS': ('ACCOUNT',),
+ 'ORDERS': ('ACCOUNT',), 'EXECUTIONS': ('ACCOUNT',),
+ 'FINANCIAL_LEDGER': ('DATABASE',), 'EVENT_STORE': ('DATABASE',),
+ 'CANONICAL_STATE': ('DATABASE',),
+ 'RISK': ('ACCOUNT','POSITIONS','ORDERS'),
+ 'STRATEGY': ('CANONICAL_STATE','MARKET_DATA','ACCOUNT','RISK','DATABASE'),
+ 'ORDER_SUBMISSION': ('STRATEGY','ORDERS','EXECUTIONS'),
+ 'REPORT': ('DATABASE','CANONICAL_STATE','FINANCIAL_LEDGER'),
+ 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
+ 'DELIVERY': ('REPORT','DELIVERY_LEDGER','FEISHU'),
+ 'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
+}
+MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
+LIVE_MODULES = {'NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION'}
+
+
+def resolve_modules(observations, *, now=None, max_age=120):
+    """Pure, deterministic resolver. No network calls and no promotion by inference."""
+    now=now or datetime.now(timezone.utc);result={}
+    for name,deps in MODULE_DEPENDENCIES.items():
+        raw=dict(observations.get(name,{}));state=raw.get('state','DEGRADED')
+        if state not in MODULE_STATES:state='DEGRADED'
+        freshness=raw.get('freshness','UNKNOWN')
+        if freshness not in ('FRESH','STALE','UNKNOWN'):freshness='UNKNOWN'
+        if name in LIVE_MODULES:
+            try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
+            except (KeyError,ValueError,TypeError):age=None
+            if age is None or age<0 or age>max_age:
+                freshness='STALE' if raw else 'UNKNOWN'
+                if state=='HEALTHY':state='DEGRADED'
+        blocked=[d for d in deps if result[d]['state']!='HEALTHY' or (d in LIVE_MODULES and result[d]['freshness']!='FRESH')]
+        reason=raw.get('reason','No verified observation')
+        if blocked and state not in ('PAUSED','FAILED','OFFLINE'):
+            state='WAITING_DEPENDENCY';reason='Dependency unavailable: '+', '.join(blocked)
+            if name in LIVE_MODULES:freshness='STALE'
+        if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
+            state='DEGRADED';reason='Fresh data not established'
+        result[name]={**raw,'state':state,'freshness':freshness,'reason':reason,
+            'blocking_dependency':blocked,'last_success':raw.get('last_success'),
+            'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
+            'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}
+    result['SYSTEM']={'state':'HEALTHY' if all(x['state']=='HEALTHY' for x in result.values()) else 'DEGRADED',
+        'freshness':'UNKNOWN','reason':'Aggregated module view; not permission to trade',
+        'blocking_dependency':[k for k,v in result.items() if v['state']!='HEALTHY'],
+        'last_success':None,'last_failure':None,'next_retry':None,'observed_at':now.isoformat(),'recovery_state':'AGGREGATED'}
+    return result
+
+
+def safety_gate(action, modules, facts):
+    """One side-effect policy. No caller can infer authority from socket success."""
+    required={'ORDER_SUBMISSION_ALLOWED':('ORDER_SUBMISSION','MANIFEST'),
+              'FEISHU_SEND_ALLOWED':('DELIVERY','MANIFEST'),
+              'PRODUCTION_START_ALLOWED':('DATABASE','LOCAL_STATE','MANIFEST')}
+    if action not in required:return {'allowed':False,'reasons':['Unknown action']}
+    reasons=[]
+    for name in required[action]:
+        m=modules.get(name,{})
+        if m.get('state')!='HEALTHY':reasons.append(name+' not HEALTHY')
+        if name in LIVE_MODULES and m.get('freshness')!='FRESH':reasons.append(name+' not FRESH')
+    if facts.get('maintenance',True):reasons.append('MAINTENANCE')
+    if facts.get('manifest_approved') is not True:reasons.append('Manifest unapproved')
+    if action!='PRODUCTION_START_ALLOWED':
+        if facts.get('duplicate_or_unknown',True):reasons.append('Duplicate/uncertain operation')
+        if facts.get('reconciled') is not True:reasons.append('Reconciliation incomplete')
+    if action=='ORDER_SUBMISSION_ALLOWED':
+        for k in ('identity_verified','ownership_verified','risk_allowed'):
+            if facts.get(k) is not True:reasons.append(k)
+        if facts.get('trading_paused',True):reasons.append('Trading PAUSED')
+    if action=='FEISHU_SEND_ALLOWED' and facts.get('delivery_paused',True):reasons.append('Delivery PAUSED')
+    return {'allowed':not reasons,'reasons':reasons}
+
+# Bridge existing dependency probes to the shared graph (no duplicate ping loop).
+PROBE_MODULES={'network.route':'NETWORK','ibkr.session':'IBKR_CONNECTION',
+    'ibkr.account_callback':'ACCOUNT','market.data':'MARKET_DATA','local.disk':'DATABASE',
+    'local.ledger':'DELIVERY_LEDGER','feishu.endpoint':'FEISHU'}
+
+def module_view(health, *, now=None):
+    now=now or datetime.now(timezone.utc);observations={}
+    for dep,module in PROBE_MODULES.items():
+        row=health.observations.get(dep,{})
+        observations[module]={**row,'state':row.get('state') if row.get('state') in MODULE_STATES else 'DEGRADED',
+            'freshness':'FRESH' if row.get('state')=='HEALTHY' else 'UNKNOWN',
+            'reason':row.get('error_code') or 'Existing dependency probe'}
+    return resolve_modules(observations,now=now)

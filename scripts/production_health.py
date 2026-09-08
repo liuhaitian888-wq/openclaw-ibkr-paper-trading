@@ -98,7 +98,15 @@ def smoke():
     details['paused']=(STATE_ROOT/'PAUSED').exists();details['maintenance']=(STATE_ROOT/'MAINTENANCE').exists()
     if details['paused'] or details['maintenance']:checks['execution gate']='FAIL'
     overall='READY' if all(v=='OK' for v in checks.values()) else 'NOT_READY'
-    return {'checks':checks,'overall':overall,'context':actual,'details':details}
+    from reporting.health import resolve_modules
+    observations={}
+    try:
+        recovery_path=STATE_ROOT/'runtime/recovery.sqlite3'
+        with closing(sqlite3.connect(recovery_path.as_uri()+'?mode=ro',uri=True)) as c:
+            observations={k:json.loads(v) for k,v in c.execute('SELECT name,payload FROM module_observations')}
+    except (sqlite3.Error,ValueError):pass
+    modules=resolve_modules(observations)
+    return {'checks':checks,'overall':overall,'module_overall':modules['SYSTEM']['state'],'modules':modules,'context':actual,'details':details}
 
 
 def main():
