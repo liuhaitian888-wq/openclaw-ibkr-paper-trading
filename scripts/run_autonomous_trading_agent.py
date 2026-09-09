@@ -242,9 +242,11 @@ def main() -> int:
     streaming_source = None
     args.report_dir.mkdir(parents=True, exist_ok=True)
     args.candidate_inbox.mkdir(parents=True, exist_ok=True)
-    from reporting.recovery import RecoveryCoordinator, observe_mode9_cycle
+    from reporting.recovery import RecoveryCoordinator, observe_mode9_cycle, wire_live_adapters
     from trading.production_paths import RUNTIME_ROOT
     coordinator = RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
+    from trading.production_paths import STATE_ROOT, CODE_ROOT
+    wire_live_adapters(coordinator, STATE_ROOT, CODE_ROOT)
     cycle = 0
     with ExecutionLock(
         process_name="mode9_autonomous_agent",

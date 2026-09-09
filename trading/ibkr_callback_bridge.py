@@ -41,6 +41,11 @@ class IbkrCallbackBridge(EWrapper, EClient):
             if CODE_ROOT == PRODUCTION_WORKSPACE:
                 from reporting.recovery import RecoveryCoordinator
                 self.coordinator = RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
+                from trading.production_paths import STATE_ROOT
+                try:
+                    manifest=json.loads((STATE_ROOT/'production.json').read_text())
+                    self.expected_account=expected_account or manifest.get('account')
+                except (OSError,ValueError):pass
         self.audit_writer = audit_writer or AuditWriter()
         self.account_bus = RealtimeAccountStateBus(audit_writer=self.audit_writer)
         self.market_data_bus = MarketDataBus(self.account_bus)

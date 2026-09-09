@@ -56,10 +56,10 @@ class RecoveryCoordinator:
             c.execute('INSERT OR REPLACE INTO module_observations VALUES (?,?)',(name,json.dumps(value,sort_keys=True)))
             if any(old.get(k)!=value.get(k) for k in ('state','freshness','reason')):
                 c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':name,**value}),))
-            if name in LIVE_MODULES and (state in ('OFFLINE','FAILED','DEGRADED') or freshness=='STALE'):
+            if state in ('OFFLINE','FAILED','DEGRADED') or (name in LIVE_MODULES and freshness=='STALE'):
                 affected={name}
                 for child,deps in MODULE_DEPENDENCIES.items():
-                    if child in LIVE_MODULES and affected.intersection(deps):
+                    if affected.intersection(deps):
                         affected.add(child)
                         prior=c.execute('SELECT payload FROM module_observations WHERE name=?',(child,)).fetchone()
                         data=json.loads(prior[0]) if prior else {}
@@ -111,8 +111,14 @@ class RecoveryCoordinator:
                         current=self.snapshot()
                         if any(current[d]['state']!='HEALTHY' for d in MODULE_DEPENDENCIES[module]):raise RuntimeError('Dependency changed during recovery')
                         self.observe(module,'RECOVERING',reason=step,recovery_state=step)
-                        if adapter(step) is not True:raise RuntimeError('Recovery proof missing: '+step)
-                    self.observe(module,'HEALTHY',freshness='FRESH',reason='All recovery checks completed',recovery_state='COMPLETE',next_retry=None)
+                        if adapter(step) is not True:raise RuntimeError('Recovery proof missing: '+step+'; '+str(getattr(adapter,'observation',{}).get('reason','No proof')))
+                        if hasattr(adapter,'observation'):
+                            with closing(self.connect()) as c,c:c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':module,'recovery_step':step,**adapter.observation}),))
+                    proof=getattr(adapter,'observation',{})
+                    evidence=proof.get('evidence',{})
+                    self.observe(module,'HEALTHY',freshness='FRESH',reason=proof.get('reason','All recovery checks completed'),
+                        recovery_state='COMPLETE',next_retry=None,adapter_evidence=proof,
+                        account=evidence.get('account_id'),environment=evidence.get('environment'))
                     outcome='COMPLETE'
                 except Exception as exc:
                     self.observe(module,'DEGRADED',freshness='STALE',reason=str(exc),recovery_state='WAITING_RETRY');outcome='WAITING_RETRY'
@@ -143,3 +149,156 @@ def observe_mode9_cycle(coordinator, payload):
     # Strategy readiness is still dependent on canonical/risk/identity observations.
     coordinator.observe('STRATEGY','HEALTHY' if payload.get('ready_for_orders') else 'WAITING_DEPENDENCY',
         freshness='FRESH' if payload.get('ready_for_orders') else 'UNKNOWN',reason='Existing Mode9 execution readiness')
+
+
+def audit_write_probe(path):
+    """Durable benign audit observation; never creates a missing production DB."""
+    import uuid
+    path=Path(path).resolve()
+    with closing(sqlite3.connect(path.as_uri()+'?mode=rw',uri=True,timeout=.2)) as c,c:
+        c.execute('INSERT INTO event_store(event_id,timestamp_utc,source_module,event_type,payload_json) VALUES (?,?,?,?,?)',
+            ('health-'+uuid.uuid4().hex,datetime.now(timezone.utc).isoformat(),'dependency_adapter','WRITE_PROBE','{"side_effect":false}'))
+
+
+def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=None, symbols=(), broker_probe=None):
+    """Bind every existing module to real observations. No start/send/order action.
+
+    Local recovery revalidates persisted artifacts; it never manufactures a
+    missing database, canonical snapshot, manifest, report or credentials.
+    """
+    import ssl
+    import socket
+    import subprocess
+    import hashlib
+    from .live_observation import probe
+    root=Path(state_root).resolve();code=Path(code_root).resolve();cache={}
+    try:approved=json.loads((root/'production.json').read_text())
+    except (OSError,ValueError):approved={}
+    expected_account=expected_account or approved.get('account')
+    symbols=tuple(symbols or approved.get('market_symbols',()))
+    def read(path):return json.loads(Path(path).read_text())
+    def broker():
+        if not cache.get('broker') or time.time()-cache['at']>30:
+            cache['broker']=(broker_probe or probe)(expected_account=expected_account,symbols=symbols,timeout=8)
+            cache['at']=time.time()
+        return cache['broker']
+    def check(module):
+        if module=='NETWORK':
+            successes=[];failures=[]
+            for host in ('open.feishu.cn','www.interactivebrokers.com'):
+                try:
+                    with socket.create_connection((host,443),timeout=4) as sock:
+                        with ssl.create_default_context().wrap_socket(sock,server_hostname=host) as tls:successes.append({'host':host,'tls':tls.version()})
+                except (OSError,TimeoutError) as exc:failures.append({'host':host,'error':type(exc).__name__})
+            return bool(successes),'Fresh verified TLS egress; endpoint health remains separate',{'successes':successes,'failures':failures}
+        if module in ('IBKR_CONNECTION','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','MARKET_DATA'):
+            b=broker();ok=b['complete'] and expected_account is not None and b['account_id']==expected_account and b['environment']=='PAPER'
+            if module=='MARKET_DATA':ok=ok and bool(symbols) and set(symbols)==set(approved.get('market_symbols',())) and set(b['quotes'])==set(symbols) and all(q.get('data_type')==1 and q.get('bid',0)>0 and q.get('ask',0)>0 and q.get('received_at') for q in b['quotes'].values())
+            if module=='ACCOUNT':ok=ok and all(v['value'] is not None and v['currency'] for v in b['account'].values()) and b['pnl'] is not None
+            if module in ('POSITIONS','ORDERS','EXECUTIONS'):ok=ok and all(x.get('account')==expected_account for x in b[module.lower()])
+            return ok,'Live IBKR end markers/account/market evidence' if ok else 'Missing approved account, complete readback or live quote evidence',b
+        if module in ('DATABASE','AUDIT','EVENT_STORE'):
+            audit_write_probe(root/'trading_audit.sqlite3')
+            return True,'Audit write committed',{'path':str(root/'trading_audit.sqlite3')}
+        if module=='LOCAL_STATE':
+            with closing(coordinator.connect()) as c,c:c.execute('INSERT INTO module_events(payload) VALUES (?)',('{"local_write_probe":true}',))
+            return True,'Local journal write committed',{'path':str(coordinator.path)}
+        if module=='DIAGNOSTICS':
+            from trading.production_diagnostics import process_snapshot
+            evidence=process_snapshot();return evidence.get('open_fd_count') is not None,'Live owner process observation',evidence
+        if module=='REPORT_ARCHIVE':
+            p=root/'reports';return p.is_dir() and any(p.iterdir()),'Local report archive availability',{'path':str(p)}
+        if module=='FINANCIAL_LEDGER':
+            p=root/'financial_ledger.sqlite3'
+            with closing(sqlite3.connect(p.as_uri()+'?mode=ro',uri=True)) as c:
+                accounts={x[0] for x in c.execute('SELECT DISTINCT account FROM observations')}
+            return bool(expected_account) and accounts=={expected_account},'Financial observation account scope',{'accounts':sorted(accounts),'path':str(p)}
+        if module=='DELIVERY_LEDGER':
+            d=read(root/'delivery.json');records=d.get('reports',{})
+            unknown=[k for k,v in records.items() if v.get('status') in ('UNKNOWN','STARTED','SENDING','ACCEPTED_PENDING_COMMIT')]
+            return d.get('schema_version')==2 and isinstance(records,dict),'Persistent delivery ledger; uncertainty stays held',{'unknown':unknown,'records':len(records)}
+        if module=='FEISHU':
+            # Refresh actual app authentication; never use a cached token as proof.
+            from scripts.send_feishu_report import load_env_file,tenant_access_token
+            load_env_file(code/'.secrets/feishu_webhook.env')
+            load_env_file(code/'.secrets/feishu_image_upload.env')
+            token=tenant_access_token(force_refresh=True)
+            return False,'App authentication refreshed; custom webhook acceptance has no read-only verification API',{'fresh_app_auth':bool(token),'send_attempted':False}
+        manifest=read(root/'production.json')
+        if module=='MANIFEST':
+            commit=subprocess.check_output(['git','-C',str(code),'rev-parse','HEAD'],text=True).strip()
+            ok=manifest.get('ready') is True and manifest.get('commit')==commit and manifest.get('state_root')==str(root)
+            return ok,'Approved deployment identity',{'commit':commit,'approved':ok}
+        if module=='CANONICAL_STATE':
+            p=root/'trading_audit.sqlite3'
+            with closing(sqlite3.connect(p.as_uri()+'?mode=ro',uri=True)) as c:
+                duplicates=c.execute('SELECT symbol,count(*) FROM canonical_pool_state GROUP BY symbol HAVING count(*)>1').fetchall()
+                count=c.execute('SELECT count(*) FROM canonical_pool_state').fetchone()[0]
+            return bool(count) and not duplicates and manifest.get('canonical_current_state_verified') is True,'Canonical projection and approved reconciliation',{'rows':count,'duplicates':duplicates}
+        if module=='REPORT':
+            report=read(manifest['report_manifest']);artifact=Path(report['artifact_path']);actual=hashlib.sha256(artifact.read_bytes()).hexdigest()
+            source=Path(report['source_json']);source_hash=hashlib.sha256(source.read_bytes()).hexdigest()
+            from scripts.production_health import fresh
+            ok=actual==report['artifact_hash'] and source_hash==report['source_hash'] and fresh(report.get('created_at'),seconds=86400) and report.get('simulation') is not True and report.get('validation',{}).get('ready') is True
+            return ok,'Current report/source hashes and generation freshness',{'report_id':report['report_id'],'artifact_hash':actual,'created_at':report.get('created_at')}
+        if module=='WATCHDOG':
+            from scripts.production_health import recent_resource,fresh
+            from trading.production_diagnostics import process_inventory
+            sample=recent_resource('execution')
+            owners=[p for p in process_inventory() if p['pid']==sample.get('pid') and 'run_autonomous_trading_agent.py' in p['command']]
+            ok=bool(owners) and fresh(sample.get('timestamp')) and sample.get('fd_status')=='OK' and not (root/'MAINTENANCE').exists()
+            return ok,'Existing resource monitor live owner/heartbeat; never enables jobs',{'maintenance':(root/'MAINTENANCE').exists(),'sample':sample,'owners':owners}
+        if module=='RISK':
+            from trading.order_ownership import classify_order,exposure_snapshot,verified_historical_intents
+            b=broker()
+            ownership=[classify_order(o,verified_historical_intents(o,manifest.get('ownership_review_paths',[]),account=expected_account,environment=b['environment']),account=expected_account,environment=b['environment'],
+                external_evidence=o.get('client_id')==0 and not o.get('order_ref')) for o in b['orders']]
+            # A system claim needs published provenance; absence never implies manual.
+            ok=b['complete'] and bool(expected_account) and b['account_id']==expected_account and all(x['ownership']!='UNKNOWN' for x in ownership)
+            return ok,'Live exposure includes every manual/system order; unresolved ownership blocks risk readiness',{
+                'exposure':exposure_snapshot(b['orders'],b['positions']),'ownership':ownership,'account_id':b['account_id'],'environment':b['environment']}
+        if module=='STRATEGY':
+            cycle=read(root/'reports/autonomous_agent/latest.json')
+            age=time.time()-datetime.fromisoformat(cycle['created_at']).timestamp()
+            account=cycle.get('account_state_manager',{})
+            ok=0<=age<=60 and cycle.get('ready_for_orders') is True and cycle.get('quote_execution_ready') is True and not cycle.get('errors') and account.get('account_id')==expected_account and account.get('used_cached_state') is False and account.get('force_refresh_ok') is True
+            return ok,'Existing Mode9 current-cycle account/quote readiness; no strategy execution by adapter',{'created_at':cycle['created_at'],'blocked_reason':cycle.get('blocked_reason'),'account':account}
+        if module=='ORDER_SUBMISSION':
+            with closing(sqlite3.connect((root/'trading_audit.sqlite3').as_uri()+'?mode=ro',uri=True)) as c:
+                pending=c.execute("SELECT idempotency_key,status FROM order_requests WHERE status IN ('UNKNOWN','STARTED','PENDING_CONFIRMATION')").fetchall()
+                latest=c.execute('SELECT completed_at,status FROM reconciliation_runs ORDER BY completed_at DESC LIMIT 1').fetchone()
+            age=time.time()-datetime.fromisoformat(latest[0]).timestamp() if latest else float('inf')
+            ok=not pending and not coordinator.uncertainties() and latest and latest[1]=='OK' and 0<=age<=60
+            return bool(ok),'Existing broker reconciliation must be current; ambiguous attempts remain held',{'pending':pending,'latest_reconciliation':latest}
+        if module=='DELIVERY':
+            d=read(root/'delivery.json')
+            unresolved=[k for k,v in d['reports'].items() if v.get('status') in ('UNKNOWN','STARTED','SENDING','ACCEPTED_PENDING_COMMIT')]
+            return not unresolved,'Existing ledger readback; no automatic resend',{'unresolved':unresolved}
+        raise ValueError('No production adapter for '+module)
+    class Adapter:
+        def __init__(self,module):self.module=module;self.observation={}
+        def __call__(self,step):
+            if step=='connect' or not self.observation:
+                if self.module=='IBKR_CONNECTION':cache.clear()
+                try:
+                    ok,reason,evidence=check(self.module)
+                    self.observation={'ok':ok,'reason':reason,'evidence':evidence,'sampled_at':datetime.now(timezone.utc).isoformat()}
+                except Exception as exc:self.observation={'ok':False,'reason':type(exc).__name__+': '+str(exc),'evidence':{},'sampled_at':datetime.now(timezone.utc).isoformat()}
+            self.observation['step']=step
+            if self.module in ('IBKR_CONNECTION','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','MARKET_DATA'):
+                b=self.observation.get('evidence',{})
+                phase={
+                    'connect':bool(b.get('server_time')),
+                    'authenticate':bool(b.get('account_id')) and b.get('environment')=='PAPER',
+                    'identity':bool(expected_account) and b.get('account_id')==expected_account,
+                    'refresh':b.get('complete') is True,
+                    'freshness':bool(b.get('observed_at')) and 0<=time.time()-datetime.fromisoformat(b['observed_at']).timestamp()<60,
+                    'reconcile':all(x.get('account')==expected_account for k in ('positions','orders','executions') for x in b.get(k,[])),
+                    'backlog':not coordinator.uncertainties(), # Unresolved operations block promotion; never replay.
+                }
+                self.observation['phase_verified']=phase.get(step,False)
+                if step=='backlog':self.observation['uncertainties_retained']=coordinator.uncertainties()
+                return self.observation['ok'] is True and phase.get(step,False)
+            return self.observation['ok'] is True
+    coordinator.adapters={name:Adapter(name) for name in MODULE_DEPENDENCIES}
+    return coordinator.adapters

@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 from dataclasses import dataclass, field
@@ -280,9 +281,11 @@ class TwsPaperBroker:
     def check_status(self, timeout: float = 2.0) -> TwsConnectionStatus:
         started = time.perf_counter()
         client = TwsPaperClient()
+        worker = None
         try:
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             deadline = time.perf_counter() + timeout
             ready = client.ready.wait(timeout)
             accounts_ready = client.accounts_ready.wait(max(0.0, deadline - time.perf_counter()))
@@ -316,15 +319,16 @@ class TwsPaperBroker:
                 timings={"tws_status_check_ms": self._elapsed_ms(started)},
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     def collect_snapshot(self, timeout: float = 5.0) -> BrokerSnapshot:
         """Read broker order/execution truth without placing or changing orders."""
         client = TwsPaperClient()
+        worker = None
         try:
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             deadline = time.perf_counter() + timeout
             if not client.ready.wait(timeout) or not client.accounts_ready.wait(
                 max(0.0, deadline - time.perf_counter())
@@ -349,9 +353,14 @@ class TwsPaperBroker:
             client.executions_received.wait(max(0.0, deadline - time.perf_counter()))
             if not client.open_orders_received.is_set() or not client.executions_received.is_set():
                 raise RuntimeError("Incomplete broker readback; reconciliation remains UNKNOWN")
+            from trading.order_ownership import verified_historical_intents
+            from trading.production_paths import STATE_ROOT
+            try:reviews=json.loads((STATE_ROOT/'production.json').read_text()).get('ownership_review_paths',[])
+            except (OSError,ValueError):reviews=[]
             return BrokerSnapshot(
                 orders=tuple(
                     {**client.broker_orders[key], "verified_account":client.accounts[0], "environment":"PAPER",
+                     "verified_intents":verified_historical_intents(client.broker_orders[key],reviews,account=client.accounts[0],environment="PAPER"),
                      "external_evidence":not client.broker_orders[key].get("order_ref") and client.broker_orders[key].get("client_id")==0}
                     for key in sorted(client.broker_orders)
                 ),
@@ -361,8 +370,7 @@ class TwsPaperBroker:
                 messages=tuple(client.errors),
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     @guarded_broker_operation
     def submit_bracket(
@@ -375,18 +383,22 @@ class TwsPaperBroker:
         total_started = time.perf_counter()
         timings: Dict[str, float] = {}
         client = TwsPaperClient()
+        worker = None
         parent_placed = False
         child_rejected_parent_cancel_requested = False
         try:
             connect_started = time.perf_counter()
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
                 raise RuntimeError("TWS paper connection timed out")
             timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
 
             if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
                 raise RuntimeError("Orders are restricted to one DU paper account")
+            from trading.production_guard import require_connected_account
+            require_connected_account(client.accounts)
             if client.next_order_id is None:
                 raise RuntimeError("TWS did not provide a valid order ID")
 
@@ -475,8 +487,7 @@ class TwsPaperBroker:
                 child_rejected_parent_cancel_requested=child_rejected_parent_cancel_requested,
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     @guarded_broker_operation
     def submit_limit(
@@ -489,16 +500,20 @@ class TwsPaperBroker:
         total_started = time.perf_counter()
         timings: Dict[str, float] = {}
         client = TwsPaperClient()
+        worker = None
         try:
             connect_started = time.perf_counter()
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
                 raise RuntimeError("TWS paper connection timed out")
             timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
 
             if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
                 raise RuntimeError("Orders are restricted to one DU paper account")
+            from trading.production_guard import require_connected_account
+            require_connected_account(client.accounts)
             if client.next_order_id is None:
                 raise RuntimeError("TWS did not provide a valid order ID")
 
@@ -540,8 +555,7 @@ class TwsPaperBroker:
                 normalized_limit_price=order.lmtPrice,
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     @guarded_broker_operation
     def submit_stop(
@@ -561,16 +575,20 @@ class TwsPaperBroker:
         total_started = time.perf_counter()
         timings: Dict[str, float] = {}
         client = TwsPaperClient()
+        worker = None
         try:
             connect_started = time.perf_counter()
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
                 raise RuntimeError("TWS paper connection timed out")
             timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
 
             if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
                 raise RuntimeError("Orders are restricted to one DU paper account")
+            from trading.production_guard import require_connected_account
+            require_connected_account(client.accounts)
             if client.next_order_id is None:
                 raise RuntimeError("TWS did not provide a valid order ID")
 
@@ -615,8 +633,7 @@ class TwsPaperBroker:
                 child_transmit=transmit,
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     @guarded_broker_operation
     def submit_stop_limit(
@@ -637,16 +654,20 @@ class TwsPaperBroker:
         total_started = time.perf_counter()
         timings: Dict[str, float] = {}
         client = TwsPaperClient()
+        worker = None
         try:
             connect_started = time.perf_counter()
             client.connect(self._host, self._port, clientId=self._client_id)
-            threading.Thread(target=client.run_loop, daemon=True).start()
+            worker = threading.Thread(target=client.run_loop, daemon=True)
+            worker.start()
             if not client.ready.wait(timeout) or not client.accounts_ready.wait(timeout):
                 raise RuntimeError("TWS paper connection timed out")
             timings["broker_connect_handshake_ms"] = self._elapsed_ms(connect_started)
 
             if len(client.accounts) != 1 or not client.accounts[0].startswith("DU"):
                 raise RuntimeError("Orders are restricted to one DU paper account")
+            from trading.production_guard import require_connected_account
+            require_connected_account(client.accounts)
             if client.next_order_id is None:
                 raise RuntimeError("TWS did not provide a valid order ID")
 
@@ -694,8 +715,7 @@ class TwsPaperBroker:
                 child_transmit=transmit,
             )
         finally:
-            if client.isConnected():
-                client.disconnect()
+            _close_owned_client(client, worker)
 
     @staticmethod
     def _cancel_parent_order(
@@ -923,3 +943,15 @@ class TwsPaperBroker:
         order.orderRef = order_ref
         order.transmit = transmit
         return order
+
+
+def _close_owned_client(client, worker):
+    # EClient.disconnect clears client.reader, so retain its owner before closing.
+    reader=getattr(client,'reader',None)
+    try:
+        if client.isConnected():client.disconnect()
+    finally:
+        for thread in (worker,reader):
+            if thread is not None and thread is not threading.current_thread():
+                thread.join(timeout=5)
+                if thread.is_alive():raise RuntimeError('IBKR owned worker did not terminate')

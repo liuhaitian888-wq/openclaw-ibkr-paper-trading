@@ -149,9 +149,9 @@ def build_image_payload(image_key: str) -> dict[str, object]:
     return {"msg_type": "image", "content": {"image_key": image_key}}
 
 
-def tenant_access_token() -> str:
+def tenant_access_token(*, force_refresh: bool = False) -> str:
     existing = os.getenv("FEISHU_TENANT_ACCESS_TOKEN", "").strip()
-    if existing:
+    if existing and not force_refresh:
         return existing
     app_id = os.getenv("FEISHU_APP_ID", "").strip()
     app_secret = os.getenv("FEISHU_APP_SECRET", "").strip()

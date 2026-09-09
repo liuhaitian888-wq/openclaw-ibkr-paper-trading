@@ -21,3 +21,5 @@
 数据收口最新证据：维护目录 `final-review/`。Schema 候选已事务化重建并保留原表；当前门禁仍 STOP：state 初始化链/两条不连续历史、跨账户 occurrence 分组及 PFE 活跃订单与池状态归属未验收。72 条缺失旧载荷仅保留历史歧义标签，不作为永久独立阻塞。未发布正式 manifest、未发送。
 
 架构审查：统一模块视图在既有 smoke 的 `modules` 字段；持久恢复状态为 runtime/recovery.sqlite3。PFE 已找到旧 position_protection 精确执行来源，不能归为手工单；来源裁决保存在维护证据，不授权修改订单。模块 observations 缺失与未发布 manifest 仍保持 NOT_READY；本轮只读查询及离线故障测试，不启动生产。
+
+真实 adapter 接线与验收：见 `docs/production-audit/ADAPTER_ACCEPTANCE.md`。24 个模块接入既有 coordinator；真实 IBKR 只读连接与 Feishu 新认证已验证，但批准 universe、正式数据/manifest、业务对账、webhook 接收与完整生产长跑仍未验收。PAUSED/MAINTENANCE 不变，不以组件通过代替 READY。

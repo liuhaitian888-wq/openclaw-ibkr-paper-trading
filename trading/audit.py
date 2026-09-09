@@ -385,6 +385,7 @@ class AuditLog:
         *,
         external: bool,
     ) -> None:
+        AuditLog._require_same_identity(connection, "broker_orders", "order_id", int(order.get("order_id", 0)), order)
         values = (
             int(order.get("order_id", 0)), int(order.get("perm_id", 0)),
             int(order.get("parent_id", 0)), int(order.get("client_id", 0)),
@@ -448,6 +449,7 @@ class AuditLog:
         execution: Dict[str, Any],
         seen_at: str,
     ) -> None:
+        AuditLog._require_same_identity(connection, "executions", "exec_id", str(execution.get("exec_id", "")), execution)
         connection.execute(
             """
             INSERT INTO executions
@@ -465,6 +467,17 @@ class AuditLog:
                 seen_at, json.dumps(execution, sort_keys=True),
             ),
         )
+
+    @staticmethod
+    def _require_same_identity(connection, table, key, value, incoming):
+        # Fixed internal table/key names. Reject legacy key reuse without altering schema/history.
+        row=connection.execute(f"SELECT raw_json FROM {table} WHERE {key}=?",(value,)).fetchone()
+        if row is None:return
+        old=json.loads(row[0])
+        fields=('account','environment','perm_id','order_ref','source','source_id','run','run_id','occurrence','event_id')
+        conflicts=[field for field in fields if old.get(field)!=incoming.get(field)]
+        if conflicts:
+            raise ValueError('RECONCILIATION_IDENTITY_CONFLICT: '+table+' '+str(value)+' fields='+','.join(conflicts))
 
     @staticmethod
     def _external_active_count(connection: sqlite3.Connection) -> int:

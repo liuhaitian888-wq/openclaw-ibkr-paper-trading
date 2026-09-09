@@ -63,10 +63,9 @@ def deliver(report_path, callback, *, state_dir=STATE_DIR, now=None):
             save(path, state)
         from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE
         if CODE_ROOT == PRODUCTION_WORKSPACE:
-            from trading.production_guard import module_gate
-            gate = module_gate('FEISHU_SEND_ALLOWED', duplicate_or_unknown=False)
-            if not gate['allowed']:
-                return {'status':'BLOCKED','reason':'; '.join(gate['reasons'])}
+            from trading.production_guard import require_module_gate
+            try:require_module_gate('FEISHU_SEND_ALLOWED', duplicate_or_unknown=False)
+            except PermissionError as exc:return {'status':'BLOCKED','reason':str(exc)}
         if (state_dir / 'PAUSED').exists():
             return {'status': 'BLOCKED', 'reason': 'delivery_paused'}
         # One-hour initial window; retries are independently spaced and capped.

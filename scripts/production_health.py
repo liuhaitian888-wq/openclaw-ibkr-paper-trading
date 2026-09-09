@@ -106,11 +106,23 @@ def smoke():
             observations={k:json.loads(v) for k,v in c.execute('SELECT name,payload FROM module_observations')}
     except (sqlite3.Error,ValueError):pass
     modules=resolve_modules(observations)
-    return {'checks':checks,'overall':overall,'module_overall':modules['SYSTEM']['state'],'modules':modules,'context':actual,'details':details}
+    from trading.production_guard import module_gate
+    permissions={k:module_gate(k) for k in ('PRODUCTION_START_ALLOWED','ORDER_SUBMISSION_ALLOWED','FEISHU_SEND_ALLOWED')}
+    if modules['SYSTEM']['state']!='HEALTHY' or not permissions['PRODUCTION_START_ALLOWED']['allowed']:overall='NOT_READY'
+    return {'permissions':permissions,'checks':checks,'overall':overall,'module_overall':modules['SYSTEM']['state'],'modules':modules,'context':actual,'details':details}
 
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',action='store_true');parser.add_argument('--maintenance',action='store_true');args=parser.parse_args()
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--json',action='store_true');parser.add_argument('--maintenance',action='store_true')
+    parser.add_argument('--refresh-adapters',action='store_true',help='Explicit bounded live readbacks and durable health observations; never starts services')
+    parser.add_argument('--expected-account');parser.add_argument('--symbols',default='')
+    args=parser.parse_args()
+    if args.refresh_adapters:
+        from reporting.recovery import RecoveryCoordinator,wire_live_adapters
+        coordinator=RecoveryCoordinator(STATE_ROOT/'runtime/recovery.sqlite3')
+        wire_live_adapters(coordinator,STATE_ROOT,PRODUCTION_WORKSPACE,expected_account=args.expected_account,
+            symbols=tuple(x for x in args.symbols.split(',') if x))
+        coordinator.tick()
     result=smoke()
     if args.maintenance:
         result['maintenance']={'state_directory_bytes':directory_size(STATE_ROOT),'log_directory_bytes':directory_size(LOG_ROOT),

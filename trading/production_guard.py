@@ -89,6 +89,22 @@ def module_gate(action, *, duplicate_or_unknown=True):
 def require_module_gate(action, *, duplicate_or_unknown=True):
     result=module_gate(action,duplicate_or_unknown=duplicate_or_unknown)
     if not result['allowed']:raise PermissionError('; '.join(result['reasons']))
+    if action in ('ORDER_SUBMISSION_ALLOWED','FEISHU_SEND_ALLOWED'):
+        from reporting.recovery import audit_write_probe
+        from trading.production_paths import AUDIT_DB
+        try:
+            audit_write_probe(AUDIT_DB)
+            import sqlite3
+            from contextlib import closing
+            journal=(RUNTIME_ROOT/'recovery.sqlite3').resolve()
+            with closing(sqlite3.connect(journal.as_uri()+'?mode=rw',uri=True,timeout=.2)) as c,c:
+                c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'persistence_check':action}),))
+        except Exception as exc:
+            try:
+                from reporting.recovery import RecoveryCoordinator
+                RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3').observe('DATABASE','FAILED',freshness='STALE',reason='Audit persistence failure; fresh reconciliation required')
+            except Exception:pass  # This call still hard-blocks if diagnostic persistence also fails.
+            raise PermissionError('Audit persistence unavailable; side effect forbidden') from exc
 
 
 def guarded_broker_operation(func):
@@ -116,3 +132,12 @@ def guarded_broker_operation(func):
         store.finish_operation(key,'UNKNOWN' if result.pending_confirmation else 'CONFIRMED')
         return result
     return wrapped
+
+
+def require_connected_account(accounts):
+    """Check the actual session, not a previous health observation, before submit."""
+    from trading.production_paths import CODE_ROOT,PRODUCTION_WORKSPACE
+    if CODE_ROOT!=PRODUCTION_WORKSPACE:return  # Offline fixture path; production entry rejects worktrees.
+    manifest=json.loads((STATE_ROOT/'production.json').read_text())
+    if manifest.get('ready') is not True or manifest.get('environment')!='PAPER' or not manifest.get('account') or list(accounts)!=[manifest['account']]:
+        raise PermissionError('Connected broker account differs from approved production identity')

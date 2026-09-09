@@ -109,9 +109,10 @@ class ResourceMonitor:
         LOG_ROOT.mkdir(parents=True,exist_ok=True)
         self.handler=RotatingFileHandler(LOG_ROOT/(self.service+'-resources.log'),maxBytes=5*1024*1024,backupCount=3)
         self.logger.addHandler(self.handler);self.logger.setLevel(logging.INFO)
-        from reporting.recovery import RecoveryCoordinator
+        from reporting.recovery import RecoveryCoordinator, wire_live_adapters
         from trading.production_paths import RUNTIME_ROOT
         self.coordinator=RecoveryCoordinator(RUNTIME_ROOT/'recovery.sqlite3')
+        wire_live_adapters(self.coordinator, STATE_ROOT, CODE_ROOT)
         self.logger.info(json.dumps({'startup':context(),'cwd':os.getcwd()}))
         self.thread=threading.Thread(target=self.run,name='resource-monitor-'+self.service,daemon=True);self.thread.start()
         return self
@@ -132,7 +133,7 @@ class ResourceMonitor:
             if self.stop_event.wait(self.interval):break
     def __exit__(self,*exc):
         self.stop_event.set()
-        if self.thread:self.thread.join(timeout=20)
+        if self.thread:self.thread.join(timeout=60)
         # Never close a handler while a live sampling worker still owns it.
         if self.thread and self.thread.is_alive():raise RuntimeError('Resource monitor has not stopped')
         if self.handler:self.logger.removeHandler(self.handler);self.handler.close()

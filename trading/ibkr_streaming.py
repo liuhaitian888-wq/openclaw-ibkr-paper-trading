@@ -257,6 +257,7 @@ class IbkrStreamingQuoteSource:
             return False
 
     def stop(self) -> None:
+        reader = getattr(self._client, "reader", None)
         for ticker_id in self._active_ticker_by_symbol.values():
             try:
                 self._client.cancelMktData(ticker_id)
@@ -269,6 +270,10 @@ class IbkrStreamingQuoteSource:
             if self._thread.is_alive():
                 raise RuntimeError("IBKR worker did not terminate; refusing replacement")
             self._thread = None
+        if reader is not None and reader is not threading.current_thread():
+            reader.join(timeout=2.0)
+            if reader.is_alive():
+                raise RuntimeError("IBKR reader did not terminate; refusing replacement")
         self._started = False
         _log_event("streaming_stopped", symbols=self.symbols)
 
