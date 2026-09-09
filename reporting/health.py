@@ -71,7 +71,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
         if state not in MODULE_STATES:state='DEGRADED'
         freshness=raw.get('freshness','UNKNOWN')
         if freshness not in ('FRESH','STALE','UNKNOWN'):freshness='UNKNOWN'
-        if name in LIVE_MODULES:
+        if name in LIVE_MODULES or name=='DIAGNOSTICS':
             try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
             except (KeyError,ValueError,TypeError):age=None
             if age is None or age<0 or age>max_age:

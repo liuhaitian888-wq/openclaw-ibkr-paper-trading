@@ -171,6 +171,7 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
     import subprocess
     import hashlib
     from .live_observation import probe
+    from trading.production_paths import maintenance_active
     root=Path(state_root).resolve();code=Path(code_root).resolve();cache={}
     try:approved=json.loads((root/'production.json').read_text())
     except (OSError,ValueError):approved={}
@@ -246,8 +247,8 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             from trading.production_diagnostics import process_inventory
             sample=recent_resource('execution')
             owners=[p for p in process_inventory() if p['pid']==sample.get('pid') and 'run_autonomous_trading_agent.py' in p['command']]
-            ok=bool(owners) and fresh(sample.get('timestamp')) and sample.get('fd_status')=='OK' and not (root/'MAINTENANCE').exists()
-            return ok,'Existing resource monitor live owner/heartbeat; never enables jobs',{'maintenance':(root/'MAINTENANCE').exists(),'sample':sample,'owners':owners}
+            ok=bool(owners) and fresh(sample.get('timestamp')) and sample.get('fd_status')=='OK' and not maintenance_active(root)
+            return ok,'Existing resource monitor live owner/heartbeat; never enables jobs',{'maintenance':maintenance_active(root),'sample':sample,'owners':owners}
         if module=='RISK':
             from trading.order_ownership import classify_order,exposure_snapshot,verified_historical_intents
             b=broker()
@@ -265,7 +266,7 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             return ok,'Existing Mode9 current-cycle account/quote readiness; no strategy execution by adapter',{'created_at':cycle['created_at'],'blocked_reason':cycle.get('blocked_reason'),'account':account}
         if module=='ORDER_SUBMISSION':
             with closing(sqlite3.connect((root/'trading_audit.sqlite3').as_uri()+'?mode=ro',uri=True)) as c:
-                pending=c.execute("SELECT idempotency_key,status FROM order_requests WHERE status IN ('UNKNOWN','STARTED','PENDING_CONFIRMATION')").fetchall()
+                pending=c.execute("SELECT idempotency_key,status FROM order_requests WHERE status IS NULL OR status NOT IN ('FILLED','CANCELLED','REJECTED','FAILED_FINAL')").fetchall()
                 latest=c.execute('SELECT completed_at,status FROM reconciliation_runs ORDER BY completed_at DESC LIMIT 1').fetchone()
             age=time.time()-datetime.fromisoformat(latest[0]).timestamp() if latest else float('inf')
             ok=not pending and not coordinator.uncertainties() and latest and latest[1]=='OK' and 0<=age<=60

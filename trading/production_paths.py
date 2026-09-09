@@ -28,3 +28,14 @@ def state_root_for(code_root):
     """Explicit fixture roots stay isolated; default production readers use STATE_ROOT."""
     root = Path(code_root).resolve()
     return STATE_ROOT if root == CODE_ROOT else root
+
+
+def maintenance_active(state_root=None):
+    """Runtime flag stays distinct from the evidence archive on case-insensitive disks."""
+    root=Path(state_root) if state_root is not None else STATE_ROOT
+    if (root/'runtime/MAINTENANCE').exists():return True
+    legacy=root/'MAINTENANCE';archive=root/'maintenance'
+    if not legacy.exists():return False
+    # Preserve old file markers and distinct legacy directory markers.
+    if legacy.is_dir() and archive.is_dir() and os.path.samefile(legacy,archive):return False
+    return True

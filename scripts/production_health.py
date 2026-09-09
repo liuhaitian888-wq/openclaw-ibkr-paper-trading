@@ -12,7 +12,7 @@ if __package__ in (None,''):
     sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 
 from trading.production_paths import (CODE_ROOT,PRODUCTION_WORKSPACE,STATE_ROOT,AUDIT_DB,
-    FINANCIAL_LEDGER,DELIVERY_LEDGER,LOG_ROOT,REPORT_ROOT)
+    FINANCIAL_LEDGER,DELIVERY_LEDGER,LOG_ROOT,REPORT_ROOT,maintenance_active)
 from trading.production_guard import validate_workspace
 from trading.production_diagnostics import command,context,process_inventory,process_snapshot,directory_size,read_json
 
@@ -95,7 +95,7 @@ def smoke():
         and fresh(dependency.get('verified_at'))) else 'DEGRADED'
     details['delivery_schema_version']=ledger.get('schema_version')
     details['last_successful_Feishu_delivery']=successful_delivery(ledger)
-    details['paused']=(STATE_ROOT/'PAUSED').exists();details['maintenance']=(STATE_ROOT/'MAINTENANCE').exists()
+    details['paused']=(STATE_ROOT/'PAUSED').exists();details['maintenance']=maintenance_active(STATE_ROOT)
     if details['paused'] or details['maintenance']:checks['execution gate']='FAIL'
     overall='READY' if all(v=='OK' for v in checks.values()) else 'NOT_READY'
     from reporting.health import resolve_modules

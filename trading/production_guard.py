@@ -5,7 +5,7 @@ import json
 import os
 from pathlib import Path
 from contextlib import contextmanager
-from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE, STATE_ROOT, RUNTIME_ROOT, AUDIT_DB
+from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE, STATE_ROOT, RUNTIME_ROOT, AUDIT_DB, maintenance_active
 from trading.production_diagnostics import context, ResourceMonitor
 
 
@@ -34,7 +34,7 @@ def production_service(service):
     validate_workspace()
     if os.getenv("AUDIT_DB") and Path(os.environ["AUDIT_DB"]).expanduser().resolve() != AUDIT_DB:
         raise RuntimeError("AUDIT_DB override conflicts with canonical production path")
-    if (STATE_ROOT/'MAINTENANCE').exists():raise RuntimeError('Production maintenance is active; startup refused')
+    if maintenance_active(STATE_ROOT):raise RuntimeError('Production maintenance is active; startup refused')
     try:manifest=json.loads((STATE_ROOT/'production.json').read_text())
     except (OSError,ValueError):raise RuntimeError('Approved production manifest is missing')
     actual=context()
@@ -75,7 +75,7 @@ def module_gate(action, *, duplicate_or_unknown=True):
     except (OSError,ValueError,sqlite3.Error):manifest={}
     actual=context()
     facts={**manifest.get('safety',{}),'manifest_approved':manifest.get('ready') is True and manifest.get('commit')==actual['commit'] and manifest.get('branch')==actual['branch'],
-        'maintenance':(STATE_ROOT/'MAINTENANCE').exists(),
+        'maintenance':maintenance_active(STATE_ROOT),
         'trading_paused':(STATE_ROOT/'PAUSED').exists(),
         'delivery_paused':(STATE_ROOT/'PAUSED').exists() or (STATE_ROOT/'DELIVERY_PAUSED').exists(),
         'duplicate_or_unknown':duplicate_or_unknown}
