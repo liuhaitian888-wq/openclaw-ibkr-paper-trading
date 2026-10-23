@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import resource
 import subprocess
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -49,7 +50,8 @@ def process_snapshot(pid=None):
     level = ('UNKNOWN' if count is None else 'CRITICAL' if critical and count >= critical
              else 'WARNING' if warning and count >= warning else 'OK')
     children = command(['pgrep', '-P', str(pid)]).splitlines()
-    threads = command(['ps','-M','-p',str(pid)]).splitlines()[1:]
+    thread_option='-L' if sys.platform=='linux' else '-M'
+    threads = command(['ps',thread_option,'-p',str(pid)]).splitlines()[1:]
     return {'timestamp': datetime.now(timezone.utc).isoformat(), 'pid':pid,
             'ppid':int(fields[0]) if fields else None, 'uptime':fields[1] if len(fields)>1 else None,
             'rss_kb':int(fields[2]) if len(fields)>2 else None,'cpu_percent':fields[3] if len(fields)>3 else None,

@@ -1,0 +1,18 @@
+[Unit]
+Description=Loopback-only noVNC over SSH
+Requires=ibkr-vnc.service
+After=ibkr-vnc.service
+
+[Service]
+User=ibkr
+Group=ibkr
+ExecStart=/usr/bin/websockify --web=/usr/share/novnc 127.0.0.1:6080 127.0.0.1:5900
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+
+[Install]
+WantedBy=multi-user.target

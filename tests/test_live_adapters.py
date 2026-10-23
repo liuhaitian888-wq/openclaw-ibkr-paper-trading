@@ -19,6 +19,19 @@ class LiveAdapterTests(unittest.TestCase):
   return dict(complete=True,account_id='DU1',environment='PAPER',server_time=time.time(),observed_at=datetime.now(timezone.utc).isoformat(),
     account={'net':{'value':1,'currency':'EUR'}},pnl={'daily':0},positions=[],orders=[],executions=[],quotes={'AAPL':{'data_type':1,'bid':1,'ask':2,'received_at':'now'}})
  def adapters(self,b):return wire_live_adapters(self.co,self.root,self.root,expected_account='DU1',symbols=('AAPL',),broker_probe=lambda **kw:b)
+ def test_gateway_readback_uses_paper_port_and_rejects_live_endpoint(self):
+  from unittest.mock import Mock
+  probe=Mock(return_value=self.bundle())
+  with patch.dict('os.environ',{'TWS_HOST':'127.0.0.1','TWS_PORT':'4002'}):
+   adapter=wire_live_adapters(self.co,self.root,self.root,expected_account='DU1',broker_probe=probe)['ACCOUNT']
+   self.assertTrue(adapter('connect'))
+  self.assertEqual(probe.call_args.kwargs['port'],4002)
+  for host,port in [('127.0.0.1','4001'),('127.0.0.1','7496'),('external','4002')]:
+   probe.reset_mock()
+   with patch.dict('os.environ',{'TWS_HOST':host,'TWS_PORT':port}):
+    adapter=wire_live_adapters(self.co,self.root,self.root,expected_account='DU1',broker_probe=probe)['ACCOUNT']
+    self.assertFalse(adapter('connect'))
+   probe.assert_not_called()
  def test_live_evidence_all_phases_and_account_scope(self):
   b=self.bundle();a=self.adapters(b)['ACCOUNT']
   self.assertTrue(all(a(step) for step in RECOVERY_STEPS))

@@ -85,7 +85,10 @@ def smoke():
         checks['fd usage']='OK' if resource_log.get('fd_status')=='OK' else 'FAIL'
     details['resource_history']=resource_log
     ibkr=read_json(REPORT_ROOT/'streaming_quote_diagnostics/latest.json')
-    details['ibkr_listener_present']=bool(command(['lsof','-nP','-iTCP:7497','-sTCP:LISTEN','-t']).strip())
+    paper_port=int(os.environ.get('TWS_PORT','7497'))
+    if paper_port not in (4002,7497):
+        raise ValueError('Production health only supports Paper API ports 4002/7497')
+    details['ibkr_listener_present']=bool(command(['lsof','-nP',f'-iTCP:{paper_port}','-sTCP:LISTEN','-t']).strip())
     checks['IBKR dependency']='OK' if (details['ibkr_listener_present'] and ibkr.get('connection_healthy') is True
         and fresh(ibkr.get('last_successful_ibkr_interaction'))) else 'DEGRADED'
     ledger=read_json(DELIVERY_LEDGER)

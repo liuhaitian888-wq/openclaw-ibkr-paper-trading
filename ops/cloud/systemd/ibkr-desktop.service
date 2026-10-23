@@ -1,0 +1,19 @@
+[Unit]
+Description=IBKR private window manager
+Requires=ibkr-display.service
+After=ibkr-display.service
+
+[Service]
+User=ibkr
+Group=ibkr
+Environment=DISPLAY=:99
+Environment=XAUTHORITY=/run/ibkr-gui/Xauthority
+ExecStart=/usr/bin/openbox
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

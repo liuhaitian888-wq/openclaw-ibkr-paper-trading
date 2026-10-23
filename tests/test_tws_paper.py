@@ -187,7 +187,9 @@ class TwsPaperBrokerTests(unittest.TestCase):
         proposal = TradeProposal("AAPL", "BUY", 1, 190.001, 185.009, "trade-0005")
         broker = TwsPaperBroker("127.0.0.1", 7497, 22)
 
-        with patch("trading.tws_paper.TwsPaperClient", FakeClient):
+        with patch("trading.tws_paper.TwsPaperClient", FakeClient), \
+             patch("trading.production_guard.require_module_gate"), \
+             patch("trading.production_guard.require_connected_account"):
             with self.assertRaisesRegex(RuntimeError, "parent_cancel_requested=true"):
                 broker.submit_bracket(proposal, transmit=True)
 

@@ -74,7 +74,13 @@ def module_gate(action, *, duplicate_or_unknown=True):
         manifest=json.loads((STATE_ROOT/'production.json').read_text())
     except (OSError,ValueError,sqlite3.Error):manifest={}
     actual=context()
-    facts={**manifest.get('safety',{}),'manifest_approved':manifest.get('ready') is True and manifest.get('commit')==actual['commit'] and manifest.get('branch')==actual['branch'],
+    approved = (manifest.get('ready') is True and bool(actual['commit']) and bool(actual['branch'])
+        and manifest.get('commit')==actual['commit'] and manifest.get('branch')==actual['branch']
+        and manifest.get('workspace')==str(CODE_ROOT) and manifest.get('state_root')==str(STATE_ROOT)
+        and CODE_ROOT==PRODUCTION_WORKSPACE and (CODE_ROOT/'.git').is_dir()
+        and manifest.get('environment')=='PAPER' and bool(manifest.get('account'))
+        and manifest.get('migration_verified') is True)
+    facts={**manifest.get('safety',{}),'manifest_approved':approved,
         'maintenance':maintenance_active(STATE_ROOT),
         'trading_paused':(STATE_ROOT/'PAUSED').exists(),
         'delivery_paused':(STATE_ROOT/'PAUSED').exists() or (STATE_ROOT/'DELIVERY_PAUSED').exists(),
@@ -112,9 +118,6 @@ def guarded_broker_operation(func):
     import inspect
     @functools.wraps(func)
     def wrapped(*args,**kwargs):
-        from trading.production_paths import CODE_ROOT, PRODUCTION_WORKSPACE
-        if CODE_ROOT != PRODUCTION_WORKSPACE:
-            return func(*args,**kwargs)  # Worktree suite blocks TCP; production entry guard rejects this workspace.
         from reporting.recovery import RecoveryCoordinator
         bound=inspect.signature(func).bind(*args,**kwargs);bound.apply_defaults()
         proposal=bound.arguments.get('proposal')
@@ -136,8 +139,10 @@ def guarded_broker_operation(func):
 
 def require_connected_account(accounts):
     """Check the actual session, not a previous health observation, before submit."""
-    from trading.production_paths import CODE_ROOT,PRODUCTION_WORKSPACE
-    if CODE_ROOT!=PRODUCTION_WORKSPACE:return  # Offline fixture path; production entry rejects worktrees.
-    manifest=json.loads((STATE_ROOT/'production.json').read_text())
-    if manifest.get('ready') is not True or manifest.get('environment')!='PAPER' or not manifest.get('account') or list(accounts)!=[manifest['account']]:
+    try:manifest=json.loads((STATE_ROOT/'production.json').read_text())
+    except (OSError,ValueError) as exc:
+        raise PermissionError('Approved Paper account manifest is missing or invalid') from exc
+    if (manifest.get('ready') is not True or manifest.get('environment')!='PAPER'
+            or not str(manifest.get('account','')).startswith('DU')
+            or list(accounts)!=[manifest['account']]):
         raise PermissionError('Connected broker account differs from approved production identity')

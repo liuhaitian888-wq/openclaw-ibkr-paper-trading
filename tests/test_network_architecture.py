@@ -136,9 +136,14 @@ class NetworkArchitectureTests(unittest.TestCase):
   store=RecoveryCoordinator(runtime/'recovery.sqlite3',clock=time.time)
   for name in MODULE_DEPENDENCIES:store.observe(name,'HEALTHY',freshness='FRESH')
   store.observe('ACCOUNT','HEALTHY',freshness='FRESH',account='DUQ503649',environment='PAPER')
-  manifest={'ready':True,'commit':'verified','branch':'production','account':'DUQ503649','environment':'PAPER','safety':{'identity_verified':True,'ownership_verified':True,'risk_allowed':True,'reconciled':True}}
+  code=root/'code';(code/'.git').mkdir(parents=True)
+  manifest={'ready':True,'commit':'verified','branch':'production','workspace':str(code),'state_root':str(root),'migration_verified':True,'account':'DUQ503649','environment':'PAPER','safety':{'identity_verified':True,'ownership_verified':True,'risk_allowed':True,'reconciled':True}}
   (root/'production.json').write_text(json.dumps(manifest))
-  with patch('trading.production_guard.RUNTIME_ROOT',runtime),patch('trading.production_guard.STATE_ROOT',root),patch('trading.production_guard.context',return_value={'commit':'verified','branch':'production'}):
+  with patch('trading.production_guard.CODE_ROOT',code),patch('trading.production_guard.PRODUCTION_WORKSPACE',code),patch('trading.production_guard.RUNTIME_ROOT',runtime),patch('trading.production_guard.STATE_ROOT',root),patch('trading.production_guard.context',return_value={'commit':'verified','branch':'production'}):
    self.assertTrue(module_gate('ORDER_SUBMISSION_ALLOWED',duplicate_or_unknown=False)['allowed'])
+   for key,bad in [('workspace','/wrong'),('state_root','/wrong'),('environment','LIVE'),('migration_verified',False)]:
+    (root/'production.json').write_text(json.dumps({**manifest,key:bad}))
+    self.assertFalse(module_gate('ORDER_SUBMISSION_ALLOWED',duplicate_or_unknown=False)['allowed'],key)
+   (root/'production.json').write_text(json.dumps(manifest))
    store.observe('ACCOUNT','HEALTHY',freshness='FRESH',account='DU123',environment='PAPER')
    self.assertFalse(module_gate('ORDER_SUBMISSION_ALLOWED',duplicate_or_unknown=False)['allowed'])

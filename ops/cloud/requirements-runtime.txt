@@ -1,0 +1,5 @@
+# ibapi 1051.1 is installed from the official IBKR 10.51.01 Linux SDK,
+# not PyPI. Official installer SHA256:
+# 152af944be28bcfaf2733aec907e7724f6dda092cb3148848e84d2a0bb866c0a
+# pip install /opt/openclaw/tws-api/source/pythonclient
+protobuf==5.29.5

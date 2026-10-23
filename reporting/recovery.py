@@ -170,6 +170,7 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
     import socket
     import subprocess
     import hashlib
+    import os
     from .live_observation import probe
     from trading.production_paths import maintenance_active
     root=Path(state_root).resolve();code=Path(code_root).resolve();cache={}
@@ -179,8 +180,12 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
     symbols=tuple(symbols or approved.get('market_symbols',()))
     def read(path):return json.loads(Path(path).read_text())
     def broker():
+        host=os.environ.get('TWS_HOST','127.0.0.1')
+        port=int(os.environ.get('TWS_PORT','7497'))
+        if host!='127.0.0.1' or port not in (4002,7497):
+            raise ValueError('Readback requires a loopback Paper endpoint')
         if not cache.get('broker') or time.time()-cache['at']>30:
-            cache['broker']=(broker_probe or probe)(expected_account=expected_account,symbols=symbols,timeout=8)
+            cache['broker']=(broker_probe or probe)(host=host,port=port,expected_account=expected_account,symbols=symbols,timeout=8)
             cache['at']=time.time()
         return cache['broker']
     def check(module):

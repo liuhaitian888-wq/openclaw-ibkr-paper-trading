@@ -4,10 +4,12 @@ OPENCLAW_STATE_DIR is for isolated tests/development. Production startup also
 checks an approved deployment manifest and rejects a repository-owned state root.
 """
 import os
+import sys
 from pathlib import Path
 
 CODE_ROOT = Path(__file__).resolve().parents[1]
-PRODUCTION_WORKSPACE = Path.home() / 'Documents' / 'New project'
+PRODUCTION_WORKSPACE = (Path('/opt/openclaw/app') if sys.platform == 'linux'
+                        else Path.home() / 'Documents' / 'New project')
 STATE_ROOT = Path(os.environ.get('OPENCLAW_STATE_DIR', str(Path.home() / '.local/state/openclaw'))).expanduser()
 if not STATE_ROOT.is_absolute():
     raise ValueError('OPENCLAW_STATE_DIR must be absolute, never relative to cwd')

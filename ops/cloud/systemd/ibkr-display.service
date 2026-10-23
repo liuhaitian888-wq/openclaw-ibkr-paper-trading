@@ -1,0 +1,23 @@
+[Unit]
+Description=Private IBKR GUI display
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+User=ibkr
+Group=ibkr
+RuntimeDirectory=ibkr-gui
+RuntimeDirectoryMode=0700
+Environment=XAUTHORITY=/run/ibkr-gui/Xauthority
+ExecStart=/usr/local/bin/ibkr-start-display
+ExecStartPost=/bin/sleep 2
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target
