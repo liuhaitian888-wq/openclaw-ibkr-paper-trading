@@ -12,8 +12,10 @@ manifest have been independently verified. No candidate database is production.
 
 Desktop access is SSH authenticated: forward local 16080 to remote 127.0.0.1:6080.
 X11 has a private authorization cookie; VNC and noVNC bind only to loopback.
-VNC has no separate password: server-local users must be trusted, and all remote
-desktop access requires the dedicated SSH key. Never open 5900/6080/4002/8789.
+VNC additionally requires a random desktop password, provisioned outside Git;
+store its VNC verifier at mode-0600 `/home/ibkr/.vnc/passwd` before installation.
+All remote desktop access requires the dedicated SSH key. Never open
+5900/6080/4002/8789. Do not pass the desktop password in a browser URL.
 Only the human enters IBKR credentials, chooses Paper Trading, completes 2FA,
 sets Paper port 4002, enables read-only API, and accepts localhost API access.
 Do not store or automate an IBKR password or bypass weekly reauthentication.
@@ -31,6 +33,22 @@ Only desktop/Gateway may start before reconciliation. Gateway uses systemd resta
 on failure, a private display, logs in the journal, and a fixed memory budget.
 No mail sender credentials are included. SMTP and an external host-loss monitor
 must be provisioned and delivery verified before unattended acceptance.
+
+`host_status.py` runs the existing read-only smoke and writes private local
+evidence every five minutes. `alert_email.py` is a separate, initially disarmed
+worker. It needs mode-0600 `~/.config/openclaw/smtp.json` with a dedicated SMTP
+relay's host, port (STARTTLS), sender, username and relay_password, plus the
+explicit `runtime/EMAIL_ALERTS_ARMED` file. Never use the main Hotmail or IBKR
+password. Test delivery before enabling ibkr-email.timer. This local worker
+cannot detect total host loss; configure an independent external monitor too.
+
+`backup_state.py` snapshots each published SQLite database with the online backup
+API, checks readability, compresses it and records a hash. These snapshots are
+individually consistent, not atomic across databases. Restore only into an
+isolated directory, with execution paused and fresh broker reconciliation.
+Backups stay on disk until an explicit retention/export policy is approved;
+watch disk usage. Host-local backups do not survive host deletion. Quarantined
+migration evidence is preserved separately and is never restored automatically.
 
 Acceptance requires at least 192 real hours, a weekly authentication boundary,
 process and network failure recovery, full host reboot, consistent SQLite backup

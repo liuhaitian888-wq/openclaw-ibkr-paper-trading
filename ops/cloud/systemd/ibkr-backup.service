@@ -1,0 +1,13 @@
+[Unit]
+Description=Private SQLite online backup with restore reconciliation required
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/backup_state.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=15min
+Nice=10

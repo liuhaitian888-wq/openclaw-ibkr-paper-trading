@@ -1,0 +1,9 @@
+[Unit]
+Description=Check opted-in SMTP alert queue every five minutes
+
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target

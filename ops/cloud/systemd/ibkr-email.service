@@ -1,0 +1,15 @@
+[Unit]
+Description=Opt-in SMTP status notification (no trading authority)
+After=ibkr-status.service
+ConditionPathExists=/home/ibkr/.config/openclaw/smtp.json
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/alert_email.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=90

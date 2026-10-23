@@ -8,7 +8,7 @@ User=ibkr
 Group=ibkr
 Environment=DISPLAY=:99
 Environment=XAUTHORITY=/run/ibkr-gui/Xauthority
-ExecStart=/usr/bin/x11vnc -display :99 -auth /run/ibkr-gui/Xauthority -localhost -listen 127.0.0.1 -rfbport 5900 -forever -shared -nopw -noxdamage
+ExecStart=/usr/bin/x11vnc -display :99 -auth /run/ibkr-gui/Xauthority -localhost -listen 127.0.0.1 -rfbport 5900 -forever -shared -rfbauth /home/ibkr/.vnc/passwd -noxdamage
 Restart=on-failure
 RestartSec=5
 UMask=0077

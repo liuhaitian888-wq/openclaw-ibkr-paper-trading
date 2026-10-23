@@ -1,0 +1,24 @@
+[Unit]
+Description=Existing Mode 9 Paper supervisor (disabled until reconciliation)
+Requires=ibkr-api.service
+After=ibkr-api.service
+ConditionPathExists=/home/ibkr/.local/state/openclaw/production.json
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/PAUSED
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/MAINTENANCE
+ConditionPathExists=/home/ibkr/.config/openclaw/paper.env
+
+[Service]
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+EnvironmentFile=/home/ibkr/.config/openclaw/paper.env
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/scripts/run_autonomous_trading_agent.py --api-url http://127.0.0.1:8789 --api-key-file /home/ibkr/.config/openclaw/api_key
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=Guarded Paper trading API (disabled until reconciliation)
+After=ibkr-gateway.service
+ConditionPathExists=/home/ibkr/.local/state/openclaw/production.json
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/PAUSED
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/MAINTENANCE
+ConditionPathExists=/home/ibkr/.config/openclaw/paper.env
+
+[Service]
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+EnvironmentFile=/home/ibkr/.config/openclaw/paper.env
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/api_service.py
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
