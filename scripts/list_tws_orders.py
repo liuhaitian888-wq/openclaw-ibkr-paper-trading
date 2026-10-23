@@ -30,12 +30,16 @@ class ReadOnlyOrdersClient(EWrapper, EClient):
         self.open_orders_ready = threading.Event()
         self.completed_orders_ready = threading.Event()
         self.executions_ready = threading.Event()
+        self.accounts = []
         self.next_order_id = None
         self.errors: List[str] = []
         self.open_orders: List[Dict[str, Any]] = []
         self.order_statuses: Dict[int, Dict[str, Any]] = {}
         self.executions: List[Dict[str, Any]] = []
         self.completed_orders: List[Dict[str, Any]] = []
+
+    def managedAccounts(self, accountsList):
+        self.accounts = [value for value in accountsList.split(",") if value]
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.next_order_id = orderId
@@ -47,6 +51,9 @@ class ReadOnlyOrdersClient(EWrapper, EClient):
     def openOrder(self, orderId: int, contract: object, order: object, orderState: object) -> None:  # noqa: N802,E501
         self.open_orders.append(
             {
+                "account": getattr(order, "account", ""),
+                "parent_id": getattr(order, "parentId", 0),
+                "oca_group": getattr(order, "ocaGroup", ""),
                 "order_id": orderId,
                 "symbol": getattr(contract, "symbol", ""),
                 "sec_type": getattr(contract, "secType", ""),
@@ -217,6 +224,8 @@ def read_tws_orders(
 
         return {
             "status": "ok",
+            "snapshot_complete": client.open_orders_ready.is_set() and len(client.accounts) == 1,
+            "account": client.accounts[0] if len(client.accounts) == 1 else None,
             "elapsed_ms": round((time.perf_counter() - started) * 1000, 3),
             "next_order_id": client.next_order_id,
             "open_order_count": len(client.open_orders),

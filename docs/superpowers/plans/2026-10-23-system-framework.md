@@ -31,10 +31,10 @@ Fast Path依赖：行情新鲜度 → 策略 → 精确账户/敞口/幂等风�
 
 ## 第一批：框架与持久通知原语
 
-- [ ] 新建 reporting/incidents.py，使用同一recovery.sqlite3中的独立表，不改变coordinator已有表。
-- [ ] ingest(event_id, incident_key, payload, resolved=False)：event_id是发生身份，incident_key是归并身份，JSON指纹不能替代发生身份。一个事务提交事件、故障与通知；重复事件无新增通知；恢复需要显式证据。
-- [ ] claim/finish：原子PENDING→STARTED；崩溃后STARTED保留人工核对；UNKNOWN不重放；SMTP_ACCEPTED只表示relay接受。
-- [ ] 离线测试重复、并发claim、重启、恢复/再发生及回滚；完整suite、secret scan、Git整合、生产只读smoke。
+- [x] 新建 reporting/incidents.py，使用同一recovery.sqlite3中的独立表，不改变coordinator已有表。
+- [x] ingest(event_id, incident_key, payload, resolved=False)：event_id是发生身份，incident_key是归并身份，JSON指纹不能替代发生身份。一个事务提交事件、故障与通知；重复事件无新增通知；恢复需要显式证据。
+- [x] claim/finish：原子PENDING→STARTED；崩溃后STARTED保留人工核对；UNKNOWN不重放；SMTP_ACCEPTED只表示relay接受。
+- [x] 离线测试重复、并发claim、重启、恢复/再发生及回滚；完整suite、secret scan、Git整合、生产只读smoke。
 
 ## 后续批次：真实事件与发送器
 
@@ -49,3 +49,11 @@ Fast Path依赖：行情新鲜度 → 策略 → 精确账户/敞口/幂等风�
 - 收集器首次启动/日志轮转不发送历史告警。
 - SMTP接受后进程崩溃必须保留不确定状态，不能自动重发。
 - 数据缺失、stale、网络恢复均不能推导交易已安全或自动恢复权限。
+
+
+## 2026-10-23 第二批实施记录（生产发送关闭）
+
+- [x] 修复隔离环境，基础525项完整测试通过；96773d8已Git整合。
+- [x] 接入保护报告、Paper认证/身份/连接及服务状态；以明确证据区分故障、停用、缺失、过期和恢复。
+- [x] outbox接入现有SMTP worker和coordinator delivery操作身份；Berlin正文、升级通知、恢复顺序、STARTED/UNKNOWN不重发；默认不armed。
+- [x] 最终完整离线套件544项通过；秘密扫描及Git整合以本批提交记录为准。本批不部署云端、不启用生产邮件；轮转接续及缺账户/复杂保护的人工对账仍独立待验收。

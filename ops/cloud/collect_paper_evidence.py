@@ -6,7 +6,7 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-from reporting.live_observation import probe
+from reporting.live_observation import probe, PaperIdentityError
 
 
 def main():
@@ -28,7 +28,8 @@ def main():
         result['status'] = 'READBACK_COMPLETE' if result.get('complete') else 'INCOMPLETE'
     except Exception as exc:
         result = dict(status='AUTH_OR_CONNECTION_REQUIRED', error_type=type(exc).__name__,
-                      complete=False, environment='PAPER')
+                      complete=False, environment='PAPER',
+                      failure_class='IDENTITY_MISMATCH' if isinstance(exc, PaperIdentityError) else 'AUTH_OR_CONNECTION_UNVERIFIED')
     result['observed_at'] = datetime.now(timezone.utc).isoformat()
     result['grants_trading_permission'] = False
     history = root/'observations'/result['observed_at'][:10]

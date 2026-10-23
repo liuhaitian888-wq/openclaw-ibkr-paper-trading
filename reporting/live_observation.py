@@ -7,6 +7,10 @@ import os
 from datetime import datetime, timezone
 from .errors import redact
 
+class PaperIdentityError(ValueError):
+    pass
+
+
 TAGS={'NetLiquidation':'net_liquidation','TotalCashValue':'total_cash_value','AvailableFunds':'available_funds','BuyingPower':'buying_power'}
 
 
@@ -47,8 +51,8 @@ def probe(host='127.0.0.1',port=7497,client_id=18765,timeout=15,*,symbols=(),exp
         if not c.ready.wait(timeout/2):raise TimeoutError('IBKR handshake timeout')
         end=time.monotonic()+timeout/2
         while not c.accounts and time.monotonic()<end:time.sleep(.05)
-        if len(c.accounts)!=1 or not c.accounts[0].startswith('DU'):raise ValueError('Exactly one Paper account required')
-        if expected_account and c.accounts!=[expected_account]:raise ValueError('Account identity mismatch')
+        if len(c.accounts)!=1 or not c.accounts[0].startswith('DU'):raise PaperIdentityError('Exactly one Paper account required')
+        if expected_account and c.accounts!=[expected_account]:raise PaperIdentityError('Account identity mismatch')
         c.reqCurrentTime();c.reqAccountSummary(8165,'All',','.join(TAGS));c.reqPositions();c.reqAllOpenOrders();c.reqExecutions(8166,ExecutionFilter());c.reqPnL(8167,c.accounts[0],'');requested=True
         for i,symbol in enumerate(symbols,8200):
             contract=Contract();contract.symbol=symbol;contract.secType='STK';contract.exchange='SMART';contract.currency='USD'

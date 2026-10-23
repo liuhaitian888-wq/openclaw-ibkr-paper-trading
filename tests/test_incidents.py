@@ -48,3 +48,15 @@ class IncidentTests(unittest.TestCase):
             with ThreadPoolExecutor(max_workers=2) as pool:
                 results = list(pool.map(lambda item: item.claim(), stores))
             self.assertEqual(sum(item is not None for item in results), 1)
+
+    def test_severity_escalation_is_not_hidden_by_incident_merge(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            store=IncidentStore(Path(tmp)/'state.sqlite3')
+            store.ingest('e1','paper',{'severity':'YELLOW'})
+            first=store.claim(); store.finish(first['id'],'SMTP_ACCEPTED')
+            store.ingest('e2','paper',{'severity':'RED'})
+            escalation=store.claim()
+            self.assertEqual(escalation['kind'],'ESCALATION_RED')
+            store.finish(escalation['id'],'SMTP_ACCEPTED')
+            store.ingest('e3','paper',{'severity':'RED'})
+            self.assertIsNone(store.claim())

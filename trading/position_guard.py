@@ -123,6 +123,7 @@ def read_positions(settings: Settings, *, client_id: int = 67001, timeout: float
         return {
             "status": "ok",
             "account": account,
+            "snapshot_complete": client.account_download_end.is_set() and len(client.accounts) == 1,
             "positions": [record.__dict__ for record in client.positions.values()],
             "errors": client.errors,
         }
@@ -224,6 +225,7 @@ def build_position_guard_report(
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "source": "position_guard",
+        "protection_evidence_complete": protection_evidence_complete(positions_snapshot, orders_snapshot),
         "account": positions_snapshot.get("account"),
         "status": "ok" if positions_snapshot.get("status") == "ok" and orders_snapshot.get("status") == "ok" else "warning",
         "positions_status": positions_snapshot.get("status"),
@@ -243,6 +245,33 @@ def write_report(report: Mapping[str, Any]) -> None:
     (REPORT_DIR / "latest.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     with (REPORT_DIR / "history.jsonl").open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(report, sort_keys=True) + "\n")
+
+
+def protection_evidence_complete(positions, orders):
+    """Notification recovery proof only; never a new trading safety gate."""
+    import math
+    account = positions.get('account')
+    if (positions.get('snapshot_complete') is not True or orders.get('snapshot_complete') is not True
+            or positions.get('status') != 'ok' or orders.get('status') != 'ok'
+            or not isinstance(account, str) or not account.startswith('DU')
+            or orders.get('account') != account or positions.get('errors') or orders.get('errors')):
+        return False
+    for position in positions.get('positions', []):
+        qty = position.get('position_qty')
+        if not isinstance(qty, (int, float)) or not math.isfinite(qty) or qty < 0:
+            return False  # Short-side coverage needs its own proven contract.
+    for order in orders.get('open_orders', []):
+        if order.get('account') != account:
+            return False
+        if str(order.get('order_type', '')).startswith('STP'):
+            remaining = order.get('order_status', {}).get('remaining')
+            total = order.get('total_quantity')
+            if (not isinstance(remaining, (int, float)) or not math.isfinite(remaining)
+                    or remaining <= 0 or remaining != total
+                    or order.get('status') not in ('Submitted', 'PreSubmitted')
+                    or order.get('parent_id') != 0 or order.get('oca_group')):
+                return False
+    return True
 
 
 def evaluate_protection_status(

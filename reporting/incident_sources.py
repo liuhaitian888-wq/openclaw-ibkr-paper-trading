@@ -28,10 +28,22 @@ class IncidentCollector:
         self.store._ingest(c, identity, key, json.dumps(payload, sort_keys=True), resolved, self.store.clock())
 
     def rejections(self, path, limit=100):
+        return self._journal(path, 'rejections:', self._rejection, limit)
+
+    def _rejection(self, c, identity, payload):
+        plan = payload.get('local_plan_id')
+        if not isinstance(plan, str) or not plan or not payload.get('timestamp'):
+            raise ValueError('Rejection lacks occurrence evidence/order identity')
+        evidence = dict(payload, severity='YELLOW', scope='ORDER',
+                        recovery_condition='Explicit order reconciliation required',
+                        grants_trading_permission=False)
+        self._event(c, identity, 'rejection:' + plan, evidence)
+
+    def _journal(self, path, prefix, consume, limit=100, max_record_bytes=65536):
         """First scan baselines EOF; changed/truncated logs require explicit review."""
         if not 1 <= limit <= 100:
             raise ValueError('Batch limit must be 1..100')
-        source = 'rejections:' + str(path.resolve())
+        source = prefix + str(path.resolve())
         with closing(self.store.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
             cursor = self._cursor(c, source)
@@ -63,19 +75,13 @@ class IncidentCollector:
                 count = 0
                 for _ in range(limit):
                     start = handle.tell()
-                    raw = handle.readline(65537)
-                    if len(raw) > 65536:
+                    raw = handle.readline(max_record_bytes + 1)
+                    if len(raw) > max_record_bytes:
                         raise ValueError('Rejection record exceeds bounded size')
                     if not raw or not raw.endswith(b'\n'):
                         break  # Partial writes are retried from their start.
                     payload = json.loads(raw)
-                    plan = payload.get('local_plan_id')
-                    if not isinstance(plan, str) or not plan or not payload.get('timestamp'):
-                        raise ValueError('Rejection lacks occurrence evidence/order identity')
-                    evidence = dict(payload, severity='YELLOW', scope='ORDER',
-                                    recovery_condition='Explicit order reconciliation required',
-                                    grants_trading_permission=False)
-                    self._event(c, f'{source}:{inode}:{start}', 'rejection:' + plan, evidence)
+                    consume(c, f'{source}:{inode}:{start}', payload)
                     offset = handle.tell()
                     count += 1
                 handle.seek(max(0, offset - 64))
@@ -151,3 +157,86 @@ class IncidentCollector:
                     count += 1
             self._save(c, source, current)
             return count
+
+    def protection_reports(self, path, expected_account, *, guard=False, limit=5):
+        from .incident_conditions import protection_conditions, observation_age
+        self._paper_account(expected_account)
+        def consume(c, identity, report):
+            expected_source = 'position_guard' if guard else 'position_protection'
+            if report.get('source') != expected_source:
+                raise ValueError('Protection journal source mismatch')
+            for key, payload, resolved in protection_conditions(report, expected_account, self.store.clock()):
+                order_key = 'protection-order:' + key
+                prior = self._cursor(c, order_key)
+                age = observation_age(report['timestamp'], self.store.clock())
+                if age is None:
+                    raise ValueError('Protection occurrence time must include timezone')
+                if prior is not None and report['timestamp'] != prior:
+                    old_age = observation_age(prior, self.store.clock())
+                    if age > old_age:
+                        continue  # Late old evidence cannot close or reopen a newer incident.
+                self._event(c, identity + ':' + key, key, payload, resolved)
+                if age >= 0:
+                    self._save(c, order_key, report['timestamp'])
+        return self._journal(path, 'protection:', consume, limit, max_record_bytes=1048576)
+
+    @staticmethod
+    def _paper_account(account):
+        if not isinstance(account, str) or not account.startswith('DU') or not account.isalnum():
+            raise ValueError('Exact Paper account configuration required')
+
+    def runtime_snapshots(self, host_path, paper_path, expected_account):
+        from .incident_conditions import runtime_conditions, observation_age
+        self._paper_account(expected_account)
+        source = 'runtime:' + str(host_path.resolve()) + ':' + str(paper_path.resolve()) + ':' + expected_account
+        values = []
+        for path in (host_path, paper_path):
+            try:
+                with path.open('rb') as handle:
+                    raw = handle.read(1048577)
+                if len(raw) > 1048576:
+                    raise ValueError('Runtime evidence exceeds bounded size')
+                value = json.loads(raw)
+                if not isinstance(value, dict):
+                    raise ValueError('Runtime evidence must be an object')
+                values.append(value)
+            except (FileNotFoundError, json.JSONDecodeError):
+                values.append({})
+        now = self.store.clock()
+        conditions = runtime_conditions(*values, expected_account, now)
+        with closing(self.store.connect()) as c, c:
+            c.execute('BEGIN IMMEDIATE')
+            cursor = self._cursor(c, source)
+            marks = []
+            for i, value in enumerate(values):
+                stamp = value.get('observed_at')
+                digest = hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
+                old = cursor['marks'][i] if cursor else {}
+                new_age = observation_age(stamp, now)
+                usable_stamp = new_age is not None and new_age >= 0
+                if usable_stamp and old.get('stamp') is not None:
+                    old_age = observation_age(old['stamp'], now)
+                    if old_age is None or new_age > old_age:
+                        raise EvidenceChanged('Runtime observation moved backwards')
+                    if stamp == old['stamp'] and digest != old['digest']:
+                        raise EvidenceChanged('Runtime occurrence rewritten')
+                # Invalid/future/missing evidence cannot advance the time watermark.
+                marks.append(dict(stamp=stamp, digest=digest) if usable_stamp else old)
+            if cursor is None:
+                self._save(c, source, dict(marks=marks, conditions=conditions, sequence=0))
+                return 0
+            changed = marks != cursor['marks'] or conditions != {k:tuple(v) for k,v in cursor['conditions'].items()}
+            if not changed:
+                return 0
+            sequence = cursor['sequence'] + 1
+            for key, (failed, reason, severity, scope) in conditions.items():
+                payload = dict(timestamp=datetime.fromtimestamp(now, timezone.utc).isoformat(),
+                    severity=severity if failed else 'GREEN', scope=scope, reason=reason,
+                    action_taken='notification_recorded_only_no_service_or_trade_changes',
+                    recovery_condition='Fresh explicit service or complete exact Paper readback evidence',
+                    user_action='Inspect local service diagnostics; authenticate manually if required',
+                    grants_trading_permission=False)
+                incident_key = 'account:' + expected_account + ':' + key if key.startswith('paper:') else key
+                self._event(c, f'{source}:{sequence}:{key}', incident_key, payload, not failed)
+            self._save(c, source, dict(marks=marks, conditions=conditions, sequence=sequence))
+            return 1

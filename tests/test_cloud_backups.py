@@ -37,16 +37,20 @@ class CloudBackupTests(unittest.TestCase):
                 self.assertFalse((root/'financial_ledger.sqlite3').exists())
 
     def test_smtp_accepted_then_disconnect_is_not_automatically_sent_again(self):
+        from reporting.incidents import IncidentStore
+        from reporting.recovery import RecoveryCoordinator
+        from contextlib import nullcontext
         with tempfile.TemporaryDirectory() as tmp:
             home=Path(tmp); runtime=home/'.local/state/openclaw/runtime'; runtime.mkdir(parents=True)
             config=home/'.config/openclaw/smtp.json'; config.parent.mkdir(parents=True)
             config.write_text(json.dumps(dict(host='relay.invalid',sender='paper@example.invalid',username='fixture',relay_password='fixture'))); config.chmod(0o600)
             (runtime/'EMAIL_ALERTS_ARMED').touch()
-            (runtime/'cloud-status.json').write_text(json.dumps(dict(observed_at=datetime.now(timezone.utc).isoformat(),smoke=dict(overall='NOT_READY',checks={}),services={},disk_free_fraction=.9)))
+            store=IncidentStore(runtime/'recovery.sqlite3')
+            store.ingest('fresh-rejection', 'order1', dict(severity='YELLOW', reason='rejected'))
             smtp=Mock(); smtp.__enter__=Mock(return_value=smtp); smtp.__exit__=Mock(return_value=False)
             smtp.send_message.side_effect=ConnectionError('accepted but ACK lost')
-            with patch.object(Path,'home',return_value=home), patch.object(alert_email.smtplib,'SMTP',return_value=smtp) as factory, redirect_stdout(io.StringIO()):
-                with self.assertRaises(ConnectionError): alert_email.main()
-                self.assertEqual(json.loads((runtime/'email-alert-ledger.json').read_text())['status'],'UNKNOWN')
-                alert_email.main()
+            with patch.object(Path,'home',return_value=home), patch.object(alert_email,'monitoring_service',return_value=nullcontext()), patch.object(alert_email.smtplib,'SMTP',return_value=smtp) as factory, redirect_stdout(io.StringIO()):
+                self.assertEqual(alert_email.main(),2)
+                self.assertEqual(RecoveryCoordinator(store.path).uncertainties()[0][2],'UNKNOWN')
+                self.assertEqual(alert_email.main(),2)
             factory.assert_called_once(); smtp.send_message.assert_called_once()

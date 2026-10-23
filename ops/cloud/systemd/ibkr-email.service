@@ -1,6 +1,7 @@
 [Unit]
-Description=Opt-in SMTP status notification (no trading authority)
+Description=Opt-in incident outbox SMTP delivery (no trading authority)
 After=ibkr-status.service
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/monitoring-deployment.json
 ConditionPathExists=/home/ibkr/.config/openclaw/smtp.json
 ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
 

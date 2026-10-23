@@ -1,0 +1,16 @@
+[Unit]
+Description=Read-only business evidence to durable incident outbox
+After=ibkr-status.service ibkr-readback.service
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/INCIDENT_COLLECTION_ARMED
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/monitoring-deployment.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/collect_incidents.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=90

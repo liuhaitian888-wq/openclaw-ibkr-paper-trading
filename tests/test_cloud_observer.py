@@ -59,3 +59,13 @@ class CloudObserverTests(unittest.TestCase):
             with patch.object(Path,'home',return_value=home),patch.object(sender,'build_opener') as transport:
                 with self.assertRaises(ValueError):sender.main()
             transport.assert_not_called()
+
+    def test_typed_identity_failure_is_not_mislabeled_as_generic_auth(self):
+        from reporting.live_observation import PaperIdentityError
+        with tempfile.TemporaryDirectory() as tmp:
+            home=Path(tmp); cfg,runtime=self.setup_home(home)
+            with patch.object(Path,'home',return_value=home), patch.object(collector,'probe',side_effect=PaperIdentityError), redirect_stdout(io.StringIO()):
+                self.assertEqual(collector.main(),2)
+            result=json.loads((runtime/'paper-observer.latest.json').read_text())
+            self.assertEqual(result['failure_class'],'IDENTITY_MISMATCH')
+            self.assertFalse(result['grants_trading_permission'])

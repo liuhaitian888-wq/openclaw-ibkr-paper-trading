@@ -25,6 +25,8 @@ class IncidentStore:
                     generation INTEGER NOT NULL, kind TEXT NOT NULL,
                     payload TEXT NOT NULL, status TEXT NOT NULL,
                     UNIQUE(incident_key, generation, kind));
+                CREATE INDEX IF NOT EXISTS notification_pending ON notification_outbox(status,id);
+                CREATE INDEX IF NOT EXISTS notification_incident_order ON notification_outbox(incident_key,id);
             ''')
 
     def connect(self):
@@ -56,18 +58,33 @@ class IncidentStore:
             kind = 'RECOVERY'
         else:
             if row and row[1] == 'OPEN':
-                return True
-            generation = row[0] + 1 if row else 1
-            c.execute('INSERT OR REPLACE INTO incidents VALUES (?,?,?,?,NULL)', (incident_key, generation, 'OPEN', now))
-            kind = 'ALERT'
-        c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,?,?,?,'PENDING')", (incident_key, generation, kind, encoded))
+                generation = row[0]
+                previous = c.execute('SELECT payload FROM notification_outbox WHERE incident_key=? AND generation=? ORDER BY id DESC LIMIT 1', (incident_key, generation)).fetchone()
+                ranks = {'GREEN': 0, 'YELLOW': 1, 'RED': 2}
+                severity = json.loads(encoded).get('severity')
+                prior_severity = json.loads(previous[0]).get('severity') if previous else None
+                if ranks.get(severity, 0) <= ranks.get(prior_severity, 0):
+                    return True
+                kind = 'ESCALATION_' + severity
+                if c.execute('SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? AND kind=?', (incident_key, generation, kind)).fetchone():
+                    return True
+            else:
+                generation = row[0] + 1 if row else 1
+                c.execute('INSERT OR REPLACE INTO incidents VALUES (?,?,?,?,NULL)', (incident_key, generation, 'OPEN', now))
+                kind = 'ALERT'
+        queued = json.loads(encoded)
+        opened = c.execute('SELECT opened FROM incidents WHERE incident_key=?', (incident_key,)).fetchone()[0]
+        queued.update(incident_opened_at=opened, queued_at=now)
+        if resolved:
+            queued.update(incident_resolved_at=now, duration_seconds=max(0, now - opened))
+        c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,?,?,?,'PENDING')", (incident_key, generation, kind, json.dumps(queued, sort_keys=True)))
         return True
 
     def claim(self):
         """Reserve before transport; STARTED survives restart without replay."""
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
-            row = c.execute("""SELECT n.id,n.kind,n.payload FROM notification_outbox n
+            row = c.execute("""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
                 WHERE n.status='PENDING' AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
@@ -75,7 +92,7 @@ class IncidentStore:
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))
-            return dict(id=row[0], kind=row[1], payload=json.loads(row[2]))
+            return dict(id=row[0], kind=row[1], payload=json.loads(row[2]), incident_key=row[3], generation=row[4])
 
     def finish(self, notification_id, status):
         if status not in ('SMTP_ACCEPTED', 'UNKNOWN'):
@@ -84,3 +101,7 @@ class IncidentStore:
             result = c.execute("UPDATE notification_outbox SET status=? WHERE id=? AND status='STARTED'", (status, notification_id))
             if result.rowcount != 1:
                 raise ValueError('Only a reserved notification can finish')
+
+    def uncertain_notifications(self):
+        with closing(self.connect()) as c:
+            return bool(c.execute("SELECT 1 FROM notification_outbox WHERE status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone())
