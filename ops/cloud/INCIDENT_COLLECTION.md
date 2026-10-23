@@ -19,7 +19,7 @@
 
 - 每个源的水位与对应event/incident/outbox同事务；失败回滚。各源独立，坏拒单日志不会阻断其他源采集。
 - JSONL首次只baseline EOF；首次不存在记零，之后新文件可消费；拒单/模块事件每源每次最多100条，拒单每条64KiB；保护报告每源每次最多5条、每条1MiB及500个标的。保护时点倒序不能关闭/重开新故障。
-- 日志轮转/截断/重写/删除、恢复序列倒退均报错并保留水位，需要证据接续。尚不自动处理轮转。UNKNOWN操作扫描上限1000，超过上限明确失败。
+- 三个业务JSONL producer改用协作append_jsonl，在100MiB阈值前后以rename保存旧段并写连续性凭证。采集器核验inode/size/SHA256，读完旧段再从新段零偏移继续；限额或重启不会丢未读尾部。未登记轮转、copytruncate、归档损坏/缺失、恢复序列倒退仍报错并保留水位。UNKNOWN操作扫描上限1000。
 - Runtime首次baseline；后续新快照或当前新出现的stale/missing症状才生成事件。同一时间戳内容改写、时间倒退拒绝消费。未来/缺失快照不推进时间高水位。配置账户变化使用独立命名空间。
 - 同故障合并；YELLOW升RED追加一次升级通知，不能被旧低级告警吞掉。恢复通知按同incident顺序排队。
 
@@ -37,3 +37,15 @@
 两个入口均默认关闭。运行需对应ARMED标记、批准的runtime/monitoring-deployment.json，核对commit/branch/code_root/state_root、environment=PAPER、monitoring_approved=true、grants_trading_permission=false，并持有各自kernel lock。维护期间还须明确allow_during_maintenance=true。此监控批准文件不能替代交易发布manifest或PAUSED/MAINTENANCE门禁。
 
 新systemd采集unit仅随源码提供，未安装启用；现有邮件unit仍关闭。本批不创建ARMED或监控批准文件、不读SMTP凭据、不发送生产邮件，不部署云代码。隔离完整suite使用临时DB与mock SMTP，真实TCP禁用；不重复此前真实邮件收件测试。
+
+
+## 轮转证明及保全边界
+
+- 每个源使用 `<name>.lock` 和 `<name>.writer.json`（提交后的inode、size、mtime/ctime纳秒值），旧段保存在 `<name>.segments/`，连续链保存在 `<name>.rotation.json`。源身份与原SQLite cursor格式保持兼容；首次存在旧链仍只baseline当前文件，不重发历史。
+- producer独占锁、collector共享锁，最多等待2秒；collector在拿锁后才开启SQLite事务。只读访问不存在的源不创建目录或锁。段最大128MiB，单次最多32次段跳转，链最多1024个凭证；超限需明确保全/接续，不能删段来绕过。
+- 轮转先持久写pending intent，再rename并创建新inode，最后提交receipt。中途崩溃保留pending、旧段和新段；读写双方停下等待显式对账。本版不自动修复中途崩溃，不把猜测当连续性证明。
+- 协作writer写入或轮转后提交producer元数据；元数据不符时读写都停止，包括外部相同字节原地重写、追加后元数据提交中断。旧未接管日志仍采用既有水位锚点检查，不声称能识别所有外部原地改写。
+- 半行不得被轮转或被后续append拼成另一事件；采集器对活动文件半行保留原偏移。后台错误不会修改订单状态或扩大交易权限。
+- 归档段不压缩、不按年龄清理、不改写；原通用cycles/pool日志轮转不在本批三类业务来源范围。代码回退不删除receipt/归档、不清水位；旧collector遇新inode会停下，需要保留接续证据。
+- 现有SQLite备份脚本不备份这些JSONL归档；本批保留源证据，不宣称日志灾备已完成。
+- `shadow_incident_acceptance.py`是有PAUSED/MAINTENANCE前提的一次性隔离诊断；只在monitoring-tests写合成记录，硬禁socket、固定模拟SMTP工厂，不读取生产SMTP配置。其SMTP_ACCEPTED仅代表模拟传输断言，绝不是实际邮件实收。

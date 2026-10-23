@@ -1,3 +1,4 @@
+from reporting.journal_rotation import append_jsonl
 import json
 import os
 from dataclasses import asdict, dataclass
@@ -967,8 +968,7 @@ def write_preview_report(report: Mapping[str, Any]) -> None:
 def write_report(report: Mapping[str, Any]) -> None:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     (REPORT_DIR / "latest.json").write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
-    with (REPORT_DIR / "history.jsonl").open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(report, sort_keys=True) + "\n")
+    append_jsonl(REPORT_DIR / "history.jsonl", report)
 
 
 def _blocked_reason(

@@ -57,3 +57,13 @@ Fast Path依赖：行情新鲜度 → 策略 → 精确账户/敞口/幂等风�
 - [x] 接入保护报告、Paper认证/身份/连接及服务状态；以明确证据区分故障、停用、缺失、过期和恢复。
 - [x] outbox接入现有SMTP worker和coordinator delivery操作身份；Berlin正文、升级通知、恢复顺序、STARTED/UNKNOWN不重发；默认不armed。
 - [x] 最终完整离线套件544项通过；秘密扫描及Git整合以本批提交记录为准。本批不部署云端、不启用生产邮件；轮转接续及缺账户/复杂保护的人工对账仍独立待验收。
+
+## 第三批：日志安全接续与影子故障验收
+
+**Files:** reporting/journal_rotation.py持有文件锁/归档/轮转凭证；incident_sources._journal保持原有SQLite事务和事件身份；三个现有业务报告writer改用append_jsonl；shadow_incident_acceptance.py只写monitoring-tests并使用进程内模拟SMTP。
+
+- [x] append_jsonl(path,payload,max_bytes=100MiB)与rotate_journal(path)使用同一kernel文件锁；rename保留旧inode，凭证记录旧/新inode、原文件size和SHA256，归档不按年龄删除。
+- [x] collector先读完旧段，再从新段零偏移接续；限额可跨重启保存，事件身份仍由源/段inode/字节偏移组成，不能用内容hash吞掉独立发生。
+- [x] 首次已有日志仅baseline；首次缺失之后的新段全部接续；无凭证copytruncate、损坏/缺失归档、部分行及未完成轮转intent一律保留证据并停止该源，不猜测历史。
+- [x] 离线覆盖多次轮转、并发producer、半行、哈希篡改、缺段、重启和事务回滚；隔离故障脚本覆盖轮转接续、保护恢复、身份症状及模拟SMTP不确定结果。
+- [ ] 完整suite及秘密扫描通过后Git整合/部署；云端只跑smoke、隔离故障影子及额外10分钟只读观察，不启用正式采集、邮件或交易。

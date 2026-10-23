@@ -40,54 +40,70 @@ class IncidentCollector:
         self._event(c, identity, 'rejection:' + plan, evidence)
 
     def _journal(self, path, prefix, consume, limit=100, max_record_bytes=65536):
-        """First scan baselines EOF; changed/truncated logs require explicit review."""
+        """Baseline once; drain immutable verified segments before the new file."""
+        from .journal_rotation import journal_lock, receipts, locate, inode, verify_active, JournalEvidenceError
+        import os
         if not 1 <= limit <= 100:
             raise ValueError('Batch limit must be 1..100')
         source = prefix + str(path.resolve())
-        with closing(self.store.connect()) as c, c:
-            c.execute('BEGIN IMMEDIATE')
-            cursor = self._cursor(c, source)
-            try:
-                handle = path.open('rb')
-            except FileNotFoundError:
-                if cursor and cursor['inode'] is not None:
-                    raise EvidenceChanged('Rejection source disappeared; checkpoint retained')
-                self._save(c, source, dict(inode=None, offset=0, anchor=''))
-                return 0
-            with handle:
-                import os
-                stat = os.fstat(handle.fileno())
-                inode = [stat.st_dev, stat.st_ino]
+        try:
+            with journal_lock(path), closing(self.store.connect()) as c, c:
+                c.execute('BEGIN IMMEDIATE')
+                cursor = self._cursor(c, source)
+                chain = receipts(path)
+                verify_active(path)
+                if path.is_symlink() or (chain and path.exists() and inode(path) != chain[-1]['new_inode']):
+                    raise EvidenceChanged('Active journal is outside verified rotation chain')
                 if cursor is None:
-                    offset = stat.st_size
-                    handle.seek(max(0, offset - 64))
-                    self._save(c, source, dict(inode=inode, offset=offset, anchor=hashlib.sha256(handle.read(offset - handle.tell())).hexdigest()))
+                    if not path.exists():
+                        self._save(c, source, dict(inode=None, offset=0, anchor=''))
+                        return 0
+                    with path.open('rb') as handle:
+                        stat = os.fstat(handle.fileno()); offset = stat.st_size
+                        handle.seek(max(0, offset - 64))
+                        anchor = hashlib.sha256(handle.read(offset - handle.tell())).hexdigest()
+                    self._save(c, source, dict(inode=[stat.st_dev, stat.st_ino], offset=offset, anchor=anchor))
                     return 0
-                offset = cursor['offset']
-                if cursor['inode'] is not None:
-                    if inode != cursor['inode'] or stat.st_size < offset:
-                        raise EvidenceChanged('Rejection log rotated/truncated; checkpoint retained')
-                    handle.seek(max(0, offset - 64))
-                    anchor = hashlib.sha256(handle.read(offset - handle.tell())).hexdigest()
-                    if anchor != cursor['anchor']:
-                        raise EvidenceChanged('Rejection log rewritten; checkpoint retained')
-                handle.seek(offset)
+                if cursor['inode'] is None:
+                    if not path.exists() and not chain:
+                        return 0
+                    cursor = dict(inode=chain[0]['old_inode'] if chain else inode(path), offset=0,
+                                  anchor=hashlib.sha256(b'').hexdigest())
                 count = 0
-                for _ in range(limit):
-                    start = handle.tell()
-                    raw = handle.readline(max_record_bytes + 1)
-                    if len(raw) > max_record_bytes:
-                        raise ValueError('Rejection record exceeds bounded size')
-                    if not raw or not raw.endswith(b'\n'):
-                        break  # Partial writes are retried from their start.
-                    payload = json.loads(raw)
-                    consume(c, f'{source}:{inode}:{start}', payload)
-                    offset = handle.tell()
-                    count += 1
-                handle.seek(max(0, offset - 64))
-                anchor = hashlib.sha256(handle.read(offset - handle.tell())).hexdigest()
-                self._save(c, source, dict(inode=inode, offset=offset, anchor=anchor))
+                for transition in range(32):
+                    selected, receipt = locate(path, cursor['inode'], chain)
+                    with selected.open('rb') as handle:
+                        stat = os.fstat(handle.fileno()); offset = cursor['offset']
+                        if [stat.st_dev, stat.st_ino] != cursor['inode'] or stat.st_size < offset:
+                            raise EvidenceChanged('Journal identity/truncation mismatch')
+                        handle.seek(max(0, offset - 64))
+                        anchor = hashlib.sha256(handle.read(offset - handle.tell())).hexdigest()
+                        if anchor != cursor['anchor']:
+                            raise EvidenceChanged('Journal boundary rewritten')
+                        handle.seek(offset)
+                        complete_end = False
+                        while count < limit:
+                            start = handle.tell()
+                            raw = handle.readline(max_record_bytes + 1)
+                            if len(raw) > max_record_bytes:
+                                raise ValueError('Journal record exceeds bounded size')
+                            if not raw:
+                                complete_end = True
+                                break
+                            if not raw.endswith(b'\n'):
+                                break  # Retry a live partial record; never skip its bytes.
+                            consume(c, f'{source}:{cursor["inode"]}:{start}', json.loads(raw))
+                            offset = handle.tell(); count += 1
+                        handle.seek(max(0, offset - 64))
+                        cursor = dict(inode=cursor['inode'], offset=offset,
+                                      anchor=hashlib.sha256(handle.read(offset - handle.tell())).hexdigest())
+                    if not complete_end or receipt is None:
+                        break
+                    cursor = dict(inode=receipt['new_inode'], offset=0, anchor=hashlib.sha256(b'').hexdigest())
+                self._save(c, source, cursor)
                 return count
+        except JournalEvidenceError as exc:
+            raise EvidenceChanged(str(exc)) from exc
 
     def module_events(self, limit=100):
         """Consume coordinator events from the same recovery DB atomically."""

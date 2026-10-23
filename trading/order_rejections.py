@@ -1,3 +1,4 @@
+from reporting.journal_rotation import append_jsonl
 import json
 import re
 from datetime import datetime, timezone
@@ -43,8 +44,7 @@ def log_order_rejection(
     }
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     (REPORT_DIR / "latest.json").write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    with (REPORT_DIR / "history.jsonl").open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(payload, sort_keys=True) + "\n")
+    append_jsonl(REPORT_DIR / "history.jsonl", payload)
     return payload
 
 
