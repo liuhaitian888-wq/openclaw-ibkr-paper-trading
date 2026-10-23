@@ -5,9 +5,36 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 import trading.production_guard as guard
+from reporting.recovery import RecoveryCoordinator
 
 
 class CloudPaperSafetyTests(unittest.TestCase):
+    def test_new_intent_key_cannot_bypass_unknown_order_after_restart(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'recovery.sqlite3';store=RecoveryCoordinator(path)
+            self.assertTrue(store.begin_operation('first','order',{}))
+            store.finish_operation('first','UNKNOWN')
+            restarted=RecoveryCoordinator(path)
+            self.assertFalse(restarted.begin_operation('different-key','order',{}))
+            self.assertTrue(restarted.begin_operation('notify','delivery',{}))
+            # Only an explicit reconciliation result permits a new order.
+            restarted.finish_operation('first','CONFIRMED')
+            self.assertTrue(restarted.begin_operation('different-key','order',{}))
+            self.assertFalse(restarted.begin_operation('first','order',{}))
+
+    def test_concurrent_distinct_orders_cannot_both_reserve_before_ack(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'recovery.sqlite3'
+            stores=[RecoveryCoordinator(path),RecoveryCoordinator(path)];barrier=Barrier(2)
+            def reserve(i):
+                barrier.wait(timeout=5)
+                return stores[i].begin_operation('intent-'+str(i),'order',{})
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results=list(pool.map(reserve,range(2)))
+            self.assertEqual(sorted(results),[False,True])
+
     def test_changed_code_path_never_bypasses_order_gate(self):
         transport=Mock()
         @guard.guarded_broker_operation

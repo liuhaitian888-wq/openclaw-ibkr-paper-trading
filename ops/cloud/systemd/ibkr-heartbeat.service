@@ -1,0 +1,14 @@
+[Unit]
+Description=Opt-in external generic heartbeat (no financial data)
+After=ibkr-status.service ibkr-readback.service
+ConditionPathExists=/home/ibkr/.config/openclaw/healthchecks.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/healthchecks_sender.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=30

@@ -72,6 +72,11 @@ class RecoveryCoordinator:
         if kind not in ('order','delivery'):raise ValueError('Unknown side effect')
         # Commit BEFORE the caller is permitted to invoke transport. Unique across restarts.
         with closing(self.connect()) as c,c:
+            # Serialize check-and-reserve across processes, not just one intent key.
+            # An ACK lost for A must not be bypassed by generating a new key B.
+            c.execute('BEGIN IMMEDIATE')
+            if kind=='order' and c.execute("SELECT 1 FROM operation_attempts WHERE kind='order' AND status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone():
+                return False
             try:c.execute('INSERT INTO operation_attempts VALUES (?,?,?,?)',(identity,kind,'STARTED',json.dumps(payload,sort_keys=True)))
             except sqlite3.IntegrityError:return False
         return True

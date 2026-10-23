@@ -66,11 +66,12 @@ def module_gate(action, *, duplicate_or_unknown=True):
     from contextlib import closing
     import sqlite3
     from reporting.health import resolve_modules, safety_gate
-    observations={}
+    observations={};uncertain_orders=True
     try:
         path=RUNTIME_ROOT/'recovery.sqlite3'
         with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True)) as c:
             observations={k:json.loads(v) for k,v in c.execute('SELECT name,payload FROM module_observations')}
+            uncertain_orders=bool(c.execute("SELECT 1 FROM operation_attempts WHERE kind='order' AND status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone())
         manifest=json.loads((STATE_ROOT/'production.json').read_text())
     except (OSError,ValueError,sqlite3.Error):manifest={}
     actual=context()
@@ -84,7 +85,7 @@ def module_gate(action, *, duplicate_or_unknown=True):
         'maintenance':maintenance_active(STATE_ROOT),
         'trading_paused':(STATE_ROOT/'PAUSED').exists(),
         'delivery_paused':(STATE_ROOT/'PAUSED').exists() or (STATE_ROOT/'DELIVERY_PAUSED').exists(),
-        'duplicate_or_unknown':duplicate_or_unknown}
+        'duplicate_or_unknown':duplicate_or_unknown or (action=='ORDER_SUBMISSION_ALLOWED' and uncertain_orders)}
     if action=='ORDER_SUBMISSION_ALLOWED':
         account=observations.get('ACCOUNT',{})
         facts['identity_verified']=bool(facts.get('identity_verified') is True and manifest.get('account')

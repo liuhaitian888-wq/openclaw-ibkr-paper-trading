@@ -29,7 +29,7 @@ Compare executions, permanent order IDs, account, orderRef, positions and pendin
 intent provenance against preserved source history and Paper Flex statements.
 An UNKNOWN outcome stays blocked and must never be resubmitted automatically.
 
-Only desktop/Gateway may start before reconciliation. Gateway uses systemd restart
+Only desktop/Gateway and bounded read-only monitoring may start before reconciliation. Gateway uses systemd restart
 on failure, a private display, logs in the journal, and a fixed memory budget.
 No mail sender credentials are included. SMTP and an external host-loss monitor
 must be provisioned and delivery verified before unattended acceptance.
@@ -49,6 +49,22 @@ isolated directory, with execution paused and fresh broker reconciliation.
 Backups stay on disk until an explicit retention/export policy is approved;
 watch disk usage. Host-local backups do not survive host deletion. Quarantined
 migration evidence is preserved separately and is never restored automatically.
+
+External monitoring alternative: Healthchecks.io's free plan can send the email
+itself, so a local SMTP relay is optional. Human registration and mailbox
+verification precede use. Configure two checks (host and Paper API), period five
+minutes and grace five minutes, using generic names and the recipient's email.
+Store `host_url` and `paper_api_url` in mode-0600
+`~/.config/openclaw/healthchecks.json`; these URLs are credentials. No logs or
+financial data are sent. Verify both a failure email and a recovery email.
+
+After an exact successful human-authenticated Paper readback, provision private
+`paper-observer.json` with `expected_account` and up to five `symbols`. Enable
+ibkr-readback.timer for bounded snapshots in private `observations/`, separate
+from production readiness. Enable ibkr-heartbeat.timer only after its checks are
+configured. Host and API heartbeats do not imply trading authorization or fresh
+market data; the existing module resolver and order gates remain authoritative.
+Frozen/closed-market prices must not be mistaken for authentication failure.
 
 Acceptance requires at least 192 real hours, a weekly authentication boundary,
 process and network failure recovery, full host reboot, consistent SQLite backup

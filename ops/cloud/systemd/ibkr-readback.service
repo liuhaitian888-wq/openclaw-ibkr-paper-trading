@@ -1,0 +1,16 @@
+[Unit]
+Description=Bounded exact-Paper readback and private L1 evidence
+After=ibkr-gateway.service
+ConditionPathExists=/home/ibkr/.config/openclaw/paper-observer.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/collect_paper_evidence.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=60
+KillMode=control-group
