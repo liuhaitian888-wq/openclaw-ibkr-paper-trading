@@ -14,7 +14,7 @@ Environment=HOME=/home/ibkr
 Environment=DISPLAY=:99
 Environment=XAUTHORITY=/run/ibkr-gui/Xauthority
 ExecStart=/home/ibkr/Jts/ibgateway
-Restart=on-failure
+Restart=always
 RestartSec=30
 TimeoutStopSec=45
 KillMode=control-group

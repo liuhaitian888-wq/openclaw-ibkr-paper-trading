@@ -30,7 +30,8 @@ intent provenance against preserved source history and Paper Flex statements.
 An UNKNOWN outcome stays blocked and must never be resubmitted automatically.
 
 Only desktop/Gateway and bounded read-only monitoring may start before reconciliation. Gateway uses systemd restart
-on failure, a private display, logs in the journal, and a fixed memory budget.
+after both clean exits and failures, a private display, logs in the journal,
+and a fixed memory budget. An explicit `systemctl stop` still leaves it stopped.
 No mail sender credentials are included. SMTP and an external host-loss monitor
 must be provisioned and delivery verified before unattended acceptance.
 
