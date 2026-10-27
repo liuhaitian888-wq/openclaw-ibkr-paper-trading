@@ -1,0 +1,20 @@
+[Unit]
+Description=Read-only Paper callback protection and session monitor
+After=ibkr-gateway.service
+ConditionPathExists=/home/ibkr/.config/openclaw/paper-safety.json
+ConditionPathExists=/home/ibkr/.local/state/openclaw/production.json
+
+[Service]
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/paper_safety_watch.py
+Restart=on-failure
+RestartSec=30
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

@@ -63,9 +63,15 @@ class IncidentStore:
                 ranks = {'GREEN': 0, 'YELLOW': 1, 'RED': 2}
                 severity = json.loads(encoded).get('severity')
                 prior_severity = json.loads(previous[0]).get('severity') if previous else None
-                if ranks.get(severity, 0) <= ranks.get(prior_severity, 0):
+                protection = json.loads(encoded).get('protection_status')
+                prior_protection = json.loads(previous[0]).get('protection_status') if previous else None
+                if (protection in ('UNPROTECTED','PARTIALLY_PROTECTED','PROTECTION_UNKNOWN')
+                        and protection != prior_protection):
+                    kind = 'PROTECTION_' + protection
+                elif ranks.get(severity, 0) > ranks.get(prior_severity, 0):
+                    kind = 'ESCALATION_' + severity
+                else:
                     return True
-                kind = 'ESCALATION_' + severity
                 if c.execute('SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? AND kind=?', (incident_key, generation, kind)).fetchone():
                     return True
             else:

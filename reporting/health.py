@@ -52,7 +52,9 @@ MODULE_DEPENDENCIES = {
  'FINANCIAL_LEDGER': ('DATABASE',), 'EVENT_STORE': ('DATABASE',),
  'CANONICAL_STATE': ('DATABASE',),
  'RISK': ('ACCOUNT','POSITIONS','ORDERS'),
- 'STRATEGY': ('CANONICAL_STATE','MARKET_DATA','ACCOUNT','RISK','DATABASE'),
+ 'PROTECTION': ('ACCOUNT','POSITIONS','ORDERS','EXECUTIONS'),
+ 'PAPER_SESSION': ('PROTECTION','MARKET_DATA'),
+ 'STRATEGY': ('CANONICAL_STATE','MARKET_DATA','ACCOUNT','RISK','DATABASE','PROTECTION','PAPER_SESSION'),
  'ORDER_SUBMISSION': ('STRATEGY','ORDERS','EXECUTIONS'),
  'REPORT': ('DATABASE','CANONICAL_STATE','FINANCIAL_LEDGER'),
  'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
@@ -60,7 +62,7 @@ MODULE_DEPENDENCIES = {
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION'}
+LIVE_MODULES = {'NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
 
 
 def resolve_modules(observations, *, now=None, max_age=120):
@@ -74,7 +76,8 @@ def resolve_modules(observations, *, now=None, max_age=120):
         if name in LIVE_MODULES or name=='DIAGNOSTICS':
             try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
             except (KeyError,ValueError,TypeError):age=None
-            if age is None or age<0 or age>max_age:
+            limit = min(max_age,5) if name in ('PROTECTION','PAPER_SESSION') else max_age
+            if age is None or age<0 or age>limit:
                 freshness='STALE' if raw else 'UNKNOWN'
                 if state=='HEALTHY':state='DEGRADED'
         blocked=[d for d in deps if result[d]['state']!='HEALTHY' or (d in LIVE_MODULES and result[d]['freshness']!='FRESH')]

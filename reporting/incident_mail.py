@@ -18,6 +18,9 @@ def message_for(item, sender, trading_status):
     message['From'] = sender
     message['To'] = RECIPIENT
     message['Subject'] = f'[IBKR Paper {severity}] {item["kind"]}'
+    if severity == 'RED':
+        message['X-Priority'] = '1'
+        message['Importance'] = 'high'
     identity = hashlib.sha256((item['incident_key'] + ':' + str(item['generation']) + ':' + item['kind']).encode()).hexdigest()
     message['Message-ID'] = f'<openclaw-{identity}@paper.invalid>'
     queued = data.get('queued_at')
@@ -33,7 +36,10 @@ def message_for(item, sender, trading_status):
         '源事件时间：' + field('timestamp', 'observed_at'),
         '严重程度：' + severity,
         '通知类型：' + item['kind'],
+        'Incident ID：' + item['incident_key'] + ':' + str(item['generation']),
         '标的：' + field('symbol'),
+        '数量：' + field('quantity'),
+        '保护状态：' + field('protection_status'),
         '订单类型：' + field('order_type'),
         'IBKR错误码：' + field('ib_error_code'),
         '原因：' + field('reason', 'ib_error_message'),

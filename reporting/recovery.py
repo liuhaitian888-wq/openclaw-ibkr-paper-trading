@@ -194,6 +194,10 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             cache['at']=time.time()
         return cache['broker']
     def check(module):
+        if module in ('PROTECTION','PAPER_SESSION'):
+            # Only the event-driven monitor may produce these facts. The generic
+            # recovery walker cannot upgrade its own cached observations.
+            return False,'Fresh callback safety monitor evidence required',{}
         if module=='NETWORK':
             successes=[];failures=[]
             for host in ('open.feishu.cn','www.interactivebrokers.com'):

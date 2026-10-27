@@ -262,6 +262,9 @@ class TwsPaperClient(EWrapper, EClient):
             "account": str(getattr(order, "account", "")),
             "symbol": str(getattr(contract, "symbol", "")),
             "side": str(getattr(order, "action", "")),
+            "con_id": int(getattr(contract, "conId", 0)),
+            "currency": str(getattr(contract, "currency", "")),
+            "sec_type": str(getattr(contract, "secType", "")),
             "order_type": str(getattr(order, "orderType", "")),
             "quantity": float(getattr(order, "totalQuantity", 0)),
             "limit_price": float(getattr(order, "lmtPrice", 0)),
@@ -269,6 +272,8 @@ class TwsPaperClient(EWrapper, EClient):
             "tif": str(getattr(order, "tif", "")),
             "status": str(getattr(order_state, "status", "")),
             "completed": completed,
+            "transmit": bool(getattr(order, "transmit", False)),
+            "oca_group": str(getattr(order, "ocaGroup", "")),
         }
 
 
