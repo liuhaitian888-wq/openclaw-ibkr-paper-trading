@@ -8,6 +8,9 @@ import os
 from pathlib import Path
 import shutil
 import sqlite3
+import sys
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from reporting.journal_backup import backup_journal
 
 
 def main():
@@ -43,7 +46,9 @@ def main():
         source = root / name
         if source.is_file():
             shutil.copy2(source, target / source.name)
-    manifest = dict(created_at=stamp, items=items, cross_database_atomic=False,
+    journals={name:backup_journal(root/'reports'/name/'history.jsonl', target/'journals'/name)
+              for name in ('order_rejections','position_protection','position_guard')}
+    manifest = dict(created_at=stamp, items=items, journals=journals, cross_database_atomic=False,
                     restore_requires_maintenance_and_broker_reconciliation=True,
                     production_state_published=(root/'production.json').is_file())
     with (target/'backup.json').open('w') as handle:

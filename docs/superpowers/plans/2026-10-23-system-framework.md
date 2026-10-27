@@ -67,3 +67,18 @@ Fast Path依赖：行情新鲜度 → 策略 → 精确账户/敞口/幂等风�
 - [x] 首次已有日志仅baseline；首次缺失之后的新段全部接续；无凭证copytruncate、损坏/缺失归档、部分行及未完成轮转intent一律保留证据并停止该源，不猜测历史。
 - [x] 离线覆盖多次轮转、并发producer、半行、哈希篡改、缺段、重启和事务回滚；隔离故障脚本覆盖轮转接续、保护恢复、身份症状及模拟SMTP不确定结果。
 - [ ] 完整suite及秘密扫描通过后Git整合/部署；云端只跑smoke、隔离故障影子及额外10分钟只读观察，不启用正式采集、邮件或交易。
+
+## 第四批（2026-10-25）：显式中断恢复、日志证据备份、隔离恢复验收
+
+**Spec:** 本聊天2026-10-25用户指令；保持Paper、PAUSED/MAINTENANCE、交易/SMTP关闭。
+**Architecture:** 复用journal锁及现有轮转凭证。恢复只处理已持久pending的可证明阶段，先inspect生成内容/身份绑定token，再显式apply；不改SQLite水位。备份增加日志证据项，恢复只落隔离候选并保留原元数据和inode映射，不发布生产库。
+
+- [x] reporting/journal_recovery.py：inspect_rotation(path)->plan，recover_rotation(path,token)->result；验证pending、归档hash/inode、空新文件及receipt连续性；拒绝数据不符、过期token；保留恢复前证据，提交后重试不重复轮转。
+- [x] reporting/journal_backup.py：backup_journal(path,target)、inspect_backup(target)、restore_journal(backup,target,token)；有界复制、逐文件SHA256、拒绝路径逃逸/符号链接、目标必须全新；原元数据保留，候选中显式映射inode；不自动改生产cursor。ops/cloud/backup_state.py对三个既有日志源接线，无源时明确MISSING。
+- [x] ops/cloud/journal_admin.py：inspect/recover/restore入口，生产recover需PAUSED/MAINTENANCE和token；restore限monitoring-tests。隔离验收覆盖各中断阶段、恢复中再次崩溃、篡改/缺段拒绝、备份还原、未读尾部及重复事件不重放；shadow_journal_acceptance只操作合成数据并硬禁网络。
+
+Review focus：pending前后inode身份不猜测；新文件已有内容不能吞掉；备份不能伪造完整性；还原不能复用旧inode当当前事实；复制失败不留下可误认为完成的备份manifest。
+
+2026-10-27续接：保留上次中断的改动，完成journal_admin显式入口及shadow_journal_acceptance隔离诊断；源档恢复不修改SQLite cursor，备份restore只生成候选，生产水位/灾备切换仍单独验收。使用既有专用.venv和完整离线runner，通过后才Git整合部署；不启用生产交易/采集/邮件。
+
+验证：最终完整离线suite 573项/61.574秒/OK，FD回归5、连接恢复压力循环FD4且线程1。gitleaks staged扫描通过；Git整合、云端部署及隔离验收结果持续记录于finance/IBKR-Paper-实施进度.md，不以离线测试替代生产验收。

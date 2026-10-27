@@ -45,7 +45,7 @@ def _save(path, value):
 
 
 @contextmanager
-def journal_lock(path, *, writer=False):
+def journal_lock(path, *, writer=False, allow_pending=False):
     lock, _, pending, _ = _paths(path)
     if writer:
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -54,7 +54,7 @@ def journal_lock(path, *, writer=False):
         try:
             fd = os.open(lock, os.O_RDONLY)
         except FileNotFoundError:
-            if pending.exists():
+            if pending.exists() and not allow_pending:
                 raise JournalEvidenceError('Incomplete rotation requires reconciliation')
             yield
             return  # Read-only legacy/shadow access must not create source files.
@@ -69,16 +69,16 @@ def journal_lock(path, *, writer=False):
                     raise JournalEvidenceError('Journal owner busy; checkpoint retained')
                 time.sleep(.01)
         try:
-            if pending.exists():
+            if pending.exists() and not allow_pending:
                 raise JournalEvidenceError('Incomplete rotation requires reconciliation')
             yield
         finally:
             fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def receipts(path):
+def receipts(path, *, allow_pending=False):
     _, manifest, pending, _ = _paths(path)
-    if pending.exists():
+    if pending.exists() and not allow_pending:
         raise JournalEvidenceError('Incomplete rotation requires reconciliation')
     try:
         with manifest.open('rb') as handle:

@@ -47,5 +47,15 @@
 - 协作writer写入或轮转后提交producer元数据；元数据不符时读写都停止，包括外部相同字节原地重写、追加后元数据提交中断。旧未接管日志仍采用既有水位锚点检查，不声称能识别所有外部原地改写。
 - 半行不得被轮转或被后续append拼成另一事件；采集器对活动文件半行保留原偏移。后台错误不会修改订单状态或扩大交易权限。
 - 归档段不压缩、不按年龄清理、不改写；原通用cycles/pool日志轮转不在本批三类业务来源范围。代码回退不删除receipt/归档、不清水位；旧collector遇新inode会停下，需要保留接续证据。
-- 现有SQLite备份脚本不备份这些JSONL归档；本批保留源证据，不宣称日志灾备已完成。
+- SQLite备份脚本另行保全三个业务JSONL源的活动文件、归档、pending、writer元数据及恢复凭证；逐文件SHA256和目录同步完成后才写完成manifest。无源明确标MISSING_NO_JOURNAL，不能以调度成功声称正式库已备份。
 - `shadow_incident_acceptance.py`是有PAUSED/MAINTENANCE前提的一次性隔离诊断；只在monitoring-tests写合成记录，硬禁socket、固定模拟SMTP工厂，不读取生产SMTP配置。其SMTP_ACCEPTED仅代表模拟传输断言，绝不是实际邮件实收。
+
+## 显式中断恢复及日志灾备（2026-10-27）
+
+`journal_admin.py inspect --journal order_rejections`仅生成绑定pending、文件inode/size/时间/SHA256及链的approval_token；`recover --journal order_rejections --token <token>`才执行可证明的roll-forward。inspect不新建源锁；recover要求PAUSED、MAINTENANCE和采集/邮件均未armed，独占既有journal锁，不修改SQLite水位。其他来源为position_protection、position_guard。
+
+工具仅接续pending可证明的rename、空active创建、receipt提交及释放阶段。新active已有内容、旧段缺失/篡改、链断裂、符号链接或stale token都拒绝；恢复前元数据保存在`.recovery/<token>/`。恢复再次中断时保留全部材料，重新inspect生成新token；已提交操作重试只核对既有完成证据，不再次轮转。
+
+`journal_admin.py inspect-backup --backup <state内bundle>`核验备份；`restore --backup <bundle> --target <state>/monitoring-tests/<新目录> --token <token>`仅生成隔离候选。`originals/`保留逐字节证据，`candidate/`显式重绑定新inode，`restore-map.json`记录映射、production_activated=false和cursor_updated=false。备份损坏或token不符在创建目标之前拒绝；中途失败的目录没有完成标记，不覆盖后重试。
+
+隔离候选不是可直接切换的生产源：不会复制/改写生产cursor，也不重发outbox；历史恢复凭证保留原现场身份，不能当新文件现场的批准token。恢复SQLite消费水位及对账是一项独立的明确验收，不能仅凭文件还原宣称灾备切换完成。`shadow_journal_acceptance.py`硬禁网络，只在monitoring-tests内验证合成pending恢复、未读尾部跨重启不重放、UNKNOWN保留及备份候选/损坏拒绝。
