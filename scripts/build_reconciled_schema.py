@@ -3,11 +3,80 @@ import ast
 from contextlib import closing
 import hashlib
 import json
+import re
 from pathlib import Path
 import sqlite3
 import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from scripts.reconcile_recovered_transition import digest
+
+
+def stage_current_epoch(source, destination, *, account):
+    """Preserve every legacy table in a new candidate; never publish production.
+
+    Current execution tables start empty. The preserved historical namespace is
+    intentionally unavailable to the normal order executor and its retry queue.
+    """
+    if account != 'DUQ503649':
+        raise ValueError('Only the exact authorized Paper account is supported')
+    source, destination = Path(source).absolute(), Path(destination).absolute()
+    if source.is_symlink() or destination.is_symlink():
+        raise ValueError('Symlink database paths are forbidden')
+    if source.resolve() == destination.resolve() or destination.exists():
+        raise ValueError('A new, distinct candidate destination is required')
+    if not source.is_file():
+        raise ValueError('Preserved source is missing')
+    wal = Path(str(source) + '-wal')
+    if wal.exists() and wal.stat().st_size:
+        raise ValueError('Source WAL must be independently reconciled first')
+    source_hash = digest(source)
+    source_uri = source.resolve().as_uri() + '?mode=ro'
+    with closing(sqlite3.connect(source_uri, uri=True)) as src:
+        if src.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
+            raise ValueError('Source integrity failure')
+        if src.execute("SELECT 1 FROM sqlite_master WHERE type IN ('view','trigger') LIMIT 1").fetchone():
+            raise ValueError('Views/triggers require explicit migration review')
+        tables = [r[0] for r in src.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+        if not tables or any(not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*', t) or t.startswith('legacy_epoch_') for t in tables):
+            raise ValueError('Unexpected or already isolated source schema')
+        counts = {t: src.execute('SELECT count(*) FROM "' + t + '"').fetchone()[0] for t in tables}
+        with destination.open('xb'):
+            pass
+        with closing(sqlite3.connect(destination)) as out:
+            src.backup(out)
+            with out:
+                out.execute('BEGIN IMMEDIATE')
+                indices = out.execute("SELECT name FROM sqlite_master WHERE type='index' AND sql IS NOT NULL").fetchall()
+                # Legacy rows stay intact. Explicit old indices can be omitted;
+                # unique constraint autoindices follow their renamed tables.
+                for (name,) in indices:
+                    out.execute('DROP INDEX "' + name.replace('"', '""') + '"')
+                for table in tables:
+                    out.execute('ALTER TABLE "' + table + '" RENAME TO "legacy_epoch_' + table + '"')
+    from trading.audit import AuditLog
+    from trading.paper_audit_db import ensure_paper_automation_tables
+    AuditLog(destination)
+    ensure_paper_automation_tables(destination)
+    with closing(sqlite3.connect(destination)) as out, out:
+        for table, count in counts.items():
+            actual = out.execute('SELECT count(*) FROM "legacy_epoch_' + table + '"').fetchone()[0]
+            if actual != count:
+                raise ValueError('Historical row count changed: ' + table)
+        if out.execute('SELECT count(*) FROM order_requests').fetchone()[0]:
+            raise ValueError('Current execution queue is not empty')
+        if out.execute('PRAGMA integrity_check').fetchall() != [('ok',)] or out.execute('PRAGMA foreign_key_check').fetchall():
+            raise ValueError('Candidate integrity failure')
+        if digest(source) != source_hash or (wal.exists() and wal.stat().st_size):
+            raise ValueError('Source changed during staging')
+        proof = dict(status='CURRENT_EPOCH_CANDIDATE_ONLY', account=account, environment='PAPER',
+                     source=str(source), source_sha256=source_hash, legacy_counts=counts,
+                     legacy_prefix='legacy_epoch_', current_order_requests=0,
+                     historical_replay_allowed=False, grants_trading_permission=False,
+                     omitted_legacy_indices=[r[0] for r in indices])
+        out.execute('CREATE TABLE current_epoch_proof(payload TEXT NOT NULL)')
+        out.execute('INSERT INTO current_epoch_proof VALUES (?)', (json.dumps(proof, sort_keys=True),))
+    destination.chmod(0o600)
+    return proof
 
 
 def build(source, destination, code_root):
