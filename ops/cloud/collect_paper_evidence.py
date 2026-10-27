@@ -7,6 +7,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from reporting.live_observation import probe, PaperIdentityError
+from reporting.paper_signal_report import publish_report
 
 
 def main():
@@ -42,6 +43,9 @@ def main():
     with temporary.open('w') as handle:
         json.dump(result, handle, indent=2)
     temporary.replace(latest)
+    # Separate read-only output; never changes probe success or trading gates.
+    report = publish_report(root, config)
+    print('PAPER_SHADOW_REPORT_' + report['status'])
     print(result['status'])
     return 0 if result['status']=='READBACK_COMPLETE' else 2
 
