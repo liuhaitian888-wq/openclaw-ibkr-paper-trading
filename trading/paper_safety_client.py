@@ -12,6 +12,9 @@ class PaperSafetyClient(TwsPaperClient):
         self.tickers = {46000+i:s for i,s in enumerate(symbols)}
         self.bar_tickers = {47000+i:s for i,s in enumerate(symbols)}
         self.fields, self.bar_parts = {}, {}
+        self.strategy_observer = None
+        self.history_tickers = {49000+i:s for i,s in enumerate(symbols)}
+        self.read_only_completed_orders_blocked = False
 
     def connectionClosed(self):
         self.monitor.invalidate('API_CONNECTION_CLOSED')
@@ -26,6 +29,11 @@ class PaperSafetyClient(TwsPaperClient):
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
         if isinstance(code,int):
             self.monitor.error(code)
+            if code==321 and 'read-only' in str(args).lower():
+                self.read_only_completed_orders_blocked = True
+                with self.monitor.lock:
+                    self.monitor.state['fault']='READ_ONLY_COMPLETED_ORDERS_BLOCKED'
+                    self.monitor._publish()
             if reqId in self.tickers and code not in (2104,2106,2107,2108,2158):
                 with self.monitor.lock:
                     self.monitor.state['quotes'].pop(self.tickers[reqId],None)
@@ -121,6 +129,23 @@ class PaperSafetyClient(TwsPaperClient):
             self.reqMktData(req_id,self._contract(symbol),'',False,False,[])
         for req_id,symbol in self.bar_tickers.items():
             self.reqRealTimeBars(req_id,self._contract(symbol),5,'TRADES',True,[])
+        if self.strategy_observer:
+            for req_id,symbol in self.history_tickers.items():
+                self.strategy_observer.history_complete.discard(symbol)
+                self.reqHistoricalData(req_id,self._contract(symbol),'','1800 S','1 min','TRADES',1,2,True,[])
+
+    def historicalData(self, reqId, bar):
+        symbol=self.history_tickers.get(reqId)
+        if symbol and self.strategy_observer:
+            with self.strategy_observer.lock:
+                self.strategy_observer.history(symbol,bar,self.monitor.clock())
+
+    def historicalDataUpdate(self, reqId, bar):
+        self.historicalData(reqId,bar)
+
+    def historicalDataEnd(self, reqId, start, end):
+        if reqId in self.history_tickers and self.strategy_observer:
+            self.strategy_observer.history_complete.add(self.history_tickers[reqId])
 
     def retry_subscriptions(self):
         # Cancellation applies exclusively to our data subscriptions, never orders.
@@ -128,6 +153,9 @@ class PaperSafetyClient(TwsPaperClient):
             self.cancelMktData(req_id)
         for req_id in self.bar_tickers:
             self.cancelRealTimeBars(req_id)
+        if self.strategy_observer:
+            for req_id in self.history_tickers:
+                self.cancelHistoricalData(req_id)
         self.subscribe()
 
     def reconcile(self):

@@ -13,6 +13,7 @@ from ops.cloud.alert_email import safety_email_owner
 from trading.paper_safety_monitor import PaperSafetyMonitor, ACCOUNT, ENDS
 from trading.paper_safety_client import PaperSafetyClient
 from trading.tws_paper import _close_owned_client
+from trading.paper_strategy_observer import PaperStrategyObserver
 
 
 def main():
@@ -42,9 +43,11 @@ def main():
     with monitoring_service('paper-safety',root), safety_email_owner(root,stopped):
         monitor=PaperSafetyMonitor(root/'trading_audit.sqlite3',root/'runtime/recovery.sqlite3',
                                    symbols=cfg['symbols'],required_bars=strategy['slow_window'])
+        observer=PaperStrategyObserver(cfg['symbols'],strategy,root/'reports/paper_strategy/latest.json')
         attempts=0
         while not stopped.is_set():
             client=PaperSafetyClient(monitor,cfg['symbols'])
+            client.strategy_observer=observer
             worker=None
             try:
                 client.connect('127.0.0.1',4002,clientId=18770)
@@ -59,6 +62,7 @@ def main():
                 attempts=0
                 last_sync=time.monotonic()
                 last_heartbeat=0
+                last_strategy=0
                 while not stopped.wait(1):
                     if not worker.is_alive() or not client.isConnected() or not monitor.state['connected']:
                         raise RuntimeError('Order monitoring connection lost')
@@ -71,8 +75,15 @@ def main():
                         monitor._publish()
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
-                    if not complete and time.monotonic()-last_sync>=30:
+                    if not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
+                    if time.monotonic()-last_strategy>=5:
+                        with monitor.lock:
+                            snapshot=monitor.snapshot()
+                        for req_id,symbol in client.tickers.items():
+                            with observer.lock:
+                                observer.evaluate(symbol,dict(client.fields.get(req_id,{})),snapshot,monitor.clock())
+                        last_strategy=time.monotonic()
                     # Keep monitoring during 10197. Only bounded data subscription
                     # retries; no Gateway process action, no account session takeover.
                     if monitor.retry_due():

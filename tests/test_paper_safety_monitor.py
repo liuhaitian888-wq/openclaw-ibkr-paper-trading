@@ -265,3 +265,11 @@ class PaperSafetyTests(unittest.TestCase):
         self.m.order(self.stop())
         with closing(self.m.coordinator.connect()) as c:
             self.assertEqual(c.execute("SELECT count(*) FROM paper_callback_events WHERE kind='order'").fetchone()[0],1)
+
+    def test_read_only_completed_request_rejection_never_marks_reconciled(self):
+        client=PaperSafetyClient(self.m,['PFE'])
+        self.m.begin([ACCOUNT])
+        client.error(-1,1234567890123,321,'The API interface is currently in Read-Only mode.','')
+        self.assertTrue(client.read_only_completed_orders_blocked)
+        self.assertTrue(self.m.state['connected'])
+        self.assertFalse(self.m.snapshot()['reconciliation_complete'])
