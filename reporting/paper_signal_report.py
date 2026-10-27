@@ -13,6 +13,7 @@ import tempfile
 
 from trading.market_data import Bar
 from trading.strategy import MovingAverageConfig, MovingAverageSignalEngine
+from reporting.paper_model_reference import existing_model, universe_reference
 
 
 PERIOD = 300
@@ -38,6 +39,8 @@ def checked_time(item):
 
 def identity_ok(item, account):
     resources = item.get('resources') or {}
+    if not isinstance(resources, dict):
+        return False
     return (item.get('source') == 'REAL_IBKR' and item.get('environment') == 'PAPER'
             and item.get('account_id') == account and item.get('complete') is True
             and item.get('status') == 'READBACK_COMPLETE'
@@ -47,8 +50,11 @@ def identity_ok(item, account):
 
 
 def valid_quote(item, symbol, observed):
-    quote = (item.get('quotes') or {}).get(symbol, {})
-    if not isinstance(quote, dict) or quote.get('data_type') != 1:
+    quotes = item.get('quotes') or {}
+    if not isinstance(quotes, dict):
+        return None
+    quote = quotes.get(symbol, {})
+    if not isinstance(quote, dict) or type(quote.get('data_type')) is not int or quote.get('data_type') != 1:
         return None
     bid, ask = quote.get('bid'), quote.get('ask')
     if not all(type(x) in (int, float) and math.isfinite(x) and 0 < x < 1e9 for x in (bid, ask)):
@@ -62,6 +68,68 @@ def valid_quote(item, symbol, observed):
     if not -2 <= age <= 60:
         return None
     return quote
+
+
+def session_state(item, account, symbols):
+    codes = []
+    for error in item.get('raw_errors', []):
+        args = error.get('raw_callback_arguments', []) if isinstance(error, dict) else []
+        code = args[1] if len(args) >= 3 and type(args[1]) is int else args[0] if args else None
+        if type(code) is int:
+            codes.append(code)
+    connections = [code for code in codes if code in (1100,1101,1102,1300)]
+    observed = checked_time(item)
+    if (item.get('account_id') not in (None, account) or item.get('environment') not in (None,'PAPER')
+            or item.get('failure_class') == 'IDENTITY_MISMATCH'):
+        state = 'IDENTITY_UNVERIFIED'
+    elif 10197 in codes:
+        state = 'MARKET_DATA_COMPETITION'
+    elif connections and connections[-1] in (1100,1300):
+        state = 'BROKER_CONNECTION_LOST'
+    elif connections and connections[-1] == 1101:
+        state = 'READBACK_AND_RESUBSCRIBE_REQUIRED'
+    elif not identity_ok(item, account):
+        state = 'AUTH_OR_CONNECTION_UNVERIFIED'
+    elif observed is None or not all(valid_quote(item,symbol,observed) for symbol in symbols):
+        state = 'MARKET_DATA_UNAVAILABLE'
+    else:
+        state = 'PAPER_DATA_VERIFIED'
+    return dict(state=state, error_codes=list(dict.fromkeys(codes)),
+                exact_paper_verified=identity_ok(item,account),
+                cause_attribution='BROKER_ERROR_CODE' if 10197 in codes or connections else 'OBSERVED_SYMPTOM_ONLY',
+                grants_trading_permission=False)
+
+
+def session_timeline(dated, account, symbols):
+    events=[]; prior=None; prior_at=None; fault_at=None;seen=set()
+    for at,item in dated:
+        current=session_state(item,account,symbols)
+        identity=(at,current['state'],tuple(current['error_codes']))
+        if identity in seen:
+            continue
+        seen.add(identity)
+        if prior_at and (at-prior_at).total_seconds()>MAX_AGE:
+            events.append(dict(observed_at=at.isoformat(),state='OBSERVATION_GAP',
+                               last_observed_at=prior_at.isoformat(),transition='SAMPLING_GAP_CAUSE_UNKNOWN',
+                               elapsed_between_observations_seconds=(at-prior_at).total_seconds()))
+            prior='OBSERVATION_GAP';fault_at=at
+        if current['state'] != prior:
+            transition='BASELINE_OBSERVED' if prior is None else 'OBSERVED_CHANGE'
+            if current['state'] == 'PAPER_DATA_VERIFIED' and prior is not None:
+                transition='OBSERVED_RECOVERY_RECONCILIATION_NOT_APPROVED'
+            event=dict(current,observed_at=at.isoformat(),previous_state=prior,transition=transition)
+            if current['state'] != 'PAPER_DATA_VERIFIED':
+                if fault_at is None:fault_at=at
+            elif fault_at is not None:
+                event['observed_fault_span_seconds']=(at-fault_at).total_seconds();fault_at=None
+            events.append(event)
+        prior=current['state'];prior_at=at
+    return dict(source='private observations/YYYY-MM-DD/*.json; reconstructable sampled evidence',
+                observation_window_start=dated[0][0].isoformat() if dated else None,
+                observation_window_end=dated[-1][0].isoformat() if dated else None,
+                sampling_interval_seconds=PERIOD, continuous_event_capture=False,
+                exact_outage_duration_known=False, automatic_relogin_or_takeover=False,
+                transitions=events[-40:])
 
 
 def build_report(observations, expected_account, symbols, now=None):
@@ -94,6 +162,9 @@ def build_report(observations, expected_account, symbols, now=None):
                       else 'PAPER_EVIDENCE_UNVERIFIED')
         else:
             status = 'CURRENT'
+            current_session = session_state(latest,expected_account,symbols)
+            if current_session['state'] != 'PAPER_DATA_VERIFIED':
+                status = current_session['state']
     else:
         status = 'NO_DATA'
 
@@ -101,7 +172,8 @@ def build_report(observations, expected_account, symbols, now=None):
         samples = []
         current_quote = None
         for at, item in dated:
-            quote = valid_quote(item, symbol, at) if identity_ok(item, expected_account) else None
+            quote = (valid_quote(item, symbol, at)
+                     if session_state(item,expected_account,symbols)['state'] == 'PAPER_DATA_VERIFIED' else None)
             if quote is None or (now-at).total_seconds() < -5:
                 samples = []
                 current_quote = None
@@ -117,6 +189,8 @@ def build_report(observations, expected_account, symbols, now=None):
             current_quote = quote
         row = dict(sample_count=len(samples), signal=None, reason='Current verified real-time data required',
                    short_ma=None, long_ma=None)
+        positions = dated[-1][1].get('positions',[]) if dated and status == 'CURRENT' else []
+        row['existing_model'] = existing_model([],None,symbol,positions)
         if status == 'CURRENT' and current_quote:
             engine = MovingAverageSignalEngine(configuration)
             decision = None
@@ -127,12 +201,14 @@ def build_report(observations, expected_account, symbols, now=None):
                        received_at=current_quote['received_at'], data_type=1,
                        signal=decision.action if len(samples) >= configuration.long_window else 'WARMING_UP',
                        reason=decision.reason, short_ma=decision.short_ma, long_ma=decision.long_ma)
+            row['existing_model'] = existing_model(samples,current_quote,symbol,positions)
         result['symbols'][symbol] = row
     if status == 'CURRENT':
         rows = result['symbols'].values()
         status = ('DATA_UNAVAILABLE' if any(row['signal'] is None for row in rows) else
                   'WARMING_UP' if any(row['signal'] == 'WARMING_UP' for row in rows) else 'SHADOW_READY')
     result['status'] = status
+    result['session_history'] = session_timeline(dated,expected_account,symbols)
     return result
 
 
@@ -163,6 +239,20 @@ def render_markdown(report):
                   row['signal'] or '不可用', row['short_ma'], row['long_ma']]
         lines.append('| ' + ' | '.join('—' if v is None else str(round(v, 4)) if isinstance(v, float) else str(v) for v in values) + ' |')
     lines.extend(['', 'SHADOW_READY 仅表示影子计算已有样本；不代表可交易、盈利或全部策略验收通过。', ''])
+    lines.extend(['## 已有模型参考输出','',
+                  '复用 classic_conservative_trend 与原CLI参考参数；配置/股票池尚未正式批准。只评估，不记录虚拟成交，不将券商外部持仓自动认领为策略持仓。','',
+                  '| 股票 | 模型建议 | 原因 | 券商持仓数量 |','|---|---|---|---:|'])
+    for symbol,row in report['symbols'].items():
+        model=row['existing_model'];decision=model['decision'] or {}
+        lines.append(f"| {symbol} | {decision.get('action','不可用')} | {decision.get('reason','等待有效Paper数据')} | {model.get('broker_exposure_quantity') or '—'} |")
+    reference=report.get('universe_reference',{})
+    lines.extend(['',f"参考股票池：{reference.get('status','未计算')}；CSV基本面时间未知，不能当作新鲜入池审批。",'',
+                  '## 会话与数据恢复记录','',
+                  '由已保存原始观察重建；五分钟采样会遗漏短暂断线，检测时间不等于实际故障开始。恢复仅表示回读/数据恢复，未批准交易恢复。','',
+                  '| 检测时间（UTC） | 状态 | 券商错误码 | 变化 |','|---|---|---|---|'])
+    for event in report['session_history']['transitions']:
+        lines.append(f"| {event['observed_at']} | {event['state']} | {event.get('error_codes',[])} | {event['transition']} |")
+    lines.append('')
     return '\n'.join(lines)
 
 
@@ -194,6 +284,9 @@ def write_report(root, config, now=None):
         for row in result['symbols'].values():
             row.update(signal=None, reason='Source file requires inspection')
             row.pop('bid', None); row.pop('ask', None)
+            row['existing_model']['decision']=None
+        result['session_history']['source_file_invalid']=True
+    result['universe_reference']=universe_reference(config['symbols'])
     target = root/'reports/paper_shadow'
     atomic_write(target/'latest.json', json.dumps(result, indent=2, allow_nan=False)+'\n')
     atomic_write(target/'latest.md', render_markdown(result))

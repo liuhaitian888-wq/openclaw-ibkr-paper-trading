@@ -5,7 +5,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from reporting.paper_signal_report import build_report, write_report, publish_report
+from reporting.paper_signal_report import build_report, write_report, publish_report, session_state
+from trading.market_data import Quote
+from trading.strategy_modules import ConservativeTrendModule
 
 
 NOW = datetime(2026, 10, 27, 15, 0, tzinfo=timezone.utc)
@@ -21,6 +23,67 @@ def observation(at, price=100):
 
 
 class PaperSignalReportTests(unittest.TestCase):
+    def test_session_codes_distinguish_competition_connectivity_and_recovery(self):
+        for args, expected in (([10197, 'competing'], 'MARKET_DATA_COMPETITION'),
+                               ([1793115600000, 10197, 'competing', ''], 'MARKET_DATA_COMPETITION'),
+                               ([1793115600000, 1100, 'lost', ''], 'BROKER_CONNECTION_LOST'),
+                               ([1101, 'restored'], 'READBACK_AND_RESUBSCRIBE_REQUIRED')):
+            item=observation(NOW);item['raw_errors']=[dict(raw_callback_arguments=args)]
+            self.assertEqual(session_state(item, ACCOUNT, ['AAPL'])['state'], expected)
+            r=build_report([item],ACCOUNT,['AAPL'],NOW)
+            self.assertIsNone(r['symbols']['AAPL']['signal'])
+        item=observation(NOW);item['account_id']='U123'
+        self.assertEqual(session_state(item,ACCOUNT,['AAPL'])['state'],'IDENTITY_UNVERIFIED')
+        item=observation(NOW);item['quotes']['AAPL']['data_type']=3
+        self.assertEqual(session_state(item,ACCOUNT,['AAPL'])['state'],'MARKET_DATA_UNAVAILABLE')
+
+    def test_timeline_is_rebuilt_without_replay_or_claiming_exact_outage_start(self):
+        good=observation(NOW-timedelta(minutes=10))
+        failed=dict(observed_at=(NOW-timedelta(minutes=5)).isoformat(),status='AUTH_OR_CONNECTION_REQUIRED',error_type='TimeoutError')
+        recovered=observation(NOW)
+        r=build_report([good,failed,recovered,recovered],ACCOUNT,['AAPL'],NOW)
+        events=r['session_history']['transitions']
+        self.assertEqual([e['state'] for e in events],['PAPER_DATA_VERIFIED','AUTH_OR_CONNECTION_UNVERIFIED','PAPER_DATA_VERIFIED'])
+        self.assertEqual(events[-1]['transition'],'OBSERVED_RECOVERY_RECONCILIATION_NOT_APPROVED')
+        self.assertEqual(events[-1]['observed_fault_span_seconds'],300)
+        self.assertFalse(r['session_history']['exact_outage_duration_known'])
+        self.assertFalse(r['grants_trading_permission'])
+        self.assertEqual(r['symbols']['AAPL']['sample_count'],1)
+
+    def test_observation_gap_is_recorded_separately_not_called_login_loss(self):
+        r=build_report([observation(NOW-timedelta(minutes=30)),observation(NOW)],ACCOUNT,['AAPL'],NOW)
+        events=r['session_history']['transitions']
+        self.assertIn('OBSERVATION_GAP',[e['state'] for e in events])
+        self.assertTrue(all('phone' not in str(e).lower() for e in events))
+
+    def test_existing_module_evaluates_without_simulated_fill_or_order_transport(self):
+        samples=[observation(NOW-timedelta(minutes=5*(4-i)),100+i) for i in range(5)]
+        samples[-1]['positions']=[dict(symbol='AAPL',position='17',avgCost=90)]
+        with patch.object(Quote,'age_ms',return_value=0), patch.object(ConservativeTrendModule,'record_order_decision',side_effect=AssertionError('no fills')):
+            r=build_report(samples,ACCOUNT,['AAPL'],NOW)
+        model=r['symbols']['AAPL']['existing_model']
+        self.assertEqual(model['name'],'classic_conservative_trend')
+        self.assertEqual(model['decision']['action'],'BUY')
+        self.assertFalse(model['execution_authorized'])
+        self.assertFalse(model['configuration_approved'])
+        self.assertEqual(model['broker_exposure_quantity'],'17')
+        self.assertFalse(model['broker_position_adopted_as_strategy_owned'])
+        self.assertEqual(r['orders_submitted'],0)
+
+    def test_report_model_reference_config_matches_existing_cli_defaults(self):
+        from scripts.run_pool_strategy_module import parse_args
+        with patch('sys.argv',['run_pool_strategy_module.py']): args=parse_args()
+        r=build_report([observation(NOW)],ACCOUNT,['AAPL'],NOW)
+        cfg=r['symbols']['AAPL']['existing_model']['configuration']
+        for key in ('fast_window','slow_window','profit_target_pct','stop_loss_pct','min_gap_pct','cooldown_steps'):
+            self.assertEqual(cfg[key],getattr(args,key))
+
+    def test_fault_and_corrupt_source_cannot_leave_old_model_proposals(self):
+        item=observation(NOW);item['raw_errors']=[dict(raw_callback_arguments=[10197,'competing'])]
+        with patch.object(ConservativeTrendModule,'evaluate',side_effect=AssertionError('fault must block model')):
+            r=build_report([item],ACCOUNT,['AAPL'],NOW)
+        self.assertIsNone(r['symbols']['AAPL']['existing_model']['decision'])
+
     def test_real_samples_reuse_engine_but_never_grant_trading_permission(self):
         samples = [observation(NOW-timedelta(minutes=5*(5-i)), 100+i) for i in range(6)]
         report = build_report(samples, ACCOUNT, ['AAPL'], NOW)
@@ -84,6 +147,9 @@ class PaperSignalReportTests(unittest.TestCase):
             self.assertFalse(list(root.rglob('*.sqlite3')))
             self.assertEqual(r['status'], 'WARMING_UP')
             self.assertIn('非交易指令', (output.parent/'latest.md').read_text())
+            self.assertEqual(r['universe_reference']['status'],'REFERENCE_ONLY_NOT_APPROVED')
+            self.assertEqual(len(r['universe_reference']['sha256']),64)
+            self.assertEqual([x['symbol'] for x in r['universe_reference']['records']],['AAPL'])
 
     def test_invalid_file_cannot_fall_back_to_older_success_and_publish_is_isolated(self):
         with tempfile.TemporaryDirectory() as tmp:
