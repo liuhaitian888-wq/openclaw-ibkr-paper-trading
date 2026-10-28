@@ -64,6 +64,14 @@ class RiskEngineTests(unittest.TestCase):
         self.assertFalse(decision.approved)
         self.assertIn("Protective stop", decision.reason)
 
+    def test_aggregate_200_boundary_with_existing_pending_exposure(self):
+        limits=RiskLimits(trading_enabled=True,allowed_symbols=frozenset({'PFE'}),
+            max_quantity=1,max_order_value=200,max_risk_per_order=10,max_gross_exposure=200)
+        engine=RiskEngine(limits)
+        proposal=TradeProposal('PFE','BUY',1,30,29)
+        self.assertTrue(engine.validate(proposal,current_gross_exposure=170).approved)
+        self.assertFalse(engine.validate(proposal,current_gross_exposure=170.01).approved)
+
     def test_symbol_and_gross_exposure_limits_are_not_bypassable(self) -> None:
         symbol_limits = RiskLimits(
             trading_enabled=True,

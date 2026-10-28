@@ -28,6 +28,8 @@ class PaperSafetyClient(TwsPaperClient):
         super().error(reqId, *args)
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
         if isinstance(code,int):
+            if code in (10197,1100,1101,1102,162,321):
+                self.monitor._record('error',dict(request_id=reqId,code=code,details=str(args)))
             self.monitor.error(code)
             if code==321 and 'read-only' in str(args).lower():
                 self.read_only_completed_orders_blocked = True
@@ -157,6 +159,17 @@ class PaperSafetyClient(TwsPaperClient):
             for req_id in self.history_tickers:
                 self.cancelHistoricalData(req_id)
         self.subscribe()
+
+    def recover_data_if_required(self):
+        # Called only by the existing single service owner, never a timer/thread.
+        with self.monitor.lock:
+            required = self.monitor.state.get('resubscribe_required',False)
+            if not required:
+                return False
+        self.retry_subscriptions()
+        with self.monitor.lock:
+            self.monitor.state['resubscribe_required'] = False
+        return True
 
     def reconcile(self):
         from ibapi.execution import ExecutionFilter

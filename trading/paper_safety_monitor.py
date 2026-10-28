@@ -48,7 +48,7 @@ class PaperSafetyMonitor:
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, ends=[], dirty=True,
                           last_server_reply=0,
-                          needs_recovery_sync=True,
+                          needs_recovery_sync=True, resubscribe_required=False,
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
                           quotes={}, bars={}, reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
         self._publish()
@@ -78,10 +78,11 @@ class PaperSafetyMonitor:
 
     def start_reconciliation(self):
         with self.lock:
+            routine_refresh = self._complete()
             if self.state['positions']:
                 self.state['last_positions'] = dict(self.state['positions'])
             self.state.update(ends=[], dirty=True, orders={}, positions={}, fault='RECONCILIATION_REQUIRED',
-                              sync_started=self.clock(), sync_new_execution=False)
+                              sync_started=self.clock(), sync_new_execution=False, routine_refresh=routine_refresh)
             self._publish()
 
     def invalidate(self, reason):
@@ -102,6 +103,8 @@ class PaperSafetyMonitor:
                 self.invalidate('API_CONNECTION_LOST')
                 return
             elif code in (1101, 1102):
+                if code == 1101:
+                    self.state['resubscribe_required'] = True
                 self.state.update(ends=[], dirty=True, quotes={}, bars={}, reset_at=self.clock(),
                                   fault='RECONNECT_RECONCILIATION_REQUIRED', needs_recovery_sync=True)
             elif code in (110, 201, 202):
@@ -316,7 +319,21 @@ class PaperSafetyMonitor:
             self._incident('collision', 'Fresh live data, completed K-lines, broker reconciliation and protection verified', resolved=True)
         elif self.state['collision_since'] is not None and self.clock()-self.state['collision_since']>=self.collision_alert_seconds:
             self._incident('collision', 'Prolonged IBKR 10197 market-data collision')
+        # Routine polling invalidates permissions immediately, but is not a new
+        # protection incident while a healthy snapshot is being replaced. Genuine
+        # loss, changed exposure, new executions or a 30s timeout still alert.
+        routine_pending = (self.state.get('routine_refresh', False)
+            and not snapshot['reconciliation_complete']
+            and self.state['connected'] and self.state['identity']
+            and 0 <= self.clock()-self.state['last_server_reply'] <= 10
+            and 0 <= self.clock()-self.state.get('sync_started', 0) <= 30
+            and self.state['fault']=='RECONCILIATION_REQUIRED'
+            and not self.state.get('sync_new_execution', False)
+            and all(q==self.state.get('last_positions',{}).get(sym)
+                    for sym,q in self.state['positions'].items()))
         for symbol, item in snapshot['protection'].items():
+            if routine_pending and item['status']=='PROTECTION_UNKNOWN':
+                continue
             self._incident('protection:' + symbol, item['status'], resolved=item['status']=='PROTECTED',
                            symbol=symbol, quantity=item['quantity'], protection=item['status'])
         if self.state['connected'] and self.state.get('sync_started') is not None and self.clock()-self.state['sync_started']>30 and not snapshot['reconciliation_complete']:

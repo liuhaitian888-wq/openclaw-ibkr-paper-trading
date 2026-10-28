@@ -46,6 +46,72 @@ class PaperSafetyTests(unittest.TestCase):
         self.m.bar('PFE',1060,1120)
         self.m.quote('PFE',29,29.01,self.now,self.now,1)
 
+    def notification_count(self):
+        with closing(self.m.incidents.connect()) as c:
+            return c.execute("SELECT count(*) FROM notification_outbox WHERE incident_key='paper-safety:protection:PFE'").fetchone()[0]
+
+    def test_routine_snapshot_does_not_generate_protection_email_pairs(self):
+        self.ready()
+        count=self.notification_count()
+        for _ in range(4):
+            self.m.start_reconciliation()
+            self.assertFalse(self.m.snapshot()['entries_ready'])
+            self.assertEqual(self.m.protection()['PFE']['status'],'PROTECTION_UNKNOWN')
+            self.m.position('PFE',2,con_id=11031,currency='USD',sec_type='STK')
+            self.m.order(self.stop())
+            for end in ('orders','completed_orders','executions','positions'):self.m.end(end)
+        self.assertEqual(self.notification_count(),count)
+
+    def test_routine_snapshot_timeout_and_disconnect_still_alert(self):
+        self.ready(); count=self.notification_count()
+        self.m.start_reconciliation();self.now+=31;self.m._publish()
+        self.assertGreater(self.notification_count(),count)
+        self.assertFalse(self.m.snapshot()['entries_ready'])
+
+    def test_data_loss_requires_resubscription_but_data_maintained_does_not(self):
+        self.ready();self.m.error(1101)
+        self.assertTrue(self.m.state['resubscribe_required'])
+        self.assertFalse(self.m.snapshot()['entries_ready'])
+        self.m.state['resubscribe_required']=False
+        self.m.error(1102)
+        self.assertFalse(self.m.state['resubscribe_required'])
+
+    def test_1101_resubscription_is_consumed_once_by_owner(self):
+        self.ready();client=PaperSafetyClient(self.m,['PFE'])
+        client.retry_subscriptions=Mock()
+        self.m.error(1101)
+        self.assertTrue(client.recover_data_if_required())
+        self.assertFalse(client.recover_data_if_required())
+        client.retry_subscriptions.assert_called_once()
+        self.m.error(1102)
+        self.assertFalse(client.recover_data_if_required())
+        self.assertEqual(client.retry_subscriptions.call_count,1)
+
+    def test_delayed_frozen_and_delayed_frozen_never_pass(self):
+        self.ready();self.warm()
+        for kind in (2,3,4):
+            self.m.quote('PFE',29,29.01,self.now,self.now,kind)
+            self.assertFalse(self.m.snapshot()['data_ready'])
+
+    def test_routine_refresh_disconnect_alerts_immediately(self):
+        self.ready();count=self.notification_count()
+        self.m.start_reconciliation();self.now+=1;self.m.error(1100)
+        self.assertGreater(self.notification_count(),count)
+        self.assertFalse(self.m.snapshot()['entries_ready'])
+
+    def test_new_fill_during_refresh_is_not_silenced(self):
+        self.ready();count=self.notification_count();self.m.start_reconciliation();self.now+=1
+        self.m.execution(dict(exec_id='NEW',account=ACCOUNT,order_id=1,perm_id=101,
+            order_ref='intent',symbol='PFE',side='BOT',shares=1,price=29,time='now'))
+        self.assertGreater(self.notification_count(),count)
+
+    def test_relevant_error_details_are_durable(self):
+        self.ready();client=PaperSafetyClient(self.m,['PFE'])
+        client.error(1,162,'Historical data service: competing session')
+        with closing(self.m.coordinator.connect()) as c:
+            row=c.execute("SELECT payload FROM paper_callback_events WHERE kind='error'").fetchone()
+        self.assertEqual(json.loads(row[0])['code'],162)
+
     def test_native_accepted_stop_and_fresh_complete_bars(self):
         self.ready()
         self.assertEqual(self.m.protection()['PFE']['status'],'PROTECTED')

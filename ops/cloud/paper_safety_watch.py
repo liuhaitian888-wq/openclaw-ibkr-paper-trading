@@ -86,7 +86,10 @@ def main():
                         last_strategy=time.monotonic()
                     # Keep monitoring during 10197. Only bounded data subscription
                     # retries; no Gateway process action, no account session takeover.
-                    if monitor.retry_due():
+                    if client.recover_data_if_required():
+                        client.reconcile()
+                        last_sync=time.monotonic()
+                    elif monitor.retry_due():
                         client.retry_subscriptions()
                         client.reconcile()
                         last_sync=time.monotonic()
