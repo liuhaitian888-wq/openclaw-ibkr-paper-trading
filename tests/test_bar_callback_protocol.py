@@ -38,3 +38,22 @@ class BarProtocolTests(unittest.TestCase):
    self.assertTrue(self.m.state['api_protocol']['history_protobuf'])
    self.assertEqual(self.m.state['bar_callback_diagnostics'],{})
    order.assert_not_called();quotes.assert_not_called()
+
+ def test_bar_legacy_mode_does_not_change_quote_account_or_order_protocol(self):
+  from ibapi.message import OUT
+  c=PaperSafetyClient(self.m,['BAC'],bar_wire_protocol='legacy')
+  with patch.object(c,'serverVersion',return_value=226):
+   for msg in (OUT.REQ_HISTORICAL_DATA,OUT.CANCEL_HISTORICAL_DATA,OUT.REQ_REAL_TIME_BARS,OUT.CANCEL_REAL_TIME_BARS):self.assertFalse(c.useProtoBuf(msg))
+   for msg in (OUT.REQ_MKT_DATA,OUT.REQ_POSITIONS,OUT.PLACE_ORDER):self.assertTrue(c.useProtoBuf(msg))
+  with self.assertRaises(ValueError):PaperSafetyClient(self.m,['BAC'],bar_wire_protocol='guess')
+ def test_actual_sdk_encodes_legacy_bar_requests_only_without_any_socket_or_order(self):
+  c=PaperSafetyClient(self.m,['BAC'],bar_wire_protocol='legacy')
+  with patch.object(c,'serverVersion',return_value=226),patch.object(c,'isConnected',return_value=True),patch.object(c,'sendMsg') as legacy,patch.object(c,'sendMsgProtoBuf') as proto,patch.object(c,'placeOrder') as orders:
+   c.reqHistoricalData(49000,c._contract('BAC'),'','1800 S','1 min','TRADES',1,2,True,[])
+   c.reqRealTimeBars(47000,c._contract('BAC'),5,'TRADES',True,[])
+   self.assertEqual(legacy.call_count,2);proto.assert_not_called();orders.assert_not_called()
+   from ibapi.message import OUT
+   self.assertEqual(legacy.call_args_list[0].args[0],OUT.REQ_HISTORICAL_DATA)
+   self.assertEqual(legacy.call_args_list[1].args[0],OUT.REQ_REAL_TIME_BARS)
+   historical=legacy.call_args_list[0].args[-1]
+   self.assertIn('1800 S',historical);self.assertIn('1 min',historical);self.assertIn('TRADES',historical)

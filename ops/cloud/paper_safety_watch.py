@@ -53,6 +53,8 @@ def main():
     if config_path.stat().st_mode & 0o077:
         raise PermissionError('Private monitor configuration must be 0600')
     cfg=json.loads(config_path.read_text())
+    if cfg.get('bar_wire_protocol','auto') not in ('auto','legacy'):
+        raise PermissionError('Unsupported read-only bar wire protocol')
     if cfg.get('account')!=ACCOUNT or cfg.get('environment')!='PAPER':
         raise PermissionError('Exact DUQ503649 Paper identity required')
     # Strategy metadata must be an already approved deployment fact, not a new
@@ -90,7 +92,7 @@ def main():
                 'operator_paused':(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists()})
         attempts=0
         while not stopped.is_set():
-            client=PaperSafetyClient(monitor,cfg['symbols'])
+            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'))
             client.strategy_observer=observer
             worker=None
             try:

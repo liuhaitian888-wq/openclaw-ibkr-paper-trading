@@ -7,7 +7,9 @@ from trading.tws_paper import TwsPaperClient
 
 
 class PaperSafetyClient(TwsPaperClient):
-    def __init__(self, monitor, symbols):
+    def __init__(self, monitor, symbols, *, bar_wire_protocol='auto'):
+        if bar_wire_protocol not in ('auto','legacy'):raise ValueError('Explicit supported bar protocol required')
+        self.bar_wire_protocol=bar_wire_protocol
         super().__init__()
         self.monitor = monitor
         self.connection_generation=uuid.uuid4().hex
@@ -19,6 +21,12 @@ class PaperSafetyClient(TwsPaperClient):
         self.history_tickers = {49000+i:s for i,s in enumerate(symbols)}
         self.read_only_completed_orders_blocked = False
         self._history_gap_pending=set()
+
+    def useProtoBuf(self,msgId):
+        from ibapi.message import OUT
+        bars=(OUT.REQ_HISTORICAL_DATA,OUT.CANCEL_HISTORICAL_DATA,OUT.REQ_REAL_TIME_BARS,OUT.CANCEL_REAL_TIME_BARS)
+        if self.bar_wire_protocol=='legacy' and msgId in bars:return False
+        return super().useProtoBuf(msgId)
 
     def connect(self,*args,**kwargs):
         if not self.isConnected():
@@ -32,7 +40,7 @@ class PaperSafetyClient(TwsPaperClient):
         with self.monitor.lock:
             self.monitor.state['bar_callback_diagnostics']={}
             self.monitor.state['api_protocol']=dict(connection=self.connection_generation,
-                server_version=self.serverVersion(),observed_at=self.monitor.clock(),
+                server_version=self.serverVersion(),observed_at=self.monitor.clock(),configured_bar_protocol=self.bar_wire_protocol,
                 history_protobuf=self.useProtoBuf(OUT.REQ_HISTORICAL_DATA),
                 realtime_bars_protobuf=self.useProtoBuf(OUT.REQ_REAL_TIME_BARS))
 
