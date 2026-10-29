@@ -75,11 +75,15 @@ class SubscriptionLifecycle:
             if sent:s.pop('pending',None)
             # Unknown or process death remains held; never auto-replayed.
             self.save(c,grant['symbol'],s)
-    def validated(self,symbol):
+    def validated(self,symbol,*,evidence_streams=None):
         """Caller must first prove distinct fresh observations via SymbolRecovery."""
         with closing(self.connect()) as c,c:
             c.execute('BEGIN IMMEDIATE');s=self.read(c,symbol)
             if s.get('pending'):return False
+            if s.get('incident') and evidence_streams is not None:
+                proof=set(evidence_streams)
+                required='history' if s.get('cause') in ('HISTORY_GAP','HISTORY_RECOVERY') else 'bars' if s.get('cause')=='10225' else 'quotes'
+                if required not in proof:return False
             s.update(incident=None,attempts=0,not_before=0);self.save(c,symbol,s);return True
 
     def rearm(self,symbol,condition,observed_at):

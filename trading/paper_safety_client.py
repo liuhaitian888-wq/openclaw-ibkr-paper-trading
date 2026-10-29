@@ -141,7 +141,7 @@ class PaperSafetyClient(TwsPaperClient):
         lifecycle=self.monitor.symbol_recovery.lifecycle
         grant=lifecycle.reserve(symbol,streams,self.connection_generation,reason=reason)
         if not grant['allowed']:return grant
-        self.monitor.symbol_recovery.invalidate_evidence(symbol)
+        if 'quotes' in streams:self.monitor.symbol_recovery.invalidate_evidence(symbol)
         try:
             if 'quotes' in streams:self.reqMarketDataType(1)
             if 'bars' in streams:
@@ -165,7 +165,10 @@ class PaperSafetyClient(TwsPaperClient):
                 req_id=next(i for i,s in self.history_tickers.items() if s==symbol)
                 if 'history' in grant['replaces']:self.cancelHistoricalData(req_id)
                 with self.strategy_observer.lock:self.strategy_observer.history_complete.discard(symbol)
-                with self.monitor.lock:self.monitor.state.setdefault('history_evidence',{}).pop(symbol,None)
+                with self.monitor.lock:
+                    self.monitor.state.setdefault('history_evidence',{}).pop(symbol,None)
+                    self.monitor.state.setdefault('history_request_started',{})[symbol]=self.monitor.clock()
+                    self.monitor._publish()
                 self.reqHistoricalData(req_id,self._contract(symbol),'','1800 S','1 min','TRADES',1,2,True,[])
         except Exception:
             lifecycle.finish(grant,sent=False)
@@ -221,10 +224,15 @@ class PaperSafetyClient(TwsPaperClient):
             bars=self.strategy_observer.bars[symbol]
             ends=[bars[k].ended_at.timestamp() for k in sorted(bars)]
             complete=symbol in self.strategy_observer.history_complete
+            gaps=self.strategy_observer.history_gaps(symbol,self.monitor.clock())
         with self.monitor.lock:
             self.monitor.state.setdefault('history_evidence',{})[symbol]=dict(
                 completed_ends=ends[-self.monitor.required_bars:],complete=complete,received_at=self.monitor.clock())
             self.monitor._publish()
+        tail=ends[-self.monitor.required_bars:]
+        if (complete and not gaps and len(tail)>=self.monitor.required_bars and all(b-a==60 for a,b in zip(tail,tail[1:]))
+                and 0<=self.monitor.clock()-tail[-1]<=65):
+            self.monitor.symbol_recovery.lifecycle.validated(symbol,evidence_streams=('history',))
 
     def historicalDataUpdate(self, reqId, bar):
         self.historicalData(reqId,bar)
@@ -247,15 +255,28 @@ class PaperSafetyClient(TwsPaperClient):
     def backfill_history_gaps(self):
         """Existing owner only; share T4-v2 budget, never resubscribe quote peers."""
         results=[]
-        if not self.strategy_observer or not self.monitor.state.get('upstream_connected'):
+        if not self.strategy_observer or not all(self.monitor.state.get(k) for k in ('upstream_connected','connected','identity')):
             return results
+        warmup=set()
+        now=self.monitor.clock()
+        for symbol in self.history_tickers.values():
+            with self.strategy_observer.lock:
+                incomplete=(symbol not in self.strategy_observer.history_complete or
+                    len(self.strategy_observer.bars.get(symbol,{}))<self.monitor.required_bars)
+            proof=self.monitor.symbol_recovery.snapshot(symbol)
+            health=proof.get('health',{})
+            started=self.monitor.state.get('history_request_started',{}).get(symbol,self.monitor.state['reset_at'])
+            if (incomplete and now-started>=30 and proof.get('phase')=='NORMAL' and not proof.get('fault_active',True)
+                    and proof.get('validations',0)>=self.monitor.symbol_recovery.validations
+                    and health.get('allows_realtime') is True and 0<=now-health.get('observed_at',0)<=5):
+                warmup.add(symbol);self._history_gap_pending.add(symbol)
         for symbol in tuple(self._history_gap_pending):
             with self.strategy_observer.lock:
                 gaps=self.strategy_observer.history_gaps(symbol,self.monitor.clock())
-            if not gaps:
+            if not gaps and symbol not in warmup:
                 self._history_gap_pending.discard(symbol)
                 continue
-            result=self._admitted_subscription(symbol,('history',),'HISTORY_GAP')
+            result=self._admitted_subscription(symbol,('history',),'HISTORY_RECOVERY' if symbol in warmup and not gaps else 'HISTORY_GAP')
             results.append(result)
             self.monitor._record('history_gap',dict(symbol=symbol,missing_starts=gaps,decision=result))
             if result.get('reason') in ('INCIDENT_BUDGET_EXHAUSTED','PENDING_OR_UNKNOWN_REQUEST'):

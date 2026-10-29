@@ -58,7 +58,7 @@ class PaperSafetyMonitor:
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
                           last_server_reply=0,
-                          needs_recovery_sync=True, resubscribe_required=False, pause_scopes=prior.get('pause_scopes'), history_evidence={}, pause_transition_sequence=max(prior.get('pause_transition_sequence',0),transition_seq),
+                          needs_recovery_sync=True, resubscribe_required=False, pause_scopes=prior.get('pause_scopes'), history_evidence={}, history_request_started=prior.get('history_request_started',{}), pause_transition_sequence=max(prior.get('pause_transition_sequence',0),transition_seq),
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
                           subscription_lifecycle_version=1, quotes={}, bars={}, market_types={}, market_halts={}, market_errors={}, symbol_reset_at={}, legacy_collision=False,
                           reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')

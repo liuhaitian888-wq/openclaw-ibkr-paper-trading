@@ -210,7 +210,7 @@ class SymbolRecovery:
             shared=self._read(c,'@shared_session')
             if shared and all(self._read(c,x).get('phase')=='NORMAL' and self._read(c,x).get('validations',0)>=self.validations for x in shared['affected']):
                 shared.update(phase='NORMAL',next_retry=None);self._save(c,'@shared_session',shared)
-        return self.lifecycle.validated(symbol)
+        return self.lifecycle.validated(symbol,evidence_streams=('quotes',))
 
 
 def symbol_market_permission(state, now, *, max_age=5):
