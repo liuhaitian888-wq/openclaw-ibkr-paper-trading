@@ -6,6 +6,7 @@ from datetime import datetime,timezone
 import os
 from pathlib import Path
 import signal
+import subprocess
 import sys
 import threading
 import time
@@ -44,6 +45,17 @@ def read_system_safety(root, manifest):
     except (OSError,ValueError,TypeError,KeyError,sqlite3.Error):
         result.update(control_verified=False,global_risk_verified=False,authoritative_state_verified=False,risk_isolatable=False)
     return result
+
+
+def gateway_generation():
+    """Read-only local process evidence; never start/restart the Gateway."""
+    try:
+        pid=int(subprocess.check_output(['systemctl','show','ibkr-gateway.service','-p','MainPID','--value'],timeout=2,text=True))
+        if pid<=0:return None
+        # comm may contain spaces; starttime is field 22 after the closing paren.
+        start=Path('/proc',str(pid),'stat').read_text().rsplit(')',1)[1].split()[19]
+        return str(pid)+':'+start
+    except (OSError,ValueError,IndexError,subprocess.SubprocessError):return None
 
 
 def main():
@@ -90,8 +102,11 @@ def main():
                 'authoritative_state_verified':manifest.get('canonical_current_state_verified') is True,
                 'risk_isolatable':safety.get('risk_isolatable') is True,
                 'operator_paused':(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists()})
-        attempts=0
         while not stopped.is_set():
+            if not monitor.admit_connection(gateway_generation()):
+                monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
+                stopped.wait(30)
+                continue
             client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'))
             client.strategy_observer=observer
             worker=None
@@ -105,7 +120,7 @@ def main():
                 monitor.begin(client.accounts)
                 client.reconcile()
                 client.subscribe()
-                attempts=0
+                connected_since=monitor.clock()
                 last_sync=time.monotonic()
                 last_heartbeat=0
                 last_strategy=0
@@ -122,6 +137,7 @@ def main():
                         monitor._publish()
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
+                    monitor.validate_connection(connected_since)
                     if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
                     if time.monotonic()-last_strategy>=5:
@@ -150,9 +166,6 @@ def main():
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
             finally:
                 _close_owned_client(client,worker)
-            if not stopped.is_set():
-                stopped.wait((30,60,120,300)[min(attempts,3)])
-                attempts+=1
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0
 

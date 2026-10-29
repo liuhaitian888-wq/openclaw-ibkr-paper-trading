@@ -54,6 +54,7 @@ class PaperSafetyMonitor:
                 self.symbol_recovery.lifecycle.seed_legacy(symbol,prior.get('retries',0),prior['collision_since'])
         self.state = dict(positions=prior.get('positions', {}), orders=prior.get('orders', {}),
                           contracts=prior.get('contracts', {}),
+                          connection_recovery=prior.get('connection_recovery', {}),
                           incident_signatures=prior.get('incident_signatures', {}),
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
@@ -77,6 +78,39 @@ class PaperSafetyMonitor:
         identity = hashlib.sha256(json.dumps([self.state['epoch'], key, payload], sort_keys=True).encode()).hexdigest()
         self.incidents.ingest(identity, 'paper-safety:' + key, payload, resolved=resolved)
         self.state['incident_signatures'][key] = signature
+
+    def admit_connection(self, gateway_generation):
+        """Same owner/state, bounded read-only connection attempts across restarts."""
+        with self.lock:
+            now=self.clock()
+            budget=self.state['connection_recovery']
+            attempts=budget.get('attempts',0)
+            if attempts>=4:
+                if (not gateway_generation or gateway_generation==budget.get('gateway_generation')
+                        or now<budget.get('not_before',float('inf'))):
+                    return False
+                budget.update(attempts=0,rearmed_at=now,previous_generation=budget.get('gateway_generation'))
+                attempts=0
+            if now<budget.get('not_before',0):return False
+            attempts+=1
+            budget.update(attempts=attempts,gateway_generation=gateway_generation,
+                          last_attempt=now,not_before=now+(30,60,120,300)[attempts-1])
+            self._publish()  # Reserve durably before creating the socket.
+            return True
+
+    def validate_connection(self, connected_since):
+        """Only sustained independent account/end-marker proof closes the incident."""
+        with self.lock:
+            now=self.clock()
+            if (now-connected_since<60 or not self._complete()
+                    or not self.state.get('upstream_connected')
+                    or not 0<=now-self.state.get('last_server_reply',0)<=10):
+                return False
+            budget=self.state['connection_recovery']
+            if budget.get('attempts',0):
+                budget.update(attempts=0,not_before=0,validated_at=now)
+                self._publish()
+            return True
 
     def begin(self, accounts):
         with self.lock:
