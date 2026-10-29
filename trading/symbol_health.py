@@ -221,3 +221,74 @@ def symbol_market_permission(state, now, *, max_age=5):
     allowed=(fresh and h.get('status')=='REALTIME_HEALTHY' and h.get('allows_realtime') is True
              and state.get('phase')=='NORMAL' and not state.get('fault_active',True))
     return dict(allowed=bool(allowed),reason='Symbol data verified; global gates still required' if allowed else 'Symbol market evidence unavailable, stale or recovery incomplete')
+
+
+SYSTEMIC_PAUSE_FACTS = ('identity_verified','broker_connected','control_verified',
+                        'global_risk_verified','authoritative_state_verified',
+                        'reconciliation_verified','risk_isolatable')
+PAUSE_RECOVERY_CONDITIONS = ('Fresh actual type1 bid/ask callbacks',
+    'Fresh contiguous completed K-lines', 'Account/order reconciliation verified',
+    'Symbol and global risk verified', 'Existing execution identity/ownership/kill gates still apply')
+
+
+def compute_pause_scopes(health, dependencies, system_safety, *, now, kline_ready=None, symbol_risk=None):
+    """Pure projection inside the existing market-health owner; no service control.
+
+    dependencies[strategy][traded_symbol] lists its actual market inputs. No
+    environment/session pairing changes the impact graph. All failed feeds still
+    means L1/L2 unless a separately evidenced systemic condition is untrusted.
+    """
+    kline_ready = kline_ready or {}
+    symbol_risk = symbol_risk or {}
+    systemic = [key for key in SYSTEMIC_PAUSE_FACTS if system_safety.get(key) is not True]
+    if system_safety.get('operator_paused') is True:systemic.append('OPERATOR_PAUSED')
+    targets = sorted({symbol for rows in dependencies.values() for symbol in rows})
+    inputs = sorted(set(health) | {s for rows in dependencies.values() for required in rows.values() for s in required})
+    faults = {}; market_faults = {}
+    for symbol in inputs:
+        h=health.get(symbol,{})
+        try:fresh=0 <= now-float(h['observed_at']) <= 5
+        except (KeyError,TypeError,ValueError,OverflowError):fresh=False
+        reasons=[]
+        if not fresh or h.get('status')!='REALTIME_HEALTHY' or h.get('allows_realtime') is not True:
+            reasons.append(h.get('reason') or 'Fresh verified symbol market data unavailable')
+        if kline_ready.get(symbol) is not True:reasons.append('Fresh contiguous completed K-lines unverified')
+        if reasons:market_faults[symbol]=list(reasons)
+        if symbol in targets and symbol_risk.get(symbol) is not True:reasons.append('SYMBOL_ORDER_RISK_UNVERIFIED')
+        if reasons:faults[symbol]=reasons
+    decisions={};records=[]
+    for symbol,reasons in sorted(faults.items()):
+        affected=[name for name,rows in dependencies.items() if any(symbol in required for required in rows.values())]
+        records.append(dict(level='L1',scope='SYMBOL_PAUSED',affected_symbols=[symbol],
+            affected_strategies=sorted(affected),reason='; '.join(reasons),
+            recovery_conditions=list(PAUSE_RECOVERY_CONDITIONS)))
+    for name,rows in sorted(dependencies.items()):
+        decisions[name]={};blocked=[];sources=set();shared=False
+        for target,required in sorted(rows.items()):
+            invalid=not required or target not in required or any(not isinstance(s,str) or not s for s in required)
+            bad=sorted(s for s in required if s in market_faults)
+            reasons=list(systemic)
+            if invalid:reasons.append('STRATEGY_DEPENDENCIES_UNVERIFIED')
+            if bad:reasons.append('Affected market inputs: '+','.join(bad))
+            if symbol_risk.get(target) is not True:reasons.append('SYMBOL_ORDER_RISK_UNVERIFIED')
+            allowed=not reasons
+            decisions[name][target]=dict(allowed=allowed,market_allowed=not invalid and not bad,symbol_risk_verified=symbol_risk.get(target) is True,required_symbols=list(required),
+                affected_inputs=bad,reason='; '.join(reasons) if reasons else 'Scoped market/account/order/risk evidence verified',
+                scope='GLOBAL_NEW_ORDERS_PAUSED' if systemic else 'STRATEGY_PAUSED' if len(required)>1 and not allowed else 'SYMBOL_PAUSED' if not allowed else 'RUNNING')
+            if not allowed and not systemic:
+                blocked.append(target);sources.update(bad);shared=shared or len(required)>1 or invalid
+        if blocked and (shared or len(blocked)>1):
+            records.append(dict(level='L2',scope='STRATEGY_PAUSED' if len(blocked)==len(rows) else 'MULTI_SYMBOL_PAUSED',
+                affected_symbols=sorted(blocked),affected_strategies=[name],source_symbols=sorted(sources),
+                reason='Dependency/risk isolation for affected trades; healthy independent trades continue',
+                recovery_conditions=list(PAUSE_RECOVERY_CONDITIONS)))
+    if systemic:
+        records.append(dict(level='L3',scope='GLOBAL_NEW_ORDERS_PAUSED',affected_symbols=targets,
+            affected_strategies=sorted(dependencies),reason='; '.join(systemic),
+            recovery_conditions=['Re-establish '+key for key in systemic]+list(PAUSE_RECOVERY_CONDITIONS)))
+    return dict(observed_at=now,global_new_orders_paused=bool(systemic),global_reasons=systemic,
+        affected_symbols=sorted({s for r in records for s in r['affected_symbols']}),
+        affected_strategies=sorted({s for r in records for s in r['affected_strategies']}),
+        pauses=records,decisions=decisions,grants_trading_permission=False,
+        maintenance_continues=['monitoring','broker_reconciliation','alerts','market_recovery'],
+        existing_protection_action='PRESERVE; no cancel/modify from market pause')

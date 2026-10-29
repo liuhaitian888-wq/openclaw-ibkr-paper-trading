@@ -164,7 +164,8 @@ class PaperSafetyClient(TwsPaperClient):
             if 'history' in streams:
                 req_id=next(i for i,s in self.history_tickers.items() if s==symbol)
                 if 'history' in grant['replaces']:self.cancelHistoricalData(req_id)
-                self.strategy_observer.history_complete.discard(symbol)
+                with self.strategy_observer.lock:self.strategy_observer.history_complete.discard(symbol)
+                with self.monitor.lock:self.monitor.state.setdefault('history_evidence',{}).pop(symbol,None)
                 self.reqHistoricalData(req_id,self._contract(symbol),'','1800 S','1 min','TRADES',1,2,True,[])
         except Exception:
             lifecycle.finish(grant,sent=False)
@@ -215,13 +216,23 @@ class PaperSafetyClient(TwsPaperClient):
             with self.strategy_observer.lock:
                 self.strategy_observer.history(symbol,bar,self.monitor.clock())
 
+    def _sync_history_evidence(self, symbol):
+        with self.strategy_observer.lock:
+            bars=self.strategy_observer.bars[symbol]
+            ends=[bars[k].ended_at.timestamp() for k in sorted(bars)]
+            complete=symbol in self.strategy_observer.history_complete
+        with self.monitor.lock:
+            self.monitor.state.setdefault('history_evidence',{})[symbol]=dict(
+                completed_ends=ends[-self.monitor.required_bars:],complete=complete,received_at=self.monitor.clock())
+            self.monitor._publish()
+
     def historicalDataUpdate(self, reqId, bar):
         self.historicalData(reqId,bar)
         symbol=self.history_tickers.get(reqId)
         if symbol and self.strategy_observer:
             with self.monitor.lock:
                 self.monitor.state.setdefault('history_updates',{})[symbol]=dict(received_at=self.monitor.clock(),bar_start=str(bar.date))
-                self.monitor._publish()
+            self._sync_history_evidence(symbol)
 
     def historicalDataEnd(self, reqId, start, end):
         if reqId in self.history_tickers and self.strategy_observer:
@@ -231,6 +242,7 @@ class PaperSafetyClient(TwsPaperClient):
                 gaps=self.strategy_observer.history_gaps(symbol,self.monitor.clock())
             if gaps:self._history_gap_pending.add(symbol)
             else:self._history_gap_pending.discard(symbol)
+            self._sync_history_evidence(symbol)
 
     def backfill_history_gaps(self):
         """Existing owner only; share T4-v2 budget, never resubscribe quote peers."""

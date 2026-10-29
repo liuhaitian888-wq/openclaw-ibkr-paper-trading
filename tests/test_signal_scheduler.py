@@ -64,3 +64,11 @@ class SignalSchedulerTests(unittest.TestCase):
   self.assertEqual(result['strategy_states']['grid_rebalance']['state'],'CONFIG_MISSING')
   good=[r for r in result['results'] if r['strategy']=='dual_moving_average']
   self.assertEqual(good[0]['status'],'EVALUATED')
+
+ def test_declared_shared_input_blocks_only_dependent_strategy(self):
+  configs={'dual_moving_average':dict(symbols=['GOOD','BAD'],data_dependencies={'GOOD':['GOOD','BAD'],'BAD':['BAD']}),
+           'zscore_mean_reversion':dict(symbols=['GOOD'])}
+  self.health['BAD']={'status':'UNKNOWN','allows_realtime':False,'reason':'10197'}
+  rows=SignalScheduler(catalog_bindings(configs)).run('deps',self.inputs,self.health,self.portfolio)['results']
+  self.assertEqual([r for r in rows if r['strategy']=='dual_moving_average' and r['symbol']=='GOOD'][0]['status'],'SKIPPED')
+  self.assertEqual([r for r in rows if r['strategy']=='zscore_mean_reversion'][0]['status'],'EVALUATED')

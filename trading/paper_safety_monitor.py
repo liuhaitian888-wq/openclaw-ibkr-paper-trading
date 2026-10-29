@@ -12,7 +12,7 @@ import uuid
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from trading.audit import AuditLog
-from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol
+from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol, compute_pause_scopes
 
 ACCOUNT = 'DUQ503649'
 ENDS = {'orders', 'completed_orders', 'executions', 'positions'}
@@ -27,10 +27,14 @@ def number(value):
 
 class PaperSafetyMonitor:
     def __init__(self, audit_path, recovery_path, *, symbols, required_bars,
-                 bar_seconds=60, clock=time.time, collision_alert_seconds=60):
+                 bar_seconds=60, clock=time.time, collision_alert_seconds=60,
+                 strategy_dependencies=None, system_safety=None, system_safety_provider=None):
         if not symbols or required_bars < 1 or bar_seconds != 60:
             raise ValueError('Use existing 60-second K-line strategy and its approved warmup')
         self.clock, self.lock = clock, threading.RLock()
+        self.strategy_dependencies = strategy_dependencies or {'classic_conservative_trend':{s:(s,) for s in symbols}}
+        self.system_safety = dict(system_safety or {})
+        self.system_safety_provider=system_safety_provider
         self._published = {}
         self.symbols = tuple(symbols)
         self.required_bars, self.bar_seconds = required_bars, bar_seconds
@@ -43,6 +47,7 @@ class PaperSafetyMonitor:
             c.execute('CREATE TABLE IF NOT EXISTS paper_safety_state(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL)')
             c.execute('CREATE TABLE IF NOT EXISTS paper_callback_events(event_id TEXT PRIMARY KEY,kind TEXT NOT NULL,payload TEXT NOT NULL,observed REAL NOT NULL)')
             row = c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
+            transition_seq=c.execute("SELECT COALESCE(MAX(json_extract(payload,'$.transition_sequence')),0) FROM paper_callback_events WHERE kind='pause_transition'").fetchone()[0]
         prior = json.loads(row[0]) if row else {}
         if prior.get('subscription_lifecycle_version')!=1 and prior.get('collision_since') is not None:
             for symbol in self.symbols:
@@ -53,7 +58,7 @@ class PaperSafetyMonitor:
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
                           last_server_reply=0,
-                          needs_recovery_sync=True, resubscribe_required=False,
+                          needs_recovery_sync=True, resubscribe_required=False, pause_scopes=prior.get('pause_scopes'), history_evidence={}, pause_transition_sequence=max(prior.get('pause_transition_sequence',0),transition_seq),
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
                           subscription_lifecycle_version=1, quotes={}, bars={}, market_types={}, market_halts={}, market_errors={}, symbol_reset_at={}, legacy_collision=False,
                           reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
@@ -94,7 +99,7 @@ class PaperSafetyMonitor:
     def invalidate(self, reason):
         with self.lock:
             self.state.update(connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
-                              quotes={}, bars={}, reset_at=self.clock(), fault=reason)
+                              quotes={}, bars={}, history_evidence={}, reset_at=self.clock(), fault=reason)
             self._incident('connection', reason)
             self._publish()
 
@@ -108,6 +113,7 @@ class PaperSafetyMonitor:
                     self.state.update(quotes={},bars={},reset_at=self.clock(),legacy_collision=True)
                 else:
                     self.state['quotes'].pop(symbol,None);self.state['bars'].pop(symbol,None)
+                    self.state['history_evidence'].pop(symbol,None)
                     self.state['symbol_reset_at'][symbol]=self.clock()
                 self.state['fault'] = 'MARKET_DATA_COLLISION'
             elif code==1100:
@@ -344,6 +350,65 @@ class PaperSafetyMonitor:
                     result[symbol] = dict(quantity=execution['shares'], covered_quantity=0, status='PROTECTION_UNKNOWN')
         return result
 
+    def pause_projection(self, health, protection, complete):
+        now=self.clock()
+        bars_ready={}
+        for symbol in set(self.symbols)|set(health):
+            ends=self.state['bars'].get(symbol,[])[-self.required_bars:]
+            bars_ready[symbol]=(len(ends)>=self.required_bars and all(b-a==60 for a,b in zip(ends,ends[1:]))
+                                and 0<=now-ends[-1]<=65)
+            history=self.state.get('history_evidence',{}).get(symbol,{})
+            history_ends=history.get('completed_ends',[])[-self.required_bars:]
+            history_ok=(history.get('complete') is True and len(history_ends)>=self.required_bars
+                and all(b-a==60 for a,b in zip(history_ends,history_ends[1:]))
+                and 0<=now-history_ends[-1]<=65 and 0<=now-history.get('received_at',0)<=65
+                and history.get('received_at',0)>=self.state['symbol_reset_at'].get(symbol,self.state['reset_at']))
+            bars_ready[symbol]=bool(bars_ready[symbol] or history_ok)
+        fresh_reconciliation=bool(complete and 0<=now-self.state.get('reconciled_at',0)<=30)
+        dynamic={}
+        if self.system_safety_provider is not None:
+            try:dynamic=dict(self.system_safety_provider())
+            except Exception:dynamic=dict(control_verified=False,global_risk_verified=False,authoritative_state_verified=False,risk_isolatable=False)
+        system={**self.system_safety,**dynamic,
+            'identity_verified':bool(self.state['identity']),
+            'broker_connected':bool(self.state['connected'] and self.state['upstream_connected'] and 0<=now-self.state['last_server_reply']<=10),
+            'reconciliation_verified':fresh_reconciliation,
+            'authoritative_state_verified':bool(fresh_reconciliation and dynamic.get('authoritative_state_verified',self.system_safety.get('authoritative_state_verified')) is True)}
+        risks={}
+        for symbol in set(self.symbols)|set(protection):
+            uncertain=any(o.get('symbol')==symbol and (o.get('status') in ('Unknown','UNKNOWN','PendingCancel','ApiPending','PendingSubmit')
+                or (o.get('status') in ('Submitted','PreSubmitted') and o.get('remaining') is None)) for o in self.state['orders'].values())
+            risks[symbol]=bool(fresh_reconciliation and system.get('global_risk_verified') is True and not uncertain
+                and (symbol not in protection or protection[symbol]['status']=='PROTECTED'))
+        return compute_pause_scopes(health,self.strategy_dependencies,system,now=now,kline_ready=bars_ready,symbol_risk=risks)
+
+    def _record_pause(self, payload):
+        self.state['pause_transition_sequence']+=1
+        self._record('pause_transition',dict(payload,transition_sequence=self.state['pause_transition_sequence']))
+
+    def record_pause_transitions(self, current):
+        previous=self.state.get('pause_scopes') or {}
+        def keyed(value):
+            return {json.dumps([r['scope'],r['affected_symbols'],r['affected_strategies']],sort_keys=True):r for r in value.get('pauses',[])}
+        old,new=keyed(previous),keyed(current)
+        for key,row in new.items():
+            if key not in old or old[key]['reason']!=row['reason']:
+                self._record_pause(dict(action='PAUSE',**row))
+        for key,row in old.items():
+            if key not in new:
+                self._record_pause(dict(action='PAUSE_SCOPE_CLEARED',**{**row,'reason':'This scope cleared; per-trade recovery decisions remain authoritative'}))
+        for strategy,rows in current['decisions'].items():
+            for symbol,decision in rows.items():
+                prior=previous.get('decisions',{}).get(strategy,{}).get(symbol)
+                if prior and prior.get('allowed') is False and decision['allowed'] is True:
+                    self._record_pause(dict(action='RESUME',scope='SCOPED_TRADE_RECOVERED',
+                        affected_symbols=[symbol],affected_strategies=[strategy],reason=decision['reason'],
+                        recovery_conditions=['Freshness, K-lines, account/order and risk checks verified']))
+        self.state['pause_scopes']=current
+        self.state['strategy_dependencies']=self.strategy_dependencies
+        from trading.signal_scheduler import dependency_fingerprint
+        self.state['strategy_dependency_fingerprint']=dependency_fingerprint(self.strategy_dependencies)
+
     def snapshot(self):
         now = self.clock()
         protection = self.protection()
@@ -358,8 +423,11 @@ class PaperSafetyMonitor:
             except (KeyError,TypeError,ValueError):
                 fresh = False
             data = data and fresh and len(bars)>=self.required_bars and 0<=now-bars[-1]<=self.bar_seconds+5
+        health=self.symbol_health()
+        scopes=self.pause_projection(health,protection,complete)
         return dict(account=ACCOUNT, environment='PAPER', observed_at=now, epoch=self.state['epoch'],
-                    protection=protection, symbol_health=self.symbol_health(),
+                    protection=protection, symbol_health=health, pause_scopes=scopes,
+                    entries_ready_scope='AGGREGATE_REPORT_ONLY; scoped trade decisions are authoritative for market isolation',
                     protection_ready=bool(covered), reconciliation_complete=bool(complete),
                     data_ready=bool(data), entries_ready=bool(covered and data and not self.state['needs_recovery_sync']), fault=self.state['fault'])
 
@@ -377,6 +445,7 @@ class PaperSafetyMonitor:
 
     def _publish(self):
         snapshot = self.snapshot()
+        self.record_pause_transitions(snapshot['pause_scopes'])
         if snapshot['data_ready'] and self.state['collision_since'] is not None:
             self.state['collision_since'] = None
             self._incident('collision', 'Fresh live data and completed K-lines verified; trading permission remains separate', resolved=True)

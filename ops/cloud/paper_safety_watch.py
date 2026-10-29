@@ -1,5 +1,8 @@
 """Opt-in read-only continuous Paper order/protection monitor. No order transport."""
 import json
+import sqlite3
+from contextlib import closing
+from datetime import datetime,timezone
 import os
 from pathlib import Path
 import signal
@@ -14,6 +17,33 @@ from trading.paper_safety_monitor import PaperSafetyMonitor, ACCOUNT, ENDS
 from trading.paper_safety_client import PaperSafetyClient
 from trading.tws_paper import _close_owned_client
 from trading.paper_strategy_observer import PaperStrategyObserver
+from trading.signal_scheduler import strategy_dependency_registry
+
+
+def read_system_safety(root, manifest):
+    """Bounded reads for existing global safety facts; never changes a gate."""
+    safety=manifest.get('safety',{})
+    result=dict(control_verified=safety.get('ownership_verified') is True,
+        global_risk_verified=False,authoritative_state_verified=False,risk_isolatable=False,
+        operator_paused=(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists())
+    try:
+        with closing(sqlite3.connect((root/'runtime/recovery.sqlite3').as_uri()+'?mode=ro',uri=True,timeout=.2)) as c:
+            c.execute('PRAGMA query_only=ON')
+            rows={k:json.loads(v) for k,v in c.execute("SELECT name,payload FROM module_observations WHERE name IN ('RISK','CANONICAL_STATE')")}
+            uncertain=bool(c.execute("SELECT 1 FROM operation_attempts WHERE kind='order' AND status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone())
+        def verified(name):
+            row=rows.get(name,{})
+            age=(datetime.now(timezone.utc)-datetime.fromisoformat(row['observed_at'])).total_seconds()
+            return row.get('state')=='HEALTHY' and row.get('freshness')=='FRESH' and 0<=age<=120
+        result.update(global_risk_verified=safety.get('risk_allowed') is True and verified('RISK'),
+            authoritative_state_verified=manifest.get('canonical_current_state_verified') is True and verified('CANONICAL_STATE'),
+            risk_isolatable=safety.get('risk_isolatable') is True and not uncertain)
+        config=root.parents[2]/'.config/openclaw/paper.env'
+        values=dict(line.split('=',1) for line in config.read_text().splitlines() if '=' in line and not line.startswith('#'))
+        result['operator_paused']=result['operator_paused'] or values.get('TRADING_KILL_SWITCH','true').lower()!='false' or values.get('ALLOW_PAPER_TRANSMIT','false').lower()!='true'
+    except (OSError,ValueError,TypeError,KeyError,sqlite3.Error):
+        result.update(control_verified=False,global_risk_verified=False,authoritative_state_verified=False,risk_isolatable=False)
+    return result
 
 
 def main():
@@ -41,10 +71,23 @@ def main():
     for sig in (signal.SIGTERM,signal.SIGINT):
         signal.signal(sig,lambda *_:stopped.set())
     with monitoring_service('paper-safety',root), safety_email_owner(root,stopped):
-        monitor=PaperSafetyMonitor(root/'trading_audit.sqlite3',root/'runtime/recovery.sqlite3',
-                                   symbols=cfg['symbols'],required_bars=strategy['slow_window'])
         observer=PaperStrategyObserver(cfg['symbols'],strategy,root/'reports/paper_strategy/latest.json',
             signal_configurations=manifest.get('signal_strategy_configurations'))
+        dependencies=strategy_dependency_registry(manifest.get('signal_strategy_configurations'),cfg['symbols'])
+        safety=manifest.get('safety',{})
+        safety_cache={'at':0,'value':{}}
+        def current_system_safety():
+            if time.monotonic()-safety_cache['at']>=1:
+                safety_cache.update(at=time.monotonic(),value=read_system_safety(root,manifest))
+            return safety_cache['value']
+        monitor=PaperSafetyMonitor(root/'trading_audit.sqlite3',root/'runtime/recovery.sqlite3',
+            symbols=cfg['symbols'],required_bars=strategy['slow_window'],strategy_dependencies=dependencies,
+            system_safety_provider=current_system_safety,
+            system_safety={'control_verified':safety.get('ownership_verified') is True,  # execution ownership is separate from held monitor lock
+                'global_risk_verified':safety.get('risk_allowed') is True,
+                'authoritative_state_verified':manifest.get('canonical_current_state_verified') is True,
+                'risk_isolatable':safety.get('risk_isolatable') is True,
+                'operator_paused':(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists()})
         attempts=0
         while not stopped.is_set():
             client=PaperSafetyClient(monitor,cfg['symbols'])

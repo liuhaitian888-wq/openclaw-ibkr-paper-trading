@@ -67,7 +67,8 @@ class PaperStrategyObserver:
                 inputs[symbol]=MarketData(symbol,[b.close for b in bars],datetime.fromtimestamp(now,timezone.utc),q.get('bid'),q.get('ask'))
         self.catalog_report=self.scheduler.run(str(now),inputs,snapshot.get('symbol_health',{}),
             PortfolioState(cash=0,equity=0,positions=positions) if snapshot['reconciliation_complete'] else None,
-            global_data_fault=None if snapshot['reconciliation_complete'] else 'BROKER_RECONCILIATION_REQUIRED')
+            global_data_fault=None if snapshot['reconciliation_complete'] else 'BROKER_RECONCILIATION_REQUIRED',
+            pause_state=snapshot.get('pause_scopes'))
         self.catalog_report['portfolio_scope']='BROKER_POSITION_QUANTITIES_ONLY; no strategy ownership assumed'
         self.catalog_report['execution_gates_unchanged']=True
         return self.catalog_report
@@ -121,7 +122,7 @@ class PaperStrategyObserver:
                     history_gaps=self.history_gaps(symbol,now),
                     strategy_configuration=asdict(self.config),signal=signal,risk_engine=risk,
                     proposed_native_protection=proposal,session_regular=regular,
-                    safety_entries_ready=snapshot['entries_ready'],transmit=False,
+                    safety_entries_ready=snapshot['entries_ready'],execution_pause=snapshot.get('pause_scopes',{}).get('decisions',{}).get(self.module.name,{}).get(symbol),transmit=False,
                     eligible_to_submit=False,approval_required=True,mode='MONITOR_ONLY',
                     remaining_gates=['Formal execution approval','Broker-native partial-fill acceptance',
                                      'Portfolio exposure including external holdings','Fees/FX allowance within 200 USD'])
