@@ -118,9 +118,15 @@ def verdict(samples,start,end):
         events=[e for e in all_errors.values() if e.get('payload',{}).get('code')==code]
         # A quiet market window is not an error-recovery acceptance.
         recovery[str(code)]=dict(status='PENDING',events=events,reason='No controlled or complete real error-to-recovery proof in passive samples')
-    return dict(symbols=checks,real_recovery=recovery,production_version_changed=False,
+    versions=sorted({s['source_commit'] for s in samples if s.get('source_commit')})
+    version_changed=len(versions)>1
+    version_status='PENDING' if not regular else 'PASS' if len(versions)==1 and all(s.get('source_commit') for s in regular) else 'FAIL'
+    owner_status='PENDING' if not regular else 'PASS' if all(s.get('ownership',{}).get('single_owner_verified') is True for s in regular) else 'FAIL'
+    data_status='PASS' if all(v['quote_status']==v['kline_status']=='PASS' for v in checks.values()) else 'FAIL' if any('FAIL' in (v['quote_status'],v['kline_status']) for v in checks.values()) else 'PENDING'
+    return dict(symbols=checks,real_recovery=recovery,production_version_changed=version_changed,
+        source_versions=versions,version_status=version_status,owner_status=owner_status,
         broker_requests_sent=0,orders_sent=0,regular_samples=len(regular),
-        overall='PASS' if all(v['quote_status']==v['kline_status']=='PASS' for v in checks.values()) else 'FAIL' if any('FAIL' in (v['quote_status'],v['kline_status']) for v in checks.values()) else 'PENDING',
+        overall='FAIL' if version_changed or version_status=='FAIL' or owner_status=='FAIL' or any('read_error' in s for s in samples) else data_status,
         scope='Quote/K-line observation only; overall does not close recovery or production retry gates')
 
 def main():

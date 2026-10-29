@@ -20,7 +20,7 @@ class PassiveAcceptanceTests(unittest.TestCase):
   rows=[]
   for now in range(300,420,5):
    state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:[now//60*60-120,now//60*60-60,now//60*60] for s in ('PFE','BAC','KO')}}
-   rows.append(dict(observed_at=now,connected=True,identity=True,symbols=evaluate(state,{},now,True)))
+   rows.append(dict(observed_at=now,connected=True,identity=True,source_commit='fixed-version',ownership={'single_owner_verified':True},symbols=evaluate(state,{},now,True)))
   r=verdict(rows,0,1000);self.assertEqual(r['overall'],'PASS')
   self.assertTrue(all(v['status']=='PENDING' for v in r['real_recovery'].values()))
 
@@ -30,7 +30,7 @@ class PassiveAcceptanceTests(unittest.TestCase):
    bars=[t for t in range(60,now//60*60+1,60) if t not in missing]
    if frozen:bars=[120,180,240]
    state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,last=1.5,last_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:bars for s in ('PFE','BAC','KO')}}
-   rows.append(dict(observed_at=now,connected=True,identity=True,symbols=evaluate(state,{},now,True)))
+   rows.append(dict(observed_at=now,connected=True,identity=True,source_commit='fixed-version',ownership={'single_owner_verified':True},symbols=evaluate(state,{},now,True)))
   return rows
  def test_old_three_bars_cannot_pass_after_updates_stop(self):
   result=verdict(self.samples(frozen=True),0,1000)
@@ -47,3 +47,15 @@ class PassiveAcceptanceTests(unittest.TestCase):
   self.assertEqual(evaluate(state,{},250,True)['PFE']['bar_ends'],[120,180,240])
   state['history_evidence']['PFE']['complete']=False
   self.assertEqual(evaluate(state,{},250,True)['PFE']['bar_ends'],[])
+ def test_version_change_cannot_claim_fixed_version_acceptance(self):
+  rows=self.samples();rows[-1]['source_commit']='different-version'
+  result=verdict(rows,0,1000)
+  self.assertTrue(result['production_version_changed']);self.assertEqual(result['overall'],'FAIL')
+ def test_unknown_or_duplicate_owner_cannot_pass_with_healthy_market_data(self):
+  for ownership in ({},{'single_owner_verified':False}):
+   rows=self.samples();rows[-1]['ownership']=ownership
+   result=verdict(rows,0,1000)
+   self.assertEqual(result['owner_status'],'FAIL');self.assertEqual(result['overall'],'FAIL')
+ def test_read_error_cannot_be_hidden_by_healthy_remaining_samples(self):
+  rows=self.samples();rows.append(dict(observed_at=661,read_error='Unavailable'))
+  self.assertEqual(verdict(rows,0,1000)['overall'],'FAIL')
