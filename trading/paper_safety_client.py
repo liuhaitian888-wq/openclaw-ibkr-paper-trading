@@ -26,6 +26,33 @@ class PaperSafetyClient(TwsPaperClient):
             self._initial_pending.clear()
         return super().connect(*args,**kwargs)
 
+    def nextValidId(self, orderId):
+        super().nextValidId(orderId)
+        from ibapi.message import OUT
+        with self.monitor.lock:
+            self.monitor.state['bar_callback_diagnostics']={}
+            self.monitor.state['api_protocol']=dict(connection=self.connection_generation,
+                server_version=self.serverVersion(),observed_at=self.monitor.clock(),
+                history_protobuf=self.useProtoBuf(OUT.REQ_HISTORICAL_DATA),
+                realtime_bars_protobuf=self.useProtoBuf(OUT.REQ_REAL_TIME_BARS))
+
+    def _bar_callback(self,kind,req_id,raw_time):
+        symbol=self.history_tickers.get(req_id) or self.bar_tickers.get(req_id) or '@unknown'
+        with self.monitor.lock:
+            rows=self.monitor.state.setdefault('bar_callback_diagnostics',{})
+            key=kind+':'+symbol
+            row=rows.get(key,{})
+            count=row.get('count',0) if row.get('connection')==self.connection_generation else 0
+            rows[key]=dict(count=count+1,request_id=req_id,raw_time=str(raw_time),
+                received_at=self.monitor.clock(),connection=self.connection_generation)
+
+    def historicalDataUpdateProtoBuf(self, message):
+        bar=getattr(message,'historicalDataBar',None)
+        self._bar_callback('history_update_protobuf',getattr(message,'reqId',0),getattr(bar,'date',''))
+
+    def realTimeBarTickProtoBuf(self, message):
+        self._bar_callback('realtime_bar_protobuf',getattr(message,'reqId',0),getattr(message,'time',''))
+
     def connectionClosed(self):
         self.monitor.invalidate('API_CONNECTION_CLOSED')
 
@@ -38,7 +65,7 @@ class PaperSafetyClient(TwsPaperClient):
         super().error(reqId, *args)
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
         if isinstance(code,int):
-            if code in (10197,1100,1101,1102,162,321,101,10225,354,10168,10186):
+            if code in (10197,1100,1101,1102,162,321,101,10225,354,10168,10186) or reqId in self.bar_tickers or reqId in self.history_tickers:
                 self.monitor._record('error',dict(request_id=reqId,code=code,details=str(args)))
             symbol=self.tickers.get(reqId) or self.bar_tickers.get(reqId) or self.history_tickers.get(reqId)
             if symbol:
@@ -181,6 +208,7 @@ class PaperSafetyClient(TwsPaperClient):
         return [self._admitted_subscription(symbol,streams,'RECOVERY') for symbol in symbols]
 
     def realtimeBar(self, reqId, timestamp, open_, high, low, close, volume, wap, count):
+        self._bar_callback('realtime_bar_legacy',reqId,timestamp)
         if reqId not in self.bar_tickers:
             return
         symbol = self.bar_tickers[reqId]
@@ -235,6 +263,7 @@ class PaperSafetyClient(TwsPaperClient):
             self.monitor.symbol_recovery.lifecycle.validated(symbol,evidence_streams=('history',))
 
     def historicalDataUpdate(self, reqId, bar):
+        self._bar_callback('history_update_legacy',reqId,getattr(bar,'date',''))
         self.historicalData(reqId,bar)
         symbol=self.history_tickers.get(reqId)
         if symbol and self.strategy_observer:
