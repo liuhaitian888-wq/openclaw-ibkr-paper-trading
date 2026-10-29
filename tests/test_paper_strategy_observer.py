@@ -7,6 +7,7 @@ from trading.paper_strategy_observer import PaperStrategyObserver
 class StrategyObserverTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
+  p=patch('trading.paper_strategy_observer.session_for_symbol',return_value='REGULAR');p.start();self.addCleanup(p.stop)
   self.o=PaperStrategyObserver(['BAC'],dict(fast_window=2,slow_window=3,stop_loss_pct=0.0015,profit_target_pct=0.0015,min_gap_pct=0.0001,cooldown_steps=0),Path(self.tmp.name)/'latest.json')
  def raw(self,t,p):return NS(date=str(t),open=p,high=p,low=p,close=p,volume=100)
  @patch('trading.market_data.Quote.age_ms',return_value=0)
@@ -33,3 +34,8 @@ class StrategyObserverTests(unittest.TestCase):
   self.o.history('BAC',self.raw(780,50),800)
   self.o.history('BAC',self.raw(840,51),845)
   self.assertIn(780,self.o.bars['BAC']);self.assertNotIn(840,self.o.bars['BAC'])
+ def test_final_update_is_not_overwritten_by_older_partial_on_next_bar(self):
+  self.o.history('BAC',self.raw(780,50),800)
+  self.o.history('BAC',self.raw(780,52),841)
+  self.o.history('BAC',self.raw(840,53),845)
+  self.assertEqual(self.o.bars['BAC'][780].close,52)

@@ -190,10 +190,12 @@ class PaperSafetyTests(unittest.TestCase):
         self.now+=30
         self.assertTrue(self.m.retry_due())
         self.assertEqual(self.m.state['retry_at']-self.now,60)
-        for _ in range(6):
+        for _ in range(3):
             self.now=self.m.state['retry_at']
             self.assertTrue(self.m.retry_due())
             self.assertLessEqual(self.m.state['retry_at']-self.now,300)
+        self.now+=10000
+        self.assertFalse(self.m.retry_due())
         self.assertTrue(self.m.state['connected'])
 
     def test_stale_delayed_crossed_and_incomplete_bars_cannot_recover(self):
@@ -339,3 +341,30 @@ class PaperSafetyTests(unittest.TestCase):
         self.assertTrue(client.read_only_completed_orders_blocked)
         self.assertTrue(self.m.state['connected'])
         self.assertFalse(self.m.snapshot()['reconciliation_complete'])
+
+class SymbolIsolationAdapterTests(unittest.TestCase):
+ def test_targeted_conflict_keeps_healthy_peer_and_bar_subscriptions_scoped(self):
+  from tempfile import TemporaryDirectory
+  from pathlib import Path
+  from unittest.mock import Mock
+  from trading.paper_safety_client import PaperSafetyClient
+  with TemporaryDirectory() as tmp:
+   r=Path(tmp);m=PaperSafetyMonitor(r/'audit.db',r/'recovery.db',symbols=['GOOD','BAD'],required_bars=1,clock=lambda:1000)
+   m.state['quotes']={'GOOD':dict(bid=10,ask=11,bid_at=1000,ask_at=1000,data_type=1),'BAD':{}}
+   m.state['bars']={'GOOD':[960],'BAD':[960]}
+   m.error(10197,symbol='BAD')
+   self.assertIn('GOOD',m.state['quotes']);self.assertEqual(m.state['bars']['GOOD'],[960])
+   self.assertNotIn('BAD',m.state['quotes'])
+   client=PaperSafetyClient(m,['GOOD','BAD'])
+   client.placeOrder=Mock(side_effect=AssertionError('Order mutation forbidden'));client.cancelOrder=Mock(side_effect=AssertionError('Protection cancellation forbidden'))
+   m.state['orders']={'existing-stop':{'symbol':'GOOD','perm_id':911411084,'status':'PreSubmitted','remaining':8}}
+   import copy,os
+   before=copy.deepcopy(m.state['orders'])
+   controls={k:os.environ.get(k) for k in ('ALLOW_PAPER_TRANSMIT','TRADING_KILL_SWITCH')}
+   client.reqMarketDataType=Mock();client.cancelMktData=Mock();client.reqMktData=Mock();client.cancelRealTimeBars=Mock();client.reqRealTimeBars=Mock()
+   client.retry_symbol_subscriptions(['BAD'],bars_only=True)
+   client.cancelMktData.assert_not_called();client.reqMktData.assert_not_called()
+   client.reqRealTimeBars.assert_called_once();self.assertEqual(client.reqRealTimeBars.call_args.args[0],47001)
+   client.placeOrder.assert_not_called();client.cancelOrder.assert_not_called()
+   self.assertEqual(m.state['orders'],before)
+   self.assertEqual(controls,{k:os.environ.get(k) for k in controls})

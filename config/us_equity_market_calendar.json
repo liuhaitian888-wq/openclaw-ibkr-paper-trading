@@ -1,0 +1,23 @@
+{
+  "scope": "Explicit NYSE sessions verified against official 2026 holiday calendar; other dates retain normal verification fallback",
+  "verified_sessions": {
+    "2026-10-29": {
+      "trading": true,
+      "regular_close": "16:00",
+      "source": "https://www.nyse.com/trade/hours-calendars",
+      "verified_on": "2026-10-29"
+    },
+    "2026-10-30": {
+      "trading": true,
+      "regular_close": "16:00",
+      "source": "https://www.nyse.com/trade/hours-calendars",
+      "verified_on": "2026-10-29"
+    },
+    "2026-10-28": {
+      "trading": true,
+      "regular_close": "16:00",
+      "source": "https://www.nyse.com/trade/hours-calendars",
+      "verified_on": "2026-10-29"
+    }
+  }
+}

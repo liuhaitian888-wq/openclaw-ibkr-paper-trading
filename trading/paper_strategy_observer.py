@@ -12,11 +12,14 @@ from trading.market_data import Bar, Quote
 from trading.strategy_modules import ConservativeTrendConfig, ConservativeTrendModule
 from trading.risk import RiskEngine, RiskLimits
 from trading.models import TradeProposal
+from trading.symbol_health import classify_symbol, session_for_symbol
+from trading.signal_scheduler import SignalScheduler, catalog_bindings
+from strategies import MarketData, PortfolioState
 from trading.price_normalizer import normalize_order_price
 
 
 class PaperStrategyObserver:
-    def __init__(self, symbols, config, report_path, *, max_order_value=200, max_risk=10):
+    def __init__(self, symbols, config, report_path, *, max_order_value=200, max_risk=10, signal_configurations=None):
         fields=ConservativeTrendConfig.__dataclass_fields__
         self.config=ConservativeTrendConfig(**{k:v for k,v in config.items() if k in fields})
         self.module=ConservativeTrendModule(symbols,self.config)
@@ -25,6 +28,8 @@ class PaperStrategyObserver:
         self.bars={s:{} for s in symbols};self.history_complete=set();self.contracts={}
         self.last_report={}
         self.lock=threading.RLock()
+        self.scheduler=SignalScheduler(catalog_bindings(signal_configurations or {},symbols))
+        self.catalog_report=None
         self.pending={s:{} for s in symbols}
 
     def history(self, symbol, raw, now):
@@ -44,14 +49,40 @@ class PaperStrategyObserver:
         if end>now:
             self.pending[symbol][start]=SimpleNamespace(date=str(start),open=values[0],high=values[1],low=values[2],close=values[3],volume=float(raw.volume))
             return False
+        # A final historicalDataUpdate supersedes its cached partial version.
+        # Otherwise arrival of the next minute can resurrect the stale partial.
+        self.pending[symbol].pop(start,None)
         self.bars[symbol][start]=Bar(symbol,60,datetime.fromtimestamp(start,timezone.utc),datetime.fromtimestamp(end,timezone.utc),*values,float(raw.volume))
         keys=sorted(self.bars[symbol])
         for key in keys[:-120]:del self.bars[symbol][key]
         return True
 
+    def evaluate_catalog(self, fields_by_symbol, snapshot, positions, now):
+        """Retain every catalog strategy, explicit missing configs, no order transport."""
+        inputs={}
+        for symbol,buckets in self.bars.items():
+            q=fields_by_symbol.get(symbol,{})
+            bars=[buckets[k] for k in sorted(buckets)]
+            if bars and 0<=now-bars[-1].ended_at.timestamp()<=65 and symbol in self.history_complete:
+                inputs[symbol]=MarketData(symbol,[b.close for b in bars],datetime.fromtimestamp(now,timezone.utc),q.get('bid'),q.get('ask'))
+        self.catalog_report=self.scheduler.run(str(now),inputs,snapshot.get('symbol_health',{}),
+            PortfolioState(cash=0,equity=0,positions=positions) if snapshot['reconciliation_complete'] else None,
+            global_data_fault=None if snapshot['reconciliation_complete'] else 'BROKER_RECONCILIATION_REQUIRED')
+        self.catalog_report['portfolio_scope']='BROKER_POSITION_QUANTITIES_ONLY; no strategy ownership assumed'
+        self.catalog_report['execution_gates_unchanged']=True
+        return self.catalog_report
+
+    def history_gaps(self, symbol, now, *, horizon=1800):
+        """Missing completed minute starts inside the existing history window."""
+        keys=sorted(k for k in self.bars[symbol] if now-horizon <= k and k+60 <= now)
+        if not keys:
+            return []
+        return [k for k in range(keys[0],keys[-1]+60,60) if k not in self.bars[symbol]]
+
     def evaluate(self, symbol, fields, snapshot, now):
         bars=[self.bars[symbol][k] for k in sorted(self.bars[symbol])]
-        reason=None
+        health=snapshot.get('symbol_health',{}).get(symbol) or classify_symbol(fields,now,session=session_for_symbol(now))
+        reason=None if health['allows_realtime'] else health['reason']
         if symbol not in self.history_complete or len(bars)<self.config.slow_window:
             reason='Historical K-line readback/warmup incomplete'
         recent=bars[-self.config.slow_window:]
@@ -84,7 +115,10 @@ class PaperStrategyObserver:
         regular=local.weekday()<5 and (9,30)<=(local.hour,local.minute)<(16,0)
         report=dict(symbol=symbol,observed_at=datetime.fromtimestamp(now,timezone.utc).isoformat(),
                     status='BLOCKED' if reason else 'EVALUATED',reason=reason,history_bars=len(bars),
+                    market_data_health=health,signal_only=True,
                     latest_completed_bar=bars[-1].ended_at.isoformat() if bars else None,
+                    completed_bar_ends=[b.ended_at.timestamp() for b in bars],
+                    history_gaps=self.history_gaps(symbol,now),
                     strategy_configuration=asdict(self.config),signal=signal,risk_engine=risk,
                     proposed_native_protection=proposal,session_regular=regular,
                     safety_entries_ready=snapshot['entries_ready'],transmit=False,
@@ -94,6 +128,6 @@ class PaperStrategyObserver:
         self.last_report[symbol]=report
         self.path.parent.mkdir(parents=True,exist_ok=True)
         temporary=self.path.with_suffix('.tmp')
-        temporary.write_text(json.dumps(dict(mode='MONITOR_ONLY',transmit=False,symbols=self.last_report),indent=2))
+        temporary.write_text(json.dumps(dict(mode='MONITOR_ONLY',transmit=False,symbols=self.last_report,catalog=self.catalog_report),indent=2))
         temporary.chmod(0o600);temporary.replace(self.path)
         return report

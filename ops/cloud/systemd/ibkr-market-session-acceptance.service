@@ -1,0 +1,20 @@
+[Unit]
+Description=Passive Paper market/session acceptance (no broker requests)
+After=ibkr-paper-safety.service
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+EnvironmentFile=/home/ibkr/.local/state/openclaw-shadow/market-session/acceptance.env
+ExecStart=/opt/openclaw/venv/bin/python ${DIAGNOSTIC_RELEASE}/ops/cloud/market_session_acceptance.py --production-root /home/ibkr/.local/state/openclaw --output ${ACCEPTANCE_OUTPUT} --regular-start 1793280600 --regular-end 1793282400 --seconds 1800 --interval 5
+TimeoutStartSec=1900
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ibkr/.local/state/openclaw-shadow/market-session/runs
+RestrictAddressFamilies=AF_UNIX
+IPAddressDeny=any
+MemoryMax=192M
+CPUQuota=20%

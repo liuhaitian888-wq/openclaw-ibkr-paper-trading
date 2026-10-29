@@ -1,0 +1,11 @@
+[Unit]
+Description=One next-RTH read-only Paper market/session acceptance
+
+[Timer]
+OnCalendar=2026-10-29 13:30:00 UTC
+AccuracySec=1s
+Persistent=true
+Unit=ibkr-market-session-acceptance.service
+
+[Install]
+WantedBy=timers.target

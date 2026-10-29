@@ -12,6 +12,14 @@ from ops.cloud import healthchecks_sender as sender
 
 
 class CloudObserverTests(unittest.TestCase):
+    def test_independent_account_readback_never_subscribes_l1(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home=Path(tmp);self.setup_home(home)
+            result=dict(complete=True,account_id='DU1',environment='PAPER',positions=[],orders=[],executions=[],quotes={})
+            with patch.object(Path,'home',return_value=home),patch.object(collector,'probe',return_value=result) as probe,patch.object(collector,'publish_report',return_value={'status':'PENDING'}),redirect_stdout(io.StringIO()):
+                self.assertEqual(collector.main(),0)
+            self.assertEqual(probe.call_args.kwargs['symbols'],())
+            self.assertEqual(probe.call_args.kwargs['expected_account'],'DU1')
     def setup_home(self, home):
         cfg=home/'.config/openclaw'; cfg.mkdir(parents=True)
         runtime=home/'.local/state/openclaw/runtime'; runtime.mkdir(parents=True)

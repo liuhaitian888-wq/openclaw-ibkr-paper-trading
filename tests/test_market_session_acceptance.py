@@ -1,0 +1,25 @@
+import unittest
+from ops.cloud.market_session_acceptance import evaluate,verdict
+
+class PassiveAcceptanceTests(unittest.TestCase):
+ def test_frozen_delayed_never_pass_even_with_new_receive_timestamps(self):
+  for kind in (2,3,4):
+   state={'quotes':{s:dict(bid=1,ask=2,bid_at=100,ask_at=100,data_type=kind) for s in ('PFE','BAC','KO')}}
+   out=evaluate(state,{},100,True)
+   self.assertTrue(all(not x['health']['allows_realtime'] for x in out.values()))
+ def test_repeated_snapshots_are_not_distinct_quotes_or_complete_recovery(self):
+  state={'quotes':{s:dict(bid=1,ask=2,bid_at=100,ask_at=100,data_type=1) for s in ('PFE','BAC','KO')}}
+  sample=dict(observed_at=400,connected=True,identity=True,symbols=evaluate(state,{},400,True))
+  r=verdict([sample]*12,0,1000)
+  self.assertEqual(r['overall'],'FAIL')
+  self.assertTrue(all(v['status']=='PENDING' for v in r['real_recovery'].values()))
+ def test_closed_window_and_missing_bars_stay_pending(self):
+  r=verdict([dict(observed_at=0,symbols={})],100,1000)
+  self.assertEqual(r['overall'],'PENDING')
+ def test_contiguous_bars_and_distinct_fresh_observations_pass_data_only(self):
+  rows=[]
+  for now in range(300,420,5):
+   state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:[120,180,240] for s in ('PFE','BAC','KO')}}
+   rows.append(dict(observed_at=now,connected=True,identity=True,symbols=evaluate(state,{},now,True)))
+  r=verdict(rows,0,1000);self.assertEqual(r['overall'],'PASS')
+  self.assertTrue(all(v['status']=='PENDING' for v in r['real_recovery'].values()))

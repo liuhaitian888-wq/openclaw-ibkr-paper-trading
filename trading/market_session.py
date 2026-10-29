@@ -546,6 +546,15 @@ def _calendar_status_from_local_file(day: date, cfg: MarketSessionConfig) -> Cal
             payload = json.loads(path.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError):
             continue
+        verified=payload.get('verified_sessions',{}).get(day.isoformat())
+        if verified is not None:
+            if (not isinstance(verified,dict) or verified.get('source')!='https://www.nyse.com/trade/hours-calendars'
+                    or verified.get('trading') is not True):
+                return None
+            try:close=datetime.strptime(verified['regular_close'],'%H:%M').time()
+            except (KeyError,TypeError,ValueError):return None
+            return CalendarStatus(True,False,close!=cfg.regular_close,close,
+                                  f'explicit_nyse_session:{path}', 'high')
         holidays = set(payload.get("holidays", []))
         early_closes = payload.get("early_closes", {})
         key = day.isoformat()
@@ -553,6 +562,11 @@ def _calendar_status_from_local_file(day: date, cfg: MarketSessionConfig) -> Cal
             return CalendarStatus(False, True, False, cfg.regular_close, f"local_calendar:{path}", "high")
         if key in early_closes:
             return CalendarStatus(True, False, True, _parse_time(str(early_closes[key]), cfg.early_close_regular_close), f"local_calendar:{path}", "high")
+        # A bounded verified-session file says nothing about other dates.
+        # Preserve package/builtin holiday handling instead of treating every
+        # omitted weekday as open.
+        if 'verified_sessions' in payload:
+            continue
         return CalendarStatus(True, False, False, cfg.regular_close, f"local_calendar:{path}", "medium")
     return None
 

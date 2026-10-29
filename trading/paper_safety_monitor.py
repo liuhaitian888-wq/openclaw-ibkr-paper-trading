@@ -12,6 +12,7 @@ import uuid
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from trading.audit import AuditLog
+from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol
 
 ACCOUNT = 'DUQ503649'
 ENDS = {'orders', 'completed_orders', 'executions', 'positions'}
@@ -37,20 +38,25 @@ class PaperSafetyMonitor:
         self.audit = AuditLog(audit_path)
         self.coordinator = RecoveryCoordinator(recovery_path, clock=clock)
         self.incidents = IncidentStore(recovery_path, clock=clock)
+        self.symbol_recovery = SymbolRecovery(recovery_path, self.symbols, clock=clock)
         with closing(self.coordinator.connect()) as c, c:
             c.execute('CREATE TABLE IF NOT EXISTS paper_safety_state(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL)')
             c.execute('CREATE TABLE IF NOT EXISTS paper_callback_events(event_id TEXT PRIMARY KEY,kind TEXT NOT NULL,payload TEXT NOT NULL,observed REAL NOT NULL)')
             row = c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
         prior = json.loads(row[0]) if row else {}
+        if prior.get('subscription_lifecycle_version')!=1 and prior.get('collision_since') is not None:
+            for symbol in self.symbols:
+                self.symbol_recovery.lifecycle.seed_legacy(symbol,prior.get('retries',0),prior['collision_since'])
         self.state = dict(positions=prior.get('positions', {}), orders=prior.get('orders', {}),
                           contracts=prior.get('contracts', {}),
                           incident_signatures=prior.get('incident_signatures', {}),
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
-                          connected=False, identity=False, ends=[], dirty=True,
+                          connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
                           last_server_reply=0,
                           needs_recovery_sync=True, resubscribe_required=False,
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
-                          quotes={}, bars={}, reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
+                          subscription_lifecycle_version=1, quotes={}, bars={}, market_types={}, market_halts={}, market_errors={}, symbol_reset_at={}, legacy_collision=False,
+                          reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
         self._publish()
 
     def _incident(self, key, reason, *, resolved=False, symbol=None, quantity=None, protection=None):
@@ -72,7 +78,7 @@ class PaperSafetyMonitor:
             if accounts != [ACCOUNT]:
                 self.invalidate('IDENTITY_MISMATCH')
                 raise PermissionError('Exact DUQ503649 Paper identity required')
-            self.state.update(identity=True, connected=True, epoch=uuid.uuid4().hex,
+            self.state.update(identity=True, connected=True, upstream_connected=True, epoch=uuid.uuid4().hex,
                               last_server_reply=self.clock())
             self.start_reconciliation()
 
@@ -87,22 +93,34 @@ class PaperSafetyMonitor:
 
     def invalidate(self, reason):
         with self.lock:
-            self.state.update(connected=False, identity=False, ends=[], dirty=True,
+            self.state.update(connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
                               quotes={}, bars={}, reset_at=self.clock(), fault=reason)
             self._incident('connection', reason)
             self._publish()
 
-    def error(self, code):
+    def error(self, code, symbol=None):
         with self.lock:
             if code == 10197:
                 if self.state['collision_since'] is None:
                     self.state.update(collision_since=self.clock(), retry_at=self.clock()+30, retries=0,
-                                      quotes={}, bars={}, reset_at=self.clock(), needs_recovery_sync=True)
+                                      needs_recovery_sync=True)
+                if symbol is None:
+                    self.state.update(quotes={},bars={},reset_at=self.clock(),legacy_collision=True)
+                else:
+                    self.state['quotes'].pop(symbol,None);self.state['bars'].pop(symbol,None)
+                    self.state['symbol_reset_at'][symbol]=self.clock()
                 self.state['fault'] = 'MARKET_DATA_COLLISION'
-            elif code in (1100, 1300, 502, 504):
+            elif code==1100:
+                self.state.update(upstream_connected=False,ends=[],dirty=True,quotes={},bars={},
+                                  fault='IBKR_UPSTREAM_CONNECTION_LOST',needs_recovery_sync=True)
+                self._incident('upstream','IBKR upstream lost; preserve authenticated API socket')
+                self._publish()
+                return
+            elif code in (1300, 502, 504):
                 self.invalidate('API_CONNECTION_LOST')
                 return
             elif code in (1101, 1102):
+                self.state['upstream_connected']=True
                 if code == 1101:
                     self.state['resubscribe_required'] = True
                 self.state.update(ends=[], dirty=True, quotes={}, bars={}, reset_at=self.clock(),
@@ -199,17 +217,18 @@ class PaperSafetyMonitor:
                     self._incident('connection', 'Exact Paper identity and complete broker readback restored', resolved=True)
             self._publish()
 
-    def quote(self, symbol, bid, ask, bid_at, ask_at, data_type):
+    def quote(self, symbol, bid, ask, bid_at, ask_at, data_type, *, last=None, last_at=None, event_time=None):
         with self.lock:
             self.state['last_server_reply'] = self.clock()
-            self.state['quotes'][symbol] = dict(bid=bid, ask=ask, bid_at=bid_at, ask_at=ask_at, data_type=data_type)
+            self.state['quotes'][symbol] = dict(bid=bid, ask=ask, bid_at=bid_at, ask_at=ask_at, data_type=data_type,
+                                                last=last,last_at=last_at,event_time=event_time)
             self._publish()
 
     def bar(self, symbol, started, ended):
         with self.lock:
             now = self.clock()
             self.state['last_server_reply'] = now
-            if ended > now or ended-started != self.bar_seconds or started < self.state['reset_at']:
+            if ended > now or ended-started != self.bar_seconds or started < self.state['symbol_reset_at'].get(symbol,self.state['reset_at']):
                 return
             bars = self.state['bars'].setdefault(symbol, [])
             if ended not in bars:
@@ -223,13 +242,56 @@ class PaperSafetyMonitor:
         """Caller may retry data subscriptions only; never login/restart/cancel orders."""
         with self.lock:
             now = self.clock()
-            if self.state['collision_since'] is None or not self.state['connected'] or now < self.state['retry_at']:
+            if self.state['collision_since'] is None or not self.state['connected'] or now < self.state['retry_at'] or self.state['retries']>=4:
                 return False
             self.state['retries'] += 1
             delay = (30,60,120,300)[min(self.state['retries'],3)]
             self.state['retry_at'] = now+delay
             self._publish()
             return True
+
+    def market_error(self, symbol, code, details):
+        with self.lock:
+            # A cancellation acknowledgement is not a new recovery failure.
+            if code==162 and 'cancel' in str(details).lower():return
+            self.state['market_errors'][symbol]=dict(code=code,details=str(details),observed_at=self.clock())
+            shared = code==10197 and all(self.state['market_errors'].get(s,{}).get('code')==10197
+                and 0<=self.clock()-self.state['market_errors'][s]['observed_at']<=60 for s in self.symbols)
+            self.symbol_recovery.error(symbol,code,details,confirmed_shared=shared)
+
+    def symbol_health(self):
+        bucket=int(self.clock())
+        if getattr(self,'_session_bucket',None)!=bucket:
+            self._session_bucket=bucket;self._session_value=session_for_symbol(self.clock())
+        session=self._session_value
+        result = {symbol:classify_symbol({**self.state['quotes'].get(symbol,{}),
+                    'data_type':self.state['market_types'].get(symbol,self.state['quotes'].get(symbol,{}).get('data_type')),
+                    'permission_denied':self.state['market_errors'].get(symbol,{}).get('code') in (354,10168,10186)},
+                    self.clock(),session=session,halted=self.state['market_halts'].get(symbol)) for symbol in self.symbols}
+        for symbol,h in result.items():
+            policy=getattr(self,'_market_policies',{}).get(symbol,{})
+            if policy.get('fault_active',True):
+                h['allows_realtime']=False
+                h['recovery_phase']=policy.get('phase','UNVALIDATED')
+        return result
+
+    def poll_symbol_recovery(self):
+        """Single service owner calls at heartbeat cadence; no extra threads/requests."""
+        with self.lock:
+            health=self.symbol_health();actions=[]
+            for symbol,h in health.items():
+                q={**self.state['quotes'].get(symbol,{}),'data_type':self.state['market_types'].get(symbol),
+                   'permission_denied':h['status']=='PERMISSION_DENIED',
+                   'request_id':46000+self.symbols.index(symbol),'requested_type':1,
+                   'exchange':'SMART','sec_type':'STK','currency':'USD',
+                   'con_id':self.state['contracts'].get(symbol,{}).get('con_id')}
+                policy=self.symbol_recovery.observe(symbol,q,session=h['session'],halted=h['halted'])
+                if not hasattr(self,'_market_policies'):self._market_policies={}
+                self._market_policies[symbol]=policy
+                self.symbol_recovery.verified_recovery(symbol)
+                action=self.symbol_recovery.retry_due(symbol,session=h['session'],connected=self.state['connected'] and self.state['identity'] and self.state['upstream_connected'])
+                if action:actions.append(action)
+            return actions
 
     def protection(self):
         complete = self._complete()
@@ -297,7 +359,8 @@ class PaperSafetyMonitor:
                 fresh = False
             data = data and fresh and len(bars)>=self.required_bars and 0<=now-bars[-1]<=self.bar_seconds+5
         return dict(account=ACCOUNT, environment='PAPER', observed_at=now, epoch=self.state['epoch'],
-                    protection=protection, protection_ready=bool(covered), reconciliation_complete=bool(complete),
+                    protection=protection, symbol_health=self.symbol_health(),
+                    protection_ready=bool(covered), reconciliation_complete=bool(complete),
                     data_ready=bool(data), entries_ready=bool(covered and data and not self.state['needs_recovery_sync']), fault=self.state['fault'])
 
     def _record(self, kind, payload):
@@ -308,16 +371,16 @@ class PaperSafetyMonitor:
                       (identity,kind,encoded,self.clock()))
 
     def _complete(self):
-        return (self.state['connected'] and self.state['identity']
+        return (self.state['connected'] and self.state['identity'] and self.state['upstream_connected']
                 and 0<=self.clock()-self.state['last_server_reply']<=10
                 and set(self.state['ends'])==ENDS and not self.state['dirty'])
 
     def _publish(self):
         snapshot = self.snapshot()
-        if snapshot['entries_ready'] and self.state['collision_since'] is not None:
+        if snapshot['data_ready'] and self.state['collision_since'] is not None:
             self.state['collision_since'] = None
-            self._incident('collision', 'Fresh live data, completed K-lines, broker reconciliation and protection verified', resolved=True)
-        elif self.state['collision_since'] is not None and self.clock()-self.state['collision_since']>=self.collision_alert_seconds:
+            self._incident('collision', 'Fresh live data and completed K-lines verified; trading permission remains separate', resolved=True)
+        elif self.state['legacy_collision'] and self.state['collision_since'] is not None and self.clock()-self.state['collision_since']>=self.collision_alert_seconds:
             self._incident('collision', 'Prolonged IBKR 10197 market-data collision')
         # Routine polling invalidates permissions immediately, but is not a new
         # protection incident while a healthy snapshot is being replaced. Genuine

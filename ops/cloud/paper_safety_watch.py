@@ -43,7 +43,8 @@ def main():
     with monitoring_service('paper-safety',root), safety_email_owner(root,stopped):
         monitor=PaperSafetyMonitor(root/'trading_audit.sqlite3',root/'runtime/recovery.sqlite3',
                                    symbols=cfg['symbols'],required_bars=strategy['slow_window'])
-        observer=PaperStrategyObserver(cfg['symbols'],strategy,root/'reports/paper_strategy/latest.json')
+        observer=PaperStrategyObserver(cfg['symbols'],strategy,root/'reports/paper_strategy/latest.json',
+            signal_configurations=manifest.get('signal_strategy_configurations'))
         attempts=0
         while not stopped.is_set():
             client=PaperSafetyClient(monitor,cfg['symbols'])
@@ -63,37 +64,40 @@ def main():
                 last_sync=time.monotonic()
                 last_heartbeat=0
                 last_strategy=0
+                last_recovery_poll=0
                 while not stopped.wait(1):
                     if not worker.is_alive() or not client.isConnected() or not monitor.state['connected']:
                         raise RuntimeError('Order monitoring connection lost')
                     if time.monotonic()-last_heartbeat>=5:
                         client.reqCurrentTime()
                         last_heartbeat=time.monotonic()
-                    if monitor.clock()-monitor.state['last_server_reply']>10:
+                    if monitor.state['upstream_connected'] and monitor.clock()-monitor.state['last_server_reply']>10:
                         raise RuntimeError('Broker callback heartbeat missing')
                     with monitor.lock:
                         monitor._publish()
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
-                    if not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
+                    if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
                     if time.monotonic()-last_strategy>=5:
                         with monitor.lock:
                             snapshot=monitor.snapshot()
+                        with observer.lock:
+                            observer.evaluate_catalog({s:dict(client.fields.get(i,{})) for i,s in client.tickers.items()},
+                                snapshot,dict(monitor.state['positions']),monitor.clock())
                         for req_id,symbol in client.tickers.items():
                             with observer.lock:
                                 observer.evaluate(symbol,dict(client.fields.get(req_id,{})),snapshot,monitor.clock())
                         last_strategy=time.monotonic()
                     # Keep monitoring during 10197. Only bounded data subscription
                     # retries; no Gateway process action, no account session takeover.
-                    if client.recover_data_if_required():
-                        client.reconcile()
-                        last_sync=time.monotonic()
-                    elif monitor.retry_due():
-                        client.retry_subscriptions()
-                        client.reconcile()
-                        last_sync=time.monotonic()
-                    elif (dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30:
+                    if time.monotonic()-last_recovery_poll>=5:
+                        if monitor.state['upstream_connected']:client.retry_pending_initial()
+                        client.backfill_history_gaps()
+                        for action in monitor.poll_symbol_recovery():
+                            client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS')
+                        last_recovery_poll=time.monotonic()
+                    if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
                         client.reconcile()
                         last_sync=time.monotonic()
             except Exception as exc:

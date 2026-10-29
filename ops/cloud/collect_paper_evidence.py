@@ -25,7 +25,11 @@ def main():
         raise ValueError('Use one to five simple US stock/ETF symbols')
     try:
         result = probe('127.0.0.1', 4002, 18765, 20,
-                       expected_account=account, symbols=symbols)
+                       expected_account=account, symbols=())
+        # Independent broker account/order/position truth remains. L1 is owned
+        # exclusively by paper-safety; this observer must never acquire it.
+        result['market_data_owner']='ibkr-paper-safety.service'
+        result['market_data_requests_sent']=0
         result['status'] = 'READBACK_COMPLETE' if result.get('complete') else 'INCOMPLETE'
     except Exception as exc:
         result = dict(status='AUTH_OR_CONNECTION_REQUIRED', error_type=type(exc).__name__,
