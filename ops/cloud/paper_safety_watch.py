@@ -58,6 +58,14 @@ def gateway_generation():
     except (OSError,ValueError,IndexError,subprocess.SubprocessError):return None
 
 
+def api_listener_ready():
+    """Passive Linux kernel evidence only; no connect, subscription or login."""
+    try:
+        rows=Path('/proc/net/tcp').read_text().splitlines()[1:]
+        return any(len(parts:=line.split())>3 and parts[1]=='0100007F:0FA2' and parts[3]=='0A' for line in rows)
+    except OSError:return None
+
+
 def main():
     os.umask(0o077)
     root=Path.home()/'.local/state/openclaw'
@@ -103,7 +111,7 @@ def main():
                 'risk_isolatable':safety.get('risk_isolatable') is True,
                 'operator_paused':(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists()})
         while not stopped.is_set():
-            if not monitor.admit_connection(gateway_generation()):
+            if not monitor.admit_connection(gateway_generation(),api_listening=api_listener_ready()):
                 monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
                 stopped.wait(30)
                 continue

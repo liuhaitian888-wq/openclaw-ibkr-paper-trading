@@ -79,17 +79,29 @@ class PaperSafetyMonitor:
         self.incidents.ingest(identity, 'paper-safety:' + key, payload, resolved=resolved)
         self.state['incident_signatures'][key] = signature
 
-    def admit_connection(self, gateway_generation):
+    def admit_connection(self, gateway_generation, *, api_listening=None):
         """Same owner/state, bounded read-only connection attempts across restarts."""
         with self.lock:
             now=self.clock()
             budget=self.state['connection_recovery']
+            if isinstance(api_listening,bool) and gateway_generation:
+                previous=budget.get('api_listening') if budget.get('api_listener_generation')==gateway_generation else None
+                if previous is False and api_listening is True:
+                    budget['listener_ready_transition_generation']=gateway_generation
+                if previous is not api_listening:
+                    budget.update(api_listening=api_listening,api_listener_generation=gateway_generation)
+                    self._publish()
             attempts=budget.get('attempts',0)
             if attempts>=4:
-                if (not gateway_generation or gateway_generation==budget.get('gateway_generation')
-                        or now<budget.get('not_before',float('inf'))):
+                changed_process=bool(gateway_generation and gateway_generation!=budget.get('gateway_generation'))
+                listener_ready=bool(api_listening is True and gateway_generation
+                    and budget.get('listener_ready_transition_generation')==gateway_generation
+                    and budget.get('listener_rearm_generation')!=gateway_generation)
+                if (not (changed_process or listener_ready) or now<budget.get('not_before',float('inf'))):
                     return False
-                budget.update(attempts=0,rearmed_at=now,previous_generation=budget.get('gateway_generation'))
+                if listener_ready:budget['listener_rearm_generation']=gateway_generation
+                budget.update(attempts=0,rearmed_at=now,previous_generation=budget.get('gateway_generation'),
+                              rearm_reason='GATEWAY_GENERATION_CHANGED' if changed_process else 'API_LISTENER_BECAME_READY_ONCE')
                 attempts=0
             if now<budget.get('not_before',0):return False
             attempts+=1

@@ -20,6 +20,22 @@ class ConnectionBudgetTests(unittest.TestCase):
   self.assertFalse(m.admit_connection(None))
   self.assertTrue(m.admit_connection('204046:456'))
   self.assertEqual(m.state['connection_recovery']['attempts'],1)
+ def test_api_ready_transition_rearms_once_per_process_after_cooldown(self):
+  for delay in (30,60,120,300):
+   m=self.monitor();self.assertTrue(m.admit_connection('same',api_listening=False));self.now+=delay
+  m=self.monitor();self.assertTrue(m.admit_connection('same',api_listening=True))
+  self.assertEqual(m.state['connection_recovery']['rearm_reason'],'API_LISTENER_BECAME_READY_ONCE')
+  for delay in (30,60,120):
+   self.now+=delay;m=self.monitor();self.assertTrue(m.admit_connection('same',api_listening=True))
+  self.now+=300;m=self.monitor();self.assertFalse(m.admit_connection('same',api_listening=False))
+  self.assertFalse(m.admit_connection('same',api_listening=True))
+  self.now+=86400;self.assertFalse(self.monitor().admit_connection('same',api_listening=True))
+ def test_listener_parser_is_passive_loopback_only(self):
+  from ops.cloud.paper_safety_watch import api_listener_ready
+  with patch('ops.cloud.paper_safety_watch.Path.read_text',return_value='header\n0: 0100007F:0FA2 00000000:0000 0A'):
+   self.assertTrue(api_listener_ready())
+  with patch('ops.cloud.paper_safety_watch.Path.read_text',return_value='header\n0: 00000000:0FA2 00000000:0000 0A'):
+   self.assertFalse(api_listener_ready())
  def test_changed_gateway_still_requires_cooldown(self):
   m=self.monitor()
   for delay in (30,60,120):
