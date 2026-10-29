@@ -4,6 +4,7 @@ from contextlib import closing
 from datetime import datetime, timezone
 import fcntl
 import json
+import math
 import os
 from pathlib import Path
 import sqlite3
@@ -57,6 +58,8 @@ def evaluate(state,observer,now,regular):
         h=classify_symbol(q,now,session='REGULAR' if regular else 'CLOSED')
         o=observer.get('symbols',{}).get(symbol,{})
         ends=set(state.get('bars',{}).get(symbol,[]))
+        history=state.get('history_evidence',{}).get(symbol,{})
+        if history.get('complete') is True:ends.update(history.get('completed_ends',[]))
         ends.update(float(t) for t in o.get('completed_bar_ends',[]))
         latest=o.get('latest_completed_bar')
         if latest:
@@ -75,24 +78,40 @@ def verdict(samples,start,end):
         for e in s.get('new_errors',[]):all_errors[json.dumps(e,sort_keys=True)]=e
     for symbol in SYMBOLS:
         seen=set();bars=set();fresh=0;stale=0;max_stale_run=0;run=0
+        mature=[s for s in regular if s['observed_at']>=start+300]
+        fresh_bars=0;last_available=0;last_fresh=0;types={}
         for s in regular:
             d=s.get('symbols',{}).get(symbol,{})
             q=d.get('quote',{});h=d.get('health',{})
             if h.get('allows_realtime') and s.get('connected') and s.get('identity'):
                 fresh+=1;run=0;seen.add((q.get('bid_at'),q.get('ask_at')))
             else:stale+=1;run+=1;max_stale_run=max(max_stale_run,run)
-            bars.update(t for t in d.get('bar_ends',[]) if start<=t<=end)
+            actual_type=str(q.get('data_type'));types[actual_type]=types.get(actual_type,0)+1
+            if q.get('last') is not None:
+                last_available+=1
+                if isinstance(q.get('last_at'),(int,float)) and 0<=s['observed_at']-q['last_at']<=5:last_fresh+=1
+            available={t for t in d.get('bar_ends',[]) if isinstance(t,(int,float)) and math.isfinite(t) and start<=t<=s['observed_at']}
+            bars.update(available)
+            if s['observed_at']>=start+300 and available and 0<=s['observed_at']-max(available)<=65:fresh_bars+=1
         ordered=sorted(bars);longest=current=0;previous=None
         for t in ordered:
             current=current+1 if previous is not None and t-previous==60 else 1
             longest=max(longest,current);previous=t
         # Opening grace first five minutes; sustained failure still stays FAIL.
-        mature=[s for s in regular if s['observed_at']>=start+300]
         adequate=len(mature)>=12
+        bar_ratio=fresh_bars/len(mature) if mature else 0
+        # Allow 65 seconds for the most recent completed-bar callback, but no
+        # missing mature minute may be hidden by three old contiguous bars.
+        first_expected=math.ceil((start+300)/60)*60
+        last_expected=math.floor((max((s['observed_at'] for s in regular),default=start)-65)/60)*60
+        missing=[t for t in range(int(first_expected),int(last_expected)+1,60) if t not in bars]
         ratio=fresh/len(regular) if regular else 0
         checks[symbol]=dict(quote_status='PENDING' if not adequate else 'PASS' if len(seen)>=3 and ratio>=.8 else 'FAIL',
             fresh_samples=fresh,stale_samples=stale,fresh_ratio=ratio,distinct_quote_pairs=len(seen),
-            kline_status='PENDING' if not adequate else 'PASS' if longest>=3 else 'FAIL',
+            kline_status='PENDING' if not adequate else 'PASS' if longest>=3 and bar_ratio>=.8 and not missing else 'FAIL',
+            mature_fresh_bar_samples=fresh_bars,mature_bar_fresh_ratio=bar_ratio,missing_completed_ends=missing,
+            actual_market_data_types=types,last_available_samples=last_available,last_fresh_samples=last_fresh,
+            last_timestamp_status='MISSING' if not last_available else 'OBSERVED_FRESH' if last_fresh else 'STALE_OR_UNVERIFIED',
             longest_contiguous_minutes=longest,observed_completed_ends=ordered,max_stale_sample_run=max_stale_run)
     recovery={}
     for code in (1100,1101,1102,10197):

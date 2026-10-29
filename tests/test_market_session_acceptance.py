@@ -19,7 +19,31 @@ class PassiveAcceptanceTests(unittest.TestCase):
  def test_contiguous_bars_and_distinct_fresh_observations_pass_data_only(self):
   rows=[]
   for now in range(300,420,5):
-   state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:[120,180,240] for s in ('PFE','BAC','KO')}}
+   state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:[now//60*60-120,now//60*60-60,now//60*60] for s in ('PFE','BAC','KO')}}
    rows.append(dict(observed_at=now,connected=True,identity=True,symbols=evaluate(state,{},now,True)))
   r=verdict(rows,0,1000);self.assertEqual(r['overall'],'PASS')
   self.assertTrue(all(v['status']=='PENDING' for v in r['real_recovery'].values()))
+
+ def samples(self,end=660,missing=(),frozen=False):
+  rows=[]
+  for now in range(300,end,5):
+   bars=[t for t in range(60,now//60*60+1,60) if t not in missing]
+   if frozen:bars=[120,180,240]
+   state={'quotes':{s:dict(bid=1,ask=2,bid_at=now,ask_at=now,last=1.5,last_at=now,data_type=1) for s in ('PFE','BAC','KO')},'bars':{s:bars for s in ('PFE','BAC','KO')}}
+   rows.append(dict(observed_at=now,connected=True,identity=True,symbols=evaluate(state,{},now,True)))
+  return rows
+ def test_old_three_bars_cannot_pass_after_updates_stop(self):
+  result=verdict(self.samples(frozen=True),0,1000)
+  self.assertTrue(all(s['kline_status']=='FAIL' for s in result['symbols'].values()))
+ def test_missing_mature_minute_is_not_hidden_by_fresh_tail(self):
+  result=verdict(self.samples(missing=(360,)),0,1000)
+  self.assertTrue(all(s['kline_status']=='FAIL' and 360 in s['missing_completed_ends'] for s in result['symbols'].values()))
+ def test_full_observed_mature_sequence_and_last_diagnostics(self):
+  result=verdict(self.samples(),0,1000)
+  self.assertEqual(result['overall'],'PASS')
+  self.assertTrue(all(s['last_timestamp_status']=='OBSERVED_FRESH' and s['actual_market_data_types']=={'1':72} for s in result['symbols'].values()))
+ def test_verified_history_proof_is_used_without_five_second_bars(self):
+  state={'history_evidence':{'PFE':dict(complete=True,completed_ends=[120,180,240])}}
+  self.assertEqual(evaluate(state,{},250,True)['PFE']['bar_ends'],[120,180,240])
+  state['history_evidence']['PFE']['complete']=False
+  self.assertEqual(evaluate(state,{},250,True)['PFE']['bar_ends'],[])
