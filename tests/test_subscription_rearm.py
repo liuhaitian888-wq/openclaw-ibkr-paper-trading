@@ -43,3 +43,35 @@ class RearmTests(unittest.TestCase):
   self.assertEqual(today.calendar_source_confidence,'high')
   unknown=_calendar_status_from_local_file(date(2026,11,3),MarketSessionConfig(require_verified_calendar=True))
   self.assertIsNone(unknown)
+
+ def test_regular_open_is_new_condition_after_premarket_budget_exhausted(self):
+  r=SymbolRecovery(self.p,['PFE'],clock=lambda:self.now)
+  r.observe('PFE',{},session='PREMARKET');self.now=1400
+  r.observe('PFE',{},session='REGULAR')
+  self.assertIsNotNone(r.retry_due('PFE',session='REGULAR',connected=True))
+  self.assertEqual(r.lifecycle.snapshot('PFE')['rearm_condition'],'session:REGULAR:0')
+
+ def test_1102_alone_preserves_streams_but_later_session_can_rearm(self):
+  r=SymbolRecovery(self.p,['PFE'],clock=lambda:self.now)
+  r.observe('PFE',{},session='CLOSED')
+  r.error('PFE',1100,'real link loss');self.now=1100
+  r.error('PFE',1102,'data maintained');self.now=1400
+  self.assertIsNone(r.retry_due('PFE',session='CLOSED',connected=True))
+  self.assertEqual(r.lifecycle.snapshot('PFE')['attempts'],4)
+  r.observe('PFE',{},session='PREMARKET')
+  action=r.retry_due('PFE',session='PREMARKET',connected=True)
+  self.assertEqual(action['action'],'RESUBSCRIBE_DATA')
+  self.assertEqual(r.lifecycle.snapshot('PFE')['rearm_condition'],'session:PREMARKET:0')
+  for i in range(4):
+   grant=r.lifecycle.reserve('PFE',('quotes',),str(i),reason='RECOVERY')
+   self.assertTrue(grant['allowed']);r.lifecycle.finish(grant,sent=True);self.now+=300
+   if i<3:self.assertIsNotNone(r.retry_due('PFE',session='PREMARKET',connected=True))
+  self.assertIsNone(r.retry_due('PFE',session='PREMARKET',connected=True))
+  self.assertEqual(r.lifecycle.snapshot('PFE')['attempts'],4)
+
+ def test_session_boundary_never_rearms_permission_review(self):
+  r=SymbolRecovery(self.p,['PFE'],clock=lambda:self.now)
+  r.observe('PFE',{},session='CLOSED');r.error('PFE',354,'not subscribed')
+  self.now=1400;r.observe('PFE',{},session='REGULAR')
+  self.assertIsNone(r.retry_due('PFE',session='REGULAR',connected=True))
+  self.assertEqual(r.lifecycle.snapshot('PFE')['attempts'],4)

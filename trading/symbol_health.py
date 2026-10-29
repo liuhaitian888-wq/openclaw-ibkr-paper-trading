@@ -104,7 +104,8 @@ class SymbolRecovery:
             c.execute('BEGIN IMMEDIATE');s=self._read(c,symbol)
             s.setdefault('episode',0);s.setdefault('phase','NORMAL');s.setdefault('attempts',0);s.setdefault('fault_active',False)
             previous_session=s.get('health',{}).get('session')
-            if previous_session in CLOSED and session in ACTIVE:
+            if ((previous_session in CLOSED and session in ACTIVE)
+                    or (previous_session=='PREMARKET' and session in ('REGULAR','EARLY_CLOSE'))):
                 s['since']=now
                 self._save(c,'@condition:'+symbol,dict(key=f'session:{session}:{int(now//86400)}',observed_at=now))
             s['health']=health
@@ -172,8 +173,13 @@ class SymbolRecovery:
         now=self.clock()
         with closing(self.store.connect()) as c:
             condition=self._read(c,'@condition:'+symbol);local_retry=self._read(c,'@retry:'+symbol)
-        rearmed=bool(connected and session in ACTIVE and condition and
-                     local_retry.get('action','RESUBSCRIBE_DATA') in ('RESUBSCRIBE_DATA','RESUBSCRIBE_BARS') and
+        # 1102 alone preserves streams. A later verified session boundary is an
+        # independent condition; it may rearm an exhausted legacy episode even
+        # when an earlier 1102 left the retry policy at RECONCILE_ONLY.
+        action=local_retry.get('action','RESUBSCRIBE_DATA')
+        session_change=condition.get('key','').startswith('session:')
+        eligible=action in ('RESUBSCRIBE_DATA','RESUBSCRIBE_BARS') or (session_change and action=='RECONCILE_ONLY')
+        rearmed=bool(connected and session in ACTIVE and condition and eligible and
                      self.lifecycle.rearm(symbol,condition['key'],condition['observed_at']))
         with closing(self.store.connect()) as c,c:
             c.execute('BEGIN IMMEDIATE')
@@ -182,6 +188,7 @@ class SymbolRecovery:
             if rearmed:
                 if not s:s=dict(episode=1,affected=[symbol],action='RESUBSCRIBE_DATA')
                 s.update(attempts=0,next_retry=now,phase='BLOCKED',rearm_condition=condition['key'])
+                if s.get('action')=='RECONCILE_ONLY':s['action']='RESUBSCRIBE_DATA'
             if (not connected or session not in ACTIVE|{'UNKNOWN','SESSION_UNKNOWN'} or not s or s.get('next_retry') is None
                     or now<s['next_retry'] or s['attempts']>=self.max_attempts):return None
             s['attempts']+=1;s['phase']='RECOVERING'

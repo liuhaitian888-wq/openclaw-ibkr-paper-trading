@@ -13,3 +13,11 @@ Takeover: assert clean productiona31c1c5 and closed execution gates; fetch exact
 Rollback safety: any failure keeps execution closed. Preserve newDBtables and logs, never overwrite historicalstate. If candidate cannot run, keep monitoring stopped rather than reactivating unlimited-retry baseline. A code rollback may usegit reset --keep only after a clean-tree check, restoring saved manifests; oldmonitor/readback remain stopped until bounded behavior restored. Do not restartGateway or cancel/replacePFE.
 
 Expected bounded overnight state: exhaustedlegacy130+budget is inherited as4; no artificial fresh retry allowance. Safe heartbeat/accountreadback continue. Next verifiedregular-session transition aftercooldown may rearmonce, using the sameowner. Missingreal1100/1101/10197 and currentclosed-market bars remainPENDING, not proof of failure/recovery.
+
+## 09UTC follow-up — real 1102/session-boundary interaction
+
+Observed real upstream1100/1102 at05:30UTC and later PREMARKET boundary08:00UTC. Current complete Paper readback recovered, but RECONCILE_ONLY veto prevented rearm of the previously exhausted legacy episode. Fix: a later verified session condition may rearm after cooldown, including PREMARKET→REGULAR, while1102 by itself preserves streams. Permission-review and UNKNOWN holds remain blocked. Each rearmed episode keeps the existing max4 budget. No direct state/budget reset.
+
+Only symbol_health and its regression tests changed relative toe08492a. Existing monitor-only worktree suite672/57.053s PASS; existing bounded fault/lifecycle cases reused. Tests cover1102-alone no rearm, later session rearm, max4 consumption through policy and transport, permission denial preserved. Final scan and diff checks PASS. Source readiness changes65a81f2/4ff2bcd/ce411cf projected by explicit file list; trading candidate54f647d excluded.
+
+Rollback is monitor code back toe08492a with matching monitor-only manifests and a single held lock. Preserve current recovery DB and audit history; do not roll counters/state back after subscriptions were attempted. Keep PAUSED/MAINTENANCE, kill=true, transmit=false, API/strategyinactive. Gateway and PFE orders unchanged.
