@@ -60,10 +60,18 @@ def gateway_generation():
 
 def api_listener_ready():
     """Passive Linux kernel evidence only; no connect, subscription or login."""
-    try:
-        rows=Path('/proc/net/tcp').read_text().splitlines()[1:]
-        return any(len(parts:=line.split())>3 and parts[1]=='0100007F:0FA2' and parts[3]=='0A' for line in rows)
-    except OSError:return None
+    readable=False
+    # Java commonly publishes a dual-stack wildcard listener in tcp6. This is
+    # readiness evidence only, never a bind/firewall change or identity proof.
+    tables=(('/proc/net/tcp',{'0100007F','00000000'}),
+            ('/proc/net/tcp6',{'00000000000000000000000000000000','0000000000000000FFFF00000100007F'}))
+    for name,addresses in tables:
+        try:rows=Path(name).read_text().splitlines()[1:];readable=True
+        except OSError:continue
+        for line in rows:
+            parts=line.split()
+            if len(parts)>3 and parts[3]=='0A' and parts[1].upper() in {address+':0FA2' for address in addresses}:return True
+    return False if readable else None
 
 
 def main():

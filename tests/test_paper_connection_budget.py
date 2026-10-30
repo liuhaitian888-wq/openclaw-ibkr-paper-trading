@@ -35,7 +35,7 @@ class ConnectionBudgetTests(unittest.TestCase):
   with patch('ops.cloud.paper_safety_watch.Path.read_text',return_value='header\n0: 0100007F:0FA2 00000000:0000 0A'):
    self.assertTrue(api_listener_ready())
   with patch('ops.cloud.paper_safety_watch.Path.read_text',return_value='header\n0: 00000000:0FA2 00000000:0000 0A'):
-   self.assertFalse(api_listener_ready())
+   self.assertTrue(api_listener_ready())
  def test_changed_gateway_still_requires_cooldown(self):
   m=self.monitor()
   for delay in (30,60,120):
@@ -59,3 +59,9 @@ class ConnectionBudgetTests(unittest.TestCase):
  @patch('ops.cloud.paper_safety_watch.subprocess.check_output',return_value='0\n')
  def test_missing_gateway_never_becomes_rearm_condition(self,command):
   self.assertIsNone(gateway_generation())
+
+ def test_java_ipv6_listener_is_detected_without_connecting(self):
+  from ops.cloud.paper_safety_watch import api_listener_ready
+  def contents(path):
+   return 'header\n0: 00000000000000000000000000000000:0FA2 00000000000000000000000000000000:0000 0A' if str(path).endswith('tcp6') else 'header\n'
+  with patch('ops.cloud.paper_safety_watch.Path.read_text',autospec=True,side_effect=contents):self.assertTrue(api_listener_ready())
