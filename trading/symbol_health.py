@@ -6,7 +6,7 @@ import math
 import sqlite3
 import time
 from reporting.incidents import IncidentStore
-from trading.subscription_lifecycle import SubscriptionLifecycle
+from trading.subscription_lifecycle import SubscriptionLifecycle, LOW_FREQUENCY_SECONDS
 
 STATES = frozenset(('REALTIME_HEALTHY','REALTIME_STALE','DELAYED','FROZEN',
                     'DELAYED_FROZEN','PERMISSION_DENIED','UNKNOWN'))
@@ -96,7 +96,34 @@ class SymbolRecovery:
         event=hashlib.sha256((symbol+str(state['episode'])+encoded+str(resolved)).encode()).hexdigest()
         self.store._ingest(c,event,'symbol-market-data:'+symbol,encoded,resolved,self.clock())
 
-    def observe(self,symbol,fields,*,session='UNKNOWN',halted=None):
+    def _conflict_notice(self,c,symbol,state,*,resolved=False):
+        payload=dict(scope='PAPER_MARKET_SESSION_CONFLICT',symbol=symbol,
+            severity='GREEN' if resolved else 'RED',ib_error_code=10197,
+            observed_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(self.clock())),
+            reason='Fresh real-time quotes and complete Paper reconciliation verified' if resolved else 'IBKR reported competing market-data session (10197)',
+            action_taken='Observe only; preserve existing orders and all trading gates',
+            user_action='None; phone login/logout is not verified' if resolved else 'Check competing session if unintended; phone identity is not verified',
+            recovery_condition='Three distinct fresh valid type1 bid/ask observations after conflict, active verified session and fresh complete Paper reconciliation',
+            grants_trading_permission=False)
+        encoded=json.dumps(payload,sort_keys=True)
+        event=f'market-conflict:{symbol}:{state["generation"]}:{resolved}'
+        self.store._ingest(c,event,'market-session-conflict:'+symbol,encoded,resolved,self.clock())
+
+    def _observe_conflict(self,c,symbol,fields,health,reconciliation_verified):
+        key='@conflict:'+symbol;state=self._read(c,key)
+        if not state.get('active'):return
+        valid=(reconciliation_verified is True and health['allows_realtime']
+               and all(fields.get(k,0)>state['fault_at'] for k in ('bid_at','ask_at')))
+        fingerprint=json.dumps([fields.get(k) for k in ('bid_at','ask_at','bid','ask')])
+        if valid and fingerprint!=state.get('fingerprint'):
+            state['validations']=state.get('validations',0)+1
+        elif not valid:state['validations']=0
+        state['fingerprint']=fingerprint
+        if state.get('validations',0)>=self.validations:
+            self._conflict_notice(c,symbol,state,resolved=True);state.update(active=False,recovered_at=self.clock())
+        self._save(c,key,state)
+
+    def observe(self,symbol,fields,*,session='UNKNOWN',halted=None,reconciliation_verified=False):
         if symbol not in self.symbols:raise ValueError('Symbol outside preserved universe')
         now=self.clock();health=classify_symbol(fields,now,session=session,halted=halted)
         fingerprint=json.dumps([fields.get(k) for k in ('data_type','bid_at','ask_at','bid','ask')])
@@ -126,6 +153,7 @@ class SymbolRecovery:
                     s['phase']='MARKET_CLOSED'
                 elif now-s.get('since',now)>=self.notify_after or halted in (1,2) or health['status']=='PERMISSION_DENIED':
                     s['phase']='BLOCKED';self._event(c,symbol,s)
+            self._observe_conflict(c,symbol,fields,health,reconciliation_verified)
             s['fingerprint']=fingerprint;self._save(c,symbol,s)
             return s
 
@@ -149,6 +177,14 @@ class SymbolRecovery:
         key='@shared_session' if confirmed_shared and code==10197 else '@retry:'+symbol
         with closing(self.store.connect()) as c,c:
             c.execute('BEGIN IMMEDIATE');s=self._read(c,key)
+            if code==10197:
+                conflict_key='@conflict:'+symbol;conflict=self._read(c,conflict_key)
+                if not conflict.get('active'):
+                    conflict=dict(active=True,generation=conflict.get('generation',0)+1,fault_at=now,validations=0)
+                    self._conflict_notice(c,symbol,conflict)
+                else:
+                    conflict.update(validations=0,fault_at=now)
+                self._save(c,conflict_key,conflict)
             link=self._read(c,'@link:'+symbol)
             if code==1100 and link.get('state')!='LOST':
                 link=dict(state='LOST',generation=link.get('generation',0)+1)
@@ -177,6 +213,15 @@ class SymbolRecovery:
         # independent condition; it may rearm an exhausted legacy episode even
         # when an earlier 1102 left the retry policy at RECONCILE_ONLY.
         action=local_retry.get('action','RESUBSCRIBE_DATA')
+        lifecycle=self.lifecycle.snapshot(symbol)
+        slow_due=lifecycle.get('low_frequency_not_before',lifecycle.get('exhausted_at',now)+LOW_FREQUENCY_SECONDS)
+        # A slow diagnostic probe is distinct from rearming the fast budget.
+        # Session UNKNOWN permits observation, never a recovery declaration.
+        if (connected and session in ACTIVE|{'UNKNOWN','SESSION_UNKNOWN'}
+                and action in ('RESUBSCRIBE_DATA','RECONCILE_ONLY')
+                and (lifecycle.get('slow_probe_eligible') or lifecycle.get('cause')=='10197') and lifecycle.get('attempts',0)>=self.max_attempts
+                and not lifecycle.get('pending') and now>=slow_due):
+            return dict(action='RESUBSCRIBE_DATA',symbols=[symbol],low_frequency=True,attempt=lifecycle['attempts'])
         session_change=condition.get('key','').startswith('session:')
         eligible=action in ('RESUBSCRIBE_DATA','RESUBSCRIBE_BARS') or (session_change and action=='RECONCILE_ONLY')
         rearmed=bool(connected and session in ACTIVE and condition and eligible and

@@ -337,7 +337,8 @@ class PaperSafetyMonitor:
                    'request_id':46000+self.symbols.index(symbol),'requested_type':1,
                    'exchange':'SMART','sec_type':'STK','currency':'USD',
                    'con_id':self.state['contracts'].get(symbol,{}).get('con_id')}
-                policy=self.symbol_recovery.observe(symbol,q,session=h['session'],halted=h['halted'])
+                policy=self.symbol_recovery.observe(symbol,q,session=h['session'],halted=h['halted'],
+                    reconciliation_verified=bool(self._complete() and 0<=self.clock()-self.state.get('reconciled_at',0)<=30))
                 if not hasattr(self,'_market_policies'):self._market_policies={}
                 self._market_policies[symbol]=policy
                 self.symbol_recovery.verified_recovery(symbol)

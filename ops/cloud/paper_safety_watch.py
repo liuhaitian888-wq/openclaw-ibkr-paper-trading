@@ -172,7 +172,8 @@ def main():
                         if monitor.state['upstream_connected']:client.retry_pending_initial()
                         client.backfill_history_gaps()
                         for action in monitor.poll_symbol_recovery():
-                            client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS')
+                            client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS',
+                                low_frequency=action.get('low_frequency',False))
                         last_recovery_poll=time.monotonic()
                     if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
                         client.reconcile()

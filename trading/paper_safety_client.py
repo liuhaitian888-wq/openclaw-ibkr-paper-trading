@@ -211,9 +211,9 @@ class PaperSafetyClient(TwsPaperClient):
         lifecycle.finish(grant,sent=True)
         return grant
 
-    def retry_symbol_subscriptions(self, symbols, *, bars_only=False):
+    def retry_symbol_subscriptions(self, symbols, *, bars_only=False, low_frequency=False):
         streams=('bars',) if bars_only else ('quotes','bars','history') if self.strategy_observer else ('quotes','bars')
-        return [self._admitted_subscription(symbol,streams,'RECOVERY') for symbol in symbols]
+        return [self._admitted_subscription(symbol,streams,'LOW_FREQUENCY_RECOVERY' if low_frequency else 'RECOVERY') for symbol in symbols]
 
     def realtimeBar(self, reqId, timestamp, open_, high, low, close, volume, wap, count):
         self._bar_callback('realtime_bar_legacy',reqId,timestamp)

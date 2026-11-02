@@ -5,6 +5,8 @@ import sqlite3
 import time
 import uuid
 
+LOW_FREQUENCY_SECONDS = 900
+
 STREAMS=frozenset(('quotes','bars','history'))
 
 class SubscriptionLifecycle:
@@ -30,7 +32,9 @@ class SubscriptionLifecycle:
             s['serial']+=1;s.update(incident=f'{symbol}:{s["serial"]}',attempts=0,cause=cause)
     def open_fault(self,symbol,cause):
         with closing(self.connect()) as c,c:
-            c.execute('BEGIN IMMEDIATE');s=self.read(c,symbol);self.fault(s,symbol,cause);self.save(c,symbol,s)
+            c.execute('BEGIN IMMEDIATE');s=self.read(c,symbol);self.fault(s,symbol,cause)
+            if cause=='10197':s['slow_probe_eligible']=True
+            self.save(c,symbol,s)
     def seed_legacy(self,symbol,attempts,incident):
         """One-time adoption: deployment cannot replenish an already used budget."""
         with closing(self.connect()) as c,c:
@@ -51,11 +55,21 @@ class SubscriptionLifecycle:
             initial=not s['seen'] and s.get('incident') is None and reason=='INITIAL'
             if not initial:
                 self.fault(s,symbol,'RECONNECT' if reason=='INITIAL' else reason)
-                if s['attempts']>=self.max_attempts:return dict(allowed=False,reason='INCIDENT_BUDGET_EXHAUSTED',incident=s['incident'],attempt=s['attempts'])
+                if s['attempts']>=self.max_attempts:
+                    if reason!='LOW_FREQUENCY_RECOVERY' or not (s.get('slow_probe_eligible') or s.get('cause')=='10197'):
+                        return dict(allowed=False,reason='INCIDENT_BUDGET_EXHAUSTED',incident=s['incident'],attempt=s['attempts'])
+                    due=s.get('low_frequency_not_before',s.get('exhausted_at',self.clock())+LOW_FREQUENCY_SECONDS)
+                    if self.clock()<due:return dict(allowed=False,reason='LOW_FREQUENCY_BACKOFF',not_before=due)
+                    # Reserve durably before dispatch; restart and concurrent owners
+                    # cannot spend another slow probe or replenish fast attempts.
+                    s['low_frequency_not_before']=self.clock()+LOW_FREQUENCY_SECONDS
+                    s['low_frequency_attempts']=s.get('low_frequency_attempts',0)+1
+                elif reason=='LOW_FREQUENCY_RECOVERY':
+                    return dict(allowed=False,reason='FAST_BUDGET_NOT_EXHAUSTED')
                 if self.clock()<s.get('not_before',0):return dict(allowed=False,reason='INCIDENT_BACKOFF',incident=s['incident'])
-                s['attempts']+=1
+                if reason!='LOW_FREQUENCY_RECOVERY':s['attempts']+=1
                 s['not_before']=self.clock()+(30,60,120,300)[min(s['attempts']-1,3)]
-                if s['attempts']>=self.max_attempts:s.update(exhausted_at=self.clock(),cooldown_until=self.clock()+self.cooldown)
+                if s['attempts']>=self.max_attempts and reason!='LOW_FREQUENCY_RECOVERY':s.update(exhausted_at=self.clock(),cooldown_until=self.clock()+self.cooldown)
             request_id=uuid.uuid4().hex
             incident=s.get('incident') or f'{symbol}:bootstrap'
             grant=dict(allowed=True,id=request_id,symbol=symbol,streams=streams,connection=connection,
@@ -84,7 +98,10 @@ class SubscriptionLifecycle:
                 proof=set(evidence_streams)
                 required='history' if s.get('cause') in ('HISTORY_GAP','HISTORY_RECOVERY') else 'bars' if s.get('cause')=='10225' else 'quotes'
                 if required not in proof:return False
-            s.update(incident=None,attempts=0,not_before=0);self.save(c,symbol,s);return True
+            s.update(incident=None,attempts=0,not_before=0)
+            s.pop('low_frequency_not_before',None)
+            s.pop('slow_probe_eligible',None)
+            self.save(c,symbol,s);return True
 
     def rearm(self,symbol,condition,observed_at):
         """Cooldown alone never replenishes budget; a later condition must change."""
