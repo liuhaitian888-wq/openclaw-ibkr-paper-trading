@@ -1,0 +1,23 @@
+[Unit]
+Description=Cloud Paper incident alerts to existing deehub Feishu bot
+After=network-online.target
+ConditionPathExists=/home/ibkr/.config/openclaw/feishu-alerts.json
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/FEISHU_ALERTS_ARMED
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
+
+[Service]
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/feishu_alert_watch.py
+Restart=on-failure
+RestartSec=15
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+MemoryMax=128M
+CPUQuota=10%
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

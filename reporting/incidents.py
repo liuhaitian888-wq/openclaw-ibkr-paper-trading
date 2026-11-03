@@ -94,15 +94,15 @@ class IncidentStore:
                 WHERE n.status='PENDING' AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status!='SMTP_ACCEPTED') ORDER BY n.id LIMIT 1""").fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED')) ORDER BY n.id LIMIT 1""").fetchone()
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))
             return dict(id=row[0], kind=row[1], payload=json.loads(row[2]), incident_key=row[3], generation=row[4])
 
     def finish(self, notification_id, status):
-        if status not in ('SMTP_ACCEPTED', 'UNKNOWN'):
-            raise ValueError('Outcome must retain SMTP uncertainty')
+        if status not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'UNKNOWN'):
+            raise ValueError('Outcome must retain delivery uncertainty')
         with closing(self.connect()) as c, c:
             result = c.execute("UPDATE notification_outbox SET status=? WHERE id=? AND status='STARTED'", (status, notification_id))
             if result.rowcount != 1:

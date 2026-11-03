@@ -1,0 +1,15 @@
+# Cloud Paper alerts to deehub
+
+User approved 2026-11-03: use the existing deehub Feishu custom bot for Paper alerts, replacing the failed SMTP path. Cloud execution must not depend on Mac/Codex uptime. Existing conflict detection, three-observation recovery validation and subscription retry budgets remain unchanged.
+
+`ibkr-feishu-alerts.service` runs `ops/cloud/feishu_alert_watch.py` as ibkr, bounded to128MiB/10%CPU. It uses the existing monitoring deployment identity, incident-email kernel lock and durable IncidentStore/RecoveryCoordinator. Requires mode0600 `~/.config/openclaw/feishu-alerts.json` containing transport=feishu, target_name=deehub, webhook_url and optional signing_secret. Credentials are provisioned privately from the existing approved deehub config, never Git/logs. Only official HTTPS custom-bot endpoints are accepted; redirects are rejected.
+
+Cutover: first remove only runtime/EMAIL_ALERTS_ARMED (retain backup); allow the old SMTP worker to release its lock and reconcile STARTED/UNKNOWN. Create runtime/FEISHU_ALERTS_ARMED and start exactly one new service. The original monitor remains running; its disabled SMTP thread stays idle. Do not enable the legacy daily-report job. Do not restart Gateway/API/strategy/monitor or alter production.json, paper.env, PAUSED or MAINTENANCE. Update only the monitoring deployment commit identity to the reviewed source.
+
+Feishu sends only PENDING notifications reserved as STARTED before HTTPS. The existing notification:outbox:<id> operation identity prevents transport switching from replaying a historical side effect. HTTP200 plus integer code0/StatusCode0 is FEISHU_ACCEPTED; lost/rejected/invalid acknowledgements become UNKNOWN and do not auto-retry. Accepted Feishu records unblock later notifications for the same incident. Historical SMTP_ACCEPTED and STARTED/UNKNOWN records are not resent. Responses are bounded and closed; private endpoint and exceptions are not printed. FEISHU_ACCEPTED is service acknowledgement, not user-read proof.
+
+One explicit channel test may be inserted with test_only=true and scope=NOTIFICATION_CHANNEL_TEST, clearly titled【通道测试】. Preserve its event/outbox identity. Verify its actual presence in deehub separately from API acceptance. Broker identity, send readiness and trading gates remain independent.
+
+Official protocol: https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot . Signed payload follows the already implemented repository protocol in scripts/send_feishu_report.py:211; notification transport does not invoke the old guarded report scheduler or upload any image.
+
+Validation: tests/test_incident_feishu.py covers signing, API/legacy acknowledgements, per-incident recovery order, no replay, timeout/rejection/unknown, operation collisions/commit failure, target/URL restriction, redirect rejection and arming exclusion. Full suite uses scripts/run_worktree_tests.py with temporary state and no real TCP. Real delivery acceptance is recorded outside source in the deployment evidence delivered with this chat.
