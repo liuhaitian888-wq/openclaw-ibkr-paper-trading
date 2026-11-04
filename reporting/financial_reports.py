@@ -1,6 +1,7 @@
 """Build existing white-grid report artifacts from saved, exact Paper readback only."""
 from datetime import timezone
 import json
+import hashlib
 from pathlib import Path
 
 from scripts.report_aggregation import collect_report, read_json, stamp
@@ -8,7 +9,9 @@ from scripts.report_rendering import render_html
 from reporting.report_schedule import BJ, due_types
 
 
-def prepare_reports(root, expected_account, now, *, publish_image=None):
+def prepare_reports(root, expected_account, now, *, publish_image=None, transport="feishu"):
+    if transport not in ("feishu", "smtp"):
+        raise ValueError("Unsupported report transport")
     root = Path(root)
     observation = read_json(root/'runtime/paper-observer.latest.json')
     observed = stamp(observation.get('observed_at'))
@@ -23,7 +26,10 @@ def prepare_reports(root, expected_account, now, *, publish_image=None):
     for kind in due_types(day):
         previous = read_json(directory/(kind+'.json'))
         if (previous.get('source_snapshot_at') == observed.isoformat()
-                and str(previous.get('image_key','')).startswith('img_')):
+                and ((transport == 'feishu' and str(previous.get('image_key','')).startswith('img_')) or
+                     (transport == 'smtp' and previous.get('image_path') == str(directory/(kind+'.png'))
+                      and (directory/(kind+'.png')).is_file()
+                      and previous.get('image_sha256') == hashlib.sha256((directory/(kind+'.png')).read_bytes()).hexdigest()))):
             prepared.append(kind)
             continue
         report = collect_report(root, kind, now, account_id=expected_account)
@@ -50,7 +56,15 @@ def prepare_reports(root, expected_account, now, *, publish_image=None):
         html_path=directory/(kind+'.html')
         html_path.write_text(render_html(report))
         if publish_image is not None:
-            report['image_key'] = publish_image(html_path, directory/(kind+'.png'))
+            published = publish_image(html_path, directory/(kind+'.png'))
+            if published is None:
+                png = directory/(kind+'.png')
+                content = png.read_bytes()
+                if not content.startswith(b'\x89PNG\r\n\x1a\n'):
+                    raise ValueError('Rendered PNG required')
+                report.update(image_path=str(png), image_sha256=hashlib.sha256(content).hexdigest())
+            else:
+                report['image_key'] = published
         for suffix, content in [('json',json.dumps(report,ensure_ascii=False,indent=2))]:
             path=directory/(kind+'.'+suffix)
             temporary=path.with_suffix(path.suffix+'.tmp')
