@@ -2,6 +2,7 @@
 from contextlib import closing
 from datetime import datetime, time, timezone
 import json
+import hashlib
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -13,7 +14,7 @@ def due_types(day):
     return ['DAILY'] + (['WEEKLY'] if day.weekday() == 0 else []) + (['MONTHLY'] if day.day == 1 else [])
 
 
-def ready_reports(directory, day, expected_account, now):
+def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
     ready, missing = {}, {}
     for kind in due_types(day):
         path = Path(directory) / day.isoformat() / (kind + '.json')
@@ -28,15 +29,23 @@ def ready_reports(directory, day, expected_account, now):
                     or report.get('account_id') != expected_account
                     or report.get('environment') != 'PAPER'
                     or report.get('source_validated') is not True
-                    or not str(report.get('image_key','')).startswith('img_')):
+                    or (transport == 'feishu' and not str(report.get('image_key','')).startswith('img_'))):
                 raise ValueError('Report identity/date/source not verified')
+            if transport == 'smtp':
+                png = (Path(directory)/day.isoformat()/(kind+'.png')).resolve()
+                content = png.read_bytes()
+                if (Path(report.get('image_path', '')).resolve() != png or not content.startswith(b'\x89PNG\r\n\x1a\n')
+                        or report.get('image_sha256') != hashlib.sha256(content).hexdigest()):
+                    raise ValueError('Local PNG identity not verified')
             ready[kind] = report
         except (OSError, ValueError, KeyError, TypeError):
             missing[kind] = '报告缺失、日期不符或来源/账户未验证'
     return ready, missing
 
 
-def enqueue_reports(store, directory, expected_account, now):
+def enqueue_reports(store, directory, expected_account, now, *, transport="feishu"):
+    if transport not in ("feishu", "smtp"):
+        raise ValueError("Unsupported report transport")
     if now.tzinfo is None:
         raise ValueError('Timezone-aware time required')
     if not isinstance(expected_account, str) or not expected_account.startswith('DU'):
@@ -46,7 +55,7 @@ def enqueue_reports(store, directory, expected_account, now):
     scheduled = datetime.combine(day, time(9), BJ)
     if now < scheduled:
         return 'BEFORE_SCHEDULE'
-    ready, missing = ready_reports(directory, day, expected_account, now)
+    ready, missing = ready_reports(directory, day, expected_account, now, transport=transport)
     key = 'financial-reports:' + day.isoformat()
     with closing(store.connect()) as c, c:
         c.execute('BEGIN IMMEDIATE')
@@ -86,7 +95,8 @@ def enqueue_reports(store, directory, expected_account, now):
                        scope='FINANCIAL_REPORTS', queued_at=now.timestamp(),
                        scheduled_at=scheduled.timestamp(), included_reports=list(selected),
                        missing_reports=list(missing), grants_trading_permission=False,
-                       image_keys=[report['image_key'] for report in selected.values()],
+                       image_keys=[report['image_key'] for report in selected.values() if 'image_key' in report],
+                       png_artifacts=[dict(path=r['image_path'], sha256=r['image_sha256']) for r in selected.values() if transport == 'smtp'],
                        report_artifacts=[str(Path(directory)/day.isoformat()/(k+'.html')) for k in selected])
         c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) "
                   "VALUES (?,1,?,?,'PENDING')", (key,kind,json.dumps(payload,ensure_ascii=False)))

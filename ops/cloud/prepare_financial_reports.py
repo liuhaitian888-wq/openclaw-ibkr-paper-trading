@@ -13,7 +13,7 @@ import signal
 import tempfile
 
 
-def publish_image(html_path, png_path):
+def publish_image(html_path, png_path, *, upload=True):
     with tempfile.TemporaryDirectory(prefix='financial-render-') as profile:
         process=subprocess.Popen(['/usr/bin/google-chrome','--headless','--disable-gpu','--disable-background-networking','--disable-sync','--no-first-run',
                     '--user-data-dir='+profile,
@@ -33,7 +33,7 @@ def publish_image(html_path, png_path):
                 except subprocess.TimeoutExpired:
                     os.killpg(process.pid,signal.SIGKILL)
                     process.wait(timeout=3)
-    return upload_image(png_path)
+    return upload_image(png_path) if upload else None
 
 
 def main():
@@ -42,12 +42,14 @@ def main():
     if not (root/'runtime/FINANCIAL_REPORTS_ARMED').is_file():
         return 0
     expected=json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
+    smtp = (root/'runtime/EMAIL_ALERTS_ARMED').is_file()
     credentials=Path.home()/'.config/openclaw/feishu-images.env'
-    if not credentials.is_file() or credentials.stat().st_mode & 0o077:
+    if not smtp and (not credentials.is_file() or credentials.stat().st_mode & 0o077):
         raise PermissionError('Private image-upload credentials required')
-    load_env_file(credentials)
+    if not smtp:
+        load_env_file(credentials)
     with monitoring_service('financial-report-builder', root):
-        print(json.dumps(prepare_reports(root,expected,datetime.now(timezone.utc),publish_image=publish_image)))
+        print(json.dumps(prepare_reports(root,expected,datetime.now(timezone.utc),publish_image=lambda html,png: publish_image(html,png,upload=not smtp), transport="smtp" if smtp else "feishu")))
     return 0
 
 

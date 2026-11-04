@@ -4,6 +4,9 @@ from email.message import EmailMessage
 import hashlib
 import smtplib
 import ssl
+import time
+from pathlib import Path
+from datetime import timezone
 from zoneinfo import ZoneInfo
 
 from .errors import redact
@@ -55,7 +58,8 @@ def message_for(item, sender, trading_status):
     return message
 
 
-def send_one(store, coordinator, config, *, trading_status='未验证', smtp_factory=smtplib.SMTP):
+def send_one(store, coordinator, config, *, trading_status='未验证', smtp_factory=smtplib.SMTP,
+             report_root=None, clock=time.time):
     # Validate before reserving; never print configuration or SMTP exception data.
     for key in ('host', 'sender', 'username', 'relay_password'):
         if not isinstance(config.get(key), str) or not config[key]:
@@ -65,11 +69,31 @@ def send_one(store, coordinator, config, *, trading_status='未验证', smtp_fac
     if item is None:
         return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
     operation = 'notification:outbox:' + str(item['id'])
+    started_at = clock()
+    store.delivery_started(item['id'], started_at)
     try:
         if not coordinator.begin_operation(operation, 'delivery', dict(outbox_id=item['id'], notification_kind=item['kind'])):
+            store.delivery_finished(item['id'], 'UNKNOWN')
             store.finish(item['id'], 'UNKNOWN')
             return 'UNKNOWN'
         message = message_for(item, config['sender'], trading_status)
+        message.set_content(message.get_content() + '\n实际发送发起（UTC）：'
+                            + datetime.fromtimestamp(started_at, timezone.utc).isoformat()
+                            + '\n通知编号：outbox:' + str(item['id']))
+        if item['kind'] in ('REPORT_BUNDLE', 'REPORT_SUPPLEMENT'):
+            message.replace_header('Subject', '买 der｜财务报告' + ('补报' if item['kind'] == 'REPORT_SUPPLEMENT' else ''))
+            for artifact in item['payload'].get('png_artifacts', []):
+                if report_root is None:
+                    raise ValueError('Fixed report root required')
+                path = Path(artifact['path']).resolve()
+                path.relative_to(Path(report_root).resolve())
+                if path.suffix != '.png' or path.stat().st_size > 10*1024*1024:
+                    raise ValueError('Bounded PNG required')
+                content = path.read_bytes()
+                if (not content.startswith(b'\x89PNG\r\n\x1a\n')
+                        or hashlib.sha256(content).hexdigest() != artifact['sha256']):
+                    raise ValueError('Report PNG changed')
+                message.add_attachment(content, maintype='image', subtype='png', filename=path.name)
         with smtp_factory(config['host'], port, timeout=15) as smtp:
             smtp.ehlo()
             smtp.starttls(context=ssl.create_default_context())
@@ -80,9 +104,11 @@ def send_one(store, coordinator, config, *, trading_status='未验证', smtp_fac
                 raise RuntimeError('Recipient not accepted')
     except BaseException:
         # Crash between any two commits remains STARTED/UNKNOWN and is never replayed.
+        store.delivery_finished(item['id'], 'UNKNOWN')
         coordinator.finish_operation(operation, 'UNKNOWN')
         store.finish(item['id'], 'UNKNOWN')
         raise
+    store.delivery_finished(item['id'], 'SMTP_ACCEPTED', ack_at=clock())
     coordinator.finish_operation(operation, 'SENT_ACCEPTED')
     store.finish(item['id'], 'SMTP_ACCEPTED')
     return 'SMTP_ACCEPTED'
