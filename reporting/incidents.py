@@ -27,6 +27,13 @@ class IncidentStore:
                     UNIQUE(incident_key, generation, kind));
                 CREATE INDEX IF NOT EXISTS notification_pending ON notification_outbox(status,id);
                 CREATE INDEX IF NOT EXISTS notification_incident_order ON notification_outbox(incident_key,id);
+                CREATE TABLE IF NOT EXISTS notification_delivery (
+                    notification_id INTEGER PRIMARY KEY,
+                    attempt_started_at REAL NOT NULL, ack_received_at REAL,
+                    status TEXT NOT NULL, provider_created_at REAL);
+                CREATE TABLE IF NOT EXISTS notification_preflight (
+                    notification_id INTEGER PRIMARY KEY, first_at REAL NOT NULL,
+                    attempts INTEGER NOT NULL, not_before REAL NOT NULL);
             ''')
 
     def connect(self):
@@ -55,6 +62,8 @@ class IncidentStore:
                 return True
             generation = row[0]
             c.execute("UPDATE incidents SET state='RESOLVED',resolved=? WHERE incident_key=?", (now, incident_key))
+            c.execute("UPDATE notification_outbox SET status='SUPERSEDED' WHERE incident_key=? "
+                      "AND generation=? AND kind LIKE 'REMINDER_%' AND status='PENDING'", (incident_key,generation))
             kind = 'RECOVERY'
         else:
             if row and row[1] == 'OPEN':
@@ -92,9 +101,11 @@ class IncidentStore:
             c.execute('BEGIN IMMEDIATE')
             row = c.execute("""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
                 WHERE n.status='PENDING' AND NOT EXISTS (
+                    SELECT 1 FROM notification_preflight p WHERE p.notification_id=n.id AND p.not_before>?)
+                AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED')) ORDER BY n.id LIMIT 1""").fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))
@@ -111,3 +122,87 @@ class IncidentStore:
     def uncertain_notifications(self):
         with closing(self.connect()) as c:
             return bool(c.execute("SELECT 1 FROM notification_outbox WHERE status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone())
+
+    def delivery_started(self, notification_id, at):
+        with closing(self.connect()) as c, c:
+            c.execute('INSERT INTO notification_delivery VALUES (?,?,NULL,?,NULL)',
+                      (notification_id, at, 'STARTED'))
+
+    def defer_unsent(self, notification_id):
+        """Only a preflight before HTTP/operation reservation may return to pending."""
+        now = self.clock()
+        with closing(self.connect()) as c, c:
+            c.execute('BEGIN IMMEDIATE')
+            if c.execute('SELECT 1 FROM notification_delivery WHERE notification_id=?',
+                         (notification_id,)).fetchone():
+                raise ValueError('Attempt may have been sent; reconciliation required')
+            prior = c.execute('SELECT first_at,attempts FROM notification_preflight WHERE notification_id=?',
+                              (notification_id,)).fetchone()
+            first, attempts = (prior[0], prior[1] + 1) if prior else (now, 1)
+            next_at = first + (15 if attempts == 1 else 45)
+            c.execute('INSERT OR REPLACE INTO notification_preflight VALUES (?,?,?,?)',
+                      (notification_id, first, attempts, next_at))
+            status = 'NOT_SENT_EXHAUSTED' if attempts >= 3 else 'PENDING'
+            changed = c.execute("UPDATE notification_outbox SET status=? WHERE id=? AND status='STARTED'",
+                                (status, notification_id)).rowcount
+            if changed != 1:
+                raise ValueError('Reserved unsent notification required')
+        return status
+
+    def enqueue_current_summary(self, rollout):
+        """One new snapshot per approved rollout, never a replay of historical notifications."""
+        with closing(self.connect()) as c, c:
+            c.execute('BEGIN IMMEDIATE')
+            key = 'monitoring-rollout:' + rollout
+            if c.execute('SELECT 1 FROM notification_outbox WHERE incident_key=?', (key,)).fetchone():
+                return False
+            opened = c.execute("SELECT incident_key,opened FROM incidents WHERE state='OPEN'").fetchall()
+            if not opened:
+                return False
+            payload = dict(severity='YELLOW', scope='CURRENT_UNRESOLVED_INCIDENTS', queued_at=self.clock(),
+                           reason='当前尚未收到恢复证据的故障：\n' + '\n'.join(k for k,_ in opened[:40]),
+                           action_taken='上线摘要；历史消息不重发。未恢复记录不代表最新券商状态，需看新鲜观测。',
+                           grants_trading_permission=False)
+            c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) "
+                      "VALUES (?,1,'CURRENT_SUMMARY',?,'PENDING')", (key,json.dumps(payload,ensure_ascii=False)))
+        return True
+
+    def delivery_finished(self, notification_id, status, *, ack_at=None):
+        with closing(self.connect()) as c, c:
+            c.execute('UPDATE notification_delivery SET status=?,ack_received_at=? WHERE notification_id=?',
+                      (status, ack_at, notification_id))
+
+    def enqueue_due_reminders(self):
+        """One latest elapsed stage per open occurrence; never replay uncertain sends."""
+        now = self.clock()
+        count = 0
+        with closing(self.connect()) as c, c:
+            c.execute('BEGIN IMMEDIATE')
+            for key, generation, opened in c.execute(
+                    "SELECT incident_key,generation,opened FROM incidents WHERE state='OPEN'").fetchall():
+                elapsed = now - opened
+                stage = (int(elapsed // 86400) + 2 if elapsed >= 86400 else
+                         2 if elapsed >= 7200 else 1 if elapsed >= 1800 else 0)
+                if not stage:
+                    continue
+                # An uncertain/pending earlier side effect cannot be bypassed by a new identity.
+                if c.execute("SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? "
+                             "AND status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED') LIMIT 1",
+                             (key, generation)).fetchone():
+                    continue
+                previous = c.execute('SELECT kind,payload FROM notification_outbox WHERE incident_key=? '
+                                     'AND generation=? ORDER BY id DESC LIMIT 1', (key, generation)).fetchone()
+                if not previous:
+                    continue
+                prior = json.loads(previous[1])
+                if stage <= prior.get('reminder_stage', 0):
+                    continue
+                payload = {**prior, 'queued_at': now, 'reminder_stage': stage,
+                           'duration_seconds': max(0, elapsed),
+                           'scope': prior.get('scope', 'CURRENT_UNRESOLVED_INCIDENT'),
+                           'action_taken': '持续故障提醒；仅代表故障尚未收到恢复证据，不代表最新券商状态'}
+                c.execute("INSERT OR IGNORE INTO notification_outbox "
+                          "(incident_key,generation,kind,payload,status) VALUES (?,?,?,?,'PENDING')",
+                          (key, generation, 'REMINDER_' + str(stage), json.dumps(payload, sort_keys=True)))
+                count += c.execute('SELECT changes()').fetchone()[0]
+        return count

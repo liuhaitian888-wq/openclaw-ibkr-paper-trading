@@ -1,0 +1,15 @@
+[Unit]
+Description=Prepare financial report artifacts from saved Paper evidence
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/FINANCIAL_REPORTS_ARMED
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/prepare_financial_reports.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=45
+MemoryMax=256M

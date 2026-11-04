@@ -111,6 +111,8 @@ def period_for(kind, now, monthly_policy='first_day'):
     elif kind == 'WEEKLY':
         # Shanghai Sunday morning is still NY Saturday; same Monday week anchor.
         start_day = report_day - timedelta(days=report_day.weekday())
+        if report_day.weekday() == 0:
+            start_day -= timedelta(days=7)
         end_day = start_day + timedelta(days=6)
     else:
         first = report_day.replace(day=1)
