@@ -25,3 +25,10 @@
 真实 adapter 接线与验收：见 `docs/production-audit/ADAPTER_ACCEPTANCE.md`。24 个模块接入既有 coordinator；真实 IBKR 只读连接与 Feishu 新认证已验证，但批准 universe、正式数据/manifest、业务对账、webhook 接收与完整生产长跑仍未验收。PAUSED/MAINTENANCE 不变，不以组件通过代替 READY。
 
 Production Acceptance：正式 manifest/audit/financial/delivery 仍未发布；候选库 48 条待确认、11 条已提交未闭环、50 条历史 FAILED 不自动重试。维护标记正式位置为 `${STATE_ROOT}/runtime/MAINTENANCE`，与 `maintenance/` 证据目录分离，PAUSED 保留。验收明细见 `docs/production-audit/PRODUCTION_ACCEPTANCE.md`。
+
+
+## 2026-11-05 云端期初基线（不解除本机停写）
+
+用户批准从今天开始跟踪当前券商事实。云端/opt/openclaw/app已建立PAPER DUQ503649期初持仓/订单基线，2026-11-05 00:19:33 Europe/Berlin，6持仓与1张既有PFE保护单持久化回读一致。旧109条请求保留在legacy_epoch；当前broker_orders不再为空，PFE活动标记已同步；历史收益与原始交易来源不因此变完整。详细表/备份/证据与未完成事项见ENGINEERING.md最新纪要。
+
+Broker baseline批准标记只授权现有只读采集器持久化券商事实，不授权订单、撤单或策略。PAUSED/MAINTENANCE保持；production.json仍为SAFE_MONITOR_ONLY且未批准执行。Brevo通知/PNG报表在单独监测身份下运行，不能把邮件通道批准当交易批准。

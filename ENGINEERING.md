@@ -2,6 +2,18 @@
 
 本文件统一工程纲领、核心要点、运行约束与验收状态。PRODUCTION.md 是当前生产停写与启动门禁的操作事实来源；历史证据按原路径保留。
 
+## 2026-11-05 当前追踪基线与交付实况
+
+- 用户授权从今天的券商实际账户/持仓/挂单建立期初基线，不要求恢复全部历史交易；旧本地记录退出当前视图但保留归档、备份与来源，不自动重放。已有持仓不生成虚构买入成交，历史盈亏缺失不补零。
+- 云端首次期初快照：2026-11-04T23:19:33.148510Z，即2026-11-05 00:19:33 Europe/Berlin；PAPER DUQ503649，6个持仓、1张PFE保护单（permId911411084）。持久化回读CURRENT_BASELINE_MATCHED；PFE has_active_order=1，SYSTEM_OWNED且may_modify=false。当前事实匹配不授予交易权限。
+- 期初快照永久保留于trading_audit.sqlite3的paper_readback_baselines；后续观测在paper_readback_observations、持仓当前视图在current_broker_positions，现有broker_orders保存订单事实；运行摘要runtime/broker-baseline.latest.json。首写前SQLite在线备份在state/baseline-backups/before-1a5edf201a17328f9dc55f0bc6ab1c0c866879abd130e23c68036ab69a36a244.sqlite3。109条旧请求仍在legacy_epoch_order_requests，未删除或重放。
+- 若先前活动单从完整快照消失，仅记录缺失与待对账，不猜测撤单/成交；既有PFE保护单未取消。新订单验收须关联独立run、账户、合约、orderRef/orderId/permId/execId；发起、ACK、成交、撤单、落库时间分别保存，缺失明确标记。这是后续订单入口的验收契约，尚未宣称全部实现。
+- Brevo已成为唯一云通知所有者：ibkr-notifications.service，runtime/BREVO_ALERTS_ARMED；旧EMAIL_ALERTS_ARMED与FEISHU_ALERTS_ARMED均撤下留证，避免嵌入旧邮件worker抢锁。原白底HTML→PNG邮件附件通道已部署，财务准备timer启用；09:00真实调度待观察。通知742的一封当前日报PNG取得SMTP_ACCEPTED，发起到确认约1.99秒，邮箱实收尚未查到，不重发。
+- Chrome首次受256MB服务上限被OOM终止，未发出报表；确认无残留且主机可用约2.7GB后设512MB soft/768MB hard预算，后续渲染PREPARED。单实例、15秒渲染超时与子进程清理保留。
+- Gateway系统服务Restart=always、jts.ini AutoRestart=1，PID651719保留；系统进程重拉有日志，原生每日免登录/跨日连续性仍未验收。
+- 订单验收尚未发单；最新PFE/BAC/KO均REALTIME_STALE，常规交易时段外且有效实时bid/ask缺失。不能以期初对账通过替代行情、运行身份、测试范围、风控/订单闭环验收。
+- 本批完整离线748项通过，gitleaks通过。外部独立心跳的未提交代码保留，未混入本批部署。
+
 ## 当前交付状态（2026-11-04）
 
 - 已确认设计不等于已实现；已实现不等于已部署；已部署不等于真实验收。
