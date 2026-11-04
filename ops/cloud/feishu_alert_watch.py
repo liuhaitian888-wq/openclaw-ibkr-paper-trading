@@ -5,12 +5,26 @@ from pathlib import Path
 import signal
 import sys
 import threading
+import subprocess
+from urllib.parse import urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from reporting.incident_feishu import send_one, validate_config
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
+from reporting.report_schedule import enqueue_reports
+from reporting.authentication_schedule import enqueue_authentication_notice
+from datetime import datetime, timezone
+
+
+def delivery_preflight(url):
+    # Failure here proves no webhook HTTP request was attempted. DNS success does not prove delivery.
+    try:
+        return subprocess.run(['/usr/bin/getent','ahosts',urlsplit(url).hostname],
+                              stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def main():
@@ -35,11 +49,17 @@ def main():
     with monitoring_service('incident-email', root):
         coordinator = RecoveryCoordinator(runtime/'recovery.sqlite3')
         store = IncidentStore(coordinator.path)
+        store.enqueue_current_summary('cloud-monitoring-delivery-20261104')
         while not stopped.is_set() and armed.is_file():
             if smtp_armed.exists():
                 raise RuntimeError('Concurrent SMTP arming is not permitted')
             try:
-                result = send_one(store, coordinator, cfg)
+                enqueue_authentication_notice(store, datetime.now(timezone.utc))
+                if (runtime/'FINANCIAL_REPORTS_ARMED').is_file():
+                    expected = json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
+                    enqueue_reports(store, root/'reports/financial', expected, datetime.now(timezone.utc))
+                store.enqueue_due_reminders()
+                result = send_one(store, coordinator, cfg, preflight=delivery_preflight)
             except RuntimeError:
                 print('FEISHU_DELIVERY_UNKNOWN_REQUIRES_RECONCILIATION', flush=True)
                 stopped.wait(5)
