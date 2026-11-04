@@ -6,6 +6,11 @@ import sqlite3
 import time
 
 
+def reminder_stage(elapsed):
+    return (int(elapsed // 86400) + 2 if elapsed >= 86400 else
+            2 if elapsed >= 7200 else 1 if elapsed >= 1800 else 0)
+
+
 class IncidentStore:
     def __init__(self, path, clock=time.time):
         self.path = Path(path)
@@ -153,6 +158,13 @@ class IncidentStore:
         """One new snapshot per approved rollout, never a replay of historical notifications."""
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
+            # Establish elapsed-stage watermarks once when installing reminders.
+            # Existing open history is represented by the one rollout summary, not N catch-up alerts.
+            cursor='reminders:installation-baseline:v1'
+            if not c.execute('SELECT 1 FROM incident_cursors WHERE source=?',(cursor,)).fetchone():
+                baseline={k+':'+str(g):reminder_stage(self.clock()-opened)
+                          for k,g,opened in c.execute("SELECT incident_key,generation,opened FROM incidents WHERE state='OPEN'")}
+                c.execute('INSERT INTO incident_cursors VALUES (?,?)',(cursor,json.dumps(baseline)))
             key = 'monitoring-rollout:' + rollout
             if c.execute('SELECT 1 FROM notification_outbox WHERE incident_key=?', (key,)).fetchone():
                 return False
@@ -178,12 +190,14 @@ class IncidentStore:
         count = 0
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
+            row=c.execute('SELECT payload FROM incident_cursors WHERE source=?',
+                          ('reminders:installation-baseline:v1',)).fetchone()
+            baseline=json.loads(row[0]) if row else {}
             for key, generation, opened in c.execute(
                     "SELECT incident_key,generation,opened FROM incidents WHERE state='OPEN'").fetchall():
                 elapsed = now - opened
-                stage = (int(elapsed // 86400) + 2 if elapsed >= 86400 else
-                         2 if elapsed >= 7200 else 1 if elapsed >= 1800 else 0)
-                if not stage:
+                stage = reminder_stage(elapsed)
+                if not stage or stage <= baseline.get(key+':'+str(generation),0):
                     continue
                 # An uncertain/pending earlier side effect cannot be bypassed by a new identity.
                 if c.execute("SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? "
