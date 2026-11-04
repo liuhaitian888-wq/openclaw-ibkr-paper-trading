@@ -12,4 +12,5 @@ UMask=0077
 NoNewPrivileges=yes
 ProtectSystem=full
 TimeoutStartSec=45
-MemoryMax=256M
+MemoryHigh=512M
+MemoryMax=768M
