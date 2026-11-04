@@ -2,8 +2,9 @@
 Description=Cloud Paper alerts and PNG reports through Brevo
 After=network-online.target
 ConditionPathExists=/home/ibkr/.config/openclaw/smtp.json
-ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/BREVO_ALERTS_ARMED
 ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/FEISHU_ALERTS_ARMED
+ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
 
 [Service]
 User=ibkr
