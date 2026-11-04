@@ -33,7 +33,9 @@ def main():
     root = Path.home()/'.local/state/openclaw'
     runtime = root/'runtime'
     armed = runtime/'FEISHU_ALERTS_ARMED'
-    smtp_armed = runtime/'EMAIL_ALERTS_ARMED'
+    smtp_armed = runtime/'BREVO_ALERTS_ARMED'
+    if (runtime/'EMAIL_ALERTS_ARMED').exists():
+        raise RuntimeError('Legacy SMTP owner must be unarmed before notification ownership')
     config = Path.home()/'.config/openclaw/feishu-alerts.json'
     smtp = smtp_armed.is_file()
     if smtp:
