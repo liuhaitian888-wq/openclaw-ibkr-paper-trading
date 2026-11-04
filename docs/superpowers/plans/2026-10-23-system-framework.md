@@ -1,5 +1,7 @@
 # Paper 系统框架与业务通知实施计划
 
+2026-11-04 用户确认补充纲领：[云端监测与报告工程纲领](../../production-audit/MONITORING_CONTRACT.md)。包含周内免每日 Gateway 登录目标、周度认证提前告警、云/Gateway/报告与飞书链路重点检查、分钟级时间证据和有限重试；要求已确认，实施与真实验收状态分别记录，不代表已部署。
+
 **Goal:** 复用现有系统，先建立明确的模块、接口和数据所有权，再接通可恢复的业务通知。
 **Architecture:** Fast Path 保留身份、风险、意图持久化和幂等。Background Path 负责研究、复盘、通知、统计及常规对账；健康依赖唯一入口为 reporting.health，恢复复用 RecoveryCoordinator。
 **Tech Stack:** Python、SQLite、IBKR Paper、systemd、SMTP。
