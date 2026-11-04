@@ -47,6 +47,16 @@ def main():
     with temporary.open('w') as handle:
         json.dump(result, handle, indent=2)
     temporary.replace(latest)
+    if (root/'runtime/BROKER_BASELINE_APPROVED').is_file() and result.get('complete') is True:
+        from reporting.broker_baseline import persist_readback
+        manifest = json.loads((root/'production.json').read_text())
+        projection = persist_readback(root/'trading_audit.sqlite3', result, account, datetime.now(timezone.utc),
+                                      review_paths=manifest.get('ownership_review_paths', []))
+        print('BROKER_BASELINE_' + projection['status'])
+        evidence = root/'runtime/broker-baseline.latest.json'
+        temporary = evidence.with_suffix('.tmp')
+        temporary.write_text(json.dumps(projection,indent=2))
+        temporary.replace(evidence)
     # Separate read-only output; never changes probe success or trading gates.
     report = publish_report(root, config)
     print('PAPER_SHADOW_REPORT_' + report['status'])
