@@ -14,6 +14,21 @@ class ReminderTests(unittest.TestCase):
             store.ingest('first','gateway',{'severity':'RED'})
             self.assertTrue(store.enqueue_current_summary('release-1'))
             self.assertFalse(IncidentStore(path).enqueue_current_summary('release-1'))
+
+    def test_installation_summarizes_old_faults_without_individual_catchup(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            now=[1000000.0];store=IncidentStore(Path(tmp)/'db',clock=lambda:now[0])
+            for n in range(3):
+                store.ingest('first-'+str(n),'fault-'+str(n),{'severity':'RED'})
+                item=store.claim();store.finish(item['id'],'SMTP_ACCEPTED')
+            now[0]+=3*86400
+            self.assertTrue(store.enqueue_current_summary('release-1'))
+            self.assertEqual(store.enqueue_due_reminders(),0)
+            summary=store.claim();self.assertEqual(summary['kind'],'CURRENT_SUMMARY')
+            store.finish(summary['id'],'FEISHU_ACCEPTED')
+            store.enqueue_current_summary('release-1')
+            now[0]+=86400
+            self.assertEqual(store.enqueue_due_reminders(),3)
     def test_latest_stage_restart_and_recovery(self):
         with tempfile.TemporaryDirectory() as tmp:
             now = [1000000.0]
