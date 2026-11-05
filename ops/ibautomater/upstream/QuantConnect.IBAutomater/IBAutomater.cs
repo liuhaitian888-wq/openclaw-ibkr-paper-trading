@@ -1117,6 +1117,10 @@ namespace QuantConnect.IBAutomater
         {
             OutputDataReceived?.Invoke(this, new OutputDataReceivedEventArgs("Searching for TWS JRE path"));
 
+            // Modern standalone installers can retain a stale temporary install4j path.
+            var bundledRuntime = Path.Combine(ibGatewayVersionPath, "jre");
+            if (File.Exists(Path.Combine(bundledRuntime, "bin", "java"))) return bundledRuntime;
+
             // Find TWS Java location (depends on OS and IBGateway version)
             var install4JPath = $"{ibGatewayVersionPath}/.install4j";
             OutputDataReceived?.Invoke(this, new OutputDataReceivedEventArgs($"Install4J path: {install4JPath}"));
