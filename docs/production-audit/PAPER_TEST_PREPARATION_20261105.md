@@ -20,3 +20,9 @@ This is a preparation checkpoint, not a successful order acceptance. User has au
 7. Close/reconcile only test-created exposure, verify no orphan test orders, retain event timestamps and full evidence; then assess remaining production acceptance separately.
 
 No step above is claimed executed merely because API/news connectivity passes. Current status is BLOCKED_MARKET_DATA_10197 plus unapproved test executor/risk manifest; full production remains NOT_READY.
+
+## Live logout recovery observation
+
+User confirmed leaving the Live session. The first new Paper connection at 10:27:08Z still returned10197 for NVDA/AMZN/TSLA and no bid/ask, while account reconciliation remained complete. This proves detection but not recovery. Do not call a phone UI exit immediate server-side session release; preserve bounded observation and re-evaluate before any order.
+
+API socket currently listens on wildcard4002, but UFW is active with default incoming deny and only22/tcp allowed (IPv4/IPv6); no public4002 rule. Diagnostics connect through local loopback. Gateway controller MainPID715454, NRestarts0 through this work. No Gateway restart was used to chase a green check.
