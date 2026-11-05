@@ -178,3 +178,9 @@ Review focus：pending前后inode身份不猜测；新文件已有内容不能�
 2026-10-27续接：保留上次中断的改动，完成journal_admin显式入口及shadow_journal_acceptance隔离诊断；源档恢复不修改SQLite cursor，备份restore只生成候选，生产水位/灾备切换仍单独验收。使用既有专用.venv和完整离线runner，通过后才Git整合部署；不启用生产交易/采集/邮件。
 
 验证：最终完整离线suite 573项/61.574秒/OK，FD回归5、连接恢复压力循环FD4且线程1。gitleaks staged扫描通过；Git整合、云端部署及隔离验收结果持续记录于finance/IBKR-Paper-实施进度.md，不以离线测试替代生产验收。
+
+## 2026-11-05 11:25 Europe/Berlin — actual news and Paper checkpoint
+
+Integrated pinned ib_async2.1.0 read-only news adapter with explicit Paper identity and lifecycle ownership. Removed legacy connection=>news entitlement inference; disabled default fixtures and tagged explicit fixture payloads. Added independent NEWS health dependency and persisted evidence. Full isolated suite762 PASS; secret scan PASS. Actual corrected cloud run10:24:15Z: eight providers, five Dow Jones sources with in-window titles + body hashes, Briefing old results excluded, DJNL empty not denied. Generic upstream datetime formatting differed from news spec; dashed start-only request + defensive return-window validation added. No new paid subscription or recurring collector installed. Details: docs/production-audit/NEWS_ACCEPTANCE.md.
+
+10:25:00Z Paper preparation readback complete: six positions, existing PFE protective order retained, zero executions/order_requests. NVDA/AMZN/TSLA now all return10197 with absent bid/ask: current competing Live market-data session, unlike the earlier conflict-free sample. No orders/cancels sent; news access does not remove quote/risk/execution gates. Test sequence and remaining executor/reservation blockers: docs/production-audit/PAPER_TEST_PREPARATION_20261105.md. Existing unrelated heartbeat work remains outside these commits.

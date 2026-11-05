@@ -17,3 +17,19 @@ Legacy local simulation defaults `NEWS_FIXTURE_ENABLED=false`; explicit fixture 
 ## Acceptance
 
 Offline suite: 762 tests passed, including connection-only, empty/timeout, identity, expiry, fixture, exception cleanup and partial-provider failure cases. Initial cloud collection at 10:21:53–10:21:55Z discovered eight providers and obtained seven article bodies. It also exposed that ib_async generic datetime formatting does not match the current news API dashed date specification: old Briefing results were returned despite the intended two-day request. The adapter now passes only an explicit `yyyy-MM-dd HH:mm:ss` start (empty end, per IBKR docs) and rejects out-of-window/malformed publication timestamps while retaining returned evidence. Date format and old-headline rejection are regression tested. Naive returned news timestamps are compared on a UTC basis; strategy_news_ready remains false, so this assumption does not authorize event-driven trading. Corrected cloud evidence follows below. No trading permission follows from news readiness.
+
+### Corrected cloud acceptance
+
+At 2026-11-05T10:24:13–10:24:15Z, exact Paper identity and resolved NVDA conId were checked. Eight providers discovered:
+
+| Provider | Actual result after publication-window validation |
+| --- | --- |
+| BRFG / BRFUPDN | Three returned old headlines each, all excluded; OUTSIDE_REQUESTED_WINDOW |
+| DJ-N | Three accepted headlines; article body verified (1324 bytes) |
+| DJ-RTA / DJ-RTE | One accepted headline each; two old results each excluded; article body verified (3589 bytes) |
+| DJ-RTG / DJ-RTPRO | Three accepted headlines each; article body verified (1324 bytes) |
+| DJNL | Empty result, NO_HEADLINES_IN_WINDOW; not labelled unsubscribed |
+
+No explicit permission-denied response occurred for these requests. This proves scoped historical retrieval for five providers, not full-feed streaming, complete universe coverage or paid entitlement to unlisted providers. Raw evidence is private state `observations/news/` (timestamped immutable JSON for the run), with latest projection `runtime/news.latest.json`. No fixture headline or article body was inserted into this evidence. One-shot collector is installed and verified; no new recurring service is enabled.
+
+Paper preparation at 10:25:00Z: complete account/positions/orders/executions/summary callbacks, six positions, one existing PFE order, no executions, zero local order_requests. All three requested stock quotes lacked valid bid/ask and returned 10197 (competing Live session). Consequently actual submission remains blocked even though news retrieval succeeds. Evidence: `runtime/paper-test-preparation.latest.json`. Preserve original protective order and UNKNOWN outcomes; do not solve concurrent market-data permissions by changing the API port.
