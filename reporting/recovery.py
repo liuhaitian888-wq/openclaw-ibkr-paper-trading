@@ -194,6 +194,11 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             cache['at']=time.time()
         return cache['broker']
     def check(module):
+        if module=='NEWS':
+            from trading.news_feed import load_evidence, capability
+            evidence=load_evidence(root/'runtime/news.latest.json')
+            ok=evidence.get('expected_account')==expected_account and capability(evidence)
+            return ok,'Independent broker news retrieval evidence; no replay or subscription',evidence
         if module in ('PROTECTION','PAPER_SESSION'):
             # Only the event-driven monitor may produce these facts. The generic
             # recovery walker cannot upgrade its own cached observations.

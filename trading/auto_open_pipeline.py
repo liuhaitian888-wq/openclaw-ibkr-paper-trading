@@ -63,7 +63,7 @@ class PipelineConfig:
     allow_paid_snapshot: bool = False
     allow_regulatory_snapshot: bool = False
     mock_scanner_enabled: bool = True
-    news_fixture_enabled: bool = True
+    news_fixture_enabled: bool = False
     trade_pool_size: int = 12
     simulated_fill_enabled: bool = True
 
@@ -84,7 +84,7 @@ class PipelineConfig:
             allow_paid_snapshot=read_bool("ALLOW_PAID_SNAPSHOT", False),
             allow_regulatory_snapshot=read_bool("ALLOW_REGULATORY_SNAPSHOT", False),
             mock_scanner_enabled=read_bool("MOCK_SCANNER_ENABLED", True),
-            news_fixture_enabled=read_bool("NEWS_FIXTURE_ENABLED", True),
+            news_fixture_enabled=read_bool("NEWS_FIXTURE_ENABLED", False),
             trade_pool_size=max(5, min(50, int(os.getenv("DYNAMIC_TRADE_POOL_SIZE", "12")))),
             simulated_fill_enabled=read_bool("SIMULATED_FILL_ENABLED", True),
         )
@@ -316,6 +316,9 @@ def run_news_pipeline(run_id: str, config: PipelineConfig, discovery: Mapping[st
     now = utc_now()
     providers = news_provider_status(run_id, config)
     interface_tests = ibkr_news_interface_tests(run_id, providers)
+    from trading.news_feed import load_evidence, capability
+    from trading.production_paths import RUNTIME_ROOT
+    broker_news = load_evidence(RUNTIME_ROOT/"news.latest.json")
     raw = raw_news_fixture(run_id, config, discovery, scanner)
     structured = [structure_news_event(item) for item in raw]
     candidate_events: list[dict[str, Any]] = []
@@ -350,6 +353,10 @@ def run_news_pipeline(run_id: str, config: PipelineConfig, discovery: Mapping[st
         "timestamp": now,
         "discovery_run_id": run_id,
         "source": "news_pipeline",
+        "broker_news_evidence": broker_news,
+        "broker_news_retrieval_verified": capability(broker_news),
+        "strategy_news_ready": False,
+        "fixtures_enabled": config.news_fixture_enabled,
         "providers": providers,
         "interface_tests": interface_tests,
         "raw_news_events": raw,
@@ -370,13 +377,13 @@ def run_news_pipeline(run_id: str, config: PipelineConfig, discovery: Mapping[st
 
 def news_provider_status(run_id: str, config: PipelineConfig) -> list[dict[str, Any]]:
     now = utc_now()
-    tws_ok = tws_available()
+    # Transport connectivity is never proof of a news entitlement.
     providers = [
-        ("IBKR_NEWS", "IBKR_NEWS", "IBKR", True, tws_ok, "IBKR_NEWS_AVAILABLE" if tws_ok else "IBKR_NEWS_NOT_SUBSCRIBED"),
+        ("IBKR_NEWS", "IBKR_NEWS", "IBKR", True, False, "UNVERIFIED_USE_REAL_NEWS_COLLECTOR"),
         ("FREE_RSS", "FREE_RSS", "RSS", config.news_fixture_enabled, True, "USED_FIXTURE"),
         ("SEC_FILINGS", "SEC_FILINGS", "SEC", config.news_fixture_enabled, True, "USED_FIXTURE"),
         ("EARNINGS_CALENDAR", "EARNINGS_CALENDAR", "EARN", config.news_fixture_enabled, True, "USED_FIXTURE"),
-        ("LOCAL_NEWS_CACHE", "LOCAL_CACHE", "CACHE", True, True, "AVAILABLE"),
+        ("LOCAL_NEWS_CACHE", "LOCAL_CACHE", "CACHE", True, False, "CACHE_UNVERIFIED"),
         ("NEWS_FIXTURE", "FIXTURE", "FIX", config.news_fixture_enabled, True, "USED_FIXTURE"),
     ]
     rows = []
@@ -390,11 +397,13 @@ def news_provider_status(run_id: str, config: PipelineConfig) -> list[dict[str, 
             "enabled": config.news_trigger_enabled,
             "configured": configured,
             "available": available and configured,
-            "is_live": ptype == "IBKR_NEWS" and tws_ok,
+            "is_live": False,
+            "source_kind": "FIXTURE" if status == "USED_FIXTURE" else "UNVERIFIED",
+            "grants_trading_permission": False,
             "requires_subscription": ptype == "IBKR_NEWS",
             "status": status,
             "last_success_at": now if available and configured and ptype != "IBKR_NEWS" else "",
-            "last_error": "" if available and configured else "not subscribed or unavailable",
+            "last_error": "" if available and configured else "No verified news retrieval evidence",
         }
         rows.append(row)
         insert_event(
@@ -416,7 +425,6 @@ def news_provider_status(run_id: str, config: PipelineConfig) -> list[dict[str, 
 
 def ibkr_news_interface_tests(run_id: str, providers: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     now = utc_now()
-    ibkr_available = any(p.get("provider_type") == "IBKR_NEWS" and p.get("available") for p in providers)
     interfaces = [
         "reqNewsProviders",
         "contract_generic_news_tick",
@@ -427,7 +435,7 @@ def ibkr_news_interface_tests(run_id: str, providers: Sequence[Mapping[str, Any]
     ]
     rows = []
     for interface in interfaces:
-        status = "PROVIDER_AVAILABLE" if ibkr_available and interface == "reqNewsProviders" else "IBKR_NEWS_NOT_SUBSCRIBED"
+        status = "NOT_EXECUTED"
         row = {
             "timestamp": now,
             "discovery_run_id": run_id,
@@ -437,7 +445,7 @@ def ibkr_news_interface_tests(run_id: str, providers: Sequence[Mapping[str, Any]
             "symbol": "",
             "conId": "",
             "headline_count": 0,
-            "error_message": "" if status == "PROVIDER_AVAILABLE" else "TWS/news entitlement unavailable; pipeline continues with RSS/SEC/earnings fixtures",
+            "error_message": "" if status == "PROVIDER_AVAILABLE" else "No real API request executed by this simulation; use collect_news.py evidence",
         }
         rows.append(row)
         insert_event("ibkr_news_interface_tests", {**row, "payload_json": json.dumps(row, sort_keys=True)})
@@ -446,7 +454,7 @@ def ibkr_news_interface_tests(run_id: str, providers: Sequence[Mapping[str, Any]
 
 def raw_news_fixture(run_id: str, config: PipelineConfig, discovery: Mapping[str, Any], scanner: Mapping[str, Any]) -> list[dict[str, Any]]:
     now = utc_now()
-    if not config.news_trigger_enabled:
+    if not config.news_trigger_enabled or not config.news_fixture_enabled:
         return []
     fixture = [
         ("FREE_RSS", "NVDA", "NVIDIA relative volume surges before the open", "rss:nvda:relvol"),
@@ -459,7 +467,10 @@ def raw_news_fixture(run_id: str, config: PipelineConfig, discovery: Mapping[str
         row = {
             "timestamp_utc": now,
             "discovery_run_id": run_id,
-            "event_id": f"{run_id}-news-{index}",
+            "event_id": f"{run_id}-fixture-news-{index}",
+            "source_kind": "FIXTURE",
+            "is_live": False,
+            "simulation_only": True,
             "source": source,
             "provider_code": source,
             "symbol": symbol,
