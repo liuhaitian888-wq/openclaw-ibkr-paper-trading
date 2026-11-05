@@ -52,7 +52,7 @@ class NewsTests(unittest.TestCase):
         self.assertFalse(r['news_usable'])
 
     def test_article_proof_and_expiry_and_fixture_rejection(self):
-        row = NS(time='2026-11-05 10:00:00', providerCode='REAL', articleId='a1', headline='Actual')
+        row = NS(time=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'), providerCode='REAL', articleId='a1', headline='Actual')
         ib = FakeIB(rows=[row]); r = self.run_probe(ib)
         self.assertTrue(r['news_usable']); self.assertTrue(ib.closed)
         self.assertEqual(health_observation(r)['state'], 'HEALTHY')
@@ -106,8 +106,20 @@ class NewsTests(unittest.TestCase):
                 if code == 'BAD':
                     self.errorEvent.handler(2, 1, 'Not subscribed')
                     return []
-                return [NS(time='2026-11-05', providerCode='GOOD', articleId='1', headline='Real')]
+                return [NS(time=datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'), providerCode='GOOD', articleId='1', headline='Real')]
         r = self.run_probe(Partial())
         self.assertTrue(r['news_usable'])
         self.assertEqual([p['status'] for p in r['providers']], ['ARTICLE_VERIFIED','BROKER_PERMISSION_DENIED'])
         self.assertFalse(r['live_stream_verified']); self.assertFalse(r['strategy_news_ready'])
+
+    def test_news_date_wire_format_and_old_article_rejected(self):
+        class Old(FakeIB):
+            async def reqHistoricalNewsAsync(self, conid, code, start, end, count):
+                datetime.strptime(start, '%Y-%m-%d %H:%M:%S')
+                assert end == ''
+                return [NS(time='2020-01-01 00:00:00', providerCode='REAL', articleId='old', headline='Old')]
+        ib = Old(); r = self.run_probe(ib)
+        self.assertEqual(r['providers'][0]['status'], 'OUTSIDE_REQUESTED_WINDOW')
+        self.assertEqual(r['providers'][0]['headlines'], [])
+        self.assertEqual(len(r['providers'][0]['returned_headlines']), 1)
+        self.assertEqual(ib.article_calls, 0); self.assertFalse(r['news_usable'])

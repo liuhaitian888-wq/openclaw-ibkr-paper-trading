@@ -61,6 +61,10 @@ async def collect(ib, stock_factory, *, expected_account, host='127.0.0.1', port
             return result
         result['con_id'] = contracts[0].conId
         end = utc_now()
+        start = end-timedelta(days=2)
+        # News API uses dashed dates and ignores end when start is supplied.
+        result['requested_start'] = start.strftime('%Y-%m-%d %H:%M:%S')
+        result['requested_end'] = ''
         for provider in providers[:10]:
             entry = dict(code=provider.code, name=provider.name, status='UNVERIFIED',
                          headlines=[], article_sha256=None, article_bytes=0)
@@ -68,17 +72,24 @@ async def collect(ib, stock_factory, *, expected_account, host='127.0.0.1', port
             error_start = len(errors)
             try:
                 rows = await asyncio.wait_for(ib.reqHistoricalNewsAsync(
-                    contracts[0].conId, provider.code, end-timedelta(days=2), end, 3), timeout)
+                    contracts[0].conId, provider.code, result['requested_start'], '', 3), timeout)
                 if rows is None:
                     entry['status'] = 'HEADLINE_TIMEOUT'
                 elif not rows:
                     entry['status'] = 'NO_HEADLINES_IN_WINDOW'
                 else:
-                    entry['headlines'] = [dict(time=str(r.time), provider_code=r.providerCode,
+                    entry['returned_headlines'] = [dict(time=str(r.time), provider_code=r.providerCode,
                         article_id=r.articleId, headline=r.headline,
                         source_kind='BROKER_API', retrieved_at=utc_now().isoformat()) for r in rows]
+                    entry['headlines'] = [r for r in entry['returned_headlines']
+                        if in_window(r['time'], start, end)]
+                    entry['out_of_window_count'] = len(rows)-len(entry['headlines'])
+                    if not entry['headlines']:
+                        entry['status'] = 'OUTSIDE_REQUESTED_WINDOW'
+                        entry['errors'] = errors[error_start:]
+                        continue
                     entry['status'] = 'HEADLINES_VERIFIED'
-                    latest = rows[0]
+                    latest = next(r for r in rows if r.articleId == entry['headlines'][0]['article_id'])
                     article = await asyncio.wait_for(ib.reqNewsArticleAsync(
                         latest.providerCode, latest.articleId), timeout)
                     if article and article.articleText.strip():
@@ -124,3 +135,14 @@ def health_observation(result, now=None):
                 freshness='FRESH' if valid else 'UNKNOWN',
                 reason='Broker headline and article verified' if valid else 'News retrieval unverified',
                 observed_at=result.get('completed_at'), last_success=result.get('completed_at') if valid else None)
+
+
+def in_window(value, start, end):
+    """Reject malformed, future or stale broker publication timestamps."""
+    try:
+        parsed = datetime.fromisoformat(value)
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return start <= parsed <= end
+    except (TypeError, ValueError):
+        return False
