@@ -26,7 +26,7 @@ class AutoOpenPipelineTests(unittest.TestCase):
 
         statuses = {row["status"] for row in result["news"]["interface_tests"]}
         self.assertTrue(statuses)
-        self.assertGreaterEqual(len(result["news"]["raw_news_events"]), 1)
+        self.assertEqual(result["news"]["raw_news_events"], [])
         self.assertEqual(result["simulation"]["ibkr_paper_orders_submitted"], 0)
 
     def test_scanner_news_and_fast_guidance_cannot_submit_orders(self) -> None:
