@@ -65,3 +65,22 @@ class ConnectionBudgetTests(unittest.TestCase):
   def contents(path):
    return 'header\n0: 00000000000000000000000000000000:0FA2 00000000000000000000000000000000:0000 0A' if str(path).endswith('tcp6') else 'header\n'
   with patch('ops.cloud.paper_safety_watch.Path.read_text',autospec=True,side_effect=contents):self.assertTrue(api_listener_ready())
+
+ def test_persistent_controller_tracks_only_owned_gateway_java(self):
+  from ops.cloud.paper_safety_watch import gateway_process_generation
+  proc=self.root/'proc'
+  def process(pid,comm,command,children,start):
+   base=proc/str(pid);(base/'task'/str(pid)).mkdir(parents=True)
+   (base/'comm').write_text(comm);(base/'cmdline').write_bytes(command)
+   (base/'task'/str(pid)/'children').write_text(children)
+   (base/'stat').write_text(str(pid)+' ('+comm+') '+ ' '.join(['S']+['0']*18+[str(start)]))
+  process(10,'python',b'python automater.py','11',100)
+  process(11,'dotnet',b'dotnet automater.dll','12',101)
+  process(12,'java',b'java\0ibgateway.GWClient','',102)
+  process(99,'java',b'java\0ibgateway.GWClient','',999)
+  self.assertEqual(gateway_process_generation(proc,10),'12:102')
+  process(13,'java',b'java\0ibgateway.GWClient','',103)
+  (proc/'11/task/11/children').write_text('13')
+  self.assertEqual(gateway_process_generation(proc,10),'13:103')
+  (proc/'11/task/11/children').write_text('12 13')
+  self.assertIsNone(gateway_process_generation(proc,10))

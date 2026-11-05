@@ -84,3 +84,36 @@ class SymbolHealthTests(unittest.TestCase):
   self.assertTrue(symbol_market_permission(state,self.now)['allowed'])
   self.assertFalse(symbol_market_permission(state,self.now+6)['allowed'])
   state['fault_active']=True;self.assertFalse(symbol_market_permission(state,self.now)['allowed'])
+
+ def test_hmds_explicit_session_conflict_remains_recoverable(self):
+  s=self.r.error('BAD',162,'Historical Market Data Service error message:Trading TWS session is connected from a different IP address')
+  self.assertEqual(s['code'],10197)
+  self.assertEqual(s['action'],'RESUBSCRIBE_DATA')
+  self.now+=30
+  self.assertIsNotNone(self.r.retry_due('BAD',session='PREMARKET',connected=True))
+
+ def test_secondary_history_error_does_not_disable_quote_collision_recovery(self):
+  self.r.error('BAD',10197,'competing')
+  s=self.r.error('BAD',162,'Historical Market Data Service error: query unavailable')
+  self.assertEqual(s['code'],10197)
+  self.assertEqual(s['secondary_error']['code'],162)
+  self.now+=30
+  self.assertIsNotNone(self.r.retry_due('BAD',session='PREMARKET',connected=True))
+
+ def test_legacy_hmds_session_error_adopted_without_budget_reset(self):
+  from contextlib import closing
+  import json
+  self.r.lifecycle.seed_legacy('BAD',4,'old')
+  old=dict(code=162,details='Trading TWS session is connected from a different IP address',
+           action='DIAGNOSE_MESSAGE',phase='BLOCKED',attempts=4,next_retry=None,episode=7)
+  with closing(self.r.store.connect()) as c,c:
+   c.execute('INSERT OR REPLACE INTO symbol_health_runtime VALUES (?,?)',('@retry:BAD',json.dumps(old)))
+  r=SymbolRecovery(self.path,['GOOD','BAD'],clock=lambda:self.now)
+  self.assertEqual(r.lifecycle.snapshot('BAD')['attempts'],4)
+  with closing(r.store.connect()) as c:s=r._read(c,'@retry:BAD')
+  self.assertEqual(s['code'],10197);self.assertEqual(s['original_code'],162)
+  self.assertEqual(s['attempts'],4);self.assertEqual(s['episode'],7)
+  stamp=s['classification_corrected_at'];self.now+=1
+  r=SymbolRecovery(self.path,['GOOD','BAD'],clock=lambda:self.now)
+  with closing(r.store.connect()) as c:s=r._read(c,'@retry:BAD')
+  self.assertEqual(s['classification_corrected_at'],stamp)

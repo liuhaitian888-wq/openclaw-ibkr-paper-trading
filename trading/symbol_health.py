@@ -14,6 +14,15 @@ ACTIVE = frozenset(('PREMARKET','REGULAR','AFTERHOURS','EARLY_CLOSE'))
 CLOSED = frozenset(('CLOSED','WEEKEND','HOLIDAY'))
 
 
+def session_error_code(code, details):
+    """Classify the explicit HMDS competing-session variant, not every 162."""
+    text = str(details).lower()
+    if code == 162 and ('trading tws session is connected from a different ip address' in text
+                        or 'no market data during competing' in text):
+        return 10197
+    return code
+
+
 def classify_symbol(fields, now, *, session='SESSION_UNKNOWN', halted=None, max_age=5):
     """Freshness is callback age, not a claim of exchange-to-client latency."""
     kind = fields.get('data_type')
@@ -72,6 +81,24 @@ class SymbolRecovery:
         self.max_attempts,self.cooldown,self.notify_after,self.validations=max_attempts,cooldown,notify_after,validations
         with closing(self.store.connect()) as c,c:
             c.execute('CREATE TABLE IF NOT EXISTS symbol_health_runtime (key TEXT PRIMARY KEY,payload TEXT NOT NULL)')
+        self._adopt_session_errors()
+
+    def _adopt_session_errors(self):
+        """Correct legacy classification without erasing evidence or retry budgets."""
+        with closing(self.store.connect()) as c,c:
+            c.execute('BEGIN IMMEDIATE')
+            for symbol in self.symbols:
+                key='@retry:'+symbol;s=self._read(c,key)
+                if s.get('code')==162 and session_error_code(162,s.get('details',''))==10197:
+                    s.update(original_code=162,code=10197,action='RESUBSCRIBE_DATA',
+                             classification_corrected_at=self.clock())
+                    if s.get('phase')!='NORMAL' and s.get('next_retry') is None:
+                        s['next_retry']=self.clock()+30
+                    self._save(c,key,s)
+                    lifecycle=self.lifecycle.read(c,symbol)
+                    self.lifecycle.fault(lifecycle,symbol,'10197')
+                    lifecycle['slow_probe_eligible']=True
+                    self.lifecycle.save(c,symbol,lifecycle)
 
     @staticmethod
     def _read(c,key):
@@ -167,6 +194,7 @@ class SymbolRecovery:
 
     def error(self,symbol,code,details,*,confirmed_shared=False):
         if symbol not in self.symbols:raise ValueError('Unknown symbol')
+        code=session_error_code(code,details)
         now=self.clock()
         affected=self.symbols if confirmed_shared and code==10197 else (symbol,)
         if code in (10197,1100,1101,10225):
@@ -192,6 +220,12 @@ class SymbolRecovery:
                 link['state']='RESTORED'
                 self._save(c,'@condition:'+symbol,dict(key=f'upstream:{link["generation"]}',observed_at=now))
             self._save(c,'@link:'+symbol,link)
+            # A secondary HMDS diagnostic must not silence an active quote
+            # collision's bounded recovery. Preserve both pieces of evidence.
+            if code in (162,321) and s.get('code')==10197 and s.get('phase')!='NORMAL':
+                s['secondary_error']=dict(code=code,details=str(details),observed_at=now)
+                self._save(c,key,s)
+                return s
             if not s or s.get('phase')=='NORMAL':
                 s=dict(attempts=0,next_retry=now+30,phase='BLOCKED',episode=s.get('episode',0)+1)
             s.update(code=code,details=str(details),affected=list(self.symbols) if key=='@shared_session' else [symbol])

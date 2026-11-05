@@ -52,10 +52,33 @@ def gateway_generation():
     try:
         pid=int(subprocess.check_output(['systemctl','show','ibkr-gateway.service','-p','MainPID','--value'],timeout=2,text=True))
         if pid<=0:return None
-        # comm may contain spaces; starttime is field 22 after the closing paren.
-        start=Path('/proc',str(pid),'stat').read_text().rsplit(')',1)[1].split()[19]
-        return str(pid)+':'+start
+        return gateway_process_generation(Path('/proc'),pid)
     except (OSError,ValueError,IndexError,subprocess.SubprocessError):return None
+
+
+def gateway_process_generation(proc, owner_pid):
+    """Identify the owned Gateway Java child beneath the persistent automater.
+
+    Walk only this owner's process tree, not unrelated Java peers. Fail closed
+    if the child is absent/ambiguous; the Python/.NET owner is not a session.
+    """
+    pending=[owner_pid];seen=set();gateways=[]
+    while pending and len(seen)<32:
+        pid=pending.pop()
+        if pid in seen:continue
+        seen.add(pid)
+        try:
+            base=proc/str(pid)
+            executable=(base/'comm').read_text().strip()
+            command=(base/'cmdline').read_bytes().replace(b'\0',b' ')
+            if executable=='java' and (b'ibgateway' in command.lower() or b'ibcalpha' in command.lower()):
+                start=(base/'stat').read_text().rsplit(')',1)[1].split()[19]
+                gateways.append(str(pid)+':'+start)
+            children=(base/'task'/str(pid)/'children').read_text().split()
+            pending.extend(int(child) for child in children)
+        except (OSError,ValueError,IndexError):
+            continue
+    return gateways[0] if len(gateways)==1 and not pending else None
 
 
 def api_listener_ready():

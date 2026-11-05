@@ -12,7 +12,7 @@ import uuid
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from trading.audit import AuditLog
-from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol, compute_pause_scopes
+from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol, compute_pause_scopes, session_error_code
 
 ACCOUNT = 'DUQ503649'
 ENDS = {'orders', 'completed_orders', 'executions', 'positions'}
@@ -306,6 +306,12 @@ class PaperSafetyMonitor:
         with self.lock:
             # A cancellation acknowledgement is not a new recovery failure.
             if code==162 and 'cancel' in str(details).lower():return
+            code=session_error_code(code,details)
+            # An unrelated history error cannot replace a current quote-session
+            # conflict and suppress the existing read-only recovery policy.
+            if code in (162,321) and self.state['market_errors'].get(symbol,{}).get('code')==10197:
+                self.symbol_recovery.error(symbol,code,details)
+                return
             self.state['market_errors'][symbol]=dict(code=code,details=str(details),observed_at=self.clock())
             shared = code==10197 and all(self.state['market_errors'].get(s,{}).get('code')==10197
                 and 0<=self.clock()-self.state['market_errors'][s]['observed_at']<=60 for s in self.symbols)
