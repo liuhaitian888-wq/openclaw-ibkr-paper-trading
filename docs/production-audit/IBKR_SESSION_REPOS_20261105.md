@@ -25,3 +25,21 @@ Confirmed local defects corrected:
 - Passive Gateway generation inspection follows only the systemd-owned descendant tree to the unique Gateway Java process. The persistent Python/.NET automater controller no longer hides Java/native soft restarts. Missing/ambiguous children remain UNKNOWN.
 
 766 isolated offline tests passed; no real TCP permitted by the runner. Existing notifications are not test-sent. Deployment must back up source SQLite and identities before bounded monitor restart. Any explicitly authorized Gateway reauthentication is a separately recorded one-time operation, not a read-only recovery callback or automatic restart loop.
+
+## Actual bounded rollout and QuantConnect reauthentication
+
+Cloud sourcea410b19 deployed after consistent SQLite/source-manifest backups to private `runtime/session-recovery/20261105T222526Z`. Only paper-safety monitor restarted to load verified code; Gateway Java716364 was unchanged. Native-generation inspection correctly returned716364:112616175. LegacyPFE162 policy adopted as10197 with original_code162 and preserved attempts/history. Production execution manifest hash stayed6012349bf80386432c9a2d24f3fa640813b9e88fcb2e7936b5f77b7c20aa69eb.
+
+Current-session fresh readback22:26:26Z: exact Paper account, complete snapshots, originalPFE8 PreSubmitted permId911411084 intact, but all three NVDA/AMZN/TSLA quote requests returned10197. This is a real broker rejection, not an inference from stale cached quotes.
+
+One explicitly authorized Paper reauthentication via the existing QuantConnect IBAutomater was durably reserved in `runtime/quantconnect-session-reauth-20261105.json`; no repeat/replay. Timeline UTC (Berlin+1hour):
+-22:27:00 systemd stopped the existing owner and started the same approved service.
+-22:27:21.372 START_RESULT None after automatic credential login; no human2FA requested in this attempt.
+-22:27:41.580 monitor recorded a new connection attempt against nativeJava782068:117157745.
+-22:28:42.280 sustained60-second account/end-marker validation completed. API connection recovery succeeded, independently of market readiness.
+
+Post-reauth independent readback22:28:24Z remained complete, but new requests for all three stocks still returned10197 and no bid/ask. Original protective order retained and execution manifest unchanged. Evidence `runtime/quantconnect-reauth-readback-20261105.json`. Diagnostic subscriptions cancelled, socket/reader/worker closed, threads1, fds5. No orders/cancels submitted. Do not label this MARKET_RECOVERED, and do not repeat Gateway reauthentication to chase a green state.
+
+Continuous owner logs also prove BAC/KO automatic15-minute data subscription attempts persisted through21:05,21:20,21:35,21:50,22:06,22:21UTC; they did not stop altogether. PFE resumed bounded low-frequency recovery at22:25:37UTC after classification repair. A15-minute recovery cadence intentionally does not promise immediate restoration after a user closes a Live UI.
+
+User now reports the Live app asks for a password and guesses it is logged out. This is not proof of server-side brokerage/market-session release. The exact still-competing session remains unverified; the available SocketAPI/connector exposes no active-session inventory. Both officialibapi and ib_async reproduced the error, including after a real reauthentication. Need explicit broker logout/session release or IBKR-side investigation before real quote recovery can be certified. No additional Live brokerage session is opened by diagnostics.

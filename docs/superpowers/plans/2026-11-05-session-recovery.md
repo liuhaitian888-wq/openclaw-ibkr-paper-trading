@@ -14,9 +14,12 @@
 - No UNKNOWN order replay or existingPFE cancellation; maintain global PAUSED.
 
 ## Tasks
-- [ ] Capture fresh broker/session/owner evidence and resource baseline.
-- [ ] Add regression tests, fix session-error classification and Gateway child identity.
-- [ ] Run isolated full suite and scan, Git integrate; bounded monitor-only rollout after state backup.
+- [x] Capture fresh broker/session/owner evidence and resource baseline.
+- [x] Add regression tests, fix session-error classification and Gateway child identity.
+- [x] Run isolated full suite and scan, Git integrate; bounded monitor-only rollout after state backup.
 - [ ] Verify real quote recovery; if fresh broker requests remain denied after confirmed logout, investigate native session and perform at most one separately journaled authorized Paper reauthentication, not a recovery-loop restart.
 - [ ] Reconcile account/orders/quotes after recovery; implement/validate the explicit Paper test journal and risk scope before any test order.
 - [ ] Record evidence and push code through Git.
+
+## Checkpoint
+API recovery verified after one authorized QuantConnect IBAutomater reauthentication; real market recovery remains blocked by fresh10197. User password-entry screen does not confirm server logout. Actual orders remain untransmitted.
