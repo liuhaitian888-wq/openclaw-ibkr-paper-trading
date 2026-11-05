@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>net10.0;netstandard2.1</TargetFrameworks>
+    <Copyright>Copyright ©  2019</Copyright>
+    <Version>2.0.94</Version>
+    <Description>QuantConnect IBAutomater</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/QuantConnect/IBAutomater</PackageProjectUrl>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="IBAutomater.sh" Pack="true">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PackagePath>contentFiles/any/any/</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+    </None>
+    <None Include="../java/IBAutomater/dist/IBAutomater.jar" Pack="true">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <PackagePath>contentFiles/any/any/</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+    <PackageReference Include="NodaTime" Version="3.0.5" />
+  </ItemGroup>
+</Project>

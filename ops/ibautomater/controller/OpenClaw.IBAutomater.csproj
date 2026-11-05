@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+<PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><StartupObject>OpenClaw.AutomaterOwner</StartupObject><GenerateAssemblyInfo>false</GenerateAssemblyInfo></PropertyGroup>
+<ItemGroup><Compile Include="../upstream/QuantConnect.IBAutomater/*.cs" /></ItemGroup>
+<ItemGroup><PackageReference Include="Newtonsoft.Json" Version="13.0.2" /><PackageReference Include="NodaTime" Version="3.0.5" /></ItemGroup>
+</Project>
