@@ -2,6 +2,17 @@
 
 本文件统一工程纲领、核心要点、运行约束与验收状态。PRODUCTION.md 是当前生产停写与启动门禁的操作事实来源；历史证据按原路径保留。
 
+## 2026-11-05 IBAutomater直接集成与软重启验收
+
+- 用户明确授权采用QuantConnect/IBAutomater并持久保存IBKR凭证。固定上游5751a0a9baef74a47515b8ce96a39308563d11d4，源码/许可证位于ops/ibautomater/upstream；复用上游C#进程/重启状态机和Java Agent Swing登录/IB Key流程，没有重写登录协议。
+- 本地适配：复用现有DISPLAY=:99及Xauthority；去掉全局pkill java/Xvfb及替换桌面的脚本；Stop只结束其拥有的进程树且有超时；保留Read-Only API与订单警告原设置；明确当前安装路径；修正2FA定时执行器退出；凭证与agent配置私有0600。源码目录/runtime参数不携带密码。
+- 凭证通过仅本机录入页录入，云端~/.config/openclaw/ibautomater-credentials.json为0600、Paper限定；临时录入服务在保存/转存后关闭。秘密未进入Git、聊天或控制器阶段日志。首次和周期性IB Key确认仍由用户完成，不绕过认证。
+- 首次上线遇JavaNotFound：安装器.installer记录仍指向已消失的/tmp安装目录。增加优先检测/home/ibkr/Jts/jre/bin/java后，编译与752项完整离线suite通过，gitleaks通过。Java Agent采用Java11目标编译，C#为.NET10；云端仅安装官方Ubuntu .NET10运行时。
+- 单一原ibkr-gateway.service经drop-in运行ops/cloud/gateway_automater.py；批准身份、release文件哈希与kernel实例锁均先校验。原Gateway配置已备份于state/deployment-evidence/ibautomater-20261105/before/。构建发布制品/opt/openclaw/ibautomater/releases/62c08a2，源码提交62c08a2ef7b387ca0e9bd8a230841f9da6927f26，发布批准runtime/gateway-automater-deployment.json。
+- 09:47:09 UTC自动登录/配置初始化成功，4002恢复；09:47:53券商期初基线回读匹配。不是以进程存在替代认证成功。
+- 原生软重启受控验收：2026-11-05T09:48:43.342244Z仅触发一次restart watcher，Gateway界面设置09:50 UTC；09:50:21.659684Z控制器发出SOFT_RESTART_COMPLETED，服务MainPID715454未变、NRestarts=0。09:50:45.452993Z当前基线匹配（6持仓、PFE系统保护单permId911411084保留，未修改），09:50:47.004451Z NVDA/AMZN/TSLA均data_type1且买卖报价恢复；探测连接和订阅已关闭。order_requests仍0。本次无需人工重新输入凭证。
+- 证据runtime/gateway-softrestart-acceptance-20261105.json为VERIFIED。一次受控软重启通过，不等于真实跨日/周认证/手机竞争会话全部验收。手机完整交易会话仍可能竞争；未知订单结果不自动重放，PAUSED/MAINTENANCE及交易门禁保持。
+
 ## 2026-11-05 当前追踪基线与交付实况
 
 - 用户授权从今天的券商实际账户/持仓/挂单建立期初基线，不要求恢复全部历史交易；旧本地记录退出当前视图但保留归档、备份与来源，不自动重放。已有持仓不生成虚构买入成交，历史盈亏缺失不补零。
