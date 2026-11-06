@@ -24,14 +24,14 @@
 ### Task 1: External heartbeat acceptance
 - [x] Read source and actual systemd timer/check configuration.
 - [x] Arm bounded automatic restore before stopping heartbeat delivery.
-- [ ] Observe external Down and Up plus provider notification result; preserve evidence.
-- [ ] Compare production gates and service owners before/after.
+- [x] Observe external Down and Up plus provider notification result; preserve evidence. User confirmed both.
+- [x] Compare production gates and service owners before/after.
 
 ### Task 2: Recovery semantics
-- [ ] Separate session-conflict clearance from strategy quote freshness.
-- [ ] Test post-fault quote provenance, stale/closed/unknown market sessions and independent API recovery.
-- [ ] Run full offline suite and secret scan; deploy through Git only.
-- [ ] Perform bounded API failure/recovery and verify real notification receipts.
+- [x] Separate session-conflict clearance from strategy quote freshness.
+- [x] Test post-fault quote provenance, stale/closed/unknown market sessions and independent API recovery.
+- [x] Run full offline suite and secret scan; deploy through Git only. 816 passed.
+- [x] Perform bounded API failure/recovery and verify real notification receipts. User confirmed API and market recovery.
 
 ### Task 3: Secretary archive and chat
 - [ ] Add dedicated agent_secretary.sqlite3 with append-only events, source references, model/tool run states, strategy revisions and backtest/fee artifacts.
