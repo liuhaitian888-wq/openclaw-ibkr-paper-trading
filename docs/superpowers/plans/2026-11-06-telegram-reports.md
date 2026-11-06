@@ -33,3 +33,9 @@ Source: ENGINEERING.md lines 68–82 and existing report/authentication/incident
 - [ ] Final full offline suite, staged+all-files secret scan, Git integration, remote push, cloud ff-only deployment/manifests and smoke.
 
 Operational timing carried forward: <=60s normal-network event/schedule-to-ack target, reminders first/30min/2h/24h/daily, offline catch-up one current summary, estimated authentication 24h/1h. External heartbeat <=120s remains a separate unresolved acceptance item; existing 5min provider settings do not satisfy it.
+
+## 可见运维收口（用户2026-11-06追加）
+- [ ] 新增只读运行时间线导出：全球门禁、分故障通知及原生回执、暂停条件聚合；时间统一Europe/Berlin，原UTC保留。无发送/重连/订单接口。
+- [ ] 用fixture验证账户/故障身份不混合、UNKNOWN保留、聚合不冒充停机次数、SQLite句柄关闭；缺来源明确warnings。
+- [ ] 只读云取证后生成今日Markdown对照表，在VS Code打开；研发优先使用已授权worktree与可见终端，生产服务保留云systemd单owner。
+- [ ] 公共健康依赖按实际主通道选择，默认保留兼容，Telegram不能因为旧Feishu故障被误判；不以健康图修改授予自动交易权限。

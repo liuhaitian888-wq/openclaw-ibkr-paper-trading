@@ -243,3 +243,11 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 用户要求收口记录，暂不继续Paper试单。交接详见docs/production-audit/HANDOFF_20261106_TELEGRAM_PAPER.md。最后云功能代码b3e4eac、通知服务active/NRestarts0、TELEGRAM_ACCEPTED报告788/message2、UNKNOWN通知0、Paper尝试0、全局门禁哈希不变。786项完整离线通过和stage后secret scan均通过。显式USD读取修复已部署，部署后preflight未做；正式Flex、真实09:00/故障恢复发送验收、公共DELIVERY通道依赖、有限Paper闭环和正式自动策略仍待接续，不能标成全部完成。现有自动只读监测/Telegram通知保持运行；没有安排定时唤醒。
 - 本轮核对到真实调度/连接故障Telegram证据：09:00Asia/Shanghai日报outbox789/message3/server01:00:05Z，计划至本地ACK约5.78秒；API_CONNECTION_CLOSED outbox795/message9/server07:01:05Z，恢复outbox797/message11/server07:01:50Z。只验证调度/发送与回读恢复，不把API快照报表称作Flex正式报表；10197真实发送闭环仍不宣称已验收。
 - 本轮修复：一次性验收连接的10197进入既有SymbolRecovery持久冲突身份；恢复仍要求多次独立新鲜报价与完整对账。旧NOTIFICATION_CHANNEL_TEST不再生成新周期提醒，原账本不改。完整离线787项通过；部署后不重开已用尽的Paper测试scope。
+
+## 2026-11-06 可见时间线与自动运行门禁收口
+- 用户要求看清今天何时暂停、何时恢复、Telegram是否确认；新增只读inspect_runtime_timeline导出，将全局门禁、通知原生回执与暂停条件聚合分开。文件mtime不冒充暂停起点，重复条件变化不冒充真实停机次数，UNKNOWN不当成功。
+- 确认08:01:03 API断开事件→08:01:05Telegram message9；08:01:44完整账户回读恢复→08:01:50Telegram message11。00:45Gateway软重启与全局策略PAUSED分别展示，08:01stop/start触发者仍未知；截图tail是重复打印，不是重复重启。
+- 公共health registry/resolver及恢复协调器按持久主通道选择依赖；Telegram不再被休眠Feishu故障连带阻塞，SMTP备用保持独立。配置路由不提升健康、不授予交易权限；Telegram/SMTP账本读取共享outbox而非旧delivery.json，未确认操作继续保持。
+- 791项完整离线通过；本轮不下单、不发测试消息、不解除PAUSED/MAINTENANCE。真实Paper三笔已于前轮验收完成且scope关闭，不重复。
+- 自动策略尚被明确事实阻塞：production.json ready=false/SAFE_MONITOR_ONLY，canonical_current_state_verified=false，控制/风控/权威状态/隔离风险与策略依赖尚未获批准。门禁输出中的Duplicate/uncertain默认拒绝项不等于发现了新UNKNOWN订单；上轮已独立查明UNKNOWN订单0。
+- 用户偏好此项目后续以VS Code Codex扩展为开发入口，已记AGENTS.md。当前桌面聊天没有因展示终端而迁入IDE；生产systemd单owner仍在云端，开发/全套测试仍限既有linked worktree。官方IDE依据https://learn.chatgpt.com/docs/codex/ide 。
