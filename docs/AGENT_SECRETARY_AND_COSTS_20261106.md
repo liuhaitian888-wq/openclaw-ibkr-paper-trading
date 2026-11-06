@@ -58,3 +58,15 @@ https://www.interactivebrokers.com/en/pricing/commissions-stocks.php
 适用项必须按账户 Fixed/Tiered、标的/市场、路由、买卖方向、交易日期、月累计量及收费粒度配置；Fixed 已包含的项目不能重复相加。分拆成交不能把每笔 fill 错当每张 order 重复收最低佣金。分数股、DRIP、期权、期货、外汇另有规则，不套整股公式。缺费率/币种/路由时应标记 INCOMPLETE，不默认零。
 
 实现时金额使用 Decimal，费率版本/来源/生效区间与取整规则持久化；估算与实际 commissionReport / Flex 分开保存并对账。当前不能声称所有费用已精确实现，也不能只靠第三方默认值代替账户收费方案。
+
+## 第二次真实 Gateway / API 验收
+
+- 23:50:19 停止 Gateway；事先安排90秒后启动同一个systemd服务。
+- 23:50:23 API故障通知Telegram接受。
+- Gateway按时启动后，原monitor owner等待已有连接退避期；未改写预算、未伪造健康状态。
+- 23:54:13 API完整回读恢复通知Telegram接受；停机操作至通知约234秒。
+- 23:54:20 PFE、23:54:22 BAC行情竞争恢复通知Telegram接受；KO也进入发送队列。
+- 用户确认“API和行情恢复都看到”。这是原有竞争故障在新实时报价到达后恢复，不是另开竞争会话制造新的10197实验。
+- 交易门禁哈希及持仓均与实验前一致，UNKNOWN/STARTED订单操作为0。
+- 行情竞争解除与策略是否可用分离：当前新鲜度、K线、交易日历及全部交易门禁仍独立生效。不可将此称为策略交易READY。
+- 本轮完整离线测试816项通过，gitleaks通过。代码dev ea83c13 / main及云端11618a5；后续文档提交不改运行逻辑。

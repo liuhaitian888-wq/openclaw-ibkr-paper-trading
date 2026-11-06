@@ -289,3 +289,5 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 云外心跳失联演练：先安排190秒自动恢复，再停止共用心跳发送器；23:44 Down，23:46 Up，host Down窗口1分17秒。Healthchecks显示Delivered，用户确认der群故障与恢复均收到。未关机、未停止Gateway，不能等同真实主机断电或API断开验收。
 
 新增独立秘书档案模块（尚未激活生产/Telegram聊天），区分用户指示、模型分析、工具结果和系统事件；持久运行预留阻止STARTED/UNKNOWN重放。用户确认der群，并明确不再查找旧OpenClaw；后续使用独立正式OAuth流程。佣金感知过滤仍是roadmap，不能宣称LEAN费用模型已融合。详见docs/AGENT_SECRETARY_AND_COSTS_20261106.md。
+
+第二次Gateway验收：23:50:19下线，90秒自动启动原服务；23:50:23告警，23:54:13 API恢复，23:54:20/22 PFE/BAC行情竞争解除。用户确认API与行情恢复消息都看到。连接恢复包含已有退避，不能宣称下线后立即重连；确认恢复后通知随即排队发送。门禁/持仓不变，未知订单操作0。816离线测试与gitleaks通过；秘书档案模块未激活聊天。
