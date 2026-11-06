@@ -23,22 +23,27 @@ def main():
         p = subprocess.run(['systemctl', 'is-active', unit], capture_output=True,
                            text=True, timeout=5)
         services[unit] = p.stdout.strip() or 'unknown'
-        detail = subprocess.run(['systemctl', 'show', unit, '--property=UnitFileState,Result'],
+        detail = subprocess.run(['systemctl', 'show', unit, '--property=UnitFileState,Result,MainPID,NRestarts,ActiveEnterTimestamp'],
                                 capture_output=True, text=True, timeout=5)
         fields = dict(line.split('=', 1) for line in detail.stdout.splitlines() if '=' in line)
         service_details[unit] = dict(unit_file_state=fields.get('UnitFileState', 'unknown'),
-                                     result=fields.get('Result', 'unknown'))
+                                     result=fields.get('Result', 'unknown'),
+                                     main_pid=fields.get('MainPID'),restarts=fields.get('NRestarts'),
+                                     active_enter=fields.get('ActiveEnterTimestamp'))
     disk = os.statvfs(STATE_ROOT)
     payload = dict(observed_at=datetime.now(timezone.utc).isoformat(),
                    services=services, service_details=service_details, smoke=result,
                    disk_free_fraction=disk.f_bavail / disk.f_blocks,
                    broker_authentication='UNVERIFIED_UNTIL_PAPER_READBACK')
+    memory=dict(line.split(':',1) for line in Path('/proc/meminfo').read_text().splitlines() if ':' in line)
+    payload['resources']=dict(load_average=os.getloadavg(),memory_total=memory.get('MemTotal'),
+                              memory_available=memory.get('MemAvailable'),swap_free=memory.get('SwapFree'))
     now=datetime.now(timezone.utc).timestamp()
     boot=Path('/proc/sys/kernel/random/boot_id').read_text().strip()
     states={'cloud.host':'OBSERVED_RUNNING'}
     states.update({'cloud.'+k:v for k,v in services.items()})
     with closing(sqlite3.connect(STATE_ROOT/'runtime/recovery.sqlite3',timeout=5)) as c,c:
-        record(c,'host-status',boot,now,states,dict(services=service_details,disk_free_fraction=payload['disk_free_fraction']))
+        record(c,'host-status',boot,now,states,dict(services=service_details,resources=payload['resources'],disk_free_fraction=payload['disk_free_fraction']))
     path = STATE_ROOT / 'runtime/cloud-status.json'
     temporary = path.with_suffix('.tmp')
     with temporary.open('w') as handle:

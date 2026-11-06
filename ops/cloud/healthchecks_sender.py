@@ -1,5 +1,8 @@
 """Send generic opt-in heartbeats. No account, position or log payload leaves host."""
 from datetime import datetime, timezone
+from contextlib import closing
+import sqlite3
+import time
 import json
 from pathlib import Path
 import re
@@ -18,6 +21,28 @@ def fresh(observation, now):
         return 0 <= age <= 600
     except (KeyError, TypeError, ValueError):
         return False
+
+
+
+def heartbeat_attempt(root, name, healthy, send):
+    """Persist an attempt before wire and its native HTTP confirmation afterwards."""
+    path=root/'recovery.sqlite3'
+    started=time.time()
+    with closing(sqlite3.connect(path,timeout=5)) as c,c:
+        c.execute('CREATE TABLE IF NOT EXISTS heartbeat_delivery(id INTEGER PRIMARY KEY,check_name TEXT,healthy INTEGER,started REAL,ack REAL,http_status INTEGER,outcome TEXT)')
+        ident=c.execute('INSERT INTO heartbeat_delivery(check_name,healthy,started,outcome) VALUES(?,?,?,?)',
+                        (name,int(healthy),started,'STARTED')).lastrowid
+    status=None;ack=None;outcome='UNKNOWN'
+    try:
+        status=send()
+        if status==200:ack=time.time();outcome='HTTP_ACCEPTED'
+        else:outcome='HTTP_REJECTED'
+    except Exception:
+        # May have reached the provider; no fabricated ACK or automatic replay.
+        pass
+    with closing(sqlite3.connect(path,timeout=5)) as c,c:
+        c.execute('UPDATE heartbeat_delivery SET ack=?,http_status=?,outcome=? WHERE id=?',(ack,status,outcome,ident))
+    return outcome=='HTTP_ACCEPTED'
 
 
 def main():
@@ -48,11 +73,11 @@ def main():
     failures=0
     for name,ok in (('host_url',host_ok),('paper_api_url',paper_ok)):
         endpoint=urls[name]+('' if ok else '/fail')
-        try:
+        def send():
             with opener.open(Request(endpoint,method='GET'),timeout=8) as response:
-                if response.status!=200: raise RuntimeError('Ping not accepted')
-        except Exception:
-            print(name+': heartbeat failed'); failures+=1
+                return response.status
+        if not heartbeat_attempt(root,name,ok,send):
+            print(name+': heartbeat unconfirmed'); failures+=1
     return 1 if failures else 0
 
 
