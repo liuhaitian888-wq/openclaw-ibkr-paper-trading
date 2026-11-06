@@ -114,7 +114,7 @@ class PaperSafetyMonitor:
             self._publish()  # Reserve durably before creating the socket.
             return True
 
-    def validate_connection(self, connected_since):
+    def validate_connection(self, connected_since, *, connection_generation=None):
         """Only sustained independent account/end-marker proof closes the incident."""
         with self.lock:
             now=self.clock()
@@ -123,6 +123,12 @@ class PaperSafetyMonitor:
                     or not 0<=now-self.state.get('last_server_reply',0)<=10):
                 return False
             budget=self.state['connection_recovery']
+            if connection_generation and budget.get('subscription_connection_proof')!=connection_generation:
+                changed=self.symbol_recovery.verified_connection(connection_generation,reconciliation_verified=True)
+                budget['subscription_connection_proof']=connection_generation
+                self._record('connection_dependency_restored',dict(connection=connection_generation,symbols=changed,
+                    proof='Stable authenticated Paper connection and complete fresh broker reconciliation; no trading permission'))
+                self._publish()
             if budget.get('attempts',0):
                 budget.update(attempts=0,not_before=0,validated_at=now)
                 self._publish()

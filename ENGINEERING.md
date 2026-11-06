@@ -262,3 +262,4 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 在既有recovery.sqlite3增加paper_health_samples：每个进程epoch每分钟最多一条API/上游/身份/回读/逐标的行情/门禁快照，保留原始精确时间，缺失历史不补造。每个采样点不是整分钟连续可用率；重启同一分钟可有不同epoch记录。
 - Telegram改展示，不改历史身份：字段间空行；人类可读中文类型与保护状态；事件/排队/发起按柏林时间到秒；分数秒仅隐藏、原账本保留；用户操作改建议你操作；实例改故障批次；事件编号最后一行（图片caption预算也保留）；删除固定末句。PROTECTION_PROTECTION_UNKNOWN是保护状态变化通知的历史机器名，不是Python类，不改旧key/去重身份。
 - 昨天进一步分组：00:45:16–10:25:59共117次TimeoutError，10:41/10:46另2次TimeoutError；10:47:53后155次账户回读完整。这些是采样点而非精确停机区间，不能推定同期间行情正常。本地已打开昨天证据及805通知新版预览；未向Telegram重发805。完整离线799项通过。
+- 部署后独立只读PFE/BAC/KO均取得type1新鲜bid/ask，无10197；常驻监测却UNKNOWN。定位@retry三标的保留旧1100/WAIT_CONNECTION且next_retry=null，冷连接的完整回读恢复没有1101回调，故订阅恢复未继续。新增稳定60秒+正确账户+新鲜完整回读后的connection proof桥接，仅解除旧1100等待；保留耗尽的4次预算、pending不确定订阅与人工审查，低频诊断沿原15分钟策略，不改交易权限。

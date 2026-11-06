@@ -117,3 +117,32 @@ class SymbolHealthTests(unittest.TestCase):
   r=SymbolRecovery(self.path,['GOOD','BAD'],clock=lambda:self.now)
   with closing(r.store.connect()) as c:s=r._read(c,'@retry:BAD')
   self.assertEqual(s['classification_corrected_at'],stamp)
+
+class ConnectionDependencyTests(unittest.TestCase):
+ def test_connection_wait_needs_proof_and_preserves_exhausted_budget(self):
+  from contextlib import closing
+  import json
+  with tempfile.TemporaryDirectory() as tmp:
+   now=[1000];r=SymbolRecovery(Path(tmp)/'r.sqlite3',['PFE'],clock=lambda:now[0])
+   r.error('PFE',10197,'competing')
+   with closing(r.store.connect()) as c,c:
+    s=r.lifecycle.read(c,'PFE');s.update(attempts=4,slow_probe_eligible=True,low_frequency_not_before=0)
+    r.lifecycle.save(c,'PFE',s)
+   r.error('PFE',1100,'upstream lost')
+   self.assertEqual(r.verified_connection('new'),[])
+   self.assertIsNone(r.retry_due('PFE',connected=True,session='SESSION_UNKNOWN'))
+   self.assertEqual(r.verified_connection('new',reconciliation_verified=True),['PFE'])
+   self.assertEqual(r.lifecycle.snapshot('PFE')['attempts'],4)
+   self.assertTrue(r.retry_due('PFE',connected=True,session='SESSION_UNKNOWN')['low_frequency'])
+   self.assertEqual(r.verified_connection('new',reconciliation_verified=True),[])
+ def test_pending_subscription_and_human_review_remain_held(self):
+  from contextlib import closing
+  with tempfile.TemporaryDirectory() as tmp:
+   r=SymbolRecovery(Path(tmp)/'r.sqlite3',['PFE'],clock=lambda:1000)
+   r.error('PFE',1100,'upstream lost')
+   with closing(r.store.connect()) as c,c:
+    s=r.lifecycle.read(c,'PFE');s['pending']='unknown-outcome';r.lifecycle.save(c,'PFE',s)
+   self.assertEqual(r.verified_connection('new',reconciliation_verified=True),[])
+   self.assertEqual(r.snapshot('PFE').get('health',{}).get('allows_realtime'),None)
+   r.error('PFE',354,'permission denied')
+   self.assertEqual(r.verified_connection('new',reconciliation_verified=True),[])

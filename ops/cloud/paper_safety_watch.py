@@ -176,7 +176,7 @@ def main():
                         monitor._publish()
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
-                    monitor.validate_connection(connected_since)
+                    monitor.validate_connection(connected_since,connection_generation=client.connection_generation)
                     if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
                     if time.monotonic()-last_strategy>=5:
