@@ -63,9 +63,13 @@ class SecretaryArchive:
             raise ValueError('Run occurrence and explicit model required')
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
-            row = c.execute('SELECT origin FROM secretary_events WHERE occurrence=?', (instruction,)).fetchone()
-            if row is None or row[0] != 'USER':
+            row = c.execute('SELECT origin,kind,parent FROM secretary_events WHERE occurrence=?', (instruction,)).fetchone()
+            if row is None:
                 raise ValueError('Run must reference a user instruction')
+            if row[0] != 'USER':
+                authority = c.execute("SELECT origin,kind FROM secretary_events WHERE occurrence=?", (row[2],)).fetchone()
+                if row[:2] != ('SYSTEM', 'AUTONOMOUS_INSTRUCTION') or authority != ('USER', 'STANDING_AUTHORIZATION'):
+                    raise ValueError('Autonomous run requires explicit standing user authorization')
             prior = c.execute('SELECT instruction,model FROM secretary_runs WHERE occurrence=?', (occurrence,)).fetchone()
             if prior:
                 if prior != (instruction, model):

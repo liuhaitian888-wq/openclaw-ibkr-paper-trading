@@ -36,6 +36,22 @@ class CloudBackupTests(unittest.TestCase):
                     self.assertEqual(restored_db.execute('SELECT intent FROM evidence').fetchone()[0],'accepted-unknown')
                 self.assertFalse((root/'financial_ledger.sqlite3').exists())
 
+    def test_secretary_archive_is_backed_up_and_hash_verified(self):
+        from reporting.agent_secretary import SecretaryArchive
+        with tempfile.TemporaryDirectory() as tmp:
+            home=Path(tmp);root=home/'.local/state/openclaw'
+            archive=SecretaryArchive(root/'agent_secretary.sqlite3')
+            archive.append('instruction','chat',origin='USER',kind='INSTRUCTION',payload={'text':'fixture'})
+            with patch.object(Path,'home',return_value=home),redirect_stdout(io.StringIO()):backup_state.main()
+            target=next((root/'backups').iterdir());manifest=json.loads((target/'backup.json').read_text())
+            item=next(i for i in manifest['items'] if i['source']=='agent_secretary.sqlite3')
+            with gzip.open(target/item['file'],'rb') as f:raw=f.read()
+            self.assertEqual(hashlib.sha256(raw).hexdigest(),item['sha256_uncompressed'])
+            restored=home/'restored.sqlite3';restored.write_bytes(raw)
+            with closing(sqlite3.connect(restored)) as c:
+                self.assertEqual(c.execute('PRAGMA quick_check').fetchone()[0],'ok')
+                self.assertEqual(c.execute('SELECT origin FROM secretary_events').fetchone()[0],'USER')
+
     def test_smtp_accepted_then_disconnect_is_not_automatically_sent_again(self):
         from reporting.incidents import IncidentStore
         from reporting.recovery import RecoveryCoordinator

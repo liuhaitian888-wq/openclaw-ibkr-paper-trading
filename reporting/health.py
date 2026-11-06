@@ -59,10 +59,12 @@ MODULE_DEPENDENCIES = {
  'REPORT': ('DATABASE','CANONICAL_STATE','FINANCIAL_LEDGER'),
  'TELEGRAM': ('NETWORK',), 'SMTP': ('NETWORK',), 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
  'DELIVERY': ('REPORT','DELIVERY_LEDGER','FEISHU'),
+ 'SECRETARY_ARCHIVE': (), 'SECRETARY_MODEL': ('NETWORK',),
+ 'SECRETARY': ('SECRETARY_ARCHIVE','SECRETARY_MODEL','TELEGRAM'),
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+LIVE_MODULES = {'SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
 
 
 def dependency_registry(observations):
@@ -99,7 +101,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':name not in ('TELEGRAM','SMTP','FEISHU') or name==primary,'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}

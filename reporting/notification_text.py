@@ -61,6 +61,8 @@ def batch_name(item):
 def notification_text(item,started,*,max_length=4000):
     if max_length<256:raise ValueError('Notification budget must retain identity and timing')
     data=item['payload'];kind=item['kind']
+    if kind=='SECRETARY_REPLY':
+        return ('买 der｜研究秘书\n\n'+display(data.get('reason',''))+'\n\n档案：'+display(item['incident_key'])+'\n研究结果不构成交易授权。')[:max_length]
     name=KINDS.get(kind,'持续故障提醒' if kind.startswith('REMINDER_') else '严重程度升级' if kind.startswith('ESCALATION_') else kind)
     lines=['买 der｜IBKR Paper '+name]
     if data.get('severity') is not None:lines.append('严重程度：'+{'RED':'高','YELLOW':'提醒','GREEN':'正常/恢复'}.get(data['severity'],display(data['severity'])))

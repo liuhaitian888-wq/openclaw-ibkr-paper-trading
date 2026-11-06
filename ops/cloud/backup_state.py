@@ -23,7 +23,7 @@ def main():
     target = root / 'backups' / stamp
     target.mkdir(parents=True, mode=0o700)
     items = []
-    for name in ('trading_audit.sqlite3', 'financial_ledger.sqlite3', 'runtime/recovery.sqlite3'):
+    for name in ('trading_audit.sqlite3', 'financial_ledger.sqlite3', 'runtime/recovery.sqlite3', 'agent_secretary.sqlite3'):
         source = root / name
         if not source.is_file():
             items.append(dict(source=name, status='MISSING_NOT_PUBLISHED'))
