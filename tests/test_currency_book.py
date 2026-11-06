@@ -30,3 +30,28 @@ class CurrencyBookTests(unittest.TestCase):
   with self.assertRaises(ValueError):cashbook(self.rows(),'DU2')
   rows=self.rows();rows[0].value='NaN'
   with self.assertRaises(ValueError):cashbook(rows,'DU1')
+
+class CashbookRequestTests(unittest.IsolatedAsyncioTestCase):
+ async def test_explicit_ledger_is_cancelled_on_success_and_failure(self):
+  import asyncio
+  from trading.currency_book import fetch_paper_cashbook
+  for failed in (False,True):
+   with self.subTest(failed=failed):
+    rows=CurrencyBookTests().rows();calls=[]
+    future=asyncio.get_running_loop().create_future()
+    if failed:future.set_exception(ConnectionError('Fixture disconnect'))
+    else:future.set_result(None)
+    class Client:
+     def getReqId(self):return 17
+     def reqAccountSummary(self,*args):calls.append(args)
+     def cancelAccountSummary(self,req):calls.append(('cancel',req))
+    class IB:
+     client=Client()
+     wrapper=V(startReq=lambda req:future,acctSummary={i:r for i,r in enumerate(rows)})
+     def managedAccounts(self):return ['DU1']
+     def isConnected(self):return True
+     async def accountSummaryAsync(self,account):return []
+    if failed:
+     with self.assertRaises(ConnectionError):await fetch_paper_cashbook(IB(),'DU1')
+    else:self.assertEqual((await fetch_paper_cashbook(IB(),'DU1'))['currencies']['USD']['amount'],'-69786.59')
+    self.assertEqual(calls,[(17,'All','$LEDGER:USD'),('cancel',17)])

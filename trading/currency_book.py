@@ -66,3 +66,24 @@ def paper_funding(book, policy='CASH_ONLY'):
                 existing_usd_borrowing=float(max(Decimal(0),-cash)),
                 max_new_test_exposure_usd=200 if policy==PAPER_FINANCING else None,
                 automatic_fx_conversion_performed=False)
+
+
+async def fetch_paper_cashbook(ib, account):
+    """Own one explicit USD-ledger request through its end marker and cancellation.
+
+    ib_async 2.1.0's default $LEDGER:ALL request can return only base summary
+    fields. An explicit USD request is required; never synthesize a USD row.
+    The caller owns the connected client and its bounded lifetime.
+    """
+    import asyncio
+    if ib.managedAccounts() != [account]:
+        raise PermissionError('Exact account required before monetary request')
+    await asyncio.wait_for(ib.accountSummaryAsync(account),8)
+    request_id=ib.client.getReqId()
+    future=ib.wrapper.startReq(request_id)
+    try:
+        ib.client.reqAccountSummary(request_id,'All','$LEDGER:USD')
+        await asyncio.wait_for(future,8)
+        return cashbook(list(ib.wrapper.acctSummary.values()),account)
+    finally:
+        if ib.isConnected():ib.client.cancelAccountSummary(request_id)

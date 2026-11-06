@@ -98,7 +98,12 @@ class PaperAcceptanceTests(unittest.TestCase):
         class Fake:
             def __init__(self):
                 self.errorEvent=Event();self.pendingTickersEvent=Event();self.orderStatusEvent=Event();self.execDetailsEvent=Event()
-                self.client=NS(getReqId=lambda:3);self.sent=0;self.cancelled=0;self.closed=False
+                self.client=NS(getReqId=lambda:3,reqAccountSummary=lambda *args:None,cancelAccountSummary=lambda req:None)
+                def start_req(req):
+                    f=asyncio.get_running_loop().create_future();f.set_result(None);return f
+                self.wrapper=NS(startReq=start_req,acctSummary={0:NS(account=ACCOUNT,tag='CashBalance',currency='USD',value='1000'),1:NS(account=ACCOUNT,tag='AvailableFunds',currency='USD',value='1000')})
+                self.sent=0;self.cancelled=0;self.closed=False
+            def isConnected(self):return True
             async def connectAsync(self,*a,**k):pass
             def managedAccounts(self):return [ACCOUNT]
             async def qualifyContractsAsync(self,*a):return [NS(conId=1,symbol='NVDA',currency='USD')]
