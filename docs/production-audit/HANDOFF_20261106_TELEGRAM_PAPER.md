@@ -1,3 +1,5 @@
+> 2026-11-06晚间更新：Telegram新版字段、暂停reason降噪、paper_health_samples分钟采样已在671cae4重载生效。3dd3a1a包含新冷启动connection proof桥接；当前旧worker通过一次受控已验证bridge恢复只读报价，未重启以保留订阅。下次正常worker重载会加载新hook；未来冷启动真实验收仍需做，不能声称已热加载。API/账户回读正常不代表行情持续新鲜；最新SESSION_UNKNOWN及REALTIME_STALE均如实保存，自动策略未开启。详见SESSION_LOG_AND_NOTIFICATION_FIELDS.md和ENGINEERING.md最新条目。801项离线通过，全球门禁和已关闭Paper scope不变，禁止重置三笔预算。
+
 > 2026-11-06下午更新：下文是夜间历史快照。有限Paper闭环已在16:32–16:33UTC真实通过并完成独立回读，scope已关闭、3/3预算用尽；**不得再次运行旧scope或重置预算**。当前结论见PAPER_ACCEPTANCE_20261106.md与ENGINEERING.md最新条目。自动策略仍未开启。
 
 # 2026-11-06 夜间收口与下次接续
