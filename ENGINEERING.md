@@ -266,3 +266,14 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 云实际结果：文案/降噪/分钟采样代码671cae4已重载生效，新维护通知812–817获Telegram消息26–31回执；旧805未改写/重发。新增分钟表已真实写入16条（当时），API/上游/身份/回读与逐标的行情分开。
 - 3dd3a1a恢复桥接代码已部署；为保留现有行情连接，未再重启worker。以现有连接UUID、稳定>=60s、正确Paper身份、全量fresh回读执行一次有界bridge，PFE/BAC/KO均从旧1100等待转入原低频恢复，fast budgets仍4，常驻owner重新收到三标的type1报价、market_errors空。当前进程881453仍是671启动版本，新冷启动hook在下次正常worker重载加载；不声称热加载或已完成未来冷启动验收。
 - 最新样本仍可能REALTIME_STALE，且SESSION_UNKNOWN/交易时段未核验，不能把type1收到报价说成连续新鲜或策略可交易。最终smoke NOT_READY，全球门禁hash及关闭的三笔scope不变，UNKNOWN通知/订单均0。801项离线与gitleaks通过；没有新增试单、换汇、强抢Live或重启Gateway。
+
+## 2026-11-06 四项运行证据与外部心跳核对
+
+- 用户确认四项为会话、行情、API连接、云端监控；quotes/bars/history是行情内部三路，不能代替用户分类。固定滚动窗口柏林Nov5 20:32:37至Nov6 20:32:37，保存云recovery只读导出、systemd及通知账本；4557条暂停条件噪音不当作订单或断线。
+- API事件/完整回读成对保存；会话初始化、API回复、行情新鲜分别判定；分钟采样始于Nov6 18:20:53，历史无证据区间UNKNOWN。24h报告、CSV、原始证据和源码研究在本机.codex/visualizations/2026/11/06/01a1b258-c8a7-7703-9689-7d0fb0459f18/market-review，已在VS Code打开。
+- 增加runtime_health_samples/events/current：既有安全owner逐回调记录API/会话证据及逐标的行情三流变化，既有host-status timer记录云服务、load/内存/磁盘观测；进程epoch变化不冒充连续健康。inspect_health_window只读滚动报告标出采样缺口，不回填旧历史。
+- 增加heartbeat_delivery：发起前STARTED，HTTP200后记录ACK时间/响应码/是否报告健康，超时UNKNOWN且不自动重放该次尝试；不保存秘密ping URL。已云端回读host/API真实HTTP200和多轮约60秒间隔。API心跳读取既有owner的新鲜identity/upstream/server reply/reconciliation，不再用最长10分钟旧快照证明API正常。
+- Healthchecks后台原有两条检查均5分钟period+5分钟grace，仅邮件。现云timer已60秒/AccuracySec1秒，平台两条period/grace各60秒已保存核验；目标是最后成功ping约120秒后Down再加调度/传输，不是手机120秒必达。
+- 用户指定云外告警只发der群，不绑定私聊。当前新增Telegram user None（私聊）已取消全部检查分配0/2，保留原邮件2/2；der只读核对仍2成员时未发测试。官方机器人普通成员加群、群内/start绑定及真实Down/Up通知尚待完成，不宣称外部Telegram已验收。
+- Healthchecks官方源码5b9a198bca9dc959326f6492e460166373530499已在OpenWorkspace只读审阅；默认HTTP传输最多3次尝试且不对本工程暴露Telegram message_id，因此不能声称等价于本工程UNKNOWN不重放账本；社区讨论只作参考。
+- 806项完整隔离离线通过及gitleaks通过。功能云部署3734bca；安全owner加载d03d355含connection-proof hook；仅原owner重载，Gateway PID827485未变。部署备份目录权限失败后重载曾被旧manifest拒绝，失败记录保留；批准身份已修正，单owner恢复API/Paper完整回读。PAUSED/MAINTENANCE和已关闭Paper scope不变；当前bars/history仍缺证，不称行情或自动交易已完成。
