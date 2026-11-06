@@ -9,13 +9,45 @@ import time
 
 
 def validate_config(config):
+    extra=config.get('allowed_additional_bots',[])
+    if (not isinstance(extra,list) or len(extra)>1
+            or any(not isinstance(x,dict) or x.get('username')!='HealthchecksBot'
+                   or type(x.get('id')) is not int or x['id']<=0 for x in extra)):
+        raise PermissionError('Only the explicitly verified Healthchecks bot may join the audience')
     if (not re.fullmatch(r'\d{5,}:[A-Za-z0-9_-]{25,}',config.get('bot_token',''))
             or config.get('bot_username')!='deehub_paper_reports_bot'
+            or type(config.get('bot_id')) is not int or config['bot_id']<=0
             or type(config.get('chat_id')) is not int or config['chat_id']>=0
             or config.get('expected_group_title')!='der'
-            or config.get('expected_member_count')!=2 or config.get('target_verified') is not True
-            or type(config.get('owner_user_id')) is not int):
+            or type(config.get('expected_member_count')) is not int
+            or config['expected_member_count']!=2+len(extra) or config.get('target_verified') is not True
+            or type(config.get('owner_user_id')) is not int or config['owner_user_id']<=0
+            or len({config['owner_user_id'],config['bot_id'],*[x['id'] for x in extra]})!=2+len(extra)):
         raise PermissionError('Verified private der report target required')
+
+
+async def verify_audience(bot, config):
+    """Read-only native proof. Migration requires explicit configuration reconciliation."""
+    validate_config(config)
+    me=await bot.get_me(read_timeout=10,connect_timeout=5)
+    chat=await bot.get_chat(config['chat_id'],read_timeout=10,connect_timeout=5)
+    count=await bot.get_chat_member_count(config['chat_id'],read_timeout=10,connect_timeout=5)
+    admins=await bot.get_chat_administrators(config['chat_id'],read_timeout=10,connect_timeout=5)
+    if (me.id!=config['bot_id'] or me.username!=config['bot_username'] or chat.id!=config['chat_id']
+            or chat.title!=config['expected_group_title'] or chat.type not in ('group','supergroup')
+            or count!=config['expected_member_count']
+            or not any(a.status=='creator' and a.user.id==config['owner_user_id'] for a in admins)):
+        raise PermissionError('Report audience changed')
+    if config.get('allowed_additional_bots'):
+        member=await bot.get_chat_member(chat.id,me.id,read_timeout=10,connect_timeout=5)
+        if member.status not in ('member','administrator') or member.user.id!=me.id:
+            raise PermissionError('Notification bot membership unverified')
+        for expected in config['allowed_additional_bots']:
+            member=await bot.get_chat_member(chat.id,expected['id'],read_timeout=10,connect_timeout=5)
+            if (member.status!='member' or member.user.id!=expected['id']
+                    or member.user.username!=expected['username'] or member.user.is_bot is not True):
+                raise PermissionError('Additional audience identity or least privilege changed')
+    return chat
 
 
 def report_bytes(item,root):
@@ -56,14 +88,7 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
         documents=report_bytes(item,report_root)
         async with asyncio.timeout(25):
             async with bot_factory(token=config['bot_token']) as bot:
-                me=await bot.get_me(read_timeout=10,connect_timeout=5)
-                chat=await bot.get_chat(config['chat_id'],read_timeout=10,connect_timeout=5)
-                count=await bot.get_chat_member_count(config['chat_id'],read_timeout=10,connect_timeout=5)
-                admins=await bot.get_chat_administrators(config['chat_id'],read_timeout=10,connect_timeout=5)
-                if (me.id!=config['bot_id'] or me.username!=config['bot_username'] or chat.id!=config['chat_id']
-                        or chat.title!=config['expected_group_title'] or chat.type not in ('group','supergroup')
-                        or count!=2 or not any(a.status=='creator' and a.user.id==config['owner_user_id'] for a in admins)):
-                    raise PermissionError('Report audience changed')
+                chat=await verify_audience(bot,config)
                 sending_at=clock()
                 caption=notification_text(item,sending_at,max_length=1024 if documents else 4000)
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):

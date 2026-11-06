@@ -78,3 +78,36 @@ class TelegramTests(unittest.TestCase):
     self.assertEqual(asyncio.run(send_one(store,co,cfg,report_root=root,bot_factory=lambda **k:bot)),'TELEGRAM_ACCEPTED')
     self.assertEqual(asyncio.run(send_one(store,co,cfg,report_root=root,bot_factory=lambda **k:bot)),'EMPTY')
     self.assertEqual(bot.sends,1)
+
+ def test_explicit_healthchecks_member_supergroup_and_native_ack(self):
+  from reporting.incident_telegram import verify_audience
+  with tempfile.TemporaryDirectory() as tmp:
+   root,store,co,cfg,png=self.setup_case(tmp);bot=self.bot(count=3)
+   cfg.update(expected_member_count=3,allowed_additional_bots=[dict(id=88,username='HealthchecksBot')])
+   async def chat(*a,**k):return V(id=-100,title='der',type='supergroup')
+   async def member(cid,uid,**k):return V(status='member',user=V(id=uid,username='HealthchecksBot' if uid==88 else cfg['bot_username'],is_bot=True))
+   bot.get_chat=chat;bot.get_chat_member=member
+   self.assertEqual(asyncio.run(send_one(store,co,cfg,report_root=root,bot_factory=lambda **k:bot)),'TELEGRAM_ACCEPTED')
+   self.assertEqual(bot.sends,1)
+ def test_extra_identity_admin_human_or_fourth_member_never_sends(self):
+  for bad in ('username','human','admin','fourth','id','owner'):
+   with self.subTest(bad=bad),tempfile.TemporaryDirectory() as tmp:
+    root,store,co,cfg,png=self.setup_case(tmp);bot=self.bot(count=4 if bad=='fourth' else 3)
+    cfg.update(expected_member_count=3,allowed_additional_bots=[dict(id=88,username='HealthchecksBot')])
+    async def member(cid,uid,**k):return V(status='administrator' if uid==88 and bad=='admin' else 'member',user=V(id=89 if uid==88 and bad=='id' else uid,username='impostor' if bad=='username' else 'HealthchecksBot',is_bot=bad!='human'))
+    bot.get_chat_member=member
+    if bad=='owner':
+     async def admins(*a,**k):return [V(status='creator',user=V(id=43))]
+     bot.get_chat_administrators=admins
+    self.assertEqual(asyncio.run(send_one(store,co,cfg,report_root=root,bot_factory=lambda **k:bot)),'PENDING')
+    self.assertEqual(bot.sends,0);self.assertFalse(co.uncertainties())
+ def test_unapproved_audience_config_cannot_expand_membership(self):
+  from reporting.incident_telegram import validate_config
+  with tempfile.TemporaryDirectory() as tmp:
+   root,store,co,cfg,png=self.setup_case(tmp)
+   cfg['expected_member_count']=3
+   with self.assertRaises(PermissionError):validate_config(cfg)
+   cfg['allowed_additional_bots']=[dict(id=42,username='HealthchecksBot')]
+   with self.assertRaises(PermissionError):validate_config(cfg)
+   cfg['allowed_additional_bots']=[dict(id=88,username='AnotherBot')]
+   with self.assertRaises(PermissionError):validate_config(cfg)
