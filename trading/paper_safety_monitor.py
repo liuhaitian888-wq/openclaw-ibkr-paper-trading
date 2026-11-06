@@ -9,6 +9,7 @@ import threading
 import time
 import uuid
 
+from reporting.runtime_history import record, monitor_states
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from trading.audit import AuditLog
@@ -550,6 +551,8 @@ class PaperSafetyMonitor:
         sample_due=getattr(self,'_health_sample_bucket',None)!=bucket
         with closing(self.coordinator.connect()) as c, c:
             c.execute('INSERT OR REPLACE INTO paper_safety_state VALUES (1,?)', (json.dumps(self.state,sort_keys=True),))
+            states,evidence=monitor_states(self.state,snapshot['symbol_health'],self.symbols,now,self.required_bars)
+            record(c,'paper-safety',self.state['epoch'],now,states,evidence)
             if sample_due:
                 sample=dict(account=ACCOUNT,environment='PAPER',observed_at=now,
                     api_connected=self.state['connected'],upstream_connected=self.state['upstream_connected'],
