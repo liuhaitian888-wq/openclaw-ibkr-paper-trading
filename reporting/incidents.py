@@ -217,6 +217,10 @@ class IncidentStore:
                 if not previous:
                     continue
                 prior = json.loads(previous[1])
+                # One-shot channel tests are not unresolved business incidents.
+                # Preserve historical receipts, but never create recurring tests.
+                if prior.get('scope') == 'NOTIFICATION_CHANNEL_TEST' or prior.get('test_only') is True:
+                    continue
                 if stage <= prior.get('reminder_stage', 0):
                     continue
                 payload = {**prior, 'queued_at': now, 'reminder_stage': stage,

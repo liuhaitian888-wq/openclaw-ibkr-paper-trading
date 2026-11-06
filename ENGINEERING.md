@@ -2,6 +2,13 @@
 
 本文件统一工程纲领、核心要点、运行约束与验收状态。PRODUCTION.md 是当前生产停写与启动门禁的操作事实来源；历史证据按原路径保留。
 
+## 2026-11-06 下午接续：云端Paper闭环与日志核对
+
+- VS Code已展示云Gateway原始UTC+柏林时间线：昨晚23:27:21初始化、00:45:26软重启、今晨08:01:35初始化。08:01是systemd stop/start，触发者尚未归因；不是本轮为检查而重启。
+- 16:29UTC一次性报价检查再次10197，账户回读仍完整；用户确认退出Live后，16:32UTC实时报价恢复，不能由此推定其他设备身份或精确释放机制。
+- **真实Paper三笔闭环通过**：撤单perm756941084；买入NVDA1@188.72/exec0000dc8f.6c030a11.01.01；平测试仓1@188.66/exec0000dc8f.6c030a31.01.01。16:33:40UTC独立回读原6持仓与PFE保护单不变、NVDA0/测试挂单0/UNKNOWN订单0/全球门禁哈希不变。预算3/3耗尽并关闭scope，自动策略未启用。详见docs/production-audit/PAPER_ACCEPTANCE_20261106.md。
+- 新发现：旧NOTIFICATION_CHANNEL_TEST事件仍生成持续提醒，需阻止生成新提醒并保留原发送账本；一次性验收连接的10197应接入既有SymbolRecovery冲突账本，与常驻监测共用身份，不另外直发或伪造恢复。
+
 ## 每日开发进展
 
 ### 2026-11-05～06（柏林时间，云端）
@@ -234,3 +241,5 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 
 ## 2026-11-06 夜间暂停新验收，等待用户早上接续
 用户要求收口记录，暂不继续Paper试单。交接详见docs/production-audit/HANDOFF_20261106_TELEGRAM_PAPER.md。最后云功能代码b3e4eac、通知服务active/NRestarts0、TELEGRAM_ACCEPTED报告788/message2、UNKNOWN通知0、Paper尝试0、全局门禁哈希不变。786项完整离线通过和stage后secret scan均通过。显式USD读取修复已部署，部署后preflight未做；正式Flex、真实09:00/故障恢复发送验收、公共DELIVERY通道依赖、有限Paper闭环和正式自动策略仍待接续，不能标成全部完成。现有自动只读监测/Telegram通知保持运行；没有安排定时唤醒。
+- 本轮核对到真实调度/连接故障Telegram证据：09:00Asia/Shanghai日报outbox789/message3/server01:00:05Z，计划至本地ACK约5.78秒；API_CONNECTION_CLOSED outbox795/message9/server07:01:05Z，恢复outbox797/message11/server07:01:50Z。只验证调度/发送与回读恢复，不把API快照报表称作Flex正式报表；10197真实发送闭环仍不宣称已验收。
+- 本轮修复：一次性验收连接的10197进入既有SymbolRecovery持久冲突身份；恢复仍要求多次独立新鲜报价与完整对账。旧NOTIFICATION_CHANNEL_TEST不再生成新周期提醒，原账本不改。完整离线787项通过；部署后不重开已用尽的Paper测试scope。

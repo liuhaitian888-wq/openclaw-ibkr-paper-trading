@@ -15,6 +15,7 @@ from trading.production_paths import STATE_ROOT
 from trading.production_diagnostics import context
 from reporting.recovery import RecoveryCoordinator
 from trading.currency_book import fetch_paper_cashbook,paper_funding
+from trading.symbol_health import SymbolRecovery,session_for_symbol
 from ops.cloud.monitoring_guard import monitoring_service
 
 
@@ -34,9 +35,13 @@ async def run(stage):
     journal=Journal(root/'trading_audit.sqlite3',scope['id'])
     coordinator=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
     ib=IB();contract=None;ref=None;trade=None;subscribed=False
+    market_recovery=SymbolRecovery(coordinator.path,('NVDA',))
+    reconciled=False
     errors=[];times={};quote_times={}
     def error(req,code,message,*args):
         row=dict(request_id=req,code=code,message=message,received_at=stamp());errors.append(row)
+        if code==10197 and contract is not None:
+            market_recovery.error('NVDA',code,message)
         if ref:journal.event(ref,'BROKER_ERROR',row)
     ib.errorEvent+=error
     def price(tickers):
@@ -44,6 +49,10 @@ async def run(stage):
             if contract is not None and t.contract.conId==contract.conId:
                 for tick in t.ticks:
                     if tick.tickType in (1,2):quote_times['bid' if tick.tickType==1 else 'ask']=time.time()
+                if reconciled and all(k in quote_times for k in ('bid','ask')):
+                    market_recovery.observe('NVDA',dict(data_type=t.marketDataType,bid=t.bid,ask=t.ask,
+                        bid_at=quote_times['bid'],ask_at=quote_times['ask']),
+                        session=session_for_symbol(time.time()),reconciliation_verified=True)
     ib.pendingTickersEvent+=price
     try:
         await ib.connectAsync('127.0.0.1',4002,clientId=CLIENT_ID,readonly=True,fetchFields=StartupFetchNONE,timeout=8)
@@ -67,6 +76,7 @@ async def run(stage):
             limit=t.order.lmtPrice,held_position=held.get(t.contract.symbol,0),perm_id=t.order.permId,order_ref=t.order.orderRef) for t in opens]
         funding=paper_funding(book,scope.get('currency_financing_policy','CASH_ONLY'))
         cash=funding['usd_cash'];funds=funding['available_funds_usd']
+        reconciled=True
         ib.reqMarketDataType(1);ticker=ib.reqMktData(contract,'',False,False);subscribed=True
         if not await wait_until(lambda:all(k in quote_times for k in ('bid','ask')) and ticker.marketDataType==1,15):
             raise PermissionError('No fresh real-time bid/ask')

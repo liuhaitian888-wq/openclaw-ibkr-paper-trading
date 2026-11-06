@@ -60,3 +60,18 @@ class IncidentTests(unittest.TestCase):
             store.finish(escalation['id'],'SMTP_ACCEPTED')
             store.ingest('e3','paper',{'severity':'RED'})
             self.assertIsNone(store.claim())
+
+    def test_one_shot_channel_tests_never_create_recurring_reminders(self):
+        from contextlib import closing
+        now=[1000]
+        with tempfile.TemporaryDirectory() as tmp:
+            s=IncidentStore(Path(tmp)/'state.sqlite3',clock=lambda:now[0])
+            s.ingest('test-event','old-channel-test',dict(scope='NOTIFICATION_CHANNEL_TEST',reason='one authorized test'))
+            first=s.claim();s.finish(first['id'],'TELEGRAM_ACCEPTED')
+            s.ingest('real-event','real-fault',dict(scope='PAPER_SAFETY',reason='connection lost'))
+            first=s.claim();s.finish(first['id'],'TELEGRAM_ACCEPTED')
+            now[0]+=90000
+            self.assertEqual(s.enqueue_due_reminders(),1)
+            with closing(s.connect()) as c:
+                self.assertEqual(c.execute("select count(*) from notification_outbox where incident_key='old-channel-test'").fetchone()[0],1)
+            self.assertEqual(s.claim()['incident_key'],'real-fault')
