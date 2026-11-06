@@ -14,7 +14,7 @@ from trading.paper_acceptance import ACCOUNT,CLIENT_ID,Journal,validate_scope,ch
 from trading.production_paths import STATE_ROOT
 from trading.production_diagnostics import context
 from reporting.recovery import RecoveryCoordinator
-from trading.currency_book import cashbook,paper_funding
+from trading.currency_book import fetch_paper_cashbook,paper_funding
 from ops.cloud.monitoring_guard import monitoring_service
 
 
@@ -57,7 +57,7 @@ async def run(stage):
         check_session(details[0].tradingHours,details[0].timeZoneId)
         positions=await asyncio.wait_for(ib.reqPositionsAsync(),8)
         opens=await asyncio.wait_for(ib.reqAllOpenOrdersAsync(),8)
-        values=await asyncio.wait_for(ib.accountSummaryAsync(ACCOUNT),8)
+        book=await fetch_paper_cashbook(ib,ACCOUNT)
         executions=await asyncio.wait_for(ib.reqExecutionsAsync(ExecutionFilter(acctCode=ACCOUNT)),8)
         position=sum(float(p.position) for p in positions if p.account==ACCOUNT and p.contract.conId==contract.conId)
         if any(p.account!=ACCOUNT for p in positions):raise PermissionError('Mixed account snapshot')
@@ -65,7 +65,6 @@ async def run(stage):
         orders=[dict(account=t.order.account,symbol=t.contract.symbol,currency=t.contract.currency,
             side=t.order.action,order_type=t.order.orderType,remaining=float(t.orderStatus.remaining or t.order.totalQuantity),
             limit=t.order.lmtPrice,held_position=held.get(t.contract.symbol,0),perm_id=t.order.permId,order_ref=t.order.orderRef) for t in opens]
-        book=cashbook(values,ACCOUNT)
         funding=paper_funding(book,scope.get('currency_financing_policy','CASH_ONLY'))
         cash=funding['usd_cash'];funds=funding['available_funds_usd']
         ib.reqMarketDataType(1);ticker=ib.reqMktData(contract,'',False,False);subscribed=True

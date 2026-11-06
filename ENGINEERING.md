@@ -215,3 +215,5 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 实现Telegram所有通知类型、无图片缺报文本、原PNG附件及原生message_id/server_date回执；保留统一outbox身份。新增TELEGRAM_ALERTS_ARMED主通道，Brevo配置/旧arm可保留为休眠备用，无自动fallback/双发，UNKNOWN不重试。
 - 云只读检查：e28b33f，ibkr-notifications active；发送账本18 FEISHU_ACCEPTED+769 SMTP_ACCEPTED，PENDING/STARTED/UNKNOWN均0。尚未部署Telegram、尚无Telegram真实发送，不以本地785项通过替代云验收。
 - 官方Flex说明确认固定ndcdyn SendRequest/GetStatement并忽略响应URL；来源https://www.interactivebrokers.com/docs/web-api/flex-web-service/using-flex-web-service/generate-the-report 。正式Flex适配仍待完成。
+- Telegram真实报告验收：云端629cd36，outbox788→TELEGRAM_ACCEPTED，群-5461963901原生message_id2、server_date2026-11-06T00:05:45Z（Berlin01:05:45），发起到ACK约0.34s；不是已读证明。TELEGRAM_ALERTS_ARMED/REPORTS_ARMED启用，Brevo arm备份后撤下，单一既有worker运行。正式Flex仍缺失。
+- Paper preflight没有提交订单。查明ib_async默认$LEDGER:ALL只返回基准summary；显式$LEDGER:USD真实返回美元-69786.59和EUR/USD汇率0.8901638。新增有界单请求、end marker后cancel的资金读取，不将缺失当0。scope仍同一ID/预算/到期时间，仅Git部署身份和已授权有限Paper融资政策同步，全球门禁哈希不变。
