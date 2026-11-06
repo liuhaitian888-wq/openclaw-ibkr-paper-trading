@@ -59,13 +59,13 @@ def message_for(item, sender, trading_status):
 
 
 def send_one(store, coordinator, config, *, trading_status='未验证', smtp_factory=smtplib.SMTP,
-             report_root=None, clock=time.time):
+             report_root=None, clock=time.time, claimed_item=None):
     # Validate before reserving; never print configuration or SMTP exception data.
     for key in ('host', 'sender', 'username', 'relay_password'):
         if not isinstance(config.get(key), str) or not config[key]:
             raise ValueError('Incomplete private SMTP configuration')
     port = int(config.get('port', 587))
-    item = store.claim()
+    item = claimed_item if claimed_item is not None else store.claim()
     if item is None:
         return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
     operation = 'notification:outbox:' + str(item['id'])

@@ -200,3 +200,18 @@ Fresh independent PaperDUQ503649 readback at2026-11-05T23:19:44.702838Z was comp
 Cause: broker competing-session restriction no longer applied to these new requests. Exact release mechanism/time is UNKNOWN: password-entry mobileUI did not prove logout; no server session inventory is exposed. Earlier one-time QuantConnect reauthentication23:27Berlin did NOT immediately restore quotes. No restart was performed in this successful observation. Do not attribute delayed broker release to a specific code patch or claim continuous absence of10197 between samples. Subscription record remains NetworkA/CTA L1, NetworkB L1 and NetworkC/UTP L1; RTH-only K-line query parameters are separate from these entitlements.
 
 User now explicitly requests actual submit/fill/cancel Paper acceptance. Filled orders cannot be cancelled, so finite acceptance uses distinct single-share cancel/fill orders plus optional test-lot close. Independent scoped experiment only: NVDA, one share, limit<=USD200, max3 submissions, fresh real quotes, broker contract session/minTick, existing exposure/availableUSDcash, exact account, immutable intent before wire, no replay of STARTED/UNKNOWN, no originalPFE cancellation. GlobalstrategyPAUSED/production.json retained. Implementation and actual outcomes follow after offline suite and real preflight.
+
+## 2026-11-06 — upstream registry and Telegram setup checkpoint
+
+User clarified the requested integration concerns the whole project, not only currencies. Actual upstream integration/patch status is now maintained in REPOSITORIES.md (IBAutomater, LEAN brokerage, ib_async, Canary, ibflex, python-telegram-bot, IBC and official IBKR interfaces). Canary/LEAN full engines remain design references, not silently installed runtime components. User approved official Flex financial-report adaptation; parser/downloader/account-period verification remains separate from current live API evidence.
+
+User approved creation/private local+cloud token storage for @deehub_paper_reports_bot. Native BotFather creation succeeded; token saved in ignored0600 config, getMe verified correct Bot. User created actual group named der (superseding proposed deehub); readonlyAPI verified exact chat, bot membership, single owner and total2members. No test message sent. Report-only transport uses pinned python-telegram-bot22.8 and existing outbox/schedule/PNG; operational alerts remain Brevo. Native server receipts and UNKNOWN non-replay are required before delivery is certified.
+
+Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER-prefixed tags and a negativeUSD balance; base account values areEUR. New currency adapter preserves liabilities and broker USD-to-base rate, does not assume zero/missing balances or1:1FX. Any limited Paper financing remains explicitly scoped; no global trading permission changes.
+
+## 2026-11-06 接续核对：Telegram统一主通道（部署前）
+- 用户再次要求故障/恢复和日报全部迁至Telegram并尽快自动运行。现云端是自动只读监测+Brevo通知，不是自动交易。未解除PAUSED/MAINTENANCE，未发送验收订单。
+- 逐项迁移计划见docs/superpowers/plans/2026-11-06-telegram-reports.md。已核对历史精确时刻：每天/周一/每月1日09:00 Asia/Shanghai，正常网络确认目标60秒；缺报同日一次补报、过日不补；故障首次/30分钟/2小时/24小时/每天，离线只汇总最新阶段。
+- 实现Telegram所有通知类型、无图片缺报文本、原PNG附件及原生message_id/server_date回执；保留统一outbox身份。新增TELEGRAM_ALERTS_ARMED主通道，Brevo配置/旧arm可保留为休眠备用，无自动fallback/双发，UNKNOWN不重试。
+- 云只读检查：e28b33f，ibkr-notifications active；发送账本18 FEISHU_ACCEPTED+769 SMTP_ACCEPTED，PENDING/STARTED/UNKNOWN均0。尚未部署Telegram、尚无Telegram真实发送，不以本地785项通过替代云验收。
+- 官方Flex说明确认固定ndcdyn SendRequest/GetStatement并忽略响应URL；来源https://www.interactivebrokers.com/docs/web-api/flex-web-service/using-flex-web-service/generate-the-report 。正式Flex适配仍待完成。

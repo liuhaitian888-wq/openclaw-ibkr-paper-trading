@@ -43,7 +43,9 @@ def main():
         return 0
     expected=json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
     smtp = ((root/'runtime/BREVO_ALERTS_ARMED').is_file()
-            or (root/'runtime/EMAIL_ALERTS_ARMED').is_file())
+            or (root/'runtime/EMAIL_ALERTS_ARMED').is_file()
+            or (root/'runtime/TELEGRAM_REPORTS_ARMED').is_file()
+            or (root/'runtime/TELEGRAM_ALERTS_ARMED').is_file())
     credentials=Path.home()/'.config/openclaw/feishu-images.env'
     if not smtp and (not credentials.is_file() or credentials.stat().st_mode & 0o077):
         raise PermissionError('Private image-upload credentials required')

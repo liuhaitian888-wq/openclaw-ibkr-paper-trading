@@ -36,9 +36,9 @@ def validate_config(config):
 
 
 def send_one(store, coordinator, config, *, trading_status='Paper安全监控；交易权限另行核验',
-             opener=None, clock=time.time, preflight=None):
+             opener=None, clock=time.time, preflight=None, claimed_item=None):
     validate_config(config)
-    item = store.claim()
+    item = claimed_item if claimed_item is not None else store.claim()
     if item is None:
         return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
     if preflight is not None and not preflight(config['webhook_url']):

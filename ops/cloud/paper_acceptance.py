@@ -14,6 +14,7 @@ from trading.paper_acceptance import ACCOUNT,CLIENT_ID,Journal,validate_scope,ch
 from trading.production_paths import STATE_ROOT
 from trading.production_diagnostics import context
 from reporting.recovery import RecoveryCoordinator
+from trading.currency_book import cashbook,paper_funding
 from ops.cloud.monitoring_guard import monitoring_service
 
 
@@ -64,11 +65,9 @@ async def run(stage):
         orders=[dict(account=t.order.account,symbol=t.contract.symbol,currency=t.contract.currency,
             side=t.order.action,order_type=t.order.orderType,remaining=float(t.orderStatus.remaining or t.order.totalQuantity),
             limit=t.order.lmtPrice,held_position=held.get(t.contract.symbol,0),perm_id=t.order.permId,order_ref=t.order.orderRef) for t in opens]
-        def value(tag,currency=None):
-            rows=[float(v.value) for v in values if v.account==ACCOUNT and v.tag==tag and (currency is None or v.currency==currency)]
-            if len(rows)!=1:raise PermissionError('Unambiguous account field required: '+tag+':'+str(currency))
-            return rows[0]
-        cash=value('CashBalance','USD');funds=value('AvailableFunds')
+        book=cashbook(values,ACCOUNT)
+        funding=paper_funding(book,scope.get('currency_financing_policy','CASH_ONLY'))
+        cash=funding['usd_cash'];funds=funding['available_funds_usd']
         ib.reqMarketDataType(1);ticker=ib.reqMktData(contract,'',False,False);subscribed=True
         if not await wait_until(lambda:all(k in quote_times for k in ('bid','ask')) and ticker.marketDataType==1,15):
             raise PermissionError('No fresh real-time bid/ask')
@@ -81,13 +80,13 @@ async def run(stage):
         validate_scope(scope,context(),root)
         plan=check_order(intended,bid=ticker.bid,ask=ticker.ask,bid_at=quote_times['bid'],ask_at=quote_times['ask'],
             data_type=ticker.marketDataType,limit=limit,min_tick=float(tick),position=position,baseline=0,
-            usd_cash=cash,available_funds=funds,orders=orders,now=time.time())
+            usd_cash=cash,available_funds=funds,orders=orders,now=time.time(),funding_capacity_usd=funding['capacity_usd'])
         if stage=='close':
             prior=journal.read('fill')
             if not prior or prior['status']!='FILLED' or not prior.get('exec_ids'):
                 raise PermissionError('Test-owned fill proof required before selling')
         report=dict(stage=stage,observed_at=stamp(),account=ACCOUNT,contract_id=contract.conId,bid=ticker.bid,ask=ticker.ask,
-            quote_times=quote_times,trading_hours=details[0].tradingHours,contract_timezone=details[0].timeZoneId,min_tick=float(tick),usd_cash=cash,available_funds=funds,positions=[dict(symbol=p.contract.symbol,quantity=str(p.position)) for p in positions],
+            cashbook=book,funding=funding,quote_times=quote_times,trading_hours=details[0].tradingHours,contract_timezone=details[0].timeZoneId,min_tick=float(tick),usd_cash=cash,available_funds=funds,positions=[dict(symbol=p.contract.symbol,quantity=str(p.position)) for p in positions],
             orders=orders,execution_count=len(executions),plan=plan,errors=errors,orders_sent=0,grants_strategy_permission=False)
         evidence=root/'observations/paper-acceptance';evidence.mkdir(parents=True,exist_ok=True,mode=0o700)
         if stage=='preflight':
@@ -111,7 +110,7 @@ async def run(stage):
         check_session(details[0].tradingHours,details[0].timeZoneId)
         check_order(stage,bid=ticker.bid,ask=ticker.ask,bid_at=quote_times['bid'],ask_at=quote_times['ask'],
             data_type=ticker.marketDataType,limit=limit,min_tick=float(tick),position=position,baseline=0,
-            usd_cash=cash,available_funds=funds,orders=orders,now=time.time())
+            usd_cash=cash,available_funds=funds,orders=orders,now=time.time(),funding_capacity_usd=funding['capacity_usd'])
         trade=ib.placeOrder(contract,order);report['orders_sent']=1
         acknowledged=await wait_until(lambda:trade.orderStatus.status in ('Filled','Cancelled','ApiCancelled','Inactive') or
             (trade.orderStatus.status in ('PreSubmitted','Submitted') and trade.orderStatus.permId>0),20)

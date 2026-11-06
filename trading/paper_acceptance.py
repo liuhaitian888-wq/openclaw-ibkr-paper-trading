@@ -44,7 +44,7 @@ def validate_scope(scope, actual, root, now=None):
 
 
 def check_order(stage, *, bid, ask, bid_at, ask_at, data_type, limit, min_tick,
-                position, baseline, usd_cash, available_funds, orders, now):
+                position, baseline, usd_cash, available_funds, orders, now, funding_capacity_usd=None):
     if stage not in STAGES or baseline != 0:
         raise PermissionError('Explicit stage and flat initial NVDA required')
     values=(bid,ask,bid_at,ask_at,limit,min_tick,usd_cash,available_funds,position)
@@ -72,7 +72,9 @@ def check_order(stage, *, bid, ask, bid_at, ask_at, data_type, limit, min_tick,
             reserved += order['remaining']*order['limit']+2
         elif order['side']!='SELL' or order['remaining'] > order.get('held_position',0):
             raise PermissionError('External exposure is ambiguous or short')
-    if stage != 'close' and usd_cash-reserved < limit+2:
+    capacity=usd_cash if funding_capacity_usd is None else funding_capacity_usd
+    if not math.isfinite(float(capacity)):raise PermissionError('Invalid funding capacity')
+    if stage != 'close' and capacity-reserved < limit+2:
         raise PermissionError('USD cash must cover order, existing buys and fee buffer')
     return dict(side='SELL' if stage=='close' else 'BUY', quantity=1,
                 limit=limit, reserved_usd=0 if stage=='close' else limit+2,
