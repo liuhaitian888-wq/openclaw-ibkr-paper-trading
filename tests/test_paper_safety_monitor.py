@@ -296,6 +296,26 @@ class PaperSafetyTests(unittest.TestCase):
         client.connectionClosed()
         self.assertFalse(self.m.snapshot()['entries_ready'])
 
+    def test_completed_callbacks_with_zero_local_id_keep_distinct_permanent_orders(self):
+        client=PaperSafetyClient(self.m,['PFE']);self.m.begin([ACCOUNT])
+        contract=NS(symbol='NVDA',conId=4815747,currency='USD',secType='STK')
+        for perm,side in ((756941085,'BUY'),(756941086,'SELL')):
+            order=NS(orderId=0,permId=perm,account=ACCOUNT,action=side,orderType='LMT',totalQuantity=0,transmit=True,clientId=0)
+            client.completedOrder(contract,order,NS(status='Filled'))
+        self.assertEqual(len(self.m.state['orders']),2)
+        self.assertEqual({o['perm_id'] for o in self.m.state['orders'].values()},{756941085,756941086})
+        self.assertNotIn(0,client.broker_orders)
+        self.assertTrue(self.m.state['connected'])
+
+    def test_completed_permanent_identity_conflict_is_still_rejected(self):
+        base=dict(order_id=0,perm_id=111,account=ACCOUNT,client_id=0,con_id=4815747,symbol='NVDA',side='BUY',completed=True,status='Filled')
+        self.m.order(base)
+        with self.assertRaises(ValueError):self.m.order(dict(base,symbol='PFE'))
+        self.assertFalse(self.m.state['connected'])
+
+    def test_completed_order_without_permanent_id_cannot_be_merged(self):
+        with self.assertRaises(ValueError):self.m.order(dict(order_id=0,perm_id=0,account=ACCOUNT,completed=True))
+
     def test_complete_kline_requires_all_twelve_real_bars(self):
         client=PaperSafetyClient(self.m,['PFE'])
         self.now=1200
