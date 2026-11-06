@@ -1,5 +1,19 @@
 # Architecture
 
+## Current architecture and delivery status — 2026-11-06
+
+The current system map, six business layers, canonical pool names, module-by-module
+implementation/deployment/acceptance status, and remaining work are maintained in
+[System design and delivery status](docs/SYSTEM_STATUS_20261106.md).
+
+Cloud Paper runs one approved Gateway owner on port 4002. Automated strategy
+execution remains paused; current signal generation and monitoring are not
+permission to trade. The historical local port 7497 and Mode 9 diagrams below
+are design/history context, not a current cloud startup runbook. Follow
+[PRODUCTION.md](PRODUCTION.md) for operations.
+
+## Historical design context
+
 This project is organized around five layers: data, research, decision, risk,
 and execution/audit. The core boundary is that Discord and OpenClaw do not touch
 IBKR directly. All broker actions go through the local Python gateway.

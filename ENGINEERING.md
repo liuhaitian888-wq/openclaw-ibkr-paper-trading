@@ -277,3 +277,9 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 用户指定云外告警只发der群，不绑定私聊。当前新增Telegram user None（私聊）已取消全部检查分配0/2，保留原邮件2/2；der只读核对仍2成员时未发测试。官方机器人普通成员加群、群内/start绑定及真实Down/Up通知尚待完成，不宣称外部Telegram已验收。
 - Healthchecks官方源码5b9a198bca9dc959326f6492e460166373530499已在OpenWorkspace只读审阅；默认HTTP传输最多3次尝试且不对本工程暴露Telegram message_id，因此不能声称等价于本工程UNKNOWN不重放账本；社区讨论只作参考。
 - 806项完整隔离离线通过及gitleaks通过。功能云部署3734bca；安全owner加载d03d355含connection-proof hook；仅原owner重载，Gateway PID827485未变。部署备份目录权限失败后重载曾被旧manifest拒绝，失败记录保留；批准身份已修正，单owner恢复API/Paper完整回读。PAUSED/MAINTENANCE和已关闭Paper scope不变；当前bars/history仍缺证，不称行情或自动交易已完成。
+
+## 2026-11-06 旧总设计与当前工程文档对齐
+
+- 按用户“直接实现”接续上一轮总设计对照建议，落地文档/总图/术语和README署名，不视为启用全自动交易或修改云通知配置的授权。
+- 新增docs/SYSTEM_STATUS_20261106.md：六层业务架构、代码/部署/验收矩阵、canonical六层股票池与七池report-only视图区分、AI复盘边界和分阶段验收标准。ARCHITECTURE.md将旧Mode9/7497图明确保留为历史设计，顶部链接当前状态。
+- README明确当前云4002、PAUSED/signal-only、已关闭Paper范围，补上实际使用/参考上游署名与REPOSITORIES固定版本登记链接；替换主目录直接unittest的旧指引。未变更运行逻辑、凭据、数据库、服务或交易许可。

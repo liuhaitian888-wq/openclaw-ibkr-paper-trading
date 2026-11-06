@@ -25,49 +25,70 @@ paper-trading TWS session.
 - [Strategy Modules](docs/STRATEGY_MODULES.md) documents the current paper-only
   strategy modules, including the conservative dual-SMA trend strategy.
 
-## Current safety state
+## Current deployment, safety and architecture
 
-- TWS host: `127.0.0.1`
-- Paper port: `7497`
-- API mode: `DRY_RUN`
-- TWS staging: disabled by default
-- Paper transmission: disabled by default
-- Paper transmission also requires `TRADE_SESSION_TOKEN`
-- `TRADING_KILL_SWITCH=true` rejects all order submissions
-- Live-account orders: rejected; only one `DU` paper account is accepted
-- Maximum quantity: 1 share
-- Maximum order value: USD 200
-- Maximum estimated stop risk: USD 10
-- Allowed symbols: `AAPL`, `MSFT`, `SPY`
+- Current cloud Paper Gateway uses port 4002 with one approved owner; old local
+  7497 examples are historical configuration, not a cloud runbook.
+- Global PAUSED / MAINTENANCE and SAFE_MONITOR_ONLY remain. The cloud observer
+  generates signals with transmit=False; continuous autonomous trading is not enabled.
+- The finite three-order Paper acceptance scope is closed and exhausted.
+- See [System design and delivery status](docs/SYSTEM_STATUS_20261106.md) for the
+  current map, six business layers, canonical six-layer pools and acceptance gaps.
+- Follow [PRODUCTION.md](PRODUCTION.md), [ENGINEERING.md](ENGINEERING.md) and
+  [AGENTS.md](AGENTS.md) before operating any entry point.
+- Telegram group migration/audience compatibility and external Healthchecks group
+  delivery remain acceptance work. Existing notification code is not proof that
+  the newly changed audience can currently receive messages.
 
-The paper order adapter creates a limit entry and a protective stop as a bracket.
-Every submission requires a unique idempotency key and is recorded in SQLite.
+## Upstream projects and attribution
 
-Broker reconciliation persists TWS open/completed orders and executions into
-SQLite. Unknown active TWS orders fail closed and block new submissions until
-the discrepancy is investigated. Reconciliation is explicit; it never places,
-modifies, or cancels an order.
+This repository combines original application code with upstream components and
+external services. Third-party licenses and notices remain applicable to their
+respective components; the repository's original-code copyright does not claim
+ownership of upstream work. Reviewed references are not deployed engines.
 
-SQLite is only the local audit ledger. It is not part of the realtime order
-route, and no manual database operation is needed during normal trading. The
-default file is `trading_audit.sqlite3`; SQLite may also create `-wal` and `-shm`
-sidecar files while the API is running. Keep those files local, do not edit them
-by hand during a trading session, and use `/v1/orders/audit` or `audit-key` to
-inspect order history.
+| Source | Actual use | License / boundary |
+| --- | --- | --- |
+| [QuantConnect IBAutomater](https://github.com/QuantConnect/IBAutomater) | Deployed Gateway login/native soft-restart integration, with local ownership and lifecycle adaptations | Apache-2.0; retain upstream notices and patch provenance |
+| [ib_async](https://github.com/ib-api-reloaded/ib_async) | Runtime 2.1.0 adapters and verified finite Paper acceptance | BSD; no second Watchdog beside existing Gateway owner |
+| [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) | Runtime 22.8 Telegram report/alert transport and native receipts | LGPL-3.0; package dependency, not a claim of original transport implementation |
+| [Healthchecks](https://github.com/healthchecks/healthchecks) | External hosted heartbeat monitoring; native group alerts not yet accepted | BSD-3-Clause source; hosted service and local sender are distinct |
+| [SQLite](https://sqlite.org/) | Local audit, incident, recovery and outbox storage | Upstream public-domain database; not an original database engine |
+| [LEAN IB Brokerage](https://github.com/QuantConnect/Lean.Brokerages.InteractiveBrokers) | Reviewed session/error and currency models | Apache-2.0; full LEAN engine is not deployed |
+| [osauer/Canary](https://github.com/osauer/canary) | Reviewed risk/reporting design | MIT; not connected as another production account daemon; distinct from canary testing |
+| [ibflex](https://github.com/csingley/ibflex) | Selected/reviewed parser for future formal Flex integration | MIT; formal production adaptation remains incomplete |
+| [IBC](https://github.com/IbcAlpha/IBC) | Reviewed reference only | GPL-3.0; not installed as a second Gateway controller |
+| IBKR official TWS API / Flex | Broker interface and planned authoritative activity reporting | Official SDK/service terms; current API snapshots are not formal Flex statements |
 
-## PyCharm interpreter
+[REPOSITORIES.md](REPOSITORIES.md) records exact reviewed pins, runtime versions,
+local adaptations, licenses and upgrade boundaries. Linux/systemd owns cloud
+service lifecycles. IBKR, Hetzner, Telegram and legacy Brevo are products/services,
+not all open-source components of this repository. Persistent Outbox and Incident
+management are existing application modules, not additional software to install.
+Prometheus, Grafana, Alertmanager and PostgreSQL remain optional proposals, not
+currently deployed integrations.
 
-Use:
+## Visible development and verification
 
-```text
-/Users/nbhsbgnb/Documents/New project/.venv313/bin/python
-```
+Use the VS Code Codex extension and a visible terminal for new engineering work.
+Opening a log does not migrate an existing desktop chat into the IDE. Preserve
+unsaved buffers and the linked worktree; do not start a duplicate cloud owner.
 
-## Run tests
+Production workspace: quick read-only smoke only (NOT_READY is expected while paused):
 
 ```bash
-.venv313/bin/python -m unittest discover -v
+scripts/check_gateway_health.command --json
 ```
+
+Full offline suite: only inside the linked development worktree, using the existing interpreter:
+
+```bash
+"/Users/nbhsbgnb/Documents/New project/.venv313/bin/python" scripts/run_worktree_tests.py
+pre-commit run gitleaks --all-files
+```
+
+Tests must never target production databases or ledgers. Test success does not
+approve data migration, notification sends or trading activation.
 
 ## Run local strategy simulation
 
