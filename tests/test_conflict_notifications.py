@@ -29,13 +29,18 @@ class ConflictTests(unittest.TestCase):
   self.recover();self.assertEqual([k for k,p in self.queue()],['ALERT','RECOVERY'])
   self.r.error('PFE',10197,'new conflict');self.recover()
   self.assertEqual([k for k,p in self.queue()],['ALERT','RECOVERY','ALERT','RECOVERY'])
- def test_no_recovery_from_missing_reconciliation_closed_or_repeated_quote(self):
-  self.r.error('PFE',10197,'competing');self.recover(False);self.recover(True,'CLOSED')
+ def test_clearance_requires_new_live_quotes_and_reconciliation_not_calendar(self):
+  old=self.fields()
+  self.r.error('PFE',10197,'competing');self.recover(False)
   self.assertEqual(len(self.queue()),1)
-  f=self.fields()
-  for i in range(4):self.r.observe('PFE',f,session='REGULAR',reconciliation_verified=True)
+  for i in range(4):self.r.observe('PFE',old,session='CLOSED',reconciliation_verified=True)
   self.assertEqual(len(self.queue()),1)
-  self.recover();self.assertEqual(len(self.queue()),2)
+  self.now+=1
+  self.r.observe('PFE',self.fields(),session='CLOSED',reconciliation_verified=True)
+  self.assertEqual(len(self.queue()),2)
+  for i in range(4):self.r.observe('PFE',self.fields(),session='CLOSED',reconciliation_verified=True)
+  self.assertEqual(len(self.queue()),2)
+  self.assertFalse(self.r.snapshot('PFE')['health']['allows_realtime'])
  def test_restart_old_state_does_not_manufacture_a_conflict(self):
   self.r.lifecycle.seed_legacy('PFE',4,'old');self.recover()
   self.assertEqual(self.queue(),[])

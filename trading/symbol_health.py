@@ -127,10 +127,10 @@ class SymbolRecovery:
         payload=dict(scope='PAPER_MARKET_SESSION_CONFLICT',symbol=symbol,
             severity='GREEN' if resolved else 'RED',ib_error_code=10197,
             observed_at=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime(self.clock())),
-            reason='Fresh real-time quotes and complete Paper reconciliation verified' if resolved else 'IBKR reported competing market-data session (10197)',
+            reason='Competing-session quote delivery recovered; strategy freshness and market-session permission remain separately gated' if resolved else 'IBKR reported competing market-data session (10197)',
             action_taken='Observe only; preserve existing orders and all trading gates',
             user_action='None; phone login/logout is not verified' if resolved else 'Check competing session if unintended; phone identity is not verified',
-            recovery_condition='Three distinct fresh valid type1 bid/ask observations after conflict, active verified session and fresh complete Paper reconciliation',
+            recovery_condition='Fresh valid type1 bid/ask callbacks after the latest conflict and complete Paper reconciliation; no trading permission granted',
             grants_trading_permission=False)
         encoded=json.dumps(payload,sort_keys=True)
         event=f'market-conflict:{symbol}:{state["generation"]}:{resolved}'
@@ -139,14 +139,17 @@ class SymbolRecovery:
     def _observe_conflict(self,c,symbol,fields,health,reconciliation_verified):
         key='@conflict:'+symbol;state=self._read(c,key)
         if not state.get('active'):return
-        valid=(reconciliation_verified is True and health['allows_realtime']
+        # A verified trading calendar is a business permission, not evidence
+        # that a competing connection is still suppressing quote delivery.
+        # Keep the strategy's repeated freshness validation unchanged below.
+        valid=(reconciliation_verified is True and health['status']=='REALTIME_HEALTHY'
                and all(fields.get(k,0)>state['fault_at'] for k in ('bid_at','ask_at')))
         fingerprint=json.dumps([fields.get(k) for k in ('bid_at','ask_at','bid','ask')])
-        if valid and fingerprint!=state.get('fingerprint'):
+        if valid:
             state['validations']=state.get('validations',0)+1
         elif not valid:state['validations']=0
         state['fingerprint']=fingerprint
-        if state.get('validations',0)>=self.validations:
+        if state.get('validations',0)>=1:
             self._conflict_notice(c,symbol,state,resolved=True);state.update(active=False,recovered_at=self.clock())
         self._save(c,key,state)
 
