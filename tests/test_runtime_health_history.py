@@ -40,3 +40,17 @@ class RuntimeHistoryTests(unittest.TestCase):
     rows=c.execute('SELECT outcome,ack,http_status FROM heartbeat_delivery ORDER BY id').fetchall()
     self.assertEqual(rows[0][0],'HTTP_ACCEPTED');self.assertIsNotNone(rows[0][1])
     self.assertEqual(rows[1],('UNKNOWN',None,None))
+
+ def test_api_heartbeat_requires_fresh_owned_identity_and_readback(self):
+  from ops.cloud.healthchecks_sender import api_evidence
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp)
+   self.assertFalse(api_evidence(root,1000,'DUQ503649'))
+   self.assertFalse((root/'recovery.sqlite3').exists())
+   with closing(sqlite3.connect(root/'recovery.sqlite3')) as c,c:
+    c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)')
+    state=dict(identity=True,connected=True,upstream_connected=True,last_server_reply=995,reconciled_at=980)
+    c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps(state),))
+   self.assertTrue(api_evidence(root,1000,'DUQ503649'))
+   self.assertFalse(api_evidence(root,1100,'DUQ503649'))
+   self.assertFalse(api_evidence(root,1000,'WRONG'))

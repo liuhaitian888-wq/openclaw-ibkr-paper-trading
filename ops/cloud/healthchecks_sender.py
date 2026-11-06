@@ -24,6 +24,22 @@ def fresh(observation, now):
 
 
 
+def api_evidence(root, now, expected):
+    """Existing owner evidence only. A stale five-minute snapshot cannot prove API UP."""
+    try:
+        path=(root/'recovery.sqlite3').resolve()
+        with closing(sqlite3.connect(path.as_uri()+'?mode=ro',uri=True,timeout=2)) as c:
+            c.execute('PRAGMA query_only=ON')
+            row=c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
+        state=json.loads(row[0]) if row else {}
+        return (expected=='DUQ503649' and state.get('identity') is True
+            and state.get('connected') is True and state.get('upstream_connected') is True
+            and 0<=now-state.get('last_server_reply',0)<=30
+            and 0<=now-state.get('reconciled_at',0)<=90)
+    except (OSError,ValueError,TypeError,sqlite3.Error):
+        return False
+
+
 def heartbeat_attempt(root, name, healthy, send):
     """Persist an attempt before wire and its native HTTP confirmation afterwards."""
     path=root/'recovery.sqlite3'
@@ -61,14 +77,12 @@ def main():
     def read(name):
         try: return json.loads((root/name).read_text())
         except (OSError, ValueError): return {}
-    host = read('cloud-status.json'); paper = read('paper-observer.latest.json')
+    host = read('cloud-status.json')
     expected_path=Path.home()/'.config/openclaw/paper-observer.json'
     expected=json.loads(expected_path.read_text())['expected_account']
     now=datetime.now(timezone.utc)
     host_ok=fresh(host,now) and host.get('disk_free_fraction',0)>=.20
-    paper_ok=(fresh(paper,now) and paper.get('complete') is True
-              and paper.get('environment')=='PAPER' and paper.get('account_id')==expected
-              and paper.get('resources',{}).get('connected_after_close') is False)
+    paper_ok=api_evidence(root,now.timestamp(),expected)
     opener=build_opener(HTTPSHandler(context=ssl.create_default_context()),NoRedirect())
     failures=0
     for name,ok in (('host_url',host_ok),('paper_api_url',paper_ok)):

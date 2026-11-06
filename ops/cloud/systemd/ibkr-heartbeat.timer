@@ -1,9 +1,11 @@
 [Unit]
-Description=Send opted-in external heartbeat every five minutes
+Description=Send opted-in external heartbeat every minute
 
 [Timer]
-OnBootSec=4min
-OnUnitActiveSec=5min
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=1s
+RandomizedDelaySec=0
 
 [Install]
 WantedBy=timers.target
