@@ -28,3 +28,15 @@ class RuntimeHistoryTests(unittest.TestCase):
   s,e=monitor_states(state,{},['PFE'],400,2);self.assertEqual(s['market.history.PFE'],'UNVERIFIED')
  def test_naive_end_rejected(self):
   with self.assertRaises(ValueError):inspect('/missing',datetime(2026,1,1))
+
+ def test_heartbeat_ack_and_unknown_are_persisted_without_endpoint(self):
+  from ops.cloud.healthchecks_sender import heartbeat_attempt
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp)
+   self.assertTrue(heartbeat_attempt(root,'host_url',True,lambda:200))
+   def lost_response():raise TimeoutError('private endpoint must not be recorded')
+   self.assertFalse(heartbeat_attempt(root,'host_url',True,lost_response))
+   with closing(sqlite3.connect(root/'recovery.sqlite3')) as c:
+    rows=c.execute('SELECT outcome,ack,http_status FROM heartbeat_delivery ORDER BY id').fetchall()
+    self.assertEqual(rows[0][0],'HTTP_ACCEPTED');self.assertIsNotNone(rows[0][1])
+    self.assertEqual(rows[1],('UNKNOWN',None,None))
