@@ -239,6 +239,26 @@ class SymbolRecovery:
             self._save(c,key,s)
             return s
 
+    def verified_connection(self,connection,*,reconciliation_verified=False):
+        """Release only a stale 1100 wait after independent connection proof.
+
+        No fast budget is replenished. Pending subscription outcomes remain
+        held, and quote recovery still requires independent fresh observations.
+        """
+        if not connection or reconciliation_verified is not True:return []
+        changed=[]
+        with closing(self.store.connect()) as c,c:
+            c.execute('BEGIN IMMEDIATE')
+            for symbol in self.symbols:
+                key='@retry:'+symbol;s=self._read(c,key);lifecycle=self.lifecycle.read(c,symbol)
+                if s.get('action')!='WAIT_CONNECTION' or s.get('code')!=1100 or lifecycle.get('pending'):continue
+                attempts=max(s.get('attempts',0),lifecycle.get('attempts',0))
+                s.update(action='RESUBSCRIBE_DATA',attempts=attempts,
+                    next_retry=self.clock() if attempts<self.max_attempts else None,
+                    phase='BLOCKED',connection_proof=connection,connection_verified_at=self.clock())
+                self._save(c,key,s);changed.append(symbol)
+        return changed
+
     def retry_due(self,symbol,*,session='UNKNOWN',connected=False):
         now=self.clock()
         with closing(self.store.connect()) as c:
