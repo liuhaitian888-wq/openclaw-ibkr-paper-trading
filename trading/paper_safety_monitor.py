@@ -56,6 +56,7 @@ class PaperSafetyMonitor:
                           contracts=prior.get('contracts', {}),
                           connection_recovery=prior.get('connection_recovery', {}),
                           incident_signatures=prior.get('incident_signatures', {}),
+                          incident_sequences=prior.get('incident_sequences', {}),
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
                           last_server_reply=0,
@@ -75,7 +76,9 @@ class PaperSafetyMonitor:
                        scope='PAPER_SAFETY', action_taken='Block new entries; preserve broker orders',
                        user_action='Review broker protection/session; replacement orders require explicit approval',
                        recovery_condition='Exact Paper identity, complete reconciliation, protection and fresh data/bars')
-        identity = hashlib.sha256(json.dumps([self.state['epoch'], key, payload], sort_keys=True).encode()).hexdigest()
+        sequence=self.state['incident_sequences'].get(key,0)+1
+        self.state['incident_sequences'][key]=sequence
+        identity = hashlib.sha256(json.dumps([self.state['epoch'], key, sequence, payload], sort_keys=True).encode()).hexdigest()
         self.incidents.ingest(identity, 'paper-safety:' + key, payload, resolved=resolved)
         self.state['incident_signatures'][key] = signature
 
@@ -521,6 +524,19 @@ class PaperSafetyMonitor:
                 continue
             self._incident('protection:' + symbol, item['status'], resolved=item['status']=='PROTECTED',
                            symbol=symbol, quantity=item['quantity'], protection=item['status'])
+        # A fully reconciled flat position with no active order has no remaining
+        # protection exposure. Do not leave its old incident open forever after
+        # an exit, and never infer this from an incomplete/dirty snapshot.
+        if self._complete():
+            for key in tuple(self.state['incident_signatures']):
+                if not key.startswith('protection:'):continue
+                symbol=key.split(':',1)[1]
+                if number(self.state['positions'].get(symbol,0))!=0:continue
+                if any(o.get('symbol')==symbol and not o.get('completed')
+                       and o.get('status') not in ('Filled','Cancelled','ApiCancelled','Inactive')
+                       for o in self.state['orders'].values()):continue
+                self._incident(key,'Complete broker reconciliation confirms no position or open order',
+                               resolved=True,symbol=symbol,quantity=0,protection='NO_EXPOSURE')
         if self.state['connected'] and self.state.get('sync_started') is not None and self.clock()-self.state['sync_started']>30 and not snapshot['reconciliation_complete']:
             self._incident('reconciliation', 'Broker reconciliation incomplete or failed')
         with closing(self.coordinator.connect()) as c, c:

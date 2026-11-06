@@ -50,6 +50,29 @@ class PaperSafetyTests(unittest.TestCase):
         with closing(self.m.incidents.connect()) as c:
             return c.execute("SELECT count(*) FROM notification_outbox WHERE incident_key='paper-safety:protection:PFE'").fetchone()[0]
 
+    def test_flat_exposure_closes_protection_only_after_complete_readback_and_reopens(self):
+        self.ready(order=False)
+        def incident():
+            with closing(self.m.incidents.connect()) as c:
+                return c.execute("SELECT generation,state FROM incidents WHERE incident_key='paper-safety:protection:PFE'").fetchone()
+        self.assertEqual(incident(),(1,'OPEN'))
+        self.m.start_reconciliation();self.m.position('PFE',0,con_id=11031,currency='USD',sec_type='STK')
+        self.m.end('positions');self.assertEqual(incident(),(1,'OPEN'))
+        for name in ('orders','completed_orders','executions'):self.m.end(name)
+        self.assertEqual(incident(),(1,'RESOLVED'))
+        count=self.notification_count();self.m._publish();self.assertEqual(self.notification_count(),count)
+        self.m.start_reconciliation();self.m.position('PFE',2,con_id=11031,currency='USD',sec_type='STK')
+        for name in ('positions','orders','completed_orders','executions'):self.m.end(name)
+        self.assertEqual(incident(),(2,'OPEN'))
+
+    def test_flat_position_with_active_order_does_not_clear_protection_incident(self):
+        self.ready(order=False);self.m.start_reconciliation()
+        self.m.position('PFE',0,con_id=11031,currency='USD',sec_type='STK')
+        order=self.stop();order.update(side='BUY',order_type='LMT');self.m.order(order)
+        for name in ('positions','orders','completed_orders','executions'):self.m.end(name)
+        with closing(self.m.incidents.connect()) as c:
+            self.assertEqual(c.execute("SELECT state FROM incidents WHERE incident_key='paper-safety:protection:PFE'").fetchone()[0],'OPEN')
+
     def test_routine_snapshot_does_not_generate_protection_email_pairs(self):
         self.ready()
         count=self.notification_count()

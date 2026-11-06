@@ -251,3 +251,5 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 791项完整离线通过；本轮不下单、不发测试消息、不解除PAUSED/MAINTENANCE。真实Paper三笔已于前轮验收完成且scope关闭，不重复。
 - 自动策略尚被明确事实阻塞：production.json ready=false/SAFE_MONITOR_ONLY，canonical_current_state_verified=false，控制/风控/权威状态/隔离风险与策略依赖尚未获批准。门禁输出中的Duplicate/uncertain默认拒绝项不等于发现了新UNKNOWN订单；上轮已独立查明UNKNOWN订单0。
 - 用户偏好此项目后续以VS Code Codex扩展为开发入口，已记AGENTS.md。当前桌面聊天没有因展示终端而迁入IDE；生产systemd单owner仍在云端，开发/全套测试仍限既有linked worktree。官方IDE依据https://learn.chatgpt.com/docs/codex/ide 。
+- 新发现并修复平仓后保护故障未闭环：NVDA真实回读为0、无挂单，但paper-safety:protection:NVDA仍OPEN。仅在_complete新鲜账户+全部end markers+非dirty且零持仓/无任何非终态挂单时生成NO_EXPOSURE恢复；不靠scope到期/文件名清理。新持仓仍产生新故障实例；保留全部历史账本。
+- 平仓恢复回归还验证了同一时刻再次出现相同故障：使用持久transition sequence区分新事件，不能用相同内容指纹吞掉新故障。793项完整离线通过；计划仅重载现有只读监测/通知owner应用修复，不重启Gateway、不重开已耗尽Paper scope。
