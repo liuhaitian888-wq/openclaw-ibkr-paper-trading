@@ -253,3 +253,5 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 用户偏好此项目后续以VS Code Codex扩展为开发入口，已记AGENTS.md。当前桌面聊天没有因展示终端而迁入IDE；生产systemd单owner仍在云端，开发/全套测试仍限既有linked worktree。官方IDE依据https://learn.chatgpt.com/docs/codex/ide 。
 - 新发现并修复平仓后保护故障未闭环：NVDA真实回读为0、无挂单，但paper-safety:protection:NVDA仍OPEN。仅在_complete新鲜账户+全部end markers+非dirty且零持仓/无任何非终态挂单时生成NO_EXPOSURE恢复；不靠scope到期/文件名清理。新持仓仍产生新故障实例；保留全部历史账本。
 - 平仓恢复回归还验证了同一时刻再次出现相同故障：使用持久transition sequence区分新事件，不能用相同内容指纹吞掉新故障。793项完整离线通过；计划仅重载现有只读监测/通知owner应用修复，不重启Gateway、不重开已耗尽Paper scope。
+- 云实际验收补记：2e85fd3已部署，Gateway PID827485不变；仅只读监测/通知owner受控重载。18:00:31柏林API客户端断开→Telegram21/22；18:00:40完整回读/PFE保护恢复→23/24；同一新鲜完整回读关闭NVDA零敞口旧故障，18:00:54Telegram message25/outbox811接受。测试仓17:33已平，旧故障记录持续到18:00不代表持仓未平27分钟。UNKNOWN通知0，全球门禁hash和已关闭scope不变。最后793项离线通过、gitleaks通过。
+- 今日可读对照和原始回执保存在本机.codex/visualizations/2026/11/05/01a1ae27-a046-7772-a9c8-5554aa4dfc85/gateway-review/2026-11-06-通知与暂停核验.md、today-runtime-final.json。00:45故障当时仍SMTP接受，不冒充Telegram；17:29–17:30独立probe的10197未匹配到Telegram原生回执，仍明确发送验收缺口。
