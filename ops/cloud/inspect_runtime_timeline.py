@@ -15,7 +15,7 @@ def inspect(root, day, zone='Europe/Berlin'):
     def stamp(value):
         return datetime.fromtimestamp(value,tz).isoformat() if value is not None else None
     out=dict(day=day.isoformat(),timezone=zone,generated_at=datetime.now(timezone.utc).isoformat(),
-             notices=[],pause_conditions=[],warnings=[])
+             notices=[],pause_conditions=[],health_samples=[],warnings=[])
     try:
         manifest=json.loads((root/'production.json').read_text())
         out['global_gate']=dict(paused=(root/'PAUSED').exists(),maintenance=(root/'runtime/MAINTENANCE').exists(),
@@ -55,6 +55,14 @@ def inspect(root, day, zone='Europe/Berlin'):
                     s=json.loads(raw[0]);out['current_monitor']=dict(connected=s.get('connected'),upstream_connected=s.get('upstream_connected'),
                         identity=s.get('identity'),fault=s.get('fault'),pauses=s.get('pause_scopes',{}).get('pauses',[]))
             except (sqlite3.Error,ValueError) as exc:out['warnings'].append('Pause history unavailable: '+type(exc).__name__)
+            try:
+                first=c.execute('SELECT min(observed) FROM paper_health_samples').fetchone()[0]
+                out['health_history_started_at']=stamp(first)
+                for observed,payload in c.execute('SELECT observed,payload FROM paper_health_samples WHERE observed>=? AND observed<? ORDER BY observed LIMIT 20001',(begin,end)):
+                    if len(out['health_samples'])>=20000:
+                        out['warnings'].append('Health sample limit reached');break
+                    out['health_samples'].append(dict(json.loads(payload),observed_local=stamp(observed)))
+            except (sqlite3.Error,ValueError) as exc:out['warnings'].append('Minute health history unavailable: '+type(exc).__name__)
     except (sqlite3.Error,ValueError) as exc:out['warnings'].append('Notification history unavailable: '+type(exc).__name__)
     return out
 
@@ -76,6 +84,11 @@ def markdown(data):
             '| 首次观测 | 最后观测 | 条件 / 动作 | 同条件记录数 |', '| --- | --- | --- | --- |']
     for p in data['pause_conditions']:
         lines.append('| '+' | '.join(cell(v) for v in (p['first_at'],p['last_at'],p['scope']+' / '+p['action']+' / '+p['reason'],p['count']))+' |')
+    samples=data.get('health_samples',[])
+    lines+=['','## 会话/行情分钟采样','',
+            '开始保存：'+cell(data.get('health_history_started_at')),
+            '当日采样点：'+str(len(samples))+'；完整券商回读采样点：'+str(sum(x.get('reconciliation_complete') is True for x in samples)),
+            '采样是时间点证据，不等于每秒连续健康；没有采样的历史区间不推定正常。缺失历史不回填。']
     if data['warnings']:lines+=['','## 来源缺口','']+['- '+w for w in data['warnings']]
     return '\n'.join(lines)+'\n'
 

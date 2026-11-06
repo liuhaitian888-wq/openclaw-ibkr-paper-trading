@@ -24,6 +24,7 @@ class TimelineTests(unittest.TestCase):
     c.execute('INSERT INTO notification_delivery VALUES (?,?,?,?,?)',(1,t,t+2,'TELEGRAM_ACCEPTED',None))
     c.execute('CREATE TABLE paper_callback_events(payload TEXT,kind TEXT,observed REAL)')
     c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)')
+    c.execute('CREATE TABLE paper_health_samples(observed REAL,payload TEXT)')
     for tick in (t,t+1):c.execute('INSERT INTO paper_callback_events VALUES (?,?,?)',(json.dumps(dict(scope='GLOBAL_NEW_ORDERS_PAUSED',action='PAUSE',reason='OPERATOR_PAUSED')),'pause_transition',tick))
    before=(r/'runtime/recovery.sqlite3').read_bytes();d=inspect(r,'2026-11-06')
    self.assertFalse(d['warnings']);self.assertEqual(len(d['notices']),2)

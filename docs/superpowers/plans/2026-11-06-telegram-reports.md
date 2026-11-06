@@ -39,3 +39,10 @@ Operational timing carried forward: <=60s normal-network event/schedule-to-ack t
 - [ ] 用fixture验证账户/故障身份不混合、UNKNOWN保留、聚合不冒充停机次数、SQLite句柄关闭；缺来源明确warnings。
 - [ ] 只读云取证后生成今日Markdown对照表，在VS Code打开；研发优先使用已授权worktree与可见终端，生产服务保留云systemd单owner。
 - [ ] 公共健康依赖按实际主通道选择，默认保留兼容，Telegram不能因为旧Feishu故障被误判；不以健康图修改授予自动交易权限。
+
+## 2026-11-06 用户追加：日志证据与通知字段
+- [ ] 核对Nov5柏林日账户快照、10197回调、当前状态/历史表；缺少正常行情证据的区间明确UNKNOWN，不用没有报错推导正常。
+- [ ] 同一pause scope保持暂停时，reason变化不再插入新的PAUSE；当前原因保留latest state及分钟采样，真实进入/解除/恢复与错误事件仍记录，旧历史不删。
+- [ ] 在同一持久recovery数据库追加每分钟一条会话/行情采样，分API/上游/账户身份/回读/各标的行情/策略门禁，不冒充逐秒连续可用率；不回填历史。
+- [ ] Telegram仅改展示：字段空行、柏林时间到秒、中文类型、建议操作、故障批次、事件编号最后、删固定尾句；底层高精度时间/身份/回执保留，图片caption也保留末行编号。
+- [ ] fixture验证格式、caption边界、负时差、历史身份兼容、采样频率与reason去噪；全套离线+secret scan后Git部署，不重放旧消息。
