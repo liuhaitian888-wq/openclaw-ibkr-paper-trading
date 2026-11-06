@@ -51,7 +51,9 @@ https://www.interactivebrokers.com/en/pricing/commissions-stocks.php
 
 `C_est = C_base + exchange + clearing + regulatory + pass_through - rebates`
 
-`PnL_net = sale_proceeds - purchase_cost - C_buy - C_sell - slippage - FX_cost - financing - borrow_cost`
+`PnL_net_model = reference_sale_proceeds - reference_purchase_cost - C_buy - C_sell - slippage - FX_cost - financing - borrow_cost`
+
+若使用实际成交现金流，成交价已包含滑点影响，不再重复减去滑点。
 
 适用项必须按账户 Fixed/Tiered、标的/市场、路由、买卖方向、交易日期、月累计量及收费粒度配置；Fixed 已包含的项目不能重复相加。分拆成交不能把每笔 fill 错当每张 order 重复收最低佣金。分数股、DRIP、期权、期货、外汇另有规则，不套整股公式。缺费率/币种/路由时应标记 INCOMPLETE，不默认零。
 
