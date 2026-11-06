@@ -530,3 +530,7 @@ on IBKR paper-trading automation:
 ### 2026-11-06 秘书档案与费用核查
 
 实际数据库、云外心跳故障/恢复验收，以及尚未上线的秘书聊天与费用模型边界，见 [核查记录](docs/AGENT_SECRETARY_AND_COSTS_20261106.md)。本轮参考 QuantConnect/LEAN 费用模型与 IBKR 官方费率；参考不代表已融合或已通过账户对账。
+
+### 数据库只读管理页面
+
+新增按需生成的[数据库管理快照](docs/DATABASE_CONSOLE.md)：库大小、DB/WAL变动时间、声明表业务时间、备份记录及独立校验状态分别展示。只读采集，不新增交易/监控worker，不把未知状态标成健康。
