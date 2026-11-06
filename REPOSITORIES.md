@@ -26,3 +26,7 @@ Official IBKR Flex defines account statements, cash/FX, trades/fees and official
 4. Commit and integrate via Git into the approved main workspace. Back up state/identities; update cloud monitoring and Gateway deployment manifests, keeping binary artifact source identity separate.
 5. Use bounded current read-only acceptance first. Test sends/trades require their own authorized finite scope; an upgrade is not permission to replay old side effects.
 6. Record new pin, actual deployment evidence and unresolved limits here/ENGINEERING.md. Preserve older source/state backups until reconciliation completes.
+
+## Healthchecks external availability review (2026-11-06)
+
+[healthchecks/healthchecks](https://github.com/healthchecks/healthchecks), reviewed commit `5b9a198bca9dc959326f6492e460166373530499`, BSD-3-Clause; checkout `/Users/nbhsbgnb/Documents/OpenWorkspace/healthchecks-review-20261106`. Hosted service is already used for two generic heartbeat checks; no second Django/server deployment installed. Reviewed period/grace semantics, Telegram transport and default three-attempt HTTP retry. Native provider notifications do not expose this project's durable Telegram message_id/UNKNOWN contract. User target is der group; native group binding and Down/Up real delivery remain acceptance work. Local sender now persists HTTP ACK evidence and uses fresh existing Paper-owner state; heartbeat/policy success grants no business permission.
