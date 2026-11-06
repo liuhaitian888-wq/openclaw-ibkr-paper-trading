@@ -37,25 +37,7 @@ def report_bytes(item,root):
     return result
 
 
-def notification_text(item, started):
-    from datetime import datetime
-    from .errors import redact
-    data=item['payload']
-    lines=['买 der｜IBKR Paper '+item['kind'],
-           '通知编号：'+str(item['id'])+'；实例：'+item['incident_key']+':'+str(item['generation'])]
-    for key,label in [('severity','严重程度'),('observed_at','源事件时间'),('timestamp','原始时间'),
-                      ('reason','原因/报告'),('scope','影响范围'),('symbol','标的'),
-                      ('quantity','数量'),('protection_status','保护状态'),('ib_error_code','IBKR错误码'),
-                      ('action_taken','已采取行动'),('user_action','用户操作'),
-                      ('recovery_condition','恢复条件'),('duration_seconds','持续秒数')]:
-        if data.get(key) is not None:lines.append(label+'：'+str(redact(data[key])))
-    for key,label in [('scheduled_at','计划发送（UTC）'),('queued_at','排队时间（UTC）')]:
-        if data.get(key) is not None:lines.append(label+'：'+datetime.fromtimestamp(data[key],timezone.utc).isoformat())
-    lines.append('实际发送发起（UTC）：'+datetime.fromtimestamp(started,timezone.utc).isoformat())
-    if data.get('scheduled_at') is not None:
-        lines.append('相对计划延迟秒数：'+str(round(started-data['scheduled_at'],3)))
-    lines.append('交易权限仍由独立门禁决定；Telegram确认不等于用户已读。')
-    return '\n'.join(lines)[:4000]
+from .notification_text import notification_text
 
 
 async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_factory=None,clock=time.time):
@@ -82,19 +64,20 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                         or chat.title!=config['expected_group_title'] or chat.type not in ('group','supergroup')
                         or count!=2 or not any(a.status=='creator' and a.user.id==config['owner_user_id'] for a in admins)):
                     raise PermissionError('Report audience changed')
+                sending_at=clock()
+                caption=notification_text(item,sending_at,max_length=1024 if documents else 4000)
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'
-                started=True;store.delivery_started(item['id'],clock())
-                caption=notification_text(item,clock())
+                started=True;store.delivery_started(item['id'],sending_at)
                 if not documents:
                     messages=[await bot.send_message(chat.id,text=caption,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 elif len(documents)==1:
                     name,data=documents[0]
-                    messages=[await bot.send_document(chat.id,document=data,filename=name,caption=caption[:1024],
+                    messages=[await bot.send_document(chat.id,document=data,filename=name,caption=caption,
                         connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 else:
                     from telegram import InputFile,InputMediaDocument
-                    media=[InputMediaDocument(InputFile(data,filename=name),caption=caption[:1024] if i==0 else None)
+                    media=[InputMediaDocument(InputFile(data,filename=name),caption=caption if i==0 else None)
                            for i,(name,data) in enumerate(documents)]
                     messages=await bot.send_media_group(chat.id,media=media,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)
                 if len(messages)!=max(1,len(documents)) or any(m.chat.id!=chat.id or m.message_id<=0 for m in messages):

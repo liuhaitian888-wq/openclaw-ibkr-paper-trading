@@ -255,3 +255,10 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 平仓恢复回归还验证了同一时刻再次出现相同故障：使用持久transition sequence区分新事件，不能用相同内容指纹吞掉新故障。793项完整离线通过；计划仅重载现有只读监测/通知owner应用修复，不重启Gateway、不重开已耗尽Paper scope。
 - 云实际验收补记：2e85fd3已部署，Gateway PID827485不变；仅只读监测/通知owner受控重载。18:00:31柏林API客户端断开→Telegram21/22；18:00:40完整回读/PFE保护恢复→23/24；同一新鲜完整回读关闭NVDA零敞口旧故障，18:00:54Telegram message25/outbox811接受。测试仓17:33已平，旧故障记录持续到18:00不代表持仓未平27分钟。UNKNOWN通知0，全球门禁hash和已关闭scope不变。最后793项离线通过、gitleaks通过。
 - 今日可读对照和原始回执保存在本机.codex/visualizations/2026/11/05/01a1ae27-a046-7772-a9c8-5554aa4dfc85/gateway-review/2026-11-06-通知与暂停核验.md、today-runtime-final.json。00:45故障当时仍SMTP接受，不冒充Telegram；17:29–17:30独立probe的10197未匹配到Telegram原生回执，仍明确发送验收缺口。
+
+## 2026-11-06 日志证据与Telegram文案改版
+- 用户截图中的4455是当时pause_transition条件记录数，不是断线/订单/Telegram次数。后续4557条中3900条来自同一GLOBAL_NEW_ORDERS_PAUSED原因里reconciliation_verified周期切换。停止把同scope仅reason变化记成新PAUSE；最新原因仍存state与新分钟采样，真实进入/解除/恢复及错误仍保留，旧记录不删。
+- 昨天柏林日Nov5核对285份约5分钟账户快照：166完整、119不完整，最大采样间隔332.017秒；这些快照没有报价。昨天10197错误回调136条，不能等同136独立事件。audit当前market_session_events/quote_readiness_events/quote_state_events均0条，因此不能声称非断线时段全部Paper行情正常；账户回读成功也不等于行情/策略可用。
+- 在既有recovery.sqlite3增加paper_health_samples：每个进程epoch每分钟最多一条API/上游/身份/回读/逐标的行情/门禁快照，保留原始精确时间，缺失历史不补造。每个采样点不是整分钟连续可用率；重启同一分钟可有不同epoch记录。
+- Telegram改展示，不改历史身份：字段间空行；人类可读中文类型与保护状态；事件/排队/发起按柏林时间到秒；分数秒仅隐藏、原账本保留；用户操作改建议你操作；实例改故障批次；事件编号最后一行（图片caption预算也保留）；删除固定末句。PROTECTION_PROTECTION_UNKNOWN是保护状态变化通知的历史机器名，不是Python类，不改旧key/去重身份。
+- 昨天进一步分组：00:45:16–10:25:59共117次TimeoutError，10:41/10:46另2次TimeoutError；10:47:53后155次账户回读完整。这些是采样点而非精确停机区间，不能推定同期间行情正常。本地已打开昨天证据及805通知新版预览；未向Telegram重发805。完整离线799项通过。

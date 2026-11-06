@@ -46,6 +46,7 @@ class PaperSafetyMonitor:
         with closing(self.coordinator.connect()) as c, c:
             c.execute('CREATE TABLE IF NOT EXISTS paper_safety_state(id INTEGER PRIMARY KEY CHECK(id=1),payload TEXT NOT NULL)')
             c.execute('CREATE TABLE IF NOT EXISTS paper_callback_events(event_id TEXT PRIMARY KEY,kind TEXT NOT NULL,payload TEXT NOT NULL,observed REAL NOT NULL)')
+            c.execute('CREATE TABLE IF NOT EXISTS paper_health_samples(epoch TEXT NOT NULL,minute_bucket INTEGER NOT NULL,observed REAL NOT NULL,payload TEXT NOT NULL,PRIMARY KEY(epoch,minute_bucket))')
             row = c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
             transition_seq=c.execute("SELECT COALESCE(MAX(json_extract(payload,'$.transition_sequence')),0) FROM paper_callback_events WHERE kind='pause_transition'").fetchone()[0]
         prior = json.loads(row[0]) if row else {}
@@ -448,7 +449,7 @@ class PaperSafetyMonitor:
             return {json.dumps([r['scope'],r['affected_symbols'],r['affected_strategies']],sort_keys=True):r for r in value.get('pauses',[])}
         old,new=keyed(previous),keyed(current)
         for key,row in new.items():
-            if key not in old or old[key]['reason']!=row['reason']:
+            if key not in old:
                 self._record_pause(dict(action='PAUSE',**row))
         for key,row in old.items():
             if key not in new:
@@ -539,8 +540,26 @@ class PaperSafetyMonitor:
                                resolved=True,symbol=symbol,quantity=0,protection='NO_EXPOSURE')
         if self.state['connected'] and self.state.get('sync_started') is not None and self.clock()-self.state['sync_started']>30 and not snapshot['reconciliation_complete']:
             self._incident('reconciliation', 'Broker reconciliation incomplete or failed')
+        now=self.clock();bucket=int(now//60)
+        sample_due=getattr(self,'_health_sample_bucket',None)!=bucket
         with closing(self.coordinator.connect()) as c, c:
             c.execute('INSERT OR REPLACE INTO paper_safety_state VALUES (1,?)', (json.dumps(self.state,sort_keys=True),))
+            if sample_due:
+                sample=dict(account=ACCOUNT,environment='PAPER',observed_at=now,
+                    api_connected=self.state['connected'],upstream_connected=self.state['upstream_connected'],
+                    identity_verified=self.state['identity'],server_reply_at=self.state['last_server_reply'],
+                    reconciliation_complete=snapshot['reconciliation_complete'],
+                    data_ready=snapshot['data_ready'],entries_ready=snapshot['entries_ready'],
+                    fault=self.state['fault'],market={},pause_reasons=[dict(scope=r['scope'],reason=r['reason'])
+                        for r in snapshot['pause_scopes'].get('pauses',[])])
+                for symbol,health in snapshot['symbol_health'].items():
+                    quote=self.state['quotes'].get(symbol,{})
+                    sample['market'][symbol]={**{k:health.get(k) for k in ('status','session','allows_realtime')},
+                        'data_type':self.state['market_types'].get(symbol,quote.get('data_type')),
+                        'bid_at':quote.get('bid_at'),'ask_at':quote.get('ask_at')}
+                c.execute('INSERT OR IGNORE INTO paper_health_samples VALUES (?,?,?,?)',
+                    (self.state['epoch'],bucket,now,json.dumps(sample,sort_keys=True)))
+        if sample_due:self._health_sample_bucket=bucket
         for module, ready in (('PROTECTION',snapshot['protection_ready']), ('PAPER_SESSION',snapshot['entries_ready'])):
             if not ready and self._published.get(module) is False:
                 continue  # A held gate needs no repeated downstream invalidation events.

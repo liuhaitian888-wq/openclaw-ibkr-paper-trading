@@ -73,6 +73,26 @@ class PaperSafetyTests(unittest.TestCase):
         with closing(self.m.incidents.connect()) as c:
             self.assertEqual(c.execute("SELECT state FROM incidents WHERE incident_key='paper-safety:protection:PFE'").fetchone()[0],'OPEN')
 
+    def test_reason_changes_do_not_create_repeated_pause_transitions(self):
+        base=dict(scope='GLOBAL_NEW_ORDERS_PAUSED',affected_symbols=['PFE'],affected_strategies=['s'],reason='operator paused')
+        self.m.state['pause_scopes']={}
+        self.m.record_pause_transitions(dict(pauses=[base],decisions={}))
+        for i in range(20):self.m.record_pause_transitions(dict(pauses=[dict(base,reason='sync '+str(i))],decisions={}))
+        with closing(self.m.coordinator.connect()) as c:
+            rows=[json.loads(r[0]) for r in c.execute("select payload from paper_callback_events where kind='pause_transition'")]
+        selected=[r for r in rows if r.get('affected_strategies')==['s']]
+        self.assertEqual(len(selected),1);self.assertEqual(self.m.state['pause_scopes']['pauses'][0]['reason'],'sync 19')
+
+    def test_health_history_has_one_sample_per_minute_and_no_fake_backfill(self):
+        for _ in range(10):self.m._publish()
+        with closing(self.m.coordinator.connect()) as c:
+            rows=c.execute('select observed,payload from paper_health_samples').fetchall()
+        self.assertEqual(len(rows),1)
+        first=json.loads(rows[0][1]);self.assertFalse(first['api_connected']);self.assertIn('PFE',first['market'])
+        self.now+=120;self.m._publish()
+        with closing(self.m.coordinator.connect()) as c:
+            self.assertEqual(c.execute('select count(*) from paper_health_samples').fetchone()[0],2)
+
     def test_routine_snapshot_does_not_generate_protection_email_pairs(self):
         self.ready()
         count=self.notification_count()
