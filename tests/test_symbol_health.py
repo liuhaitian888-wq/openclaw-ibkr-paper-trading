@@ -119,6 +119,27 @@ class SymbolHealthTests(unittest.TestCase):
   self.assertEqual(s['classification_corrected_at'],stamp)
 
 class ConnectionDependencyTests(unittest.TestCase):
+ def test_conflict_clearance_does_not_grant_strategy_permission(self):
+  from contextlib import closing
+  with tempfile.TemporaryDirectory() as tmp:
+   now=[1000];r=SymbolRecovery(Path(tmp)/'r.sqlite3',['PFE'],clock=lambda:now[0])
+   r.error('PFE',10197,'competing')
+   now[0]+=1
+   fresh=dict(data_type=1,bid=10,ask=11,bid_at=now[0],ask_at=now[0])
+   r.observe('PFE',fresh,session='SESSION_UNKNOWN',reconciliation_verified=False)
+   with closing(r.store.connect()) as c:self.assertTrue(r._read(c,'@conflict:PFE')['active'])
+   delayed={**fresh,'data_type':3}
+   r.observe('PFE',delayed,session='SESSION_UNKNOWN',reconciliation_verified=True)
+   with closing(r.store.connect()) as c:self.assertTrue(r._read(c,'@conflict:PFE')['active'])
+   s=r.observe('PFE',fresh,session='SESSION_UNKNOWN',reconciliation_verified=True)
+   with closing(r.store.connect()) as c:self.assertFalse(r._read(c,'@conflict:PFE')['active'])
+   self.assertFalse(s['health']['allows_realtime'])
+   self.assertFalse(r.verified_recovery('PFE'))
+   r.error('PFE',10197,'new competing error')
+   now[0]+=1
+   r.observe('PFE',fresh,session='AFTERHOURS',reconciliation_verified=True)
+   with closing(r.store.connect()) as c:self.assertTrue(r._read(c,'@conflict:PFE')['active'])
+
  def test_connection_wait_needs_proof_and_preserves_exhausted_budget(self):
   from contextlib import closing
   import json

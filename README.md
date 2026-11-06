@@ -526,3 +526,7 @@ on IBKR paper-trading automation:
 - Discord handbook bot: `/Users/nbhsbgnb/Documents/discord_handbook_project`
 - Croatian A1 Anki deck: `/Users/nbhsbgnb/Documents/Hrvatski/anki_a1_project`
 - Wind/storage MPC model: `/Users/nbhsbgnb/Documents/wind_storage_mpc_project`
+
+### 2026-11-06 秘书档案与费用核查
+
+实际数据库、云外心跳故障/恢复验收，以及尚未上线的秘书聊天与费用模型边界，见 [核查记录](docs/AGENT_SECRETARY_AND_COSTS_20261106.md)。本轮参考 QuantConnect/LEAN 费用模型与 IBKR 官方费率；参考不代表已融合或已通过账户对账。

@@ -283,3 +283,9 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 - 按用户“直接实现”接续上一轮总设计对照建议，落地文档/总图/术语和README署名，不视为启用全自动交易或修改云通知配置的授权。
 - 新增docs/SYSTEM_STATUS_20261106.md：六层业务架构、代码/部署/验收矩阵、canonical六层股票池与七池report-only视图区分、AI复盘边界和分阶段验收标准。ARCHITECTURE.md将旧Mode9/7497图明确保留为历史设计，顶部链接当前状态。
 - README明确当前云4002、PAUSED/signal-only、已关闭Paper范围，补上实际使用/参考上游署名与REPOSITORIES固定版本登记链接；替换主目录直接unittest的旧指引。未变更运行逻辑、凭据、数据库、服务或交易许可。
+
+## 2026-11-06 云外心跳与秘书档案
+
+云外心跳失联演练：先安排190秒自动恢复，再停止共用心跳发送器；23:44 Down，23:46 Up，host Down窗口1分17秒。Healthchecks显示Delivered，用户确认der群故障与恢复均收到。未关机、未停止Gateway，不能等同真实主机断电或API断开验收。
+
+新增独立秘书档案模块（尚未激活生产/Telegram聊天），区分用户指示、模型分析、工具结果和系统事件；持久运行预留阻止STARTED/UNKNOWN重放。用户确认der群，并明确不再查找旧OpenClaw；后续使用独立正式OAuth流程。佣金感知过滤仍是roadmap，不能宣称LEAN费用模型已融合。详见docs/AGENT_SECRETARY_AND_COSTS_20261106.md。
