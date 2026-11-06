@@ -21,7 +21,7 @@ import fcntl
 from pathlib import Path
 from contextlib import closing
 from datetime import datetime, timezone
-from .health import MODULE_DEPENDENCIES, LIVE_MODULES, resolve_modules
+from .health import MODULE_DEPENDENCIES, LIVE_MODULES, resolve_modules, dependency_registry
 
 RECOVERY_STEPS=('connect','authenticate','identity','refresh','freshness','reconcile','backlog')
 RETRY_POLICY={
@@ -58,7 +58,8 @@ class RecoveryCoordinator:
                 c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':name,**value}),))
             if state in ('OFFLINE','FAILED','DEGRADED') or (name in LIVE_MODULES and freshness=='STALE'):
                 affected={name}
-                for child,deps in MODULE_DEPENDENCIES.items():
+                observations={k:json.loads(v) for k,v in c.execute('SELECT name,payload FROM module_observations')}
+                for child,deps in dependency_registry(observations).items():
                     if affected.intersection(deps):
                         affected.add(child)
                         prior=c.execute('SELECT payload FROM module_observations WHERE name=?',(child,)).fetchone()
@@ -67,6 +68,14 @@ class RecoveryCoordinator:
                                     observed_at=now,last_failure=now,recovery_state='WAITING_REFRESH')
                         c.execute('INSERT OR REPLACE INTO module_observations VALUES (?,?)',(child,json.dumps(data,sort_keys=True)))
                         c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':child,**data}),))
+    def configure_delivery_transport(self,transport):
+        if transport not in ('telegram','smtp','feishu'):raise ValueError('Unknown primary delivery transport')
+        with closing(self.connect()) as c,c:
+            row=c.execute("SELECT payload FROM module_observations WHERE name='DELIVERY'").fetchone()
+            data=json.loads(row[0]) if row else dict(state='DEGRADED',freshness='UNKNOWN',reason='No verified delivery observation')
+            data.update(delivery_transport=transport,route_configured_at=datetime.fromtimestamp(self.clock(),timezone.utc).isoformat())
+            c.execute("INSERT OR REPLACE INTO module_observations VALUES ('DELIVERY',?)",(json.dumps(data,sort_keys=True),))
+
     def snapshot(self):return resolve_modules(self.observations(),now=datetime.fromtimestamp(self.clock(),timezone.utc))
     def begin_operation(self,identity,kind,payload):
         if kind not in ('order','delivery'):raise ValueError('Unknown side effect')
@@ -98,8 +107,8 @@ class RecoveryCoordinator:
                 adapter=self.adapters.get(module)
                 if adapter is None:continue
                 state=self.snapshot()
-                if state[module]['state'] in ('HEALTHY','PAUSED'):continue
-                if any(state[d]['state']!='HEALTHY' for d in MODULE_DEPENDENCIES[module]):continue
+                if not state[module].get('active',True) or state[module]['state'] in ('HEALTHY','PAUSED'):continue
+                if any(state[d]['state']!='HEALTHY' for d in dependency_registry(self.observations())[module]):continue
                 now=self.clock()
                 with closing(self.connect()) as c,c:
                     c.execute('BEGIN IMMEDIATE')
@@ -114,7 +123,7 @@ class RecoveryCoordinator:
                         raise RuntimeError('Interrupted recovery requires readback')
                     for step in RECOVERY_STEPS:
                         current=self.snapshot()
-                        if any(current[d]['state']!='HEALTHY' for d in MODULE_DEPENDENCIES[module]):raise RuntimeError('Dependency changed during recovery')
+                        if any(current[d]['state']!='HEALTHY' for d in dependency_registry(self.observations())[module]):raise RuntimeError('Dependency changed during recovery')
                         self.observe(module,'RECOVERING',reason=step,recovery_state=step)
                         if adapter(step) is not True:raise RuntimeError('Recovery proof missing: '+step+'; '+str(getattr(adapter,'observation',{}).get('reason','No proof')))
                         if hasattr(adapter,'observation'):
@@ -194,8 +203,8 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             cache['at']=time.time()
         return cache['broker']
     def check(module):
-        if module=='TELEGRAM':
-            return False,'New native report acknowledgement required; metadata login alone is not delivery proof',{}
+        if module in ('TELEGRAM','SMTP'):
+            return False,'Recent native delivery acknowledgement required; quiet channel is not proof of failure or permission to send a test',{}
         if module=='NEWS':
             from trading.news_feed import load_evidence, capability
             evidence=load_evidence(root/'runtime/news.latest.json')
@@ -207,7 +216,9 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             return False,'Fresh callback safety monitor evidence required',{}
         if module=='NETWORK':
             successes=[];failures=[]
-            for host in ('open.feishu.cn','www.interactivebrokers.com'):
+            provider=dependency_registry(coordinator.observations())['DELIVERY'][-1]
+            endpoint='api.telegram.org' if provider=='TELEGRAM' else 'open.feishu.cn'
+            for host in (endpoint,'www.interactivebrokers.com'):
                 try:
                     with socket.create_connection((host,443),timeout=4) as sock:
                         with ssl.create_default_context().wrap_socket(sock,server_hostname=host) as tls:successes.append({'host':host,'tls':tls.version()})
@@ -235,6 +246,12 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             with closing(sqlite3.connect(p.as_uri()+'?mode=ro',uri=True)) as c:
                 accounts={x[0] for x in c.execute('SELECT DISTINCT account FROM observations')}
             return bool(expected_account) and accounts=={expected_account},'Financial observation account scope',{'accounts':sorted(accounts),'path':str(p)}
+        if module in ('DELIVERY_LEDGER','DELIVERY') and dependency_registry(coordinator.observations())['DELIVERY'][-1] in ('TELEGRAM','SMTP'):
+            with closing(sqlite3.connect(coordinator.path.as_uri()+'?mode=ro',uri=True,timeout=2)) as c:
+                counts=dict(c.execute('SELECT status,count(*) FROM notification_outbox GROUP BY status'))
+                uncertain=sum(counts.get(s,0) for s in ('STARTED','UNKNOWN'))
+                receipts=c.execute('SELECT count(*) FROM notification_receipts').fetchone()[0]
+            return (module=='DELIVERY_LEDGER' or uncertain==0),'Shared durable notification outbox readback; no resend',dict(status_counts=counts,uncertain=uncertain,receipts=receipts,path=str(coordinator.path))
         if module=='DELIVERY_LEDGER':
             d=read(root/'delivery.json');records=d.get('reports',{})
             unknown=[k for k,v in records.items() if v.get('status') in ('UNKNOWN','STARTED','SENDING','ACCEPTED_PENDING_COMMIT')]

@@ -22,3 +22,9 @@
 - Module dependency changes belong in the shared reporting.health registry/resolver. Persist stale/recovery/operation state locally; network restoration never implies business permission.
 - Recovery callbacks must be bounded read-only/idempotent operations. UNKNOWN/STARTED side effects survive restart and never auto-replay. Do not install an unverified adapter merely to turn health green.
 - Treat manual/external broker orders as normal exposure. Absence of a local strategy intent is not sufficient to claim ownership or cancel an order. Verify account/environment and retain broker exposure for risk checks.
+
+## 可见研发工作流
+
+- 用户偏好此项目以 VS Code 的 Codex 扩展和可见终端作为研发入口；展示重要命令、测试和部署的脱敏输出，并保存可复查的日志/纪要。
+- 打开日志或终端不等于把当前聊天迁入 IDE；不要声称所有桌面端工具调用都会自动显示在 VS Code。
+- 继续遵守 linked worktree 开发/完整离线测试、主工作区 quick smoke 和云端 systemd 单 owner。编辑器负责查看与研发，不重复启动云端生产 worker。

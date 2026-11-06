@@ -68,6 +68,7 @@ def main():
         signal.signal(sig, lambda *_: stopped.set())
     with monitoring_service('incident-email', root):
         coordinator = RecoveryCoordinator(runtime/'recovery.sqlite3')
+        coordinator.configure_delivery_transport('telegram' if telegram else 'smtp' if smtp else 'feishu')
         store = IncidentStore(coordinator.path)
         store.enqueue_current_summary('cloud-monitoring-delivery-20261104')
         while not stopped.is_set() and armed.is_file():

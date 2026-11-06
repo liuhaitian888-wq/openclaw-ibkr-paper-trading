@@ -57,18 +57,30 @@ MODULE_DEPENDENCIES = {
  'STRATEGY': ('CANONICAL_STATE','MARKET_DATA','ACCOUNT','RISK','DATABASE','PROTECTION','PAPER_SESSION'),
  'ORDER_SUBMISSION': ('STRATEGY','ORDERS','EXECUTIONS'),
  'REPORT': ('DATABASE','CANONICAL_STATE','FINANCIAL_LEDGER'),
- 'TELEGRAM': ('NETWORK',), 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
+ 'TELEGRAM': ('NETWORK',), 'SMTP': ('NETWORK',), 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
  'DELIVERY': ('REPORT','DELIVERY_LEDGER','FEISHU'),
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+LIVE_MODULES = {'SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+
+
+def dependency_registry(observations):
+    """Resolve the persisted primary route; changing route grants no permission."""
+    registry=dict(MODULE_DEPENDENCIES)
+    transport=observations.get('DELIVERY',{}).get('delivery_transport','feishu')
+    provider={'telegram':'TELEGRAM','smtp':'SMTP','feishu':'FEISHU'}.get(transport)
+    if provider is None:raise ValueError('Unknown primary delivery transport')
+    registry['DELIVERY']=('REPORT','DELIVERY_LEDGER',provider)
+    return registry
 
 
 def resolve_modules(observations, *, now=None, max_age=120):
     """Pure, deterministic resolver. No network calls and no promotion by inference."""
     now=now or datetime.now(timezone.utc);result={}
-    for name,deps in MODULE_DEPENDENCIES.items():
+    registry=dependency_registry(observations)
+    primary=registry['DELIVERY'][-1]
+    for name,deps in registry.items():
         raw=dict(observations.get(name,{}));state=raw.get('state','DEGRADED')
         if state not in MODULE_STATES:state='DEGRADED'
         freshness=raw.get('freshness','UNKNOWN')
@@ -87,13 +99,13 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':name not in ('TELEGRAM','SMTP','FEISHU') or name==primary,'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}
-    result['SYSTEM']={'state':'HEALTHY' if all(x['state']=='HEALTHY' for x in result.values()) else 'DEGRADED',
+    result['SYSTEM']={'state':'HEALTHY' if all(x['state']=='HEALTHY' for x in result.values() if x['active']) else 'DEGRADED',
         'freshness':'UNKNOWN','reason':'Aggregated module view; not permission to trade',
-        'blocking_dependency':[k for k,v in result.items() if v['state']!='HEALTHY'],
+        'blocking_dependency':[k for k,v in result.items() if v['active'] and v['state']!='HEALTHY'],
         'last_success':None,'last_failure':None,'next_retry':None,'observed_at':now.isoformat(),'recovery_state':'AGGREGATED'}
     return result
 
