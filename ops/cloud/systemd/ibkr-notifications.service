@@ -1,8 +1,8 @@
 [Unit]
-Description=Cloud Paper alerts and PNG reports through Brevo
+Description=Cloud Paper notifications through the approved Telegram primary owner
 After=network-online.target
-ConditionPathExists=/home/ibkr/.config/openclaw/smtp.json
-ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/BREVO_ALERTS_ARMED
+ConditionPathExists=/home/ibkr/.config/openclaw/telegram.json
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/TELEGRAM_ALERTS_ARMED
 ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/FEISHU_ALERTS_ARMED
 ConditionPathExists=!/home/ibkr/.local/state/openclaw/runtime/EMAIL_ALERTS_ARMED
 

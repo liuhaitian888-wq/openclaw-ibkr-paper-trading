@@ -194,6 +194,8 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
             cache['at']=time.time()
         return cache['broker']
     def check(module):
+        if module=='TELEGRAM':
+            return False,'New native report acknowledgement required; metadata login alone is not delivery proof',{}
         if module=='NEWS':
             from trading.news_feed import load_evidence, capability
             evidence=load_evidence(root/'runtime/news.latest.json')

@@ -7,7 +7,7 @@
 
 ## Constraints / review focus
 - Linked-worktree full offline suite and secret scan; Git-only production integration.
-- SymbolNVDA only, no existing NVDA position/order, one share, limit<=USD200, max3 submissions, no concurrent test order, no margin borrowing/shorting.
+- SymbolNVDA only, no existing NVDA position/order, one share, limit<=USD200, max3 submissions, no concurrent test order, no shorting; any simulated currency financing requires the explicit bounded Paper policy.
 - Current exact Paper account, fresh type1 bid/ask, contract resolution/minTick, available USD funds and existing manual/system exposure checked before every submission.
 - Account snapshot + reserve + durable STARTED precede send. Sent/UNKNOWN cannot be replayed. Broker rejection is not a successful fill/cancel.
 - Cancellation only exact test clientId/orderRef/contract/account/order identity; originalPFE untouched.

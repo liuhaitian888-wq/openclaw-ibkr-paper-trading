@@ -36,6 +36,7 @@ class IncidentStore:
                     notification_id INTEGER PRIMARY KEY,
                     attempt_started_at REAL NOT NULL, ack_received_at REAL,
                     status TEXT NOT NULL, provider_created_at REAL);
+                CREATE TABLE IF NOT EXISTS notification_receipts (notification_id INTEGER PRIMARY KEY,payload TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS notification_preflight (
                     notification_id INTEGER PRIMARY KEY, first_at REAL NOT NULL,
                     attempts INTEGER NOT NULL, not_before REAL NOT NULL);
@@ -110,14 +111,14 @@ class IncidentStore:
                 AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))
             return dict(id=row[0], kind=row[1], payload=json.loads(row[2]), incident_key=row[3], generation=row[4])
 
     def finish(self, notification_id, status):
-        if status not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'UNKNOWN'):
+        if status not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'TELEGRAM_ACCEPTED', 'UNKNOWN'):
             raise ValueError('Outcome must retain delivery uncertainty')
         with closing(self.connect()) as c, c:
             result = c.execute("UPDATE notification_outbox SET status=? WHERE id=? AND status='STARTED'", (status, notification_id))
@@ -184,6 +185,13 @@ class IncidentStore:
             c.execute('UPDATE notification_delivery SET status=?,ack_received_at=? WHERE notification_id=?',
                       (status, ack_at, notification_id))
 
+    def delivery_receipt(self, notification_id, receipt):
+        encoded=json.dumps(receipt,sort_keys=True)
+        with closing(self.connect()) as c,c:
+            prior=c.execute('SELECT payload FROM notification_receipts WHERE notification_id=?',(notification_id,)).fetchone()
+            if prior and prior[0]!=encoded:raise ValueError('Conflicting provider receipt')
+            c.execute('INSERT OR IGNORE INTO notification_receipts VALUES (?,?)',(notification_id,encoded))
+
     def enqueue_due_reminders(self):
         """One latest elapsed stage per open occurrence; never replay uncertain sends."""
         now = self.clock()
@@ -201,7 +209,7 @@ class IncidentStore:
                     continue
                 # An uncertain/pending earlier side effect cannot be bypassed by a new identity.
                 if c.execute("SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? "
-                             "AND status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED') LIMIT 1",
+                             "AND status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED') LIMIT 1",
                              (key, generation)).fetchone():
                     continue
                 previous = c.execute('SELECT kind,payload FROM notification_outbox WHERE incident_key=? '

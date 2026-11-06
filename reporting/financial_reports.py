@@ -10,7 +10,7 @@ from reporting.report_schedule import BJ, due_types
 
 
 def prepare_reports(root, expected_account, now, *, publish_image=None, transport="feishu"):
-    if transport not in ("feishu", "smtp"):
+    if transport not in ("feishu", "smtp", "telegram"):
         raise ValueError("Unsupported report transport")
     root = Path(root)
     observation = read_json(root/'runtime/paper-observer.latest.json')
@@ -27,7 +27,7 @@ def prepare_reports(root, expected_account, now, *, publish_image=None, transpor
         previous = read_json(directory/(kind+'.json'))
         if (previous.get('source_snapshot_at') == observed.isoformat()
                 and ((transport == 'feishu' and str(previous.get('image_key','')).startswith('img_')) or
-                     (transport == 'smtp' and previous.get('image_path') == str(directory/(kind+'.png'))
+                     (transport in ('smtp','telegram') and previous.get('image_path') == str(directory/(kind+'.png'))
                       and (directory/(kind+'.png')).is_file()
                       and previous.get('image_sha256') == hashlib.sha256((directory/(kind+'.png')).read_bytes()).hexdigest()))):
             prepared.append(kind)

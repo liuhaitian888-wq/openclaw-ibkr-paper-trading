@@ -31,7 +31,7 @@ def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
                     or report.get('source_validated') is not True
                     or (transport == 'feishu' and not str(report.get('image_key','')).startswith('img_'))):
                 raise ValueError('Report identity/date/source not verified')
-            if transport == 'smtp':
+            if transport in ('smtp','telegram'):
                 png = (Path(directory)/day.isoformat()/(kind+'.png')).resolve()
                 content = png.read_bytes()
                 if (Path(report.get('image_path', '')).resolve() != png or not content.startswith(b'\x89PNG\r\n\x1a\n')
@@ -44,7 +44,7 @@ def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
 
 
 def enqueue_reports(store, directory, expected_account, now, *, transport="feishu"):
-    if transport not in ("feishu", "smtp"):
+    if transport not in ("feishu", "smtp", "telegram"):
         raise ValueError("Unsupported report transport")
     if now.tzinfo is None:
         raise ValueError('Timezone-aware time required')
@@ -64,7 +64,7 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
         kind = 'REPORT_BUNDLE'
         selected = ready
         if initial:
-            if initial[1] not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED'):
+            if initial[1] not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'TELEGRAM_ACCEPTED'):
                 return 'BLOCKED_INITIAL_UNCONFIRMED'
             initial_payload = json.loads(initial[0])
             selected = {k: ready[k] for k in initial_payload['missing_reports'] if k in ready}
@@ -92,11 +92,11 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
         if missing:
             lines += ['缺报告警：' + '；'.join(LABELS[k] + '：' + v for k,v in missing.items())]
         payload = dict(severity='YELLOW' if missing else 'GREEN', reason='\n'.join(lines),
-                       scope='FINANCIAL_REPORTS', queued_at=now.timestamp(),
+                       scope='FINANCIAL_REPORTS', delivery_transport=transport, queued_at=now.timestamp(),
                        scheduled_at=scheduled.timestamp(), included_reports=list(selected),
                        missing_reports=list(missing), grants_trading_permission=False,
                        image_keys=[report['image_key'] for report in selected.values() if 'image_key' in report],
-                       png_artifacts=[dict(path=r['image_path'], sha256=r['image_sha256']) for r in selected.values() if transport == 'smtp'],
+                       png_artifacts=[dict(path=r['image_path'], sha256=r['image_sha256']) for r in selected.values() if transport in ('smtp','telegram')],
                        report_artifacts=[str(Path(directory)/day.isoformat()/(k+'.html')) for k in selected])
         c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) "
                   "VALUES (?,1,?,?,'PENDING')", (key,kind,json.dumps(payload,ensure_ascii=False)))

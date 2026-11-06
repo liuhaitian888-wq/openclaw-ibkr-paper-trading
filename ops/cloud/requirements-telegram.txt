@@ -1,0 +1,3 @@
+# Official https://github.com/python-telegram-bot/python-telegram-bot
+# Reviewed8dec234225145f8ec0cc8fd97d42208a32d8f0e6, LGPL3 dependency.
+python-telegram-bot==22.8
