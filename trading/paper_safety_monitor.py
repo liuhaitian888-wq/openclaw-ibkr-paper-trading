@@ -198,7 +198,18 @@ class PaperSafetyMonitor:
             if order.get('account') != ACCOUNT:
                 self.invalidate('ORDER_ACCOUNT_MISMATCH')
                 return
-            key = str(order['order_id'])
+            perm_id=order.get('perm_id')
+            if order.get('completed') and (type(perm_id) is not int or perm_id<=0):
+                self.invalidate('COMPLETED_ORDER_PERMANENT_ID_REQUIRED')
+                raise ValueError('Completed order requires permanent broker identity')
+            # Broker occurrence identity is not the connection-local orderId.
+            # Retain an existing active lookup when the same permanent order completes.
+            matched=[k for k,v in self.state['orders'].items()
+                     if perm_id and v.get('perm_id')==perm_id and v.get('account')==ACCOUNT]
+            if len(matched)>1:
+                self.invalidate('DUPLICATE_PERMANENT_ORDER_IDENTITY')
+                raise ValueError('Ambiguous permanent broker identity')
+            key=matched[0] if matched else ('completed:'+str(perm_id) if order.get('completed') else str(order['order_id']))
             old = self.state['orders'].get(key, {})
             if old and any(old.get(k) and order.get(k) and old[k]!=order[k]
                            for k in ('perm_id','account','client_id','con_id','symbol','side')):

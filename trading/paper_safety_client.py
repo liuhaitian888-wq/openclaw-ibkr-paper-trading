@@ -102,8 +102,10 @@ class PaperSafetyClient(TwsPaperClient):
         self.monitor.order(payload)
 
     def completedOrder(self, contract, order, orderState):
-        super().completedOrder(contract,order,orderState)
-        self.monitor.order(dict(self.broker_orders[int(order.orderId)]))
+        # Completed-order callbacks may all expose orderId=0 after Gateway restart.
+        # Do not overwrite the active client's orderId lookup with those records.
+        payload=self._order_payload(int(getattr(order,'orderId',0)),contract,order,orderState,completed=True)
+        self.monitor.order(payload)
 
     def orderStatus(self, orderId, *args):
         super().orderStatus(orderId,*args)
