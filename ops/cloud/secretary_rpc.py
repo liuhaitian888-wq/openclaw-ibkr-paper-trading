@@ -44,9 +44,13 @@ def dispatch(root,request,config,policy):
     action=request.get('action')
     if action=='poll':
         reconcile_replies(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
-        result=asyncio.run(poll(archive,root,config,policy['armed_at']))
-        result['controls']=process_controls(archive,root,config,policy)
-        tick_login(archive,root)
+        if policy.get('receiver_owner')=='cloud':
+            from reporting.secretary_controls import pending_controls
+            result={'controls':pending_controls(archive)}
+        else:
+            result=asyncio.run(poll(archive,root,config,policy['armed_at']))
+            result['controls']=process_controls(archive,root,config,policy)
+            tick_login(archive,root)
         if result['controls']:return result
         autonomous(archive,now=time.time())
         result['job']=claim(archive,model=policy['model'],now=time.time())
@@ -64,7 +68,12 @@ def dispatch(root,request,config,policy):
         if type(step) is not int or not 1<=step<=12:raise ValueError('Bounded tool step required')
         req=request['request']
         if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
-        try:result=tool(root,req)
+        try:
+            if req.get('name')=='research_universe':
+                if policy.get('agent_news_selection_approved') is not True:raise PermissionError('Agent news selection not approved')
+                from reporting.research_universe import select
+                result=select(archive,root,req,run=request['run'],instruction=instruction,step=step)
+            else:result=tool(root,req)
         except (ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
             result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':str(exc)[:200]}
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result})

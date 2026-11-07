@@ -20,7 +20,7 @@ class TelegramGateTests(unittest.TestCase):
         self.assertEqual(result['revision'],1);self.assertEqual(current(self.root)['settings']['max_order_value'],'150')
         self.assertEqual(apply(self.a,self.root,'owner1',self.req(max_order_value='150')),result)
         with self.assertRaises(ValueError):apply(self.a,self.root,'owner2',self.req(max_order_value='140'))
-        self.assertIn('/gate_apply',template(self.root))
+        self.assertIn('/omax 150',template(self.root))
     def test_no_model_or_extra_privileged_fields(self):
         self.a.append('model','der',origin='MODEL',kind='CONTROL_INSTRUCTION',payload={})
         with self.assertRaises(PermissionError):apply(self.a,self.root,'model',self.req())

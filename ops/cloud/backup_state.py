@@ -42,7 +42,7 @@ def main():
         raw.unlink()  # Only this newly generated temporary copy, never a source.
         items.append(dict(source=name, status='BACKED_UP', sha256_uncompressed=digest,
                           file=packed.name, compressed_bytes=packed.stat().st_size))
-    for name in ('production.json', 'delivery.json', 'PAUSED', 'runtime/MAINTENANCE', 'runtime/risk-controls.json', 'runtime/RISK_CONTROLS_REQUIRED', 'runtime/secretary-policy.json'):
+    for name in ('production.json', 'delivery.json', 'PAUSED', 'runtime/MAINTENANCE', 'runtime/risk-controls.json', 'runtime/RISK_CONTROLS_REQUIRED', 'runtime/secretary-policy.json', 'runtime/research-universe.json', 'runtime/intelligence-policy.json', 'runtime/database-layout.json'):
         source = root / name
         if source.is_file():
             shutil.copy2(source, target / source.name)

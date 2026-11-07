@@ -41,9 +41,8 @@ def main():
         store=IncidentStore(root/'runtime/recovery.sqlite3');symbols=held_symbols(paper_state(root))
         # Explicit approved watchlist extends beyond current holdings; no strategy enablement.
         config=json.loads((Path.home()/'.config/openclaw/intelligence.json').read_text())
-        for symbol in config.get('watch_symbols',[]):
-            if symbol not in symbols and __import__('re').fullmatch(r'[A-Z][A-Z0-9.-]{0,7}',symbol):symbols.append(symbol)
-        symbols=symbols[:12]
+        from reporting.research_universe import effective_symbols
+        symbols=effective_symbols(root,config,paper_state(root))
         history=root/'observations/news';history.mkdir(parents=True,exist_ok=True)
         def received(result):
             stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ');name=stamp+'-'+result['symbol']+'.json'

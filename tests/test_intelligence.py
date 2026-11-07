@@ -96,3 +96,14 @@ class IntelligenceTests(unittest.TestCase):
             row={'source':'IBKR_NEWS:DJ','entity':'article','provider_article_id':'article','headline':'one event','url':'https://www.interactivebrokers.com/','published_at':105,'symbols':['AAPL']}
             ingest(a,store,row,now=110,armed_at=100);ingest(a,store,{**row,'symbols':['MSFT']},now=111,armed_at=100)
             self.assertIsNotNone(store.claim());self.assertIsNone(store.claim())
+    def test_http_error_response_closes_and_persisted_backoff_prevents_repeat(self):
+        import io
+        from urllib.error import HTTPError
+        from reporting.intelligence import fetch,SourceBackoff
+        body=io.BytesIO(b'denied');error=HTTPError('https://www.bls.gov/feed/cpi.rss',403,'denied',{},body);retries={}
+        with patch('reporting.intelligence.build_opener') as build,patch('reporting.intelligence.time.time',return_value=100):
+            build.return_value.open.side_effect=error
+            with self.assertRaises(HTTPError):fetch('https://www.bls.gov/feed/cpi.rss',retry_state=retries)
+            self.assertTrue(body.closed)
+            with self.assertRaises(SourceBackoff):fetch('https://www.bls.gov/feed/cpi.rss',retry_state=retries)
+            self.assertEqual(build.return_value.open.call_count,1)

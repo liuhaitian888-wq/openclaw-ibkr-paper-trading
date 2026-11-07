@@ -29,7 +29,7 @@ def respond(archive,store,instruction,summary):
     event=run+':result'
     archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=instruction,payload={'summary':summary,'source':'deterministic Python control; no model inference'})
     archive.finish_run(run,state='SUCCEEDED',result_event=event)
-    enqueue_reply(archive,store,run,summary)
+    enqueue_reply(archive,store,run,summary,role='CONTROL')
 
 
 def process_controls(archive,root,config,policy=None):
@@ -41,9 +41,39 @@ def process_controls(archive,root,config,policy=None):
     controls=[]
     for instruction,payload in rows:
         text=json.loads(payload)['text'];parts=text.split(maxsplit=1);raw=parts[0];command=raw.split('@')[0]
+        aliases_short={'/qmax':'单笔股数','/omax':'单笔金额','/rmax':'单笔风险','/smax':'单股持仓上限','/gmax':'账户总敞口'}
+        if command in aliases_short:
+            parts=['/gate_set',aliases_short[command]+' '+(parts[1] if len(parts)==2 else '')];command='/gate_set'
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
-            if command=='/gate' and len(parts)==1:summary=template(root)
+            if command=='/focus':
+                if len(parts)==2:
+                    if len(parts[1])>2000:raise ValueError('Research focus limited to 2000 characters')
+                    archive.append(instruction+':focus',CONVERSATION,origin='TOOL',kind='USER_FOCUS',parent=instruction,payload={'text':parts[1],'source':'native owner research direction; does not grant tools or trading permission'})
+                    summary='长期研究方向已保存，从下一轮自主任务起采用。单次任务继续使用 /secretary。\n'+parts[1]
+                else:
+                    with closing(archive.connect()) as c:focus=c.execute("SELECT payload FROM secretary_events WHERE kind='USER_FOCUS' ORDER BY rowid DESC LIMIT 1").fetchone()
+                    summary='当前长期研究方向：'+(json.loads(focus[0])['text'] if focus else '尚未单独设置；按既有研究授权自主安排。')
+            elif command=='/intel' and len(parts)==1:
+                reports=[]
+                for filename in ('intelligence.latest.json','intelligence-broker.latest.json'):
+                    path=root/'runtime'/filename
+                    if not path.is_file():reports.append(filename+'：尚无真实采集结果');continue
+                    if path.stat().st_size>100000:raise ValueError('Bounded intelligence status required')
+                    data=json.loads(path.read_text());reports.append(filename+'：'+str(data.get('state'))+'；采集于 '+str(data.get('observed_at')))
+                    if data.get('sources'):reports.extend(str(x['source'])+' '+str(x['state'])+(' HTTP '+str(x['http_status']) if x.get('http_status') else '') for x in data['sources'])
+                    if data.get('per_symbol'):reports.extend(x['symbol']+'：'+('已验证本次新闻读取' if x.get('news_usable') else '本次可用性未建立') for x in data['per_symbol'])
+                summary='情报源实际状态\n'+'\n'.join(reports)+'\n新闻相关性不证明价格因果，交易门禁独立。'
+            elif command=='/gate' and len(parts)==1:summary=template(root)
+            elif command=='/gate_set' and len(parts)==2:
+                if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved')
+                from .telegram_gate import current
+                aliases={'单笔股数':'max_quantity','单笔金额':'max_order_value','单笔风险':'max_risk_per_order','单股持仓上限':'max_symbol_exposure','账户总敞口':'max_gross_exposure'}
+                pair=parts[1].split()
+                if len(pair)!=2 or pair[0] not in aliases:raise ValueError('格式：/gate_set 单笔金额 150；发送 /gate 查看字段')
+                before=current(root);settings=dict(before['settings']);settings[aliases[pair[0]]]=None if pair[1]=='不限' else pair[1]
+                data=apply(archive,root,instruction,{'revision':before['revision'],'settings':settings})
+                summary='已生效：'+pair[0]+' = '+pair[1]+'（v'+str(data['revision'])+'）\n'+template(root)
             elif command=='/gate_apply' and len(parts)==2:
                 if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved in deployment policy')
                 def invalid(_):raise ValueError('Non-finite JSON rejected')
@@ -58,9 +88,10 @@ def process_controls(archive,root,config,policy=None):
                     state=subprocess.run(['systemctl','show','ibkr-gateway.service','-p','ActiveState','--value'],capture_output=True,text=True,timeout=3)
                     if command=='/login_assist' and policy.get('gateway_start_assistance_approved') is True and state.returncode==0 and state.stdout.strip() in ('inactive','failed'):
                         run=instruction+':control';archive.reserve_run(run,instruction=instruction,model='PYTHON_CONTROL')
+                        archive.append(run+':requested',CONVERSATION,origin='SYSTEM',kind='GATEWAY_START_REQUESTED',parent=instruction,payload={'run':run})
                         controls.append({'kind':'GATEWAY_START','instruction':instruction,'run':run});continue
                     summary='认证尚未通过新鲜完整回读。已跟踪现有唯一Gateway/IBAutomater owner；请在IBKR手机完成需要的二次验证，不要在Telegram发送密码或验证码。成功后将自动通知；不会为了检查而重启正常服务。'
-            else:raise ValueError('Supported commands: /gate, /gate_apply JSON, /login, /login_assist')
+            else:raise ValueError('Supported commands: /gate, /gate_apply JSON, /login, /login_assist, /focus text, /intel')
         except (ValueError,PermissionError,OSError,sqlite3.Error) as exc:
             summary='命令未确认生效，请核对：'+str(exc)[:250]+'。现有交易权限和订单不变。'
         respond(archive,store,instruction,summary)
@@ -76,7 +107,7 @@ def finish_start(archive,root,request):
         archive.finish_run(run,state='UNKNOWN');return {'state':'UNKNOWN'}
     summary='启动请求已交给现有唯一systemd Gateway owner；认证尚待核验。请完成手机二次验证，取得正确Paper账户的新鲜完整回读后将通知；交易权限不变。'
     event=run+':result';archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=row[0],payload={'summary':summary})
-    archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,summary)
+    archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,summary,role='AUTH')
     return {'state':'SUCCEEDED'}
 
 
@@ -95,4 +126,13 @@ def tick_login(archive,root):
         run=done+':notification';archive.reserve_run(run,instruction=parent,model='PYTHON_CONTROL')
         event=done+':message';text='认证成功：已取得正确Paper账户及新鲜完整回读。行情、策略、交易批准仍单独检查，未解除暂停。'
         archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=parent,payload={'summary':text})
-        archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,text)
+        archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,text,role='AUTH')
+
+
+def pending_controls(archive):
+    with closing(archive.connect()) as c:
+        rows=c.execute("SELECT r.occurrence,r.instruction FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.model='PYTHON_CONTROL' AND r.state='STARTED' AND e.kind='GATEWAY_START_REQUESTED' AND NOT EXISTS(SELECT 1 FROM secretary_events d WHERE d.occurrence=r.occurrence||':dispatch') LIMIT 5").fetchall()
+    controls=[]
+    for run,instruction in rows:
+        if archive.append(run+':dispatch',CONVERSATION,origin='SYSTEM',kind='CONTROL_DISPATCH_STARTED',parent=instruction,payload={'run':run}):controls.append({'kind':'GATEWAY_START','run':run,'instruction':instruction})
+    return controls

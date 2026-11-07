@@ -23,15 +23,18 @@ def main():
     with monitoring_service('intelligence-public',root):
         archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
         store=IncidentStore(root/'runtime/recovery.sqlite3');now=time.time()
-        results=public_sources(root,config);new=0
+        retry_path=root/'runtime/intelligence-retries.json'
+        config['_retry_state']=json.loads(retry_path.read_text()) if retry_path.exists() else {}
+        results=public_sources(root,config);now=time.time();new=0
+        retry_temp=retry_path.with_suffix('.tmp');retry_temp.write_text(json.dumps(config['_retry_state']));retry_temp.replace(retry_path)
         baseline_path=root/'runtime/intelligence-market-baseline.json'
         previous=json.loads(baseline_path.read_text()) if baseline_path.exists() else {}
-        records,baseline=market_observations(paper_state(root),previous,now=now)
+        state=paper_state(root);records,baseline=market_observations(state,previous,now=time.time())
         results.append({'source':'EXISTING_PAPER_QUOTES','state':'OBSERVED' if baseline else 'NO_FRESH_EXISTING_QUOTES','records':records})
         temp=baseline_path.with_suffix('.tmp');temp.write_text(json.dumps(baseline));temp.replace(baseline_path)
         for result in results:
             records=result.pop('records');result['record_count']=len(records)
-            for record in records:new+=ingest(archive,store,record,now=now,armed_at=policy['armed_at'])
+            for record in records:new+=ingest(archive,store,record,now=time.time(),armed_at=policy['armed_at'])
         with closing(archive.connect()) as c:
             recent=[json.loads(v) for (v,) in c.execute("SELECT payload FROM secretary_events WHERE kind='INTELLIGENCE_RECORD' AND recorded_at>=? ORDER BY rowid DESC LIMIT 10",(now-3600,)).fetchall()]
         fresh=[r for r in recent if r.get('alert_eligible')]

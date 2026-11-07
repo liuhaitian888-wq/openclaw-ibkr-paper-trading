@@ -26,7 +26,7 @@ def accept_update(archive, update, config, *, armed_at):
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(config['chat_id'])+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/gate','/gate_apply','/login','/login_assist') else 'CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(config['chat_id'])+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/gate','/gate_apply','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
             'message_id':m['message_id'],'timestamp':m['date']})
     with closing(archive.connect()) as c,c:
@@ -44,10 +44,13 @@ def autonomous(archive, *, now):
     # Four opportunities/day; skipped slots never backfill. STARTED/UNKNOWN blocks autonomous spend.
     with closing(archive.connect()) as c:
         if c.execute("SELECT 1 FROM secretary_runs r WHERE state IN ('STARTED','UNKNOWN') AND NOT EXISTS(SELECT 1 FROM secretary_events e WHERE e.occurrence=r.occurrence||':reconciliation' AND e.kind='RUN_RECONCILIATION' AND e.origin='SYSTEM') LIMIT 1").fetchone():return False
+    with closing(archive.connect()) as c:
+        focus=c.execute("SELECT payload,parent FROM secretary_events WHERE kind='USER_FOCUS' AND origin='TOOL' ORDER BY rowid DESC LIMIT 1").fetchone()
+    standing_focus={'text':json.loads(focus[0])['text'],'source_instruction':focus[1]} if focus else None
     slot=int(now//21600)
     return archive.append('autonomous:'+str(slot),CONVERSATION,origin='SYSTEM',kind='AUTONOMOUS_INSTRUCTION',parent=AUTHORITY,payload={
         'text':'自主研究本轮：先查档案避免重复。自行选择可证伪课题，读取数据库证据，运行已登记测试，报告实际结果、局限和下一步。无连续数据或费用版本时不得捏造策略收益。',
-        'slot':slot,'strategy_version':'research-policy-v1','cost_assumptions':'INCOMPLETE; no zero-fee default',
+        'standing_focus':standing_focus,'slot':slot,'strategy_version':'research-policy-v1','cost_assumptions':'INCOMPLETE; no zero-fee default',
         'data_applicability':'Must establish point-in-time data and out-of-sample split before performance claims'})
 
 
@@ -65,11 +68,11 @@ def claim(archive, *, model, now):
     return None
 
 
-def enqueue_reply(archive, store, run, text):
+def enqueue_reply(archive, store, run, text, *, role='RESEARCH'):
     with closing(archive.connect()) as c:
         row=c.execute('SELECT state FROM secretary_runs WHERE occurrence=?',(run,)).fetchone()
     if row is None or row[0]!='SUCCEEDED':raise ValueError('Successful archived result required')
-    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram'},ensure_ascii=False,sort_keys=True)
+    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram','message_role':role},ensure_ascii=False,sort_keys=True)
     with closing(store.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary:'+run,encoded))
@@ -87,6 +90,6 @@ def reconcile_replies(archive, store):
 def progress(store,run,stage,text):
     """Public activity milestones only; unique enqueue, no private reasoning stream."""
     if stage not in ('CLAIMED','FIRST_TOOL'):raise ValueError('Bounded public milestone required')
-    payload=json.dumps({'reason':'研究进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram'},ensure_ascii=False)
+    payload=json.dumps({'reason':'研究进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram','message_role':'PROGRESS'},ensure_ascii=False)
     with closing(store.connect()) as c,c:
         c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-progress:'+run+':'+stage,payload))

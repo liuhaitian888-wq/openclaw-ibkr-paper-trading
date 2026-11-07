@@ -1,0 +1,32 @@
+"""Single cloud Telegram input owner; deterministic controls never wait on a model."""
+import asyncio,json,os,signal,sys,threading,time
+from pathlib import Path
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from ops.cloud.monitoring_guard import monitoring_service
+from ops.cloud.secretary_rpc import poll
+from reporting.agent_secretary import SecretaryArchive
+from reporting.secretary_queue import initialize
+from reporting.secretary_controls import process_controls,tick_login
+
+
+def main():
+    os.umask(0o077);root=Path.home()/'.local/state/openclaw'
+    policy=json.loads((root/'runtime/secretary-policy.json').read_text())
+    if policy.get('approved') is not True or policy.get('receiver_owner')!='cloud' or policy.get('grants_trading_permission') is not False:raise PermissionError('Approved cloud inbox ownership required')
+    path=Path.home()/'.config/openclaw/telegram.json'
+    if path.stat().st_mode&0o077:raise PermissionError('Private Telegram configuration required')
+    config=json.loads(path.read_text());stopped=threading.Event()
+    for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,lambda *_:stopped.set())
+    with monitoring_service('secretary-inbox',root):
+        archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
+        while not stopped.is_set():
+            try:
+                result=asyncio.run(poll(archive,root,config,policy['armed_at']))
+                process_controls(archive,root,config,policy);tick_login(archive,root)
+                if result['accepted']:print(json.dumps({'accepted_native_owner_messages':result['accepted'],'at':time.time()}),flush=True)
+            except Exception as exc:
+                print(json.dumps({'state':'INBOX_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True);stopped.wait(5)
+            stopped.wait(.5)
+
+
+if __name__=='__main__':main()

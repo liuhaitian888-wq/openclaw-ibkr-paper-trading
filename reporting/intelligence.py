@@ -10,6 +10,7 @@ import re
 import sqlite3
 import time
 from urllib.parse import urlsplit
+from urllib.error import HTTPError
 from urllib.request import Request,build_opener,HTTPRedirectHandler
 import xml.etree.ElementTree as ET
 from .agent_secretary import SecretaryArchive
@@ -29,22 +30,48 @@ def publication(value):
     except (ValueError,TypeError,OverflowError,AttributeError):return None
 
 
-def fetch(url,*,sec_email=None):
+class SourceBackoff(RuntimeError):
+    def __init__(self,next_retry,code):
+        super().__init__('Source read is in persisted backoff');self.next_retry=next_retry;self.code=code
+
+
+def fetch(url,*,sec_email=None,retry_state=None):
     host=urlsplit(url).hostname
     if host not in ('www.federalreserve.gov','www.bls.gov','www.sec.gov','data.sec.gov'):
         raise PermissionError('Official data host required')
+    key=hashlib.sha256(url.encode()).hexdigest();now=time.time()
+    prior=(retry_state or {}).get(key,{})
+    if prior.get('next_retry',0)>now:raise SourceBackoff(prior['next_retry'],prior.get('http_status'))
     ua='OpenClawReadOnlyResearch'
     if host in ('www.sec.gov','data.sec.gov'):
         if not isinstance(sec_email,str) or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+',sec_email):raise ValueError('SEC contact required')
         ua+=' '+sec_email
     class SameHost(HTTPRedirectHandler):
         def redirect_request(self,req,fp,code,msg,headers,newurl):
-            if urlsplit(newurl).hostname!=host or urlsplit(newurl).scheme!='https':raise PermissionError('Cross-host redirect refused before transmission')
+            if urlsplit(newurl).hostname!=host or urlsplit(newurl).scheme!='https':
+                if fp is not None:fp.close()
+                raise PermissionError('Cross-host redirect refused before transmission')
             return super().redirect_request(req,fp,code,msg,headers,newurl)
     opener=build_opener(SameHost())
-    with opener.open(Request(url,headers={'User-Agent':ua,'Accept':'application/json,application/rss+xml,text/xml'}),timeout=8) as response:
-        if urlsplit(response.url).hostname!=host:raise PermissionError('Cross-host redirect refused')
-        body=response.read(2_000_001)
+    try:
+        with opener.open(Request(url,headers={'User-Agent':ua,'Accept':'application/json,application/rss+xml,text/xml'}),timeout=8) as response:
+            if urlsplit(response.url).hostname!=host:raise PermissionError('Cross-host redirect refused')
+            body=response.read(2_000_001)
+    except HTTPError as exc:
+        code=exc.code;headers=exc.headers or {};exc.close()
+        delay=3600 if code==403 else 600 if code==429 else 120
+        retry_after=headers.get('Retry-After')
+        if retry_after:
+            try:delay=max(delay,min(86400,int(retry_after)))
+            except ValueError:
+                when=publication(retry_after)
+                if when is not None:delay=max(delay,min(86400,max(0,when-now)))
+        if retry_state is not None:retry_state[key]={'next_retry':now+delay,'http_status':code}
+        raise
+    except (OSError,TimeoutError):
+        if retry_state is not None:retry_state[key]={'next_retry':now+120,'http_status':None}
+        raise
+    if retry_state is not None:retry_state.pop(key,None)
     if len(body)>2_000_000:raise ValueError('Response exceeds intake budget')
     return body
 
@@ -103,7 +130,7 @@ def held_symbols(state):
 
 def enqueue(store,key,text):
     with closing(store.connect()) as c,c:
-        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",(key,json.dumps({'reason':text[:3300],'delivery_transport':'telegram'},ensure_ascii=False)))
+        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",(key,json.dumps({'reason':text[:3300],'delivery_transport':'telegram','message_role':'INTELLIGENCE'},ensure_ascii=False)))
 
 
 def ingest(archive,store,record,*,now,armed_at):
@@ -138,24 +165,23 @@ def initialize(archive):
 
 def source_result(source,fn):
     try:return {'source':source,'state':'RETRIEVED','records':fn()}
-    except Exception as exc:return {'source':source,'state':'UNAVAILABLE','error_type':type(exc).__name__,'http_status':getattr(exc,'code',None),'records':[]}
+    except Exception as exc:return {'source':source,'state':'WAITING_RETRY' if isinstance(exc,SourceBackoff) else 'UNAVAILABLE','error_type':type(exc).__name__,'http_status':getattr(exc,'code',None),'next_retry':getattr(exc,'next_retry',None),'records':[]}
 
 
 def public_sources(root,config,*,fetcher=fetch):
     original_fetcher=fetcher
     def fetcher(url,**kwargs):
         if urlsplit(url).hostname in ('www.sec.gov','data.sec.gov'):time.sleep(.15)
+        if original_fetcher is fetch:kwargs['retry_state']=config.get('_retry_state')
         return original_fetcher(url,**kwargs)
     results=[source_result(source,lambda source=source,url=url:rss_records(fetcher(url),source)) for source,url in FEEDS.items()]
-    symbols=held_symbols(paper_state(root))
-    for symbol in config.get('watch_symbols',[]):
-        if isinstance(symbol,str) and re.fullmatch(r'[A-Z][A-Z0-9.-]{0,7}',symbol) and symbol not in symbols:symbols.append(symbol)
-    symbols=symbols[:12]
+    from .research_universe import effective_symbols
+    symbols=effective_symbols(root,config,paper_state(root))
     try:
         mapping=json.loads(fetcher('https://www.sec.gov/files/company_tickers.json',sec_email=config.get('sec_contact_email')))
         ciks={v['ticker']:v['cik_str'] for v in mapping.values()}
     except Exception as exc:
-        results.append({'source':'SEC_EDGAR','state':'UNAVAILABLE','error_type':type(exc).__name__,'http_status':getattr(exc,'code',None),'records':[]});return results
+        results.append({'source':'SEC_EDGAR','state':'WAITING_RETRY' if isinstance(exc,SourceBackoff) else 'UNAVAILABLE','error_type':type(exc).__name__,'http_status':getattr(exc,'code',None),'next_retry':getattr(exc,'next_retry',None),'records':[]});return results
     for symbol in symbols:
         if symbol not in ciks:
             results.append({'source':'SEC_EDGAR:'+symbol,'state':'CIK_NOT_RESOLVED','records':[]});continue

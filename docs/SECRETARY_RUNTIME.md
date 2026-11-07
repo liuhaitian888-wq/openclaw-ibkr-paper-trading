@@ -50,3 +50,15 @@ https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
 本机一致性副本来自20261106T234018.315731Z云端备份；1861767168字节，解压SHA-256 d817a32ab8b2216b24e20786f675622903e434b2ee416f6a130c84a89d763b1f，隔离quick_check通过。位于state/secretary/snapshots该版本目录，文件只读、非生产激活候选。秘书schema/query/hypothesis_test可指定source=local_snapshot；只有返回证据进入模型上下文，不能把复制整个DB说成免token读取。尚无连续历史行情或完整净收益验证。
 
 真实第一项自主研究成功并收到Telegram原生回执；真实owner /secretary消息已入档，但该次模型运行UNKNOWN，未重放。后续修复需分别保留原始UNKNOWN、公开可核查的协调事件和新任务身份，不能把付费结果丢失改写成成功。
+
+## 云端直达控制与自主研究范围
+
+新部署以secretary-policy.receiver_owner=cloud显式指定唯一云端收消息owner。`ibkr-secretary-inbox.service`接收原生owner指令并运行确定性控制，模型工作由本机独立owner领取任务；模型研究运行中不阻塞数值控制。原RPC在cloud模式下不再调用getUpdates。二者分别持有内核锁，SQLite事务和update ID去重保持。
+
+`/gate`显示中文字段；`/gate_set 单笔金额 150`等单行命令直接进入Python，保留原JSON接口仅作兼容。命令成功指“附加数值上限已保存，下一次风控检查读取”，不意味着策略/账户/会话/交易批准通过。普通聊天不能改变门禁。`/focus 文本`设置下一轮自主研究的固定方向；`/intel`读取逐源实际状态。所有这些控制均不要求模型推理。
+
+经用户明确授权，模型可调用`research_universe`选择最多12项额外新闻研究公司及逐项理由，记录MODEL提案和TOOL落盘结果；持仓/最近已核验持仓始终优先覆盖，执行标的及订阅权限不变。该工具需独立policy标记，不从网络可用性推导权限。
+
+消息用🟦研究、🟪情报、⚙️控制、🔐认证、🔵进度、🟥/🟨故障/风险及🟩恢复区分。正文只展示短记录编号，完整occurrence保留在库中。既有HealthchecksBot仍由外部服务控制；不添加竞争发送owner。
+
+用户随后指定英文缩写风控门：/qmax、/omax、/rmax、/smax、/gmax；/gate显示英文简表。每条修改走确定性Python，原中文/JSON接口仅兼容旧消息。普通owner群聊天无需/secretary前缀，但Telegram隐私模式须关闭或具备允许完整投递的群权限；实测当前can_read_all_group_messages=false，已交用户在BotFather确认调整，不能把应用接收代码可用当作平台已投递。

@@ -57,3 +57,8 @@ class SecretaryQueueTests(unittest.TestCase):
             self.a.append('owner:'+str(i),CONVERSATION,origin='USER',kind='CHAT_INSTRUCTION',payload={'text':'fixture'})
         for _ in range(24):self.assertIsNotNone(claim(self.a,model='gpt-6.1-sol',now=100000))
         self.assertIsNone(claim(self.a,model='gpt-6.1-sol',now=100000))
+    def test_plain_owner_chat_is_accepted_without_secretary_prefix(self):
+        update=self.update(text='研究今天的新闻，自己选公司')
+        self.assertTrue(accept_update(self.a,update,self.config,armed_at=100000))
+        with closing(self.a.connect()) as c:
+            self.assertEqual(c.execute("SELECT kind FROM secretary_events WHERE occurrence LIKE 'telegram:%'").fetchone()[0],'CHAT_INSTRUCTION')

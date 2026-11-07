@@ -62,9 +62,15 @@ def notification_text(item,started,*,max_length=4000):
     if max_length<256:raise ValueError('Notification budget must retain identity and timing')
     data=item['payload'];kind=item['kind']
     if kind=='SECRETARY_REPLY':
-        return ('买 der｜研究秘书\n\n'+display(data.get('reason',''))+'\n\n档案：'+display(item['incident_key'])+'\n研究结果不构成交易授权。')[:max_length]
+        role=data.get('message_role','RESEARCH')
+        label={'RESEARCH':'🟦 研究秘书','INTELLIGENCE':'🟪 市场情报','CONTROL':'⚙️ 远程控制','AUTH':'🔐 登录认证','PROGRESS':'🔵 任务进度'}.get(role,'🟦 研究秘书')
+        footer='信息不改变交易授权。' if role in ('RESEARCH','INTELLIGENCE') else '现有交易门禁独立生效。' if role in ('CONTROL','AUTH') else '完成后推送结果。'
+        return ('买 der｜'+label+'\n\n'+display(data.get('reason',''))+'\n\n记录 #'+str(item['id'])+' · '+footer)[:max_length]
     name=KINDS.get(kind,'持续故障提醒' if kind.startswith('REMINDER_') else '严重程度升级' if kind.startswith('ESCALATION_') else kind)
-    lines=['买 der｜IBKR Paper '+name]
+    badge='🟩' if kind=='RECOVERY' else '🟥' if data.get('severity')=='RED' else '🟨' if data.get('severity') is not None else '📄'
+    if data.get('scope')=='PAPER_MARKET_SESSION_CONFLICT':name='行情会话竞争恢复' if kind=='RECOVERY' else '行情会话竞争告警'
+    elif item.get('incident_key')=='paper-safety:connection':name='API连接恢复' if kind=='RECOVERY' else 'API连接告警'
+    lines=[badge+' 买 der｜IBKR Paper '+name]
     if data.get('severity') is not None:lines.append('严重程度：'+{'RED':'高','YELLOW':'提醒','GREEN':'正常/恢复'}.get(data['severity'],display(data['severity'])))
     source=data.get('observed_at',data.get('timestamp'))
     if source is not None:lines.append('事件记录时间（柏林）：'+format_time(source))

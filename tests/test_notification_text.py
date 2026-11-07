@@ -30,3 +30,10 @@ class NotificationTextTests(unittest.TestCase):
   text=notification_text(item,1793982787.355406)
   self.assertIn('2026-11-06T09:00:00+08:00',text)
   self.assertEqual(item['payload']['observed_at'],original)
+
+class ResponsibilityLabelTests(__import__('unittest').TestCase):
+    def test_roles_have_visible_badges_and_short_identity(self):
+        from reporting.notification_text import notification_text
+        for role,label in [('RESEARCH','🟦'),('INTELLIGENCE','🟪'),('CONTROL','⚙️'),('AUTH','🔐')]:
+            item={'id':7,'kind':'SECRETARY_REPLY','incident_key':'very-long-internal-identity','payload':{'reason':'fixture','message_role':role}}
+            result=notification_text(item,0);self.assertIn(label,result);self.assertIn('记录 #7',result);self.assertNotIn('very-long-internal-identity',result)

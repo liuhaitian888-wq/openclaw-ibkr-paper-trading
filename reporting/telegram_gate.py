@@ -90,6 +90,14 @@ def reconcile(archive,root):
 
 
 def template(root):
-    data=current(root)
-    payload={'revision':data['revision'],'settings':data['settings']}
-    return 'Python数值门控模板（金额单位USD；quantity为整股；0可阻止相应新增请求）\n复制下面整条命令，修改settings内的具体数值后发送：\n/gate_apply '+json.dumps(payload,ensure_ascii=False,separators=(',',':'))+'\n只作用于RiskEngine下一次校验；与已有硬上限取更严值。此命令不能解除PAUSED/MAINTENANCE、批准交易、重置测试额度或修改现有保护单。会话/日历门禁仍独立。'
+    data=current(root);v=data['settings']
+    money=lambda key:'Not set' if v[key] is None else '$'+str(v[key])
+    return ('Risk limits · v'+str(data['revision'])+'\n\n'
+        +'QMAX · Shares/order: '+str(v['max_quantity'])+'\n'
+        +'OMAX · Order value: '+money('max_order_value')+'\n'
+        +'RMAX · Risk/order: '+money('max_risk_per_order')+'\n'
+        +'SMAX · Symbol exposure: '+money('max_symbol_exposure')+'\n'
+        +'GMAX · Gross exposure: '+money('max_gross_exposure')+'\n\n'
+        +'Set one limit per message:\n/qmax 1\n/omax 150\n/rmax 8\n/smax 500\n/gmax 1200\n\n'
+        +'USD except QMAX. Applied by Python; stricter existing limits still apply.\n'
+        +'These commands do not send orders or clear trading approvals/pauses.')
