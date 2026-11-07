@@ -26,6 +26,7 @@ TEXT={
  'Complete broker position/order/execution readback':'持仓、订单和成交的完整券商回读已恢复。',
  'Broker reconciliation incomplete or failed':'券商回读不完整或对账未通过。',
  'IBKR reported competing market-data session (10197)':'IBKR报告竞争行情会话（10197）；API连接正常也可能无法获取行情。',
+ 'IBKR upstream and complete Paper readback restored':'IBKR上游连接与完整Paper账户回读已恢复；交易权限与行情门禁仍独立生效。',
  'IBKR upstream lost; preserve authenticated API socket':'IBKR上游连接中断；保留已认证的API连接，等待恢复。',
  'Fresh real-time quotes and complete Paper reconciliation verified':'新鲜实时行情与完整Paper账户回读已核验。',
  'Block new entries; preserve broker orders':'阻止新增风险；保留券商现有订单。',
@@ -70,6 +71,7 @@ def notification_text(item,started,*,max_length=4000):
     badge='🟩' if kind=='RECOVERY' else '🟥' if data.get('severity')=='RED' else '🟨' if data.get('severity') is not None else '📄'
     if data.get('scope')=='PAPER_MARKET_SESSION_CONFLICT':name='行情会话竞争恢复' if kind=='RECOVERY' else '行情会话竞争告警'
     elif item.get('incident_key')=='paper-safety:connection':name='API连接恢复' if kind=='RECOVERY' else 'API连接告警'
+    elif item.get('incident_key')=='paper-safety:upstream':name='上游连接恢复' if kind=='RECOVERY' else '上游连接告警'
     lines=[badge+' 买 der｜IBKR Paper '+name]
     if data.get('severity') is not None:lines.append('严重程度：'+{'RED':'高','YELLOW':'提醒','GREEN':'正常/恢复'}.get(data['severity'],display(data['severity'])))
     source=data.get('observed_at',data.get('timestamp'))

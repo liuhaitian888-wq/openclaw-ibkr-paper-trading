@@ -13,6 +13,7 @@ class PaperSafetyClient(TwsPaperClient):
         super().__init__()
         self.monitor = monitor
         self.connection_generation=uuid.uuid4().hex
+        self.upstream_reported_lost=False
         self._initial_pending=set()
         self.tickers = {46000+i:s for i,s in enumerate(symbols)}
         self.bar_tickers = {47000+i:s for i,s in enumerate(symbols)}
@@ -32,6 +33,7 @@ class PaperSafetyClient(TwsPaperClient):
         if not self.isConnected():
             self.connection_generation=uuid.uuid4().hex
             self._initial_pending.clear()
+            self.upstream_reported_lost=False
         return super().connect(*args,**kwargs)
 
     def nextValidId(self, orderId):
@@ -73,14 +75,17 @@ class PaperSafetyClient(TwsPaperClient):
         super().error(reqId, *args)
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
         if isinstance(code,int):
-            if code in (10197,1100,1101,1102,162,321,101,10225,354,10168,10186) or reqId in self.bar_tickers or reqId in self.history_tickers:
+            if code in (10197,1100,1101,1102,2110,162,321,101,10225,354,10168,10186) or reqId in self.bar_tickers or reqId in self.history_tickers:
                 self.monitor._record('error',dict(request_id=reqId,code=code,details=str(args)))
             symbol=self.tickers.get(reqId) or self.bar_tickers.get(reqId) or self.history_tickers.get(reqId)
             if symbol:
                 self.monitor.market_error(symbol,code,str(args))
             elif code in (1100,1101,1102):
                 for affected in self.monitor.symbols:self.monitor.market_error(affected,code,str(args))
-            self.monitor.error(code,symbol=symbol)
+            with self.monitor.lock:
+                if code in (1100,2110):self.upstream_reported_lost=True
+                elif code in (1101,1102):self.upstream_reported_lost=False
+                self.monitor.error(code,symbol=symbol)
             if code==321 and 'read-only' in str(args).lower():
                 self.read_only_completed_orders_blocked = True
                 with self.monitor.lock:

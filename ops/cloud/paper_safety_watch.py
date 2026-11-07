@@ -156,7 +156,8 @@ def main():
                 if not client.ready.wait(10) or not client.accounts_ready.wait(10):
                     monitor.invalidate('AUTHENTICATION_OR_CONNECTION_REQUIRED')
                     raise RuntimeError('Human authentication or connection review required')
-                monitor.begin(client.accounts)
+                with monitor.lock:
+                    monitor.begin(client.accounts,upstream_reported_lost=client.upstream_reported_lost)
                 client.reconcile()
                 client.subscribe()
                 connected_since=monitor.clock()

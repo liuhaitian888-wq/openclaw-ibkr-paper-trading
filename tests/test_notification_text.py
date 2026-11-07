@@ -15,6 +15,12 @@ class NotificationTextTests(unittest.TestCase):
   self.assertIn('数量：1\n\n',text);self.assertIn('建议你操作：',text)
   self.assertIn('故障批次：NVDA保护状态·第1次故障',text)
   self.assertTrue(text.endswith('事件编号：805'));self.assertNotIn('Telegram确认不等于',text)
+ def test_upstream_recovery_is_distinct_and_does_not_grant_trading(self):
+  item=self.item();item.update(incident_key='paper-safety:upstream',kind='RECOVERY')
+  item['payload'].update(severity='GREEN',reason='IBKR upstream and complete Paper readback restored')
+  text=notification_text(item,1793982787.355406)
+  self.assertIn('上游连接恢复',text);self.assertIn('交易权限与行情门禁仍独立生效',text)
+  item['kind']='ALERT';self.assertIn('上游连接告警',notification_text(item,1793982787.355406))
  def test_caption_limit_retains_timing_and_final_identity(self):
   item=self.item();item['payload']['reason']='很长的实际报告'*1000
   text=notification_text(item,1793982787.355406,max_length=1024)

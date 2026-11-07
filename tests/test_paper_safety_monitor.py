@@ -39,6 +39,46 @@ class PaperSafetyTests(unittest.TestCase):
         for name in ('orders','completed_orders','executions','positions'):
             self.m.end(name)
 
+    def upstream_incident(self):
+        with closing(self.m.incidents.connect()) as c:
+            return c.execute("SELECT generation,state FROM incidents WHERE incident_key='paper-safety:upstream'").fetchone()
+
+    def test_upstream_recovery_requires_all_fresh_readback_and_reopens_next_occurrence(self):
+        self.ready();self.m.error(1100)
+        self.assertEqual(self.upstream_incident(),(1,'OPEN'))
+        self.m.error(1102)
+        for name in ('orders','completed_orders','executions'):self.m.end(name)
+        self.assertEqual(self.upstream_incident(),(1,'OPEN'))
+        self.m.end('positions')
+        self.assertEqual(self.upstream_incident(),(1,'RESOLVED'))
+        self.m.end('positions')
+        with closing(self.m.incidents.connect()) as c:
+            self.assertEqual(c.execute("SELECT count(*) FROM notification_outbox WHERE incident_key='paper-safety:upstream' AND kind='RECOVERY'").fetchone()[0],1)
+        self.m.error(1100)
+        self.assertEqual(self.upstream_incident(),(2,'OPEN'))
+
+    def test_end_callbacks_cannot_recover_disconnected_or_stale_upstream(self):
+        self.ready();self.m.error(2110)
+        for name in ('orders','completed_orders','executions','positions'):self.m.end(name)
+        self.assertEqual(self.upstream_incident(),(1,'OPEN'))
+        self.assertTrue(self.m.state['connected'])
+        self.assertFalse(self.m.state['upstream_connected'])
+        self.assertEqual(self.m.state['fault'],'IBKR_UPSTREAM_CONNECTION_LOST')
+        self.m.error(1102);self.now+=11
+        for name in ('orders','completed_orders','executions','positions'):self.m.end(name)
+        self.assertEqual(self.upstream_incident(),(1,'OPEN'))
+
+    def test_early_2110_is_durable_and_survives_managed_accounts_begin(self):
+        client=PaperSafetyClient(self.m,['PFE'])
+        client.error(-1,1794060496346,2110,'upstream broken','')
+        self.m.begin([ACCOUNT],upstream_reported_lost=client.upstream_reported_lost)
+        self.assertFalse(self.m.state['upstream_connected'])
+        self.assertEqual(self.upstream_incident(),(1,'OPEN'))
+        with closing(self.m.coordinator.connect()) as c:
+            self.assertEqual(c.execute("SELECT count(*) FROM paper_callback_events WHERE kind='error' AND json_extract(payload,'$.code')=2110").fetchone()[0],1)
+        client.error(-1,1102,'restored','')
+        self.assertFalse(client.upstream_reported_lost)
+
     def warm(self):
         self.now=1060
         self.m.bar('PFE',1000,1060)

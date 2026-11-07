@@ -135,14 +135,16 @@ class PaperSafetyMonitor:
                 self._publish()
             return True
 
-    def begin(self, accounts):
+    def begin(self, accounts, *, upstream_reported_lost=False):
         with self.lock:
             if accounts != [ACCOUNT]:
                 self.invalidate('IDENTITY_MISMATCH')
                 raise PermissionError('Exact DUQ503649 Paper identity required')
-            self.state.update(identity=True, connected=True, upstream_connected=True, epoch=uuid.uuid4().hex,
+            self.state.update(identity=True, connected=True, upstream_connected=not upstream_reported_lost, epoch=uuid.uuid4().hex,
                               last_server_reply=self.clock())
             self.start_reconciliation()
+            if upstream_reported_lost:
+                self.error(2110)
 
     def start_reconciliation(self):
         with self.lock:
@@ -173,7 +175,7 @@ class PaperSafetyMonitor:
                     self.state['history_evidence'].pop(symbol,None)
                     self.state['symbol_reset_at'][symbol]=self.clock()
                 self.state['fault'] = 'MARKET_DATA_COLLISION'
-            elif code==1100:
+            elif code in (1100, 2110):
                 self.state.update(upstream_connected=False,ends=[],dirty=True,quotes={},bars={},
                                   fault='IBKR_UPSTREAM_CONNECTION_LOST',needs_recovery_sync=True)
                 self._incident('upstream','IBKR upstream lost; preserve authenticated API socket')
@@ -284,11 +286,13 @@ class PaperSafetyMonitor:
             if set(self.state['ends']) == ENDS:
                 dirty = self.state.get('sync_new_execution',False)
                 self.state.update(dirty=dirty, reconciled_at=self.clock(),
-                                  fault='FILL_DURING_SNAPSHOT_REQUIRES_REPEAT_READBACK' if dirty else None)
-                if not dirty:
+                                  fault='FILL_DURING_SNAPSHOT_REQUIRES_REPEAT_READBACK' if dirty else self.state.get('fault'))
+                if self._complete():
+                    self.state['fault'] = None
                     self.state['needs_recovery_sync'] = False
                     self._incident('reconciliation', 'Complete broker position/order/execution readback', resolved=True)
                     self._incident('connection', 'Exact Paper identity and complete broker readback restored', resolved=True)
+                    self._incident('upstream', 'IBKR upstream and complete Paper readback restored', resolved=True)
             self._publish()
 
     def quote(self, symbol, bid, ask, bid_at, ask_at, data_type, *, last=None, last_at=None, event_time=None):
