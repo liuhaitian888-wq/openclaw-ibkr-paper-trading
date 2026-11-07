@@ -69,7 +69,10 @@ def dispatch(root,request,config,policy):
         req=request['request']
         if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
         try:
-            if req.get('name')=='research_universe':
+            if req.get('name') in ('engineering_proposal','engineering_updates'):
+                from reporting.engineering_relay import propose,proposals
+                result=propose(archive,req,instruction=instruction) if req['name']=='engineering_proposal' else proposals(archive)
+            elif req.get('name')=='research_universe':
                 if policy.get('agent_news_selection_approved') is not True:raise PermissionError('Agent news selection not approved')
                 from reporting.research_universe import select
                 result=select(archive,root,req,run=request['run'],instruction=instruction,step=step)

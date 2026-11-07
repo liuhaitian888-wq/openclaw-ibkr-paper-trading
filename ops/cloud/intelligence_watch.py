@@ -25,7 +25,10 @@ def main():
         store=IncidentStore(root/'runtime/recovery.sqlite3');now=time.time()
         retry_path=root/'runtime/intelligence-retries.json'
         config['_retry_state']=json.loads(retry_path.read_text()) if retry_path.exists() else {}
+        macro_path=root/'runtime/intelligence-macro-cache.json'
+        config['_macro_cache']=json.loads(macro_path.read_text()) if macro_path.exists() else {}
         results=public_sources(root,config);now=time.time();new=0
+        macro_temp=macro_path.with_suffix('.tmp');macro_temp.write_text(json.dumps(config['_macro_cache']));macro_temp.replace(macro_path)
         retry_temp=retry_path.with_suffix('.tmp');retry_temp.write_text(json.dumps(config['_retry_state']));retry_temp.replace(retry_path)
         baseline_path=root/'runtime/intelligence-market-baseline.json'
         previous=json.loads(baseline_path.read_text()) if baseline_path.exists() else {}

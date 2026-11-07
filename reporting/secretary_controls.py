@@ -46,7 +46,14 @@ def process_controls(archive,root,config,policy=None):
             parts=['/gate_set',aliases_short[command]+' '+(parts[1] if len(parts)==2 else '')];command='/gate_set'
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
-            if command=='/focus':
+            if command=='/engineering' and len(parts)==1:
+                from .engineering_relay import proposals
+                items=proposals(archive)['items']
+                summary='Engineering inbox · '+str(len(items))+' recent proposals\n'+'\n'.join(x['id'][-8:]+' · '+x['proposal']['title']+' · '+x['engineering_status']['state'] for x in items)+'\nShared archive only; no automatic deployment or desktop wakeup.'
+            elif command in ('/ready','/holdings') and len(parts)==1:
+                from .paper_readiness import collect,message
+                summary=message(collect(root),holdings_only=command=='/holdings')
+            elif command=='/focus':
                 if len(parts)==2:
                     if len(parts[1])>2000:raise ValueError('Research focus limited to 2000 characters')
                     archive.append(instruction+':focus',CONVERSATION,origin='TOOL',kind='USER_FOCUS',parent=instruction,payload={'text':parts[1],'source':'native owner research direction; does not grant tools or trading permission'})

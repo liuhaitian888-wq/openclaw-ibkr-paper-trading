@@ -39,3 +39,13 @@
 - https://www.federalreserve.gov/feeds/feeds.htm
 - https://www.bls.gov/feed/
 - https://www.interactivebrokers.com/docs/tws-api/doc/news/providers
+
+## 2026-11-07实源收尾
+
+Fed全新闻官方RSS云端HTTP200、20项；配置fed_all_releases=true后替换仅Monetary分类，官方轮询改2分钟+0–20秒，仍非实时stream。BLS CPI/就业RSS403保留，不通过替代源伪造恢复；官方api.bls.gov v1无需注册的GET已返回CPI月度数据。新增两个固定序列CUUR0000SA0/CES0000000001，每6小时最多各一次尝试（含失败缓存），按25/day官方未注册额度设计为8/day。记录周期、数值、单位、脚注和修订指纹；published_at=null，不能生成发布时点提醒/预期差结论。缓存和RSS不可用分别显示。
+
+StockTitan官方FAQ明确没有public API，故保留网页入口，不安装猜测接口。Reuters/Bloomberg/Benzinga/TheFly/Newsquawk仍无云端API/订阅验证，不能统一说“未订阅”；IBKR每symbol原生结果仍为准。SEC7家公司读取通过，QQQ不在现有company-ticker映射，不猜测CIK。
+
+Similarweb账号订阅页为Competitive Intelligence After Trial，未来账单“没有即将到来的账单”，历史1个月，未录入付款信息/启用付费。账户页未提供营销偏好开关；本次未选可选营销，不能声称平台电话/邮件已全局屏蔽。如实际收到营销，可通过该消息的退订入口再处理。浏览器免费版能力不等于云端API。
+
+秘书首次新闻scope任务模型运行成功但配置未完成，未改写成成功配置；新的补充证据任务news-scope-with-evidence-v2已实际调用research_universe选择NVDA并保存来源/待证伪理由和落盘回执。现有6持仓优先覆盖不变。

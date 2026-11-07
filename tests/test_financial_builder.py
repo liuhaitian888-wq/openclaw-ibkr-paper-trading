@@ -34,3 +34,17 @@ class BuilderTests(unittest.TestCase):
             period=period_for('WEEKLY',datetime(2026,11,2,9,tzinfo=BJ))
         self.assertEqual(period['start_date'],'2026-10-26')
         self.assertEqual(period['end_date_exclusive'],'2026-11-01')
+
+    def test_font_renderer_revision_rebuilds_and_zero_positions_are_not_counted(self):
+        now=datetime(2026,11,5,1,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'runtime').mkdir()
+            data={'source':'REAL_IBKR','complete':True,'environment':'PAPER','account_id':'DU123','observed_at':now.isoformat(),
+                  'positions':[{'position':'0'},{'position':'8'}],'account':{}}
+            (root/'runtime/paper-observer.latest.json').write_text(json.dumps(data));calls=[]
+            def publisher(*args):calls.append(args);return 'img_offline'
+            result=prepare_reports(root,'DU123',now,publish_image=publisher)
+            path=Path(result['directory'])/'DAILY.json';report=json.loads(path.read_text());self.assertEqual(report['account']['positions']['value'],1)
+            report.pop('render_version');path.write_text(json.dumps(report))
+            prepare_reports(root,'DU123',now,publish_image=publisher);self.assertEqual(len(calls),2)
+            html=(path.with_suffix('.html')).read_text();self.assertIn('Noto Sans CJK SC',html);self.assertIn('不是现金余额',html)

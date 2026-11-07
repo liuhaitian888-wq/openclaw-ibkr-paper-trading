@@ -37,7 +37,7 @@ class SourceBackoff(RuntimeError):
 
 def fetch(url,*,sec_email=None,retry_state=None):
     host=urlsplit(url).hostname
-    if host not in ('www.federalreserve.gov','www.bls.gov','www.sec.gov','data.sec.gov'):
+    if host not in ('www.federalreserve.gov','www.bls.gov','www.sec.gov','data.sec.gov','api.bls.gov'):
         raise PermissionError('Official data host required')
     key=hashlib.sha256(url.encode()).hexdigest();now=time.time()
     prior=(retry_state or {}).get(key,{})
@@ -174,7 +174,15 @@ def public_sources(root,config,*,fetcher=fetch):
         if urlsplit(url).hostname in ('www.sec.gov','data.sec.gov'):time.sleep(.15)
         if original_fetcher is fetch:kwargs['retry_state']=config.get('_retry_state')
         return original_fetcher(url,**kwargs)
-    results=[source_result(source,lambda source=source,url=url:rss_records(fetcher(url),source)) for source,url in FEEDS.items()]
+    feeds=dict(FEEDS)
+    if config.get('fed_all_releases') is True:
+        feeds.pop('FED_MONETARY');feeds['FED_ALL']='https://www.federalreserve.gov/feeds/press_all.xml'
+    results=[source_result(source,lambda source=source,url=url:rss_records(fetcher(url),source)) for source,url in feeds.items()]
+    if config.get('macro_api_fallback') is True:
+        cache=config.setdefault('_macro_cache',{})
+        for source,series in (('BLS_CPI','CUUR0000SA0'),('BLS_EMPLOYMENT','CES0000000001')):
+            if any(x['source']==source and x['state']=='RETRIEVED' for x in results):continue
+            results.append(bls_snapshot(series,fetcher=fetcher,cache=cache))
     from .research_universe import effective_symbols
     symbols=effective_symbols(root,config,paper_state(root))
     try:
@@ -224,3 +232,45 @@ def broker_records(result):
                 'article_body_verified':body_verified,'category':'news','symbols':[result['symbol']],
                 'scope':'Broker conId query association, not causal proof; scoped historical retrieval, not full-feed streaming'})
     return records
+
+
+BLS_SERIES={'CUUR0000SA0':('CPI-U all items, US city average, not seasonally adjusted','index 1982-84=100'),
+            'CES0000000001':('Total nonfarm payroll employment, seasonally adjusted','thousands of persons')}
+
+
+def bls_records(body,series):
+    if series not in BLS_SERIES:raise ValueError('Fixed official macro series required')
+    data=json.loads(body)
+    if data.get('status')!='REQUEST_SUCCEEDED':raise ValueError('BLS did not confirm successful query')
+    matches=[x for x in data.get('Results',{}).get('series',[]) if x.get('seriesID')==series]
+    if len(matches)!=1:raise ValueError('Exact BLS series identity required')
+    result=[]
+    for row in matches[0].get('data',[])[:36]:
+        year,period=str(row.get('year','')),str(row.get('period',''))
+        if not re.fullmatch(r'20[0-9]{2}',year) or not re.fullmatch(r'M(0[1-9]|1[0-2])',period):continue
+        from decimal import Decimal
+        value=Decimal(str(row.get('value')))
+        if not value.is_finite():raise ValueError('Finite macro observation required')
+        description,unit=BLS_SERIES[series]
+        result.append({'source':'BLS_API','entity':series+':'+year+':'+period,'headline':description+' '+year+'-'+period+' = '+str(value),
+            'url':'https://api.bls.gov/publicAPI/v1/timeseries/data/'+series,'published_at':None,'category':'macro_snapshot','symbols':[],
+            'series_id':series,'observation_year':year,'observation_period':period,'value':str(value),'unit':unit,
+            'footnotes':row.get('footnotes',[]),'release_timestamp_verified':False,
+            'scope':'Period observation retrieved now, not release-time news or consensus surprise; revisions preserved by content fingerprint'})
+    if not result:raise ValueError('No valid monthly observations')
+    return result
+
+
+def bls_snapshot(series,*,fetcher,cache,now=None):
+    now=time.time() if now is None else now
+    if series not in BLS_SERIES:raise ValueError('Fixed official macro series required')
+    previous=cache.get(series,{})
+    if previous.get('next_poll',0)>now:
+        return {'source':'BLS_API:'+series,'state':'CACHED_SNAPSHOT' if previous.get('records') else 'WAITING_RETRY',
+                'observed_at':previous.get('observed_at'),'next_retry':previous['next_poll'],'records':previous.get('records',[])}
+    # Two series x four attempts/day = eight calls, under the 25/day unregistered limit.
+    cache[series]={'next_poll':now+21600,'observed_at':None,'records':[]}
+    result=source_result('BLS_API:'+series,lambda:bls_records(fetcher('https://api.bls.gov/publicAPI/v1/timeseries/data/'+series),series))
+    if result['state']=='RETRIEVED':cache[series].update(observed_at=now,records=result['records'])
+    result.update(observed_at=cache[series]['observed_at'],next_retry=cache[series]['next_poll'],release_alerts_verified=False)
+    return result

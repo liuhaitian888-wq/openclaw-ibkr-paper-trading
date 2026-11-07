@@ -135,7 +135,7 @@ class TradingService:
         return self._validate_proposal(proposal)
 
     def _validate_proposal(self, proposal: TradeProposal) -> Dict[str, Any]:
-        decision = self._risk.validate(proposal)
+        decision = self._validate_risk(proposal)
         return {
             "status": decision.status,
             "approved": decision.approved,
@@ -175,7 +175,7 @@ class TradingService:
         total_started: float,
     ) -> Dict[str, Any]:
         risk_started = time.perf_counter()
-        decision = self._risk.validate(proposal)
+        decision = self._validate_risk(proposal)
         timings["service_risk_ms"] = self._elapsed_ms(risk_started)
         if not decision.approved:
             return self._with_total_timing(
@@ -291,7 +291,7 @@ class TradingService:
         total_started: float,
     ) -> Dict[str, Any]:
         risk_started = time.perf_counter()
-        decision = self._risk.validate(proposal)
+        decision = self._validate_risk(proposal)
         timings["service_risk_ms"] = self._elapsed_ms(risk_started)
         if not decision.approved:
             return self._with_total_timing(
@@ -478,6 +478,22 @@ class TradingService:
             self.settings.tws_client_id,
         )
         return broker.check_status(self.settings.tws_status_timeout).as_dict()
+
+    def _validate_risk(self, proposal):
+        from reporting.telegram_gate import current
+        from trading.production_paths import STATE_ROOT
+        try:
+            from trading.cash_guard import enforce
+            enforce(STATE_ROOT,proposal)
+            caps=current(STATE_ROOT)['settings']
+            if any(caps[k] is not None for k in ('max_symbol_exposure','max_gross_exposure')):
+                from trading.portfolio_exposure import measured_exposure
+                symbol,gross=measured_exposure(STATE_ROOT,proposal.symbol)
+                return self._risk.validate(proposal,current_symbol_exposure=symbol,current_gross_exposure=gross)
+            return self._risk.validate(proposal)
+        except (OSError,ValueError,TypeError,KeyError,PermissionError) as exc:
+            from trading.models import RiskDecision
+            return RiskDecision(False,'REJECTED',str(exc))
 
     def _require_submission_allowed(
         self,

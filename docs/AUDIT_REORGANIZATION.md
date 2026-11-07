@@ -22,3 +22,7 @@
 ## 云端实际切换验收 2026-11-07
 
 01:08:39 UTC 激活当前表库；1861828608 bytes → 2285568 bytes，79张现用表保留，98张legacy表隔离。每表行数/类型化内容/rowid摘要一致，索引/视图/触发器及sqlite_sequence保留，quick_check、integrity_check与foreign_key_check通过。原物理库及WAL/SHM和一致性快照保留在state/archives/audit-20261107T010556Z；来源SHA-256为2472721ff701ac1267c0c02c80fc4d62e2e50bd64abf0a8bfc2da58f3df1b7d9。cutover.json记录COMPLETE，原先活动采集器/timer已恢复，Gateway未重启；PAUSED/MAINTENANCE、交易/投递批准及风险数值哈希不变。切换后完整Paper回读与身份核验通过。该结果不授权交易；跨库恢复与异地恢复不能因此宣称已验收。
+
+01:34:56 UTC新备份四业务库成功；本机隔离解压，四库SHA-256均与云端清单一致，integrity_check全部ok、foreign_key_check全部0。本机恢复副本未替换生产；审计库恢复副本79张业务表/2310144 bytes。云端原库归档与新备份均保留；逐库一致不表示跨库原子，异地存储灾备仍未验收。
+
+日报修复：前序聊天已于11月6日指出中文格子。本轮核实云端fonts-noto-cjk未安装、fc-match回退DejaVu；安装发行版官方包后匹配Noto Sans CJK SC。模板显式指定CJK字体，生成前检查实际字体，等待字体后测量页面高度，拒绝无法核验或超过有界高度的输出；不再固定2200像素留下大空白。渲染revision改变后重生成，避免同一账户快照缓存旧方块字PNG；零仓位不计入持仓数量。现有报告本次以新纠正版事件发送，不修改旧回执。

@@ -64,3 +64,9 @@ https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
 用户随后指定英文缩写风控门：/qmax、/omax、/rmax、/smax、/gmax；/gate显示英文简表。每条修改走确定性Python，原中文/JSON接口仅兼容旧消息。普通owner群聊天无需/secretary前缀，但Telegram隐私模式须关闭或具备允许完整投递的群权限；实测当前can_read_all_group_messages=false，已交用户在BotFather确认调整，不能把应用接收代码可用当作平台已投递。
 
 调度时间槽是不可变事件：升级代码或更改focus后，同一6小时时间槽继续保留原始载荷，不能重新append不同内容，也不产生额外付费任务。新focus从新时间槽采用；独立owner任务照常排队。
+
+`/ready`与`/holdings`为原生Python只读控制：区分真实回读、审批、工程验收、保护、资金和时段数据；不通过模型，不发送券商请求。持仓状态过旧/结束标记不全时明确标为STALE_OR_UNVERIFIED，外部持仓不被认领为策略仓位。激活决策单见PAPER_ACTIVATION_CHECKLIST.md。
+
+工程协作共享箱：模型可调用engineering_proposal，保存标题、实际观察、改进建议和1–5项可复查证据；相同内容跨任务去重。它不执行shell、代码或部署。engineering_updates及Telegram `/engineering`读取提案与工程侧独立SYSTEM ENGINEERING_STATUS回执；工程侧Codex可直接读取共享秘书档案并写回检查/实现/验证结果，用户无需手动复制正文。现阶段没有自动唤醒当前桌面聊天；不能把已存提案说成已开工。ChatGPT网页聊天、Codex工程聊天和Telegram秘书会话不默认同步；独立ChatGPT接入同一共享接口需另配官方MCP，尚未接通。
+
+官方能力依据（2026-11-07实际读取）：https://developers.openai.com/codex/sdk （重定向官方learn.chatgpt.com/docs/codex-sdk），https://developers.openai.com/chatgpt 。当前使用已有CLI，不额外安装SDK，也不转移OAuth令牌。

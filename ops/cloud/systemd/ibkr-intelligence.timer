@@ -3,7 +3,7 @@ Description=Official-source intelligence every ten minutes
 
 [Timer]
 OnBootSec=3min
-OnUnitActiveSec=10min
+OnUnitActiveSec=2min
 RandomizedDelaySec=20
 Persistent=true
 Unit=ibkr-intelligence.service

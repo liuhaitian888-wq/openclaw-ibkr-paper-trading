@@ -5,19 +5,19 @@
     {
       "name": "Federal Reserve",
       "url": "https://www.federalreserve.gov/feeds/feeds.htm",
-      "status": "OFFICIAL_RSS_ADAPTER_PENDING_PRODUCTION_PROBE",
+      "status": "CLOUD_HTTP_200_OFFICIAL_RSS_VERIFIED",
       "paid_subscription_purchased_by_this_work": false
     },
     {
       "name": "BLS",
       "url": "https://www.bls.gov/feed/",
-      "status": "OFFICIAL_RSS_ADAPTER_PENDING_PRODUCTION_PROBE",
+      "status": "RSS_HTTP_403; OFFICIAL_API_V1_HTTP_200_CPI_VERIFIED; SIX_HOUR_SNAPSHOT_FALLBACK",
       "paid_subscription_purchased_by_this_work": false
     },
     {
       "name": "SEC EDGAR",
       "url": "https://www.sec.gov/edgar/search/",
-      "status": "OFFICIAL_SUBMISSIONS_ADAPTER_PRIVATE_USER_AGENT",
+      "status": "CLOUD_SUBMISSIONS_VERIFIED_FOR_7_COMPANIES; ETF_CIK_UNRESOLVED",
       "paid_subscription_purchased_by_this_work": false
     },
     {
@@ -47,7 +47,7 @@
     {
       "name": "Stock Titan",
       "url": "https://www.stocktitan.net/",
-      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "status": "OFFICIAL_FAQ_NO_PUBLIC_API; NO_CLOUD_ADAPTER",
       "paid_subscription_purchased_by_this_work": false
     },
     {
@@ -59,14 +59,20 @@
     {
       "name": "Similarweb",
       "url": "https://www.similarweb.com/",
-      "status": "CHATGPT_PLUGIN_INSTALLED_NO_CURRENT_TOOLS_OR_CLOUD_API_VERIFIED",
+      "status": "LIMITED_FREE_ACCOUNT_VERIFIED_NO_UPCOMING_BILL; NO_CLOUD_API",
       "paid_subscription_purchased_by_this_work": false
     },
     {
       "name": "IBKR",
       "url": "https://www.interactivebrokers.com/docs/tws-api/doc/news/providers",
-      "status": "EXISTING_SCOPED_NEWS_ADAPTER_AND_PRIVATE_ENTITLEMENTS",
+      "status": "SCOPED_HISTORY_USABLE_AAPL_META_MSFT_NVDA; OTHER_SYMBOLS_UNESTABLISHED; STREAMING_UNVERIFIED",
       "paid_subscription_purchased_by_this_work": false
     }
+  ],
+  "official_verification_links": [
+    "https://www.bls.gov/developers/api_signature.htm",
+    "https://www.bls.gov/developers/api_FAQs.htm",
+    "https://www.federalreserve.gov/feeds/feeds.htm",
+    "https://www.stocktitan.net/faq"
   ]
 }

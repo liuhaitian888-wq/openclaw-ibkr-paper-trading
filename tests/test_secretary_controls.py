@@ -54,3 +54,15 @@ class SecretaryControlTests(unittest.TestCase):
             process_controls(a,root,{'bot_username':'fixture'},{'numeric_gate_controls_approved':True})
             self.assertEqual(current(root)['settings']['max_order_value'],'125')
             self.assertFalse((root/'production.json').exists())
+
+    def test_ready_and_holdings_are_deterministic_owner_controls(self):
+        from unittest.mock import patch
+        for command in ('/ready','/holdings'):
+            with self.subTest(command=command),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);a=SecretaryArchive(root/'agent.sqlite3')
+                a.append('owner','der-secretary',origin='USER',kind='CONTROL_INSTRUCTION',payload={'text':command})
+                with patch('reporting.paper_readiness.collect',return_value={'fixture':True}) as read,patch('reporting.paper_readiness.message',return_value='Read-only status'):
+                    process_controls(a,root,{'bot_username':'fixture'})
+                read.assert_called_once_with(root)
+                with closing(a.connect()) as c:self.assertEqual(c.execute('SELECT model FROM secretary_runs').fetchone()[0],'PYTHON_CONTROL')
+                self.assertFalse((root/'production.json').exists())

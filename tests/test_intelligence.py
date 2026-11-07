@@ -107,3 +107,16 @@ class IntelligenceTests(unittest.TestCase):
             self.assertTrue(body.closed)
             with self.assertRaises(SourceBackoff):fetch('https://www.bls.gov/feed/cpi.rss',retry_state=retries)
             self.assertEqual(build.return_value.open.call_count,1)
+    def test_bls_api_snapshot_is_not_a_release_alert_and_caches_quota_on_failure(self):
+        from reporting.intelligence import bls_records,bls_snapshot
+        body=json.dumps({'status':'REQUEST_SUCCEEDED','Results':{'series':[{'seriesID':'CUUR0000SA0','data':[{'year':'2026','period':'M09','value':'336.940','footnotes':[]}]}]}}).encode()
+        rows=bls_records(body,'CUUR0000SA0');self.assertIsNone(rows[0]['published_at']);self.assertFalse(rows[0]['release_timestamp_verified'])
+        cache={};calls=[]
+        def fetcher(url):calls.append(url);return body
+        self.assertEqual(bls_snapshot('CUUR0000SA0',fetcher=fetcher,cache=cache,now=100)['state'],'RETRIEVED')
+        self.assertEqual(bls_snapshot('CUUR0000SA0',fetcher=fetcher,cache=cache,now=200)['state'],'CACHED_SNAPSHOT');self.assertEqual(len(calls),1)
+        def failure(url):raise TimeoutError()
+        cache={};self.assertEqual(bls_snapshot('CES0000000001',fetcher=failure,cache=cache,now=100)['state'],'UNAVAILABLE')
+        self.assertEqual(bls_snapshot('CES0000000001',fetcher=fetcher,cache=cache,now=200)['state'],'WAITING_RETRY');self.assertEqual(len(calls),1)
+        with self.assertRaises(ValueError):bls_records(body,'CES0000000001')
+        with self.assertRaises(ValueError):bls_records(body.replace(b'336.940',b'NaN'),'CUUR0000SA0')
