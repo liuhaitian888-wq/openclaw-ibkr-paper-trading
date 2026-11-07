@@ -378,6 +378,66 @@
       "default_branch": "main",
       "upstream_pushed_at": "2026-11-03T20:19:06Z",
       "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "JeffPu/ibkr-dashboard",
+      "url": "https://github.com/JeffPu/ibkr-dashboard",
+      "status": "REFERENCE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_VERIFIED",
+      "metadata_status": "README_REVIEWED_NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/NOTIFICATION_CENTER.md"
+        }
+      ]
+    },
+    {
+      "repository": "TrishkaV/PortfolioHelper",
+      "url": "https://github.com/TrishkaV/PortfolioHelper",
+      "status": "REFERENCE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_VERIFIED",
+      "metadata_status": "README_REVIEWED_NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/NOTIFICATION_CENTER.md"
+        }
+      ]
+    },
+    {
+      "repository": "promobase/ibkr-web-api",
+      "url": "https://github.com/promobase/ibkr-web-api",
+      "status": "REFERENCE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_VERIFIED",
+      "metadata_status": "README_REVIEWED_NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/NOTIFICATION_CENTER.md"
+        }
+      ]
+    },
+    {
+      "repository": "caronc/apprise",
+      "url": "https://github.com/caronc/apprise",
+      "status": "REFERENCE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_VERIFIED",
+      "metadata_status": "README_REVIEWED_NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/NOTIFICATION_CENTER.md"
+        }
+      ]
     }
   ]
 }

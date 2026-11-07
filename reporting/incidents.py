@@ -111,7 +111,7 @@ class IncidentStore:
                 AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))
@@ -124,6 +124,15 @@ class IncidentStore:
             result = c.execute("UPDATE notification_outbox SET status=? WHERE id=? AND status='STARTED'", (status, notification_id))
             if result.rowcount != 1:
                 raise ValueError('Only a reserved notification can finish')
+
+    def suppress(self, notification_id):
+        """Explicit preference decision before wire, never a delivery receipt."""
+        with closing(self.connect()) as c,c:
+            c.execute('BEGIN IMMEDIATE')
+            if c.execute('SELECT 1 FROM notification_delivery WHERE notification_id=?',(notification_id,)).fetchone():
+                raise ValueError('Cannot suppress an attempted delivery')
+            if c.execute("UPDATE notification_outbox SET status='SUPPRESSED' WHERE id=? AND status='STARTED'",(notification_id,)).rowcount!=1:
+                raise ValueError('Reserved unsent notification required')
 
     def uncertain_notifications(self):
         with closing(self.connect()) as c:
@@ -209,7 +218,7 @@ class IncidentStore:
                     continue
                 # An uncertain/pending earlier side effect cannot be bypassed by a new identity.
                 if c.execute("SELECT 1 FROM notification_outbox WHERE incident_key=? AND generation=? "
-                             "AND status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED') LIMIT 1",
+                             "AND status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED') LIMIT 1",
                              (key, generation)).fetchone():
                     continue
                 previous = c.execute('SELECT kind,payload FROM notification_outbox WHERE incident_key=? '

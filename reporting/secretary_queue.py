@@ -21,14 +21,18 @@ def accept_update(archive, update, config, *, armed_at):
     uid=update.get('update_id')
     if type(uid) is not int or uid<0:raise ValueError('Native update ID required')
     m=update.get('message',{});sender=m.get('from',{})
-    allowed=(m.get('chat',{}).get('id')==config['chat_id'] and sender.get('id')==config['owner_user_id']
-             and sender.get('is_bot') is False and not any(m.get(k) for k in ('sender_chat','forward_origin','via_bot'))
+    native_chat=m.get('chat',{}).get('id')
+    allowed_chats={config['chat_id']}
+    if (config.get('owner_private_verified') is True and config.get('owner_private_chat_id')==config['owner_user_id']):
+        allowed_chats.add(config['owner_user_id'])
+    allowed=(native_chat in allowed_chats and sender.get('id')==config['owner_user_id']
+             and sender.get('is_bot') is False and not any(m.get(k) for k in ('sender_chat','forward_origin','forward_from','forward_from_chat','forward_date','via_bot'))
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(config['chat_id'])+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
-            'message_id':m['message_id'],'timestamp':m['date']})
+            'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
     with closing(archive.connect()) as c,c:
         c.execute('INSERT INTO secretary_cursor VALUES(1,?) ON CONFLICT(id) DO UPDATE SET next_update=max(next_update,excluded.next_update)',(uid+1,))
     return allowed

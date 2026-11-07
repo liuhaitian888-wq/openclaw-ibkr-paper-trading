@@ -72,6 +72,6 @@ def display(store,now):
                     times.append(at.astimezone(BJ).strftime('%H:%M:%S 北京')+' / '+at.astimezone(BERLIN).strftime('%H:%M:%S 柏林'))
                 except (ValueError,TypeError):times.append('回执时间待核验')
             lines.append(label+'：Telegram已接收，'+'；'.join(times)+'，消息 '+','.join(str(i) for i in receipt['message_ids']))
-        else:lines.append(label+'：'+{'PENDING':'待发送','STARTED':'正在发送/等待回执','UNKNOWN':'结果未知，须对账，禁止自动重发','NOT_SENT_EXHAUSTED':'未发送，重试已停止','TELEGRAM_ACCEPTED':'状态为已接收，但原生回执待核验'}.get(item['status'],item['status']))
+        else:lines.append(label+'：'+{'SUPPRESSED':'按通知偏好静音，未发送','PENDING':'待发送','STARTED':'正在发送/等待回执','UNKNOWN':'结果未知，须对账，禁止自动重发','NOT_SENT_EXHAUSTED':'未发送，重试已停止','TELEGRAM_ACCEPTED':'状态为已接收，但原生回执待核验'}.get(item['status'],item['status']))
     lines.append('发送记录已接入统一日志；服务端接收不等于手机弹窗。查询不触发补发。')
     return '\n'.join(lines)

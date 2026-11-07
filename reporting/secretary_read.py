@@ -6,7 +6,7 @@ import operator
 import sqlite3
 import time
 from .database_console import DATABASES, contained, collect as snapshot
-from .errors import redact
+from .errors import redact, is_secret_field
 
 REGISTRY = {row[0]: row[1] for row in DATABASES}
 FUNCTIONS = frozenset('count sum avg min max total coalesce ifnull nullif abs round length substr substring lower upper trim ltrim rtrim date time datetime strftime julianday unixepoch typeof json_extract json_valid json_type like glob'.split())
@@ -26,6 +26,8 @@ def query(root, database, sql, parameters=(), *, limit=100, budget=.1):
         return {'state': 'NOT_CREATED', 'database': database}
     deadline = time.monotonic()+budget
     def authorize(action, first, second, *_):
+        if action==sqlite3.SQLITE_READ and is_secret_field(second):
+            return sqlite3.SQLITE_DENY
         if action in (sqlite3.SQLITE_SELECT, sqlite3.SQLITE_READ, sqlite3.SQLITE_RECURSIVE):
             return sqlite3.SQLITE_OK
         if action == sqlite3.SQLITE_FUNCTION and (second or '').lower() in FUNCTIONS:

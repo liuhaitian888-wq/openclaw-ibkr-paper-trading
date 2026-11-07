@@ -12,7 +12,7 @@ from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
 from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress
 from reporting.secretary_read import tool
-from reporting.incident_telegram import verify_audience
+from reporting.incident_telegram import verify_audience, verify_destination
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from reporting.secretary_controls import process_controls,tick_login,finish_start
@@ -24,7 +24,10 @@ async def poll(archive, root, config, armed_at):
     logging.getLogger('httpcore').setLevel(logging.CRITICAL)
     async with asyncio.timeout(25):
         async with Bot(token=config['bot_token']) as bot:
-            await verify_audience(bot,config)
+            if config.get('audience_mode')=='shared_group':
+                await verify_destination(bot,config,{'incident_key':'private-inbox-proof','kind':'SECRETARY_REPLY','payload':{}})
+            else:
+                await verify_audience(bot,config)
             if (await bot.get_webhook_info()).url:
                 raise PermissionError('Existing webhook receiver; do not compete')
             updates=await bot.get_updates(offset=cursor(archive),limit=20,timeout=5,allowed_updates=['message'],read_timeout=10,connect_timeout=5)

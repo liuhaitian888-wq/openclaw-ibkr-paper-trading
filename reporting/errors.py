@@ -38,10 +38,14 @@ REGISTRY = {
  'RECOVERY-PREFLIGHT-001': ('recovery','dependency.health','error','conditional','Recovery prerequisites not verified','Recheck every required dependency'),
 }
 
-_SECRET = re.compile(r'(?i)^(?:(?:app|client|webhook)[_-]?secret|(?:access|refresh|tenant_access)[_-]?token|token|secret|authorization|password|credentials?|webhook[_-]?url|api[_-]?key|signature)$')
+_SECRET = re.compile(r'(?i)^(?:(?:app|client|webhook)[_-]?secret|(?:access|refresh|tenant_access)[_-]?token|token|secret|authorization|password|credentials?|webhook[_-]?url|api[_-]?key|signature|bot[_-]?token|id[_-]?token|session[_-]?token|(?:ibkr[_-]?)?(?:passwd|password)|private[_-]?key|cookie)$')
+def is_secret_field(name):
+    return bool(_SECRET.search(str(name)))
+
+
 def redact(value):
     if isinstance(value,dict):
-        return {k:('[REDACTED]' if _SECRET.search(str(k)) else redact(v)) for k,v in value.items()}
+        return {k:('[REDACTED]' if is_secret_field(k) else redact(v)) for k,v in value.items()}
     if isinstance(value,list):return [redact(v) for v in value]
     if isinstance(value,str):
         if value.lstrip().startswith(('{','[')):
@@ -49,6 +53,8 @@ def redact(value):
                 parsed=json.loads(value);clean=redact(parsed)
                 if clean!=parsed:return json.dumps(clean,ensure_ascii=False)
             except ValueError:pass
+        value=re.sub(r'(?<![0-9])[0-9]{5,}:[A-Za-z0-9_-]{25,}(?![A-Za-z0-9_-])','[REDACTED BOT TOKEN]',value)
+        value=re.sub(r'\b(?:sk-(?:proj-)?[A-Za-z0-9_-]{20,}|eyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,})\b','[REDACTED AUTH TOKEN]',value)
         value=re.sub(r'https://[^\s\"\']+/bot/v2/hook/[^\s\"\']+', '[REDACTED WEBHOOK]',value)
         value=re.sub(r'(?i)Bearer\s+\S+','Bearer [REDACTED]',value)
         value=re.sub(r'(?i)((?:app[_ -]?secret|access[_ -]?token|api[_ -]?key|password|authorization|credential|token|secret)\s*[=:]\s*)[^,\s;]+',r'\1[REDACTED]',value)

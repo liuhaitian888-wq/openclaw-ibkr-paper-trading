@@ -291,3 +291,11 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 新增独立秘书档案模块（尚未激活生产/Telegram聊天），区分用户指示、模型分析、工具结果和系统事件；持久运行预留阻止STARTED/UNKNOWN重放。用户确认der群，并明确不再查找旧OpenClaw；后续使用独立正式OAuth流程。佣金感知过滤仍是roadmap，不能宣称LEAN费用模型已融合。详见docs/AGENT_SECRETARY_AND_COSTS_20261106.md。
 
 第二次Gateway验收：23:50:19下线，90秒自动启动原服务；23:50:23告警，23:54:13 API恢复，23:54:20/22 PFE/BAC行情竞争解除。用户确认API与行情恢复消息都看到。连接恢复包含已有退避，不能宣称下线后立即重连；确认恢复后通知随即排队发送。门禁/持仓不变，未知订单操作0。816离线测试与gitleaks通过；秘书档案模块未激活聊天。
+
+## 2026-11-07 多人群隐私与通知中心
+
+用户计划邀请朋友进入der。现有输入仅owner，但输出人数校验仅适用私人小群。改造为共享群固定运维摘要及用户追加授权的公开日报+已核验owner私聊；不把群成员/管理员当owner。保留唯一Telegram轮询、唯一投递owner与未知结果对账规则。新增类别/来源/本地未读/偏好、预览、展开详情、同事件原消息更新；逻辑职责用标签区分，无额外机器人凭据。
+
+线上只读核查：der机器人隐私模式开启，owner私聊原生getChat可用，群3成员。Healthchecks每分钟上报两个检查，主机正常、Paper API异常信号均获HTTP_ACCEPTED；其覆盖并非全部业务门禁。未故障演练、未broker变更。设计及分类案例见docs/NOTIFICATION_CENTER.md；FYI原生API未接通。第三方仓库仅参考，不自动集成或复制源码。
+
+验证：最终代码树完整隔离离线套件914项通过（/tmp/notification-center-final-tested-tree.log），gitleaks通过。额外覆盖公开日报例外、私人路由、非owner拒绝、未知分类、群人数变化、HTML转义、URL中token脱敏、敏感列别名/截取拒绝、同事件编辑回执及UNKNOWN不重放。上线仅重载Telegram inbox/notifications；Gateway与paper-safety保持，交易/测试额度/资金/风险文件哈希须相同。原生部署回执与回滚备份另存runtime/notification-center-deployment，不包含在Git中。

@@ -9,6 +9,13 @@ import time
 
 
 def validate_config(config):
+    if config.get('audience_mode') not in (None,'shared_group'):
+        raise PermissionError('Explicit audience mode required')
+    if config.get('audience_mode')=='shared_group':
+        if config.get('notification_format')!='compact-v1':
+            raise PermissionError('Shared group requires privacy-safe compact rendering')
+        from .notification_center import recipient
+        recipient({'incident_key':'private-target-proof','kind':'SECRETARY_REPLY','payload':{}},config)
     extra=config.get('allowed_additional_bots',[])
     if (not isinstance(extra,list) or len(extra)>1
             or any(not isinstance(x,dict) or x.get('username')!='HealthchecksBot'
@@ -35,7 +42,7 @@ async def verify_audience(bot, config):
     admins=await bot.get_chat_administrators(config['chat_id'],read_timeout=10,connect_timeout=5)
     if (me.id!=config['bot_id'] or me.username!=config['bot_username'] or chat.id!=config['chat_id']
             or chat.title!=config['expected_group_title'] or chat.type not in ('group','supergroup')
-            or count!=config['expected_member_count']
+            or (config.get('audience_mode')!='shared_group' and count!=config['expected_member_count'])
             or not any(a.status=='creator' and a.user.id==config['owner_user_id'] for a in admins)):
         raise PermissionError('Report audience changed')
     if config.get('allowed_additional_bots'):
@@ -72,6 +79,20 @@ def report_bytes(item,root):
 from .notification_text import notification_text
 
 
+async def verify_destination(bot,config,item):
+    validate_config(config)
+    from .notification_center import recipient
+    target=recipient(item,config)
+    if target==config['chat_id']:return await verify_audience(bot,config)
+    # Private delivery doesn't depend on group membership, title or friends.
+    me=await bot.get_me(read_timeout=10,connect_timeout=5)
+    chat=await bot.get_chat(target,read_timeout=10,connect_timeout=5)
+    if (me.id!=config['bot_id'] or me.username!=config['bot_username']
+            or chat.id!=config['owner_user_id'] or chat.type!='private'):
+        raise PermissionError('Exact owner private identity required')
+    return chat
+
+
 async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_factory=None,clock=time.time):
     validate_config(config)
     item=claimed_item if claimed_item is not None else store.claim()
@@ -85,30 +106,45 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
         bot_factory=Bot
     started=False
     try:
+        from .notification_center import enabled,render,prior_card
+        if config.get('notification_format')=='compact-v1' and not enabled(store,item):
+            store.suppress(item['id']);return 'SUPPRESSED'
         documents=report_bytes(item,report_root)
         async with asyncio.timeout(25):
             async with bot_factory(token=config['bot_token']) as bot:
-                chat=await verify_audience(bot,config)
+                chat=await verify_destination(bot,config,item)
                 sending_at=clock()
                 caption=notification_text(item,sending_at,max_length=1024 if documents else 4000)
+                compact=config.get('notification_format')=='compact-v1'
+                if compact:
+                    caption=render(item,config,sending_at)['html']
+                if config['bot_token'] in caption:
+                    raise PermissionError('Credential detected in notification; refuse before wire')
+                previous=prior_card(store,item,chat.id) if compact and not documents else None
+                formatting={'parse_mode':'HTML'} if compact else {}
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'
                 started=True;store.delivery_started(item['id'],sending_at)
-                if not documents:
-                    messages=[await bot.send_message(chat.id,text=caption,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
+                if previous:
+                    messages=[await bot.edit_message_text(chat_id=chat.id,message_id=previous,text=caption,**formatting,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
+                elif not documents:
+                    messages=[await bot.send_message(chat.id,text=caption,**formatting,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 elif len(documents)==1:
                     name,data=documents[0]
-                    messages=[await bot.send_document(chat.id,document=data,filename=name,caption=caption,
+                    messages=[await bot.send_document(chat.id,document=data,filename=name,caption=caption,**formatting,
                         connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 else:
                     from telegram import InputFile,InputMediaDocument
-                    media=[InputMediaDocument(InputFile(data,filename=name),caption=caption if i==0 else None)
+                    media=[InputMediaDocument(InputFile(data,filename=name),caption=caption if i==0 else None,**formatting)
                            for i,(name,data) in enumerate(documents)]
                     messages=await bot.send_media_group(chat.id,media=media,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)
                 if len(messages)!=max(1,len(documents)) or any(m.chat.id!=chat.id or m.message_id<=0 for m in messages):
                     raise RuntimeError('Native message acknowledgement missing')
                 receipt=dict(transport='telegram',chat_id=chat.id,message_ids=[m.message_id for m in messages],
                              server_dates=[m.date.astimezone(timezone.utc).isoformat() for m in messages])
+                if compact:
+                    receipt.update(card_format='compact-v1',delivery_action='EDIT' if previous else 'SEND',
+                        entity_types=[[e.type for e in (getattr(m,'entities',None) or getattr(m,'caption_entities',None) or [])] for m in messages])
                 store.delivery_receipt(item['id'],receipt)
                 store.delivery_finished(item['id'],'TELEGRAM_ACCEPTED',ack_at=clock())
                 coordinator.observe('TELEGRAM','HEALTHY',freshness='FRESH',reason='Native report message acknowledgement verified',receipt=receipt)

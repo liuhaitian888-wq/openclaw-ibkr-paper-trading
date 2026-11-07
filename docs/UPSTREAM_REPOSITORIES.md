@@ -24,3 +24,10 @@
 pushed_at只说明上游更新，并非兼容性或安全通过。NOASSERTION/空许可证需要读具体文件，不等于可任意复制。实际复用时保留版权、LICENSE和适用NOTICE；包依赖、托管服务、源码修改与研究候选分别记录。
 
 更新流程：比较已审查版本与上游固定commit → 来源/许可证审查 → 接口与副作用评估 → linked worktree完整离线测试 → gitleaks → Git部署。禁止自动追main覆盖生产。
+
+2026-11-07通知设计新增参考（README核查，未复制源码、未安装、未完成许可证源码审计）：
+
+- [JeffPu/ibkr-dashboard](https://github.com/JeffPu/ibkr-dashboard)
+- [TrishkaV/PortfolioHelper](https://github.com/TrishkaV/PortfolioHelper)
+- [promobase/ibkr-web-api](https://github.com/promobase/ibkr-web-api)
+- [caronc/apprise](https://github.com/caronc/apprise)

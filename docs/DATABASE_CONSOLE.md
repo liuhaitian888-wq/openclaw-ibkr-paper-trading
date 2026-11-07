@@ -25,3 +25,7 @@ python3 scripts/database_console.py --input /absolute/report/database-status.jso
 当前备份是同一台云主机上的每日在线备份。异地备份需独立存储故障域、传输/存储加密、独立的最小权限、保留策略与恢复演练；现阶段未配置目的地，不创建存储账户或付费资源。
 
 本轮验证：linked worktree中821项完整离线测试通过，gitleaks通过。生产主工作区仅quick smoke，仍尊重PAUSED/MAINTENANCE。
+
+## 通知收件箱（2026-11-07）
+
+`runtime/recovery.sqlite3` 继续保存 `incident_events`、`incidents`、`notification_outbox`、`notification_delivery` 和 `notification_receipts`。新增 `notification_read_state(notification_id,read_at)` 为owner本地已读标记，`notification_preferences(category,enabled,updated_at)` 为分类偏好；无Telegram阅读回执假设。最新状态以incident_key+generation分组，未来更新重新未读。SUPPRESSED表示用户偏好未投递，无HTTP回执。详见 [通知中心](NOTIFICATION_CENTER.md)。

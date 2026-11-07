@@ -46,7 +46,21 @@ def process_controls(archive,root,config,policy=None):
             parts=['/gate_set',aliases_short[command]+' '+(parts[1] if len(parts)==2 else '')];command='/gate_set'
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
-            if command=='/report' and len(parts)==1:
+            if command=='/start' and len(parts)==1:
+                summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n直接发文字即可交给秘书；不需要 /secretary。'
+            elif command in ('/inbox','/event','/read','/notify','/preview'):
+                from .notification_center import inbox,get_item,mark_read,settings,set_preference,preview
+                args=parts[1].split() if len(parts)==2 else []
+                if command=='/inbox' and len(args)<=1:summary=inbox(store,args[0] if args else None)
+                elif command=='/notify' and not args:summary=settings(store)
+                elif command=='/notify' and len(args)==2:summary=set_preference(store,*args)
+                elif command=='/read' and len(args)==1:summary=mark_read(store,int(args[0]))
+                elif command=='/preview' and len(args)==1:summary=preview(store,config,int(args[0]))
+                elif command=='/event' and len(args)==1:
+                    from .notification_text import notification_text
+                    item=get_item(store,int(args[0]));summary='私人事件详情｜来源：'+item['incident_key']+'\n投递：'+item['status']+'\n'+notification_text(item,store.clock(),max_length=2600)
+                else:raise ValueError('用法：/inbox [类别] · /event 编号 · /read 编号 · /preview 编号 · /notify [类别 on或off]')
+            elif command=='/report' and len(parts)==1:
                 from .report_delivery_status import display
                 from datetime import datetime,timezone
                 summary=display(store,datetime.now(timezone.utc))
