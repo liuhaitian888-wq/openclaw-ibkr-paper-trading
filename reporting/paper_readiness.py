@@ -88,7 +88,7 @@ def collect(root, *, now=None):
     check('PORTFOLIO_PROTECTION',verified and all(x['protection']=='PROTECTED' for x in holdings),'APPROVAL_AND_ENGINEERING',{'uncovered':[x['symbol'] for x in holdings if x['protection']!='PROTECTED'],'policy':'Preserve existing orders; do not adopt, sell or add stops without owner scope'})
     currency=load('runtime/currency-book.latest.json')
     funding=load('runtime/funding-policy.json')
-    check('FUNDING_POLICY',funding.get('approved') is True and funding.get('mode')=='CASH_ONLY_NO_NEW_BORROWING' and funding.get('allow_new_currency_debit') is False,'APPROVAL',{'mode':funding.get('mode'),'requirement':'Owner confirmed own cash only, no new overdraft or financing. FX is not automatically authorized.'})
+    check('FUNDING_POLICY',funding.get('approved') is True and funding.get('mode')=='CASH_ONLY_NO_NEW_BORROWING' and funding.get('allow_new_currency_debit') is False,'APPROVAL',{'mode':funding.get('mode'),'fx_cash_conversion_authorized':funding.get('automatic_fx_approved') is True,'requirement':'Own cash only, no new overdraft or financing; cash-funded FX requires its separate verified operation scope.'})
     try:
         from decimal import Decimal
         usd=Decimal(currency['currencies']['USD']['amount']);cash_at=datetime.fromisoformat(currency['observed_at'])

@@ -220,6 +220,31 @@ def aggregate_activity(con, start, end, account, coverage):
             submitted={json_object(r.get('details')).get('order_id') for r in events if r.get('event_type')=='BROKER_ORDER_LINKED' and r.get('idempotency_key') in refs and within(r,'occurred_at',start,end)}
             submitted.discard(None)
             result['orders_submitted']=metric(len(submitted),'order_events.BROKER_ORDER_LINKED',status='RECORDED')
+    # Finite real-Paper acceptance has its own native outcome journal, not BROKER_ORDER_LINKED.
+    acceptance=rows(con,'paper_acceptance_attempts') or []
+    submitted_ids=set();outcomes={'FILLED':set(),'CANCELLED':set(),'REJECTED':set()}
+    for row in acceptance:
+        data=json_object(row.get('payload'));status=row.get('status');native=data.get('native_status')
+        valid_native={'FILLED':('Filled',),'CANCELLED':('Cancelled','ApiCancelled'),'REJECTED':('Inactive',)}
+        if (data.get('account')!=account or data.get('grants_strategy_permission') is not False or data.get('orders_sent')!=1
+                or status not in valid_native or native not in valid_native[status]
+                or not data.get('perm_id') or not data.get('order_id')):continue
+        identity=(account,str(data['perm_id']))
+        if within(data,'submission_started_at',start,end):submitted_ids.add(identity)
+        if within(data,'completed_at',start,end):outcomes[status].add(identity)
+    if submitted_ids:
+        # Avoid adding overlapping journal counts to the broker projection.
+        linked=set()
+        for row in orders or []:
+            if row.get('account')==account and row.get('perm_id') and within(row,'first_seen_at',start,end):linked.add((account,str(row['perm_id'])))
+        result['orders_submitted']=metric(len(submitted_ids|linked),'native-confirmed Paper journal + broker order identities',status='RECORDED')
+        for key,status in (('filled_orders','FILLED'),('cancelled_orders','CANCELLED'),('rejected_orders','REJECTED')):
+            identities=set(outcomes[status])
+            for row in orders or []:
+                if (row.get('account')==account and row.get('perm_id') and within(row,'last_seen_at',start,end)
+                        and str(row.get('canonical_status') or row.get('status')).upper() in ({'FILLED'} if status=='FILLED' else {'CANCELLED','APICANCELLED','CANCELED'} if status=='CANCELLED' else {'REJECTED'})):
+                    identities.add((account,str(row['perm_id'])))
+            result[key]=metric(len(identities),'native-confirmed Paper journal + broker order identities',status='RECORDED')
     state='NO_FILLS' if complete and not fills else 'FILLS' if fills else 'MISSING'
     return {**result,'state':state,'coverage_complete':complete,'currencies':currencies,
             'currency':next(iter(currencies)) if len(currencies)==1 else None,

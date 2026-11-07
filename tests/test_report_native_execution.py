@@ -26,3 +26,14 @@ class NativeExecutionReportTests(unittest.TestCase):
                 a._upsert_execution(c,execution,'2026-11-07T01:00:01Z')
                 stored=json.loads(c.execute('SELECT raw_json FROM executions').fetchone()[0]);self.assertEqual(stored['currency'],'USD')
                 with self.assertRaises(ValueError):a._upsert_execution(c,{**execution,'currency':'EUR'},'2026-11-07T01:00:02Z')
+    def test_finite_native_journal_counts_are_not_lost_or_double_counted(self):
+        from scripts.report_aggregation import aggregate_activity
+        with closing(sqlite3.connect(':memory:')) as c:
+            c.row_factory=sqlite3.Row;c.execute('CREATE TABLE paper_acceptance_attempts(status TEXT,payload TEXT)')
+            for n,status,native in [(1,'CANCELLED','Cancelled'),(2,'FILLED','Filled'),(3,'FILLED','Filled'),(4,'UNKNOWN','Submitted')]:
+                payload={'account':'DU123','grants_strategy_permission':False,'orders_sent':1,'perm_id':n,'order_id':n,'native_status':native,'submission_started_at':'2026-11-06T16:00:00Z','completed_at':'2026-11-06T16:01:00Z'}
+                c.execute('INSERT INTO paper_acceptance_attempts VALUES(?,?)',(status,json.dumps(payload)))
+            start=datetime(2026,11,6,tzinfo=timezone.utc);end=datetime(2026,11,7,tzinfo=timezone.utc)
+            result=aggregate_activity(c,start,end,'DU123',{})
+            self.assertEqual(result['orders_submitted']['value'],3);self.assertEqual(result['filled_orders']['value'],2);self.assertEqual(result['cancelled_orders']['value'],1)
+            self.assertFalse(result['coverage_complete']);self.assertIsNone(result['commissions']['value'])
