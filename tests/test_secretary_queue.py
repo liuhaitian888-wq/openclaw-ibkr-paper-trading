@@ -1,3 +1,4 @@
+import json
 from contextlib import closing
 from pathlib import Path
 import tempfile
@@ -62,3 +63,9 @@ class SecretaryQueueTests(unittest.TestCase):
         self.assertTrue(accept_update(self.a,update,self.config,armed_at=100000))
         with closing(self.a.connect()) as c:
             self.assertEqual(c.execute("SELECT kind FROM secretary_events WHERE occurrence LIKE 'telegram:%'").fetchone()[0],'CHAT_INSTRUCTION')
+
+    def test_existing_slot_keeps_original_payload_after_policy_update(self):
+        self.a.append('autonomous:4',CONVERSATION,origin='SYSTEM',kind='AUTONOMOUS_INSTRUCTION',parent=AUTHORITY,payload={'slot':4,'policy':'old'})
+        self.assertFalse(autonomous(self.a,now=100000))
+        with closing(self.a.connect()) as c:
+            self.assertEqual(json.loads(c.execute("SELECT payload FROM secretary_events WHERE occurrence='autonomous:4'").fetchone()[0]),{'slot':4,'policy':'old'})

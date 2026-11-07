@@ -41,6 +41,10 @@ def cursor(archive):
 
 
 def autonomous(archive, *, now):
+    # A slot is an immutable occurrence, including after focus/policy changes.
+    slot=int(now//21600)
+    with closing(archive.connect()) as c:
+        if c.execute('SELECT 1 FROM secretary_events WHERE occurrence=?',('autonomous:'+str(slot),)).fetchone():return False
     # Four opportunities/day; skipped slots never backfill. STARTED/UNKNOWN blocks autonomous spend.
     with closing(archive.connect()) as c:
         if c.execute("SELECT 1 FROM secretary_runs r WHERE state IN ('STARTED','UNKNOWN') AND NOT EXISTS(SELECT 1 FROM secretary_events e WHERE e.occurrence=r.occurrence||':reconciliation' AND e.kind='RUN_RECONCILIATION' AND e.origin='SYSTEM') LIMIT 1").fetchone():return False

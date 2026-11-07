@@ -18,3 +18,7 @@
 - https://www.quantconnect.com/docs/v1/live-trading/live-reconciliation
 
 已知独立缺口保留：断线时历史BUY execution回退可能为已平仓NVDA误报UNKNOWN数量；Linux缺CJK字体导致中文图表方框。该次冷热分层不将它们改写成已修复。
+
+## 云端实际切换验收 2026-11-07
+
+01:08:39 UTC 激活当前表库；1861828608 bytes → 2285568 bytes，79张现用表保留，98张legacy表隔离。每表行数/类型化内容/rowid摘要一致，索引/视图/触发器及sqlite_sequence保留，quick_check、integrity_check与foreign_key_check通过。原物理库及WAL/SHM和一致性快照保留在state/archives/audit-20261107T010556Z；来源SHA-256为2472721ff701ac1267c0c02c80fc4d62e2e50bd64abf0a8bfc2da58f3df1b7d9。cutover.json记录COMPLETE，原先活动采集器/timer已恢复，Gateway未重启；PAUSED/MAINTENANCE、交易/投递批准及风险数值哈希不变。切换后完整Paper回读与身份核验通过。该结果不授权交易；跨库恢复与异地恢复不能因此宣称已验收。

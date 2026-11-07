@@ -62,3 +62,5 @@ https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
 消息用🟦研究、🟪情报、⚙️控制、🔐认证、🔵进度、🟥/🟨故障/风险及🟩恢复区分。正文只展示短记录编号，完整occurrence保留在库中。既有HealthchecksBot仍由外部服务控制；不添加竞争发送owner。
 
 用户随后指定英文缩写风控门：/qmax、/omax、/rmax、/smax、/gmax；/gate显示英文简表。每条修改走确定性Python，原中文/JSON接口仅兼容旧消息。普通owner群聊天无需/secretary前缀，但Telegram隐私模式须关闭或具备允许完整投递的群权限；实测当前can_read_all_group_messages=false，已交用户在BotFather确认调整，不能把应用接收代码可用当作平台已投递。
+
+调度时间槽是不可变事件：升级代码或更改focus后，同一6小时时间槽继续保留原始载荷，不能重新append不同内容，也不产生额外付费任务。新focus从新时间槽采用；独立owner任务照常排队。
