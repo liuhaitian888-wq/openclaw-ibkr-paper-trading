@@ -9,7 +9,7 @@ from .database_console import DATABASES, contained, collect as snapshot
 from .errors import redact
 
 REGISTRY = {row[0]: row[1] for row in DATABASES}
-FUNCTIONS = frozenset('count sum avg min max total coalesce ifnull nullif abs round length substr substring lower upper trim ltrim rtrim date time datetime strftime julianday unixepoch typeof json_extract json_valid json_type'.split())
+FUNCTIONS = frozenset('count sum avg min max total coalesce ifnull nullif abs round length substr substring lower upper trim ltrim rtrim date time datetime strftime julianday unixepoch typeof json_extract json_valid json_type like glob'.split())
 
 
 def query(root, database, sql, parameters=(), *, limit=100, budget=.1):

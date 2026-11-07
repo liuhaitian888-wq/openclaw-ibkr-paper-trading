@@ -41,3 +41,6 @@ class SecretaryReadTests(unittest.TestCase):
         self.assertEqual(tool(self.root,request)['result'],'SUPPORTED')
         request['sql']='SELECT id FROM evidence'
         self.assertEqual(tool(self.root,request)['result'],'INCONCLUSIVE')
+    def test_like_queries_use_safe_builtin_and_work(self):
+        result=query(self.root,'agent_secretary.sqlite3',"SELECT name FROM sqlite_master WHERE name LIKE '%evidence%'")
+        self.assertEqual(result['rows'][0]['name'],'evidence')

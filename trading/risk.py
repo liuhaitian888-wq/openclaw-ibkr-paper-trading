@@ -27,6 +27,22 @@ class RiskEngine:
         current_symbol_exposure: float = 0.0,
         current_gross_exposure: float = 0.0,
     ) -> RiskDecision:
+        from trading.production_paths import STATE_ROOT
+        from reporting.telegram_gate import current
+        try:
+            control=current(STATE_ROOT)
+            if control['revision']:
+                caps=control['settings']
+                order_value=proposal.quantity*proposal.limit_price
+                measured={'max_quantity':proposal.quantity,'max_order_value':order_value,
+                    'max_risk_per_order':proposal.quantity*abs(proposal.limit_price-proposal.stop_price) if proposal.stop_price is not None else None,
+                    'max_symbol_exposure':current_symbol_exposure+order_value,'max_gross_exposure':current_gross_exposure+order_value}
+                from decimal import Decimal
+                for name,value in measured.items():
+                    if value is not None and caps[name] is not None and Decimal(str(value))>Decimal(str(caps[name])):
+                        return self._reject('Telegram additive cap exceeded: '+name+' revision '+str(control['revision']))
+        except (OSError,ValueError,TypeError,KeyError,ArithmeticError):
+            return self._reject('Telegram risk control is unreadable; fail closed')
         if not self._limits.trading_enabled:
             return self._reject("Trading is DISARMED")
 

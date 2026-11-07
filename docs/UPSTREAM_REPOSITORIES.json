@@ -1,0 +1,383 @@
+{
+  "checked_on": "2026-11-07",
+  "scope": "All repositories recoverable from tracked project references, prior agent review and this continuation; not a claim to unseen chat history",
+  "policy": "Review upstream diffs, license changes, contracts and offline tests before any adaptation; never auto-pull production",
+  "repositories": [
+    {
+      "repository": "IbcAlpha/IBC",
+      "url": "https://github.com/IbcAlpha/IBC",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "fc6d917d56715ebf79a39a10b5d77fd7b701d992",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 60
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 13
+        },
+        {
+          "file": "docs/production-audit/IBKR_SESSION_REPOS_20261105.md",
+          "line": 11
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "GPL-3.0",
+      "archived": true,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-09-01T00:46:31Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "QuantConnect/IBAutomater",
+      "url": "https://github.com/QuantConnect/IBAutomater",
+      "status": "DEPLOYED_SOURCE_ADAPTATION",
+      "reviewed_commit": "5751a0a9baef74a47515b8ce96a39308563d11d4",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 52
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 7
+        },
+        {
+          "file": "docs/production-audit/IBKR_SESSION_REPOS_20261105.md",
+          "line": 12
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "Apache-2.0",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-11-03T17:17:59Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "QuantConnect/Lean",
+      "url": "https://github.com/QuantConnect/Lean",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "17702a6ae438a17495b9dea75b6db2857292d892",
+      "provenance": [
+        {
+          "file": "docs/AGENT_SECRETARY_AND_COSTS_20261106.md",
+          "line": 43
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "Apache-2.0",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-11-06T21:21:19Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "QuantConnect/Lean.Brokerages.InteractiveBrokers",
+      "url": "https://github.com/QuantConnect/Lean.Brokerages.InteractiveBrokers",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "17702a6ae438a17495b9dea75b6db2857292d892",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 57
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 8
+        },
+        {
+          "file": "docs/production-audit/IBKR_SESSION_REPOS_20261105.md",
+          "line": 9
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "Apache-2.0",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-11-06T21:21:19Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "TauricResearch/TradingAgents",
+      "url": "https://github.com/TauricResearch/TradingAgents",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "9fa1196fffbcfd9de5146d2dd2869df84ab99838",
+      "provenance": [
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 50
+        },
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 51
+        },
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 52
+        },
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 53
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "Apache-2.0",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-04T10:13:58Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "csingley/ibflex",
+      "url": "https://github.com/csingley/ibflex",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "bfde7a8c088643fbad8798d6fc5c0b896e9edcb4",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 59
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 11
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-10-07T17:31:41Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "healthchecks/healthchecks",
+      "url": "https://github.com/healthchecks/healthchecks",
+      "status": "HOSTED_SERVICE_NOT_SELF_HOSTED",
+      "reviewed_commit": "5b9a198bca9dc959326f6492e460166373530499",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 55
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 32
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "BSD-3-Clause",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-11-05T07:31:43Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "ib-api-reloaded/ib_async",
+      "url": "https://github.com/ib-api-reloaded/ib_async",
+      "status": "DEPLOYED_PACKAGE",
+      "reviewed_commit": "ab629f34c1823ea4c1542f32f07377208a86bdfd",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 53
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 9
+        },
+        {
+          "file": "docs/production-audit/IBKR_SESSION_REPOS_20261105.md",
+          "line": 10
+        },
+        {
+          "file": "docs/production-audit/NEWS_ACCEPTANCE.md",
+          "line": 5
+        },
+        {
+          "file": "ops/cloud/requirements-news.txt",
+          "line": 1
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "BSD-2-Clause",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-04T22:55:57Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "langchain-ai/langgraph",
+      "url": "https://github.com/langchain-ai/langgraph",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 56
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-06T17:24:12Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "microsoft/agent-framework",
+      "url": "https://github.com/microsoft/agent-framework",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 58
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-06T21:59:54Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "microsoft/autogen",
+      "url": "https://github.com/microsoft/autogen",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 59
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "CC-BY-4.0",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-10-28T14:45:27Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "openai/codex",
+      "url": "https://github.com/openai/codex",
+      "status": "OFFICIAL_CLI_INSTALLED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "authorized-continuation",
+          "line": null
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "Apache-2.0",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-06T23:51:12Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "openai/openai-agents-python",
+      "url": "https://github.com/openai/openai-agents-python",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "authorized-continuation",
+          "line": null
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-07T00:04:37Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "osauer/canary",
+      "url": "https://github.com/osauer/canary",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": "e5fc3b9aa73690957dfc165fc319fbc038a7e2ea",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 58
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 10
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-05T13:04:48Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "python-telegram-bot/python-telegram-bot",
+      "url": "https://github.com/python-telegram-bot/python-telegram-bot",
+      "status": "DEPLOYED_PACKAGE",
+      "reviewed_commit": "8dec234225145f8ec0cc8fd97d42208a32d8f0e6",
+      "provenance": [
+        {
+          "file": "README.md",
+          "line": 54
+        },
+        {
+          "file": "REPOSITORIES.md",
+          "line": 12
+        },
+        {
+          "file": "ops/cloud/requirements-telegram.txt",
+          "line": 1
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "GPL-3.0",
+      "archived": false,
+      "default_branch": "master",
+      "upstream_pushed_at": "2026-11-01T02:46:46Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    },
+    {
+      "repository": "virattt/ai-hedge-fund",
+      "url": "https://github.com/virattt/ai-hedge-fund",
+      "status": "REFERENCE_OR_CANDIDATE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "provenance": [
+        {
+          "file": "prior-session/agent-project-review/秘书开源项目核查.md",
+          "line": 57
+        }
+      ],
+      "checked_on": "2026-11-07",
+      "auto_update_or_merge": false,
+      "license_spdx": "MIT",
+      "archived": false,
+      "default_branch": "main",
+      "upstream_pushed_at": "2026-11-03T20:19:06Z",
+      "metadata_status": "GITHUB_API_VERIFIED"
+    }
+  ]
+}

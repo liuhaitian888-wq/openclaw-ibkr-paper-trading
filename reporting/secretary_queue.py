@@ -26,7 +26,7 @@ def accept_update(archive, update, config, *, armed_at):
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(config['chat_id'])+':'+str(uid),CONVERSATION,origin='USER',kind='CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(config['chat_id'])+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/gate','/gate_apply','/login','/login_assist') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
             'message_id':m['message_id'],'timestamp':m['date']})
     with closing(archive.connect()) as c,c:
@@ -43,7 +43,7 @@ def cursor(archive):
 def autonomous(archive, *, now):
     # Four opportunities/day; skipped slots never backfill. STARTED/UNKNOWN blocks autonomous spend.
     with closing(archive.connect()) as c:
-        if c.execute("SELECT 1 FROM secretary_runs WHERE state IN ('STARTED','UNKNOWN') LIMIT 1").fetchone():return False
+        if c.execute("SELECT 1 FROM secretary_runs r WHERE state IN ('STARTED','UNKNOWN') AND NOT EXISTS(SELECT 1 FROM secretary_events e WHERE e.occurrence=r.occurrence||':reconciliation' AND e.kind='RUN_RECONCILIATION' AND e.origin='SYSTEM') LIMIT 1").fetchone():return False
     slot=int(now//21600)
     return archive.append('autonomous:'+str(slot),CONVERSATION,origin='SYSTEM',kind='AUTONOMOUS_INSTRUCTION',parent=AUTHORITY,payload={
         'text':'自主研究本轮：先查档案避免重复。自行选择可证伪课题，读取数据库证据，运行已登记测试，报告实际结果、局限和下一步。无连续数据或费用版本时不得捏造策略收益。',
@@ -54,7 +54,7 @@ def autonomous(archive, *, now):
 def claim(archive, *, model, now):
     with closing(archive.connect()) as c:
         # Daily paid-task bound includes all outcomes and starts, including UNKNOWN.
-        if c.execute('SELECT count(*) FROM secretary_runs WHERE started_at>=?',(int(now//86400)*86400,)).fetchone()[0]>=24:return None
+        if c.execute("SELECT count(*) FROM secretary_runs WHERE model='gpt-6.1-sol' AND started_at>=?",(int(now//86400)*86400,)).fetchone()[0]>=24:return None
         rows=c.execute("""SELECT e.occurrence,e.payload FROM secretary_events e LEFT JOIN secretary_runs r ON r.instruction=e.occurrence
             WHERE e.kind IN ('CHAT_INSTRUCTION','AUTONOMOUS_INSTRUCTION') AND r.occurrence IS NULL
             ORDER BY CASE e.origin WHEN 'USER' THEN 0 ELSE 1 END,e.rowid LIMIT 25""").fetchall()

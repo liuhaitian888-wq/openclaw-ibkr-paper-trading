@@ -51,6 +51,7 @@ MODULE_DEPENDENCIES = {
  'ORDERS': ('ACCOUNT',), 'EXECUTIONS': ('ACCOUNT',),
  'FINANCIAL_LEDGER': ('DATABASE',), 'EVENT_STORE': ('DATABASE',),
  'CANONICAL_STATE': ('DATABASE',),
+ 'RISK_CONTROLS': (),
  'RISK': ('ACCOUNT','POSITIONS','ORDERS'),
  'PROTECTION': ('ACCOUNT','POSITIONS','ORDERS','EXECUTIONS'),
  'PAPER_SESSION': ('PROTECTION','MARKET_DATA'),
@@ -73,6 +74,7 @@ def dependency_registry(observations):
     transport=observations.get('DELIVERY',{}).get('delivery_transport','feishu')
     provider={'telegram':'TELEGRAM','smtp':'SMTP','feishu':'FEISHU'}.get(transport)
     if provider is None:raise ValueError('Unknown primary delivery transport')
+    if observations.get('RISK_CONTROLS',{}).get('enabled') is True:registry['RISK']=(*registry['RISK'],'RISK_CONTROLS')
     registry['DELIVERY']=('REPORT','DELIVERY_LEDGER',provider)
     return registry
 
@@ -101,7 +103,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':(name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}

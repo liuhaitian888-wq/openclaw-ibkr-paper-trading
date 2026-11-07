@@ -42,6 +42,8 @@ paper-trading TWS session.
 
 ## Upstream projects and attribution
 
+统一上游清单（URL、版本、许可证、已接入/候选状态）：[UPSTREAM_REPOSITORIES](docs/UPSTREAM_REPOSITORIES.md)。
+
 This repository combines original application code with upstream components and
 external services. Third-party licenses and notices remain applicable to their
 respective components; the repository's original-code copyright does not claim
@@ -52,7 +54,7 @@ ownership of upstream work. Reviewed references are not deployed engines.
 | [QuantConnect IBAutomater](https://github.com/QuantConnect/IBAutomater) | Deployed Gateway login/native soft-restart integration, with local ownership and lifecycle adaptations | Apache-2.0; retain upstream notices and patch provenance |
 | [ib_async](https://github.com/ib-api-reloaded/ib_async) | Runtime 2.1.0 adapters and verified finite Paper acceptance | BSD; no second Watchdog beside existing Gateway owner |
 | [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) | Runtime 22.8 Telegram report/alert transport and native receipts | LGPL-3.0; package dependency, not a claim of original transport implementation |
-| [Healthchecks](https://github.com/healthchecks/healthchecks) | External hosted heartbeat monitoring; native group alerts not yet accepted | BSD-3-Clause source; hosted service and local sender are distinct |
+| [Healthchecks](https://github.com/healthchecks/healthchecks) | External hosted heartbeat monitoring; native group Down/Up accepted by the user on 2026-11-06 | BSD-3-Clause source; hosted service and local sender are distinct |
 | [SQLite](https://sqlite.org/) | Local audit, incident, recovery and outbox storage | Upstream public-domain database; not an original database engine |
 | [LEAN IB Brokerage](https://github.com/QuantConnect/Lean.Brokerages.InteractiveBrokers) | Reviewed session/error and currency models | Apache-2.0; full LEAN engine is not deployed |
 | [osauer/Canary](https://github.com/osauer/canary) | Reviewed risk/reporting design | MIT; not connected as another production account daemon; distinct from canary testing |

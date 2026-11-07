@@ -34,3 +34,19 @@ TradingAgents、LEAN、LangGraph、OpenAI Agents SDK均未安装或复制入本�
 异地备份能应对整台主机/磁盘损坏或账号事故，同机16批不能覆盖这些风险。目前没有新购资源或已验收的异地副本；目标存储和保留/加密策略尚未落地。
 
 完整离线测试仅在linked worktree运行`python scripts/run_worktree_tests.py`；主工作区仅quick smoke。通过secret scan后提交、通过Git收回主工作区及cloud，最后启动秘书。验收必须分别给出模型结果、实际工具证据、群发送回执和真实owner消息；未收到真实owner新消息前不能把模拟授权测试称完整双向用户验收。
+
+## 2026-11-07 Telegram数值门控、认证协助与本机副本
+
+用户追加授权：将硬门控数值模板移到Telegram，远程填值后生效；需要登录时提供协助，成功后Telegram通知；复制审计库供本机分析。
+
+`/gate`返回完整JSON模板；复制`/gate_apply {"revision":...,"settings":...}`整条命令填写数值。只接受max_quantity、max_order_value、max_risk_per_order、max_symbol_exposure、max_gross_exposure五项。revision防止旧模板覆盖新值，原生owner身份验证后直接进入Python控制路径，不经过LLM。档案事务保留每个版本，再原子落盘runtime/risk-controls.json；中断后可由已提交版本幂等恢复。RiskEngine每次校验读取附加上限；旧硬上限继续生效，不改变账户、approved、PAUSED/MAINTENANCE、保护单、会话/日历许可或已用3/3测试额度。金额USD，数量整股；0可阻止对应请求。该界面不是任意Python执行接口。运行服务需要先部署一次新版消费者，此后数值更新不需要重启。
+
+`/login`查看Paper认证/完整回读状态；`/login_assist`跟踪既有自动化owner，仅当systemd状态inactive/failed且独立部署policy明确批准时，由已有本机SSH身份向唯一ibkr-gateway.service提交start，不restart正常Gateway、不创建竞争实例。手机IB Key验证留给用户，不通过Telegram收密码或验证码。STARTED/UNKNOWN控制操作不重放；systemctl接受不等于认证成功。后续只读轮询须核验正确Paper身份、positions/orders/completed_orders/executions全部结束、非dirty、上游连接及10秒内server reply，才发认证成功通知。当前健康状态不能当作新一轮周度登录已演练。
+
+官方说明周日01:00美东安全令牌失效后需要人工认证，也可能提前撤销；二次验证须通过已登记安全设备：
+https://www.ibkrguides.com/traderworkstation/auto-restart-considerations.htm
+https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
+
+本机一致性副本来自20261106T234018.315731Z云端备份；1861767168字节，解压SHA-256 d817a32ab8b2216b24e20786f675622903e434b2ee416f6a130c84a89d763b1f，隔离quick_check通过。位于state/secretary/snapshots该版本目录，文件只读、非生产激活候选。秘书schema/query/hypothesis_test可指定source=local_snapshot；只有返回证据进入模型上下文，不能把复制整个DB说成免token读取。尚无连续历史行情或完整净收益验证。
+
+真实第一项自主研究成功并收到Telegram原生回执；真实owner /secretary消息已入档，但该次模型运行UNKNOWN，未重放。后续修复需分别保留原始UNKNOWN、公开可核查的协调事件和新任务身份，不能把付费结果丢失改写成成功。

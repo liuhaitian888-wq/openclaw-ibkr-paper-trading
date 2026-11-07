@@ -15,6 +15,7 @@ from reporting.secretary_read import tool
 from reporting.incident_telegram import verify_audience
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
+from reporting.secretary_controls import process_controls,tick_login,finish_start
 
 
 async def poll(archive, root, config, armed_at):
@@ -44,16 +45,26 @@ def dispatch(root,request,config,policy):
     if action=='poll':
         reconcile_replies(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
         result=asyncio.run(poll(archive,root,config,policy['armed_at']))
+        result['controls']=process_controls(archive,root,config,policy)
+        tick_login(archive,root)
+        if result['controls']:return result
         autonomous(archive,now=time.time())
         result['job']=claim(archive,model=policy['model'],now=time.time())
         return result
+    if action=='gateway_start_finished':return finish_start(archive,root,request)
+    if action=='record_local_tool':
+        instruction=active_run(archive,request['run']);step=request['step']
+        if type(step) is not int or not 1<=step<=12 or request['request'].get('source')!='local_snapshot':raise ValueError('Bounded local snapshot evidence required')
+        archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':request['request'],'result':request['result'],'source':'verified local backup snapshot'})
+        return {'state':'ARCHIVED'}
     if action=='tool':
         instruction=active_run(archive,request['run']);step=request['step']
         if type(step) is not int or not 1<=step<=12:raise ValueError('Bounded tool step required')
         req=request['request']
+        if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
         try:result=tool(root,req)
         except (ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
-            result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__}
+            result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':str(exc)[:200]}
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result})
         return result
     if action=='finish':
@@ -97,6 +108,10 @@ def main():
         with monitoring_service('secretary-rpc',root):
             result=dispatch(root,request,config,policy)
             coordinator=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
+            if (root/'runtime/RISK_CONTROLS_REQUIRED').exists():
+                from reporting.telegram_gate import current
+                controls=current(root)
+                coordinator.observe('RISK_CONTROLS','HEALTHY',freshness='FRESH',enabled=True,reason='Numeric risk cap document parsed; no execution authority',revision=controls['revision'])
             coordinator.observe('SECRETARY_ARCHIVE','HEALTHY',freshness='FRESH',reason='Secretary transaction completed')
             if request.get('action')=='finish':
                 succeeded=request.get('state')=='SUCCEEDED'
@@ -108,4 +123,4 @@ def main():
 if __name__=='__main__':
     try:main()
     except Exception as exc:
-        print(json.dumps({'state':'RPC_REFUSED','error_type':type(exc).__name__}));sys.exit(2)
+        print(json.dumps({'state':'RPC_REFUSED','error_type':type(exc).__name__,'message':str(exc)[:200]}));sys.exit(2)
