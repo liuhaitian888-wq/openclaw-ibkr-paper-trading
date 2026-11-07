@@ -82,3 +82,11 @@ def reconcile_replies(archive, store):
     for run,payload in rows:
         result=json.loads(payload)
         if isinstance(result.get('summary'),str):enqueue_reply(archive,store,run,result['summary'])
+
+
+def progress(store,run,stage,text):
+    """Public activity milestones only; unique enqueue, no private reasoning stream."""
+    if stage not in ('CLAIMED','FIRST_TOOL'):raise ValueError('Bounded public milestone required')
+    payload=json.dumps({'reason':'研究进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram'},ensure_ascii=False)
+    with closing(store.connect()) as c,c:
+        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-progress:'+run+':'+stage,payload))

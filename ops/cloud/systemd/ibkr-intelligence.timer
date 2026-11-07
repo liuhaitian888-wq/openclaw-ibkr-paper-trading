@@ -1,0 +1,12 @@
+[Unit]
+Description=Official-source intelligence every ten minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=10min
+RandomizedDelaySec=20
+Persistent=true
+Unit=ibkr-intelligence.service
+
+[Install]
+WantedBy=timers.target

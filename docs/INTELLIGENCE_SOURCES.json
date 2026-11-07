@@ -1,0 +1,72 @@
+{
+  "checked_on": "2026-11-07",
+  "runtime_evidence": "runtime/intelligence.latest.json and intelligence-broker.latest.json; source-specific results override design-time status",
+  "sources": [
+    {
+      "name": "Federal Reserve",
+      "url": "https://www.federalreserve.gov/feeds/feeds.htm",
+      "status": "OFFICIAL_RSS_ADAPTER_PENDING_PRODUCTION_PROBE",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "BLS",
+      "url": "https://www.bls.gov/feed/",
+      "status": "OFFICIAL_RSS_ADAPTER_PENDING_PRODUCTION_PROBE",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "SEC EDGAR",
+      "url": "https://www.sec.gov/edgar/search/",
+      "status": "OFFICIAL_SUBMISSIONS_ADAPTER_PRIVATE_USER_AGENT",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Reuters",
+      "url": "https://www.reuters.com/markets/",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Bloomberg",
+      "url": "https://www.bloomberg.com/markets",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Benzinga",
+      "url": "https://www.benzinga.com/",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "The Fly",
+      "url": "https://thefly.com/",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Stock Titan",
+      "url": "https://www.stocktitan.net/",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Newsquawk",
+      "url": "https://www.newsquawk.com/",
+      "status": "NEWS_SOURCE_NO_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "Similarweb",
+      "url": "https://www.similarweb.com/",
+      "status": "CHATGPT_PLUGIN_INSTALLED_NO_CURRENT_TOOLS_OR_CLOUD_API_VERIFIED",
+      "paid_subscription_purchased_by_this_work": false
+    },
+    {
+      "name": "IBKR",
+      "url": "https://www.interactivebrokers.com/docs/tws-api/doc/news/providers",
+      "status": "EXISTING_SCOPED_NEWS_ADAPTER_AND_PRIVATE_ENTITLEMENTS",
+      "paid_subscription_purchased_by_this_work": false
+    }
+  ]
+}

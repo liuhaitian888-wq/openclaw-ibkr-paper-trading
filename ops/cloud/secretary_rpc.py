@@ -10,7 +10,7 @@ import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
-from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies
+from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress
 from reporting.secretary_read import tool
 from reporting.incident_telegram import verify_audience
 from reporting.incidents import IncidentStore
@@ -50,12 +50,14 @@ def dispatch(root,request,config,policy):
         if result['controls']:return result
         autonomous(archive,now=time.time())
         result['job']=claim(archive,model=policy['model'],now=time.time())
+        if result['job']:progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
     if action=='gateway_start_finished':return finish_start(archive,root,request)
     if action=='record_local_tool':
         instruction=active_run(archive,request['run']);step=request['step']
         if type(step) is not int or not 1<=step<=12 or request['request'].get('source')!='local_snapshot':raise ValueError('Bounded local snapshot evidence required')
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':request['request'],'result':request['result'],'source':'verified local backup snapshot'})
+        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理本机副本只读工具 '+str(request['request'].get('name'))+'；结果 '+str(request['result'].get('result',request['result'].get('state'))))
         return {'state':'ARCHIVED'}
     if action=='tool':
         instruction=active_run(archive,request['run']);step=request['step']
@@ -66,6 +68,7 @@ def dispatch(root,request,config,policy):
         except (ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
             result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':str(exc)[:200]}
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result})
+        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理云端只读工具 '+str(req.get('name'))+'；结果 '+str(result.get('result',result.get('state'))))
         return result
     if action=='finish':
         run=request['run'];state=request['state']

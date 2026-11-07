@@ -1,0 +1,12 @@
+[Unit]
+Description=Scoped news intelligence every fifteen minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+RandomizedDelaySec=20
+Persistent=true
+Unit=ibkr-intelligence-broker.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,17 @@
+[Unit]
+Description=Bounded approved Paper news reads for intelligence
+After=network-online.target
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/intelligence-policy.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/news-venv/bin/python /opt/openclaw/app/ops/cloud/intelligence_broker.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=180
+MemoryMax=256M
+CPUQuota=15%
