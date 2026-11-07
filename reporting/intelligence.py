@@ -249,12 +249,12 @@ def bls_records(body,series):
         year,period=str(row.get('year','')),str(row.get('period',''))
         if not re.fullmatch(r'20[0-9]{2}',year) or not re.fullmatch(r'M(0[1-9]|1[0-2])',period):continue
         from decimal import Decimal
-        value=Decimal(str(row.get('value')))
-        if not value.is_finite():raise ValueError('Finite macro observation required')
+        value=None if row.get('value')=='-' else Decimal(str(row.get('value')))
+        if value is not None and not value.is_finite():raise ValueError('Finite macro observation required')
         description,unit=BLS_SERIES[series]
-        result.append({'source':'BLS_API','entity':series+':'+year+':'+period,'headline':description+' '+year+'-'+period+' = '+str(value),
+        result.append({'source':'BLS_API','entity':series+':'+year+':'+period,'headline':description+' '+year+'-'+period+' = '+('UNAVAILABLE' if value is None else str(value)),
             'url':'https://api.bls.gov/publicAPI/v1/timeseries/data/'+series,'published_at':None,'category':'macro_snapshot','symbols':[],
-            'series_id':series,'observation_year':year,'observation_period':period,'value':str(value),'unit':unit,
+            'series_id':series,'observation_year':year,'observation_period':period,'value':None if value is None else str(value),'unit':unit,'observation_status':'UNAVAILABLE' if value is None else 'OBSERVED',
             'footnotes':row.get('footnotes',[]),'release_timestamp_verified':False,
             'scope':'Period observation retrieved now, not release-time news or consensus surprise; revisions preserved by content fingerprint'})
     if not result:raise ValueError('No valid monthly observations')

@@ -449,6 +449,7 @@ class AuditLog:
         execution: Dict[str, Any],
         seen_at: str,
     ) -> None:
+        execution=dict(execution)
         AuditLog._require_same_identity(connection, "executions", "exec_id", str(execution.get("exec_id", "")), execution)
         prior = connection.execute('SELECT raw_json FROM executions WHERE exec_id=?',
                                    (str(execution.get('exec_id','')),)).fetchone()
@@ -456,6 +457,9 @@ class AuditLog:
             old = json.loads(prior[0])
             if any(old.get(k)!=execution.get(k) for k in ('order_id','symbol','side','shares','price','time')):
                 raise ValueError('RECONCILIATION_EXECUTION_CONFLICT: immutable execId payload changed')
+            for name in ('currency','sec_type','con_id'):
+                if old.get(name) and execution.get(name) and old[name]!=execution[name]:raise ValueError('RECONCILIATION_EXECUTION_CONTRACT_CONFLICT')
+                if old.get(name) and not execution.get(name):execution[name]=old[name]
         connection.execute(
             """
             INSERT INTO executions

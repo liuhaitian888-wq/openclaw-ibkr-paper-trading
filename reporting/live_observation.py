@@ -41,7 +41,7 @@ def probe(host='127.0.0.1',port=7497,client_id=18765,timeout=15,*,symbols=(),exp
             'parent_id':o.parentId,'order_type':o.orderType,'limit_price':o.lmtPrice,
             'aux_price':o.auxPrice,'tif':o.tif})
         def openOrderEnd(self):self.ends.add('orders')
-        def execDetails(self,r,c,e):self.executions.append({'account':e.acctNumber,'exec_id':e.execId,'perm_id':e.permId,'order_id':e.orderId,'symbol':c.symbol,'side':e.side,'shares':str(e.shares),'time':e.time,'price':e.price,'order_ref':e.orderRef})
+        def execDetails(self,r,c,e):self.executions.append({'account':e.acctNumber,'exec_id':e.execId,'perm_id':e.permId,'order_id':e.orderId,'symbol':c.symbol,'side':e.side,'shares':str(e.shares),'time':e.time,'price':e.price,'order_ref':e.orderRef,'currency':c.currency,'sec_type':c.secType,'con_id':c.conId})
         def execDetailsEnd(self,r):self.ends.add('executions')
         def pnl(self,r,d,u,real):self.pnl_value={'daily':d,'unrealized':u,'realized':real}
         def marketDataType(self,r,t):self.quotes.setdefault(r,{})['data_type']=t

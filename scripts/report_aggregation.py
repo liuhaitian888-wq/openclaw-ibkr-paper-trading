@@ -33,7 +33,7 @@ def stamp(value):
         # IB execution timestamps: explicit timezone required, never host-local.
         try:
             parts = str(value).split()
-            zone = ZoneInfo(parts[2]) if len(parts) == 3 else None
+            zone = ZoneInfo({'US/Eastern':'America/New_York','US/Central':'America/Chicago','US/Pacific':'America/Los_Angeles'}.get(parts[2],parts[2])) if len(parts) == 3 else None
             return datetime.strptime(' '.join(parts[:2]), '%Y%m%d %H:%M:%S').replace(tzinfo=zone).astimezone(UTC) if zone else None
         except (ValueError, KeyError):
             return None

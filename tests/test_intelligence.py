@@ -120,3 +120,8 @@ class IntelligenceTests(unittest.TestCase):
         self.assertEqual(bls_snapshot('CES0000000001',fetcher=fetcher,cache=cache,now=200)['state'],'WAITING_RETRY');self.assertEqual(len(calls),1)
         with self.assertRaises(ValueError):bls_records(body,'CES0000000001')
         with self.assertRaises(ValueError):bls_records(body.replace(b'336.940',b'NaN'),'CUUR0000SA0')
+
+    def test_official_unavailable_month_is_retained_as_gap_not_fatal(self):
+        from reporting.intelligence import bls_records
+        body=json.dumps({'status':'REQUEST_SUCCEEDED','Results':{'series':[{'seriesID':'CUUR0000SA0','data':[{'year':'2025','period':'M10','value':'-','footnotes':[{'text':'Data unavailable'}]},{'year':'2025','period':'M11','value':'300','footnotes':[]}]}]}}).encode()
+        rows=bls_records(body,'CUUR0000SA0');self.assertEqual(len(rows),2);self.assertIsNone(rows[0]['value']);self.assertEqual(rows[0]['observation_status'],'UNAVAILABLE');self.assertEqual(rows[1]['value'],'300')

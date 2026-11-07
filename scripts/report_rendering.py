@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 from scripts.daily_visual_report import render_png, png_dimensions
 
-RENDER_VERSION='2026-11-07-cjk-cash-v2'
+RENDER_VERSION='2026-11-07-cjk-cash-v3'
 
 
 def esc(v):return html.escape(str(v))
