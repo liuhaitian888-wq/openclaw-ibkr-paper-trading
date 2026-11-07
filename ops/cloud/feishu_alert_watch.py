@@ -6,6 +6,7 @@ from pathlib import Path
 import signal
 import sys
 import threading
+import time
 import subprocess
 from urllib.parse import urlsplit
 
@@ -71,6 +72,7 @@ def main():
         coordinator.configure_delivery_transport('telegram' if telegram else 'smtp' if smtp else 'feishu')
         store = IncidentStore(coordinator.path)
         store.enqueue_current_summary('cloud-monitoring-delivery-20261104')
+        report_audit_at=0
         while not stopped.is_set() and armed.is_file():
             if ((root/'runtime/FEISHU_ALERTS_ARMED').exists() if (smtp or telegram) else smtp_armed.exists()):
                 raise RuntimeError('Concurrent SMTP arming is not permitted')
@@ -79,6 +81,9 @@ def main():
                 if (runtime/'FINANCIAL_REPORTS_ARMED').is_file():
                     expected = json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
                     enqueue_reports(store, root/'reports/financial', expected, datetime.now(timezone.utc), transport="telegram" if telegram or (runtime/"TELEGRAM_REPORTS_ARMED").is_file() else "smtp" if smtp else "feishu")
+                if time.monotonic()-report_audit_at>=60:
+                    from reporting.report_delivery_status import record_status
+                    record_status(store,datetime.now(timezone.utc));report_audit_at=time.monotonic()
                 store.enqueue_due_reminders()
                 item=store.claim()
                 if item is None:

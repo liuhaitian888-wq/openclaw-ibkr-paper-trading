@@ -46,7 +46,11 @@ def process_controls(archive,root,config,policy=None):
             parts=['/gate_set',aliases_short[command]+' '+(parts[1] if len(parts)==2 else '')];command='/gate_set'
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
-            if command=='/engineering' and len(parts)==1:
+            if command=='/report' and len(parts)==1:
+                from .report_delivery_status import display
+                from datetime import datetime,timezone
+                summary=display(store,datetime.now(timezone.utc))
+            elif command=='/engineering' and len(parts)==1:
                 from .engineering_relay import proposals
                 items=proposals(archive)['items']
                 summary='Engineering inbox · '+str(len(items))+' recent proposals\n'+'\n'.join(x['id'][-8:]+' · '+x['proposal']['title']+' · '+x['engineering_status']['state'] for x in items)+'\nShared archive only; no automatic deployment or desktop wakeup.'
