@@ -215,3 +215,19 @@ class FullRefreshTests(unittest.TestCase):
                 payload=json.loads(c.execute('SELECT payload FROM screen_pool_projection').fetchone()[0])
             self.assertIn('FUNDAMENTALS_PARTIAL_OR_MISSING',payload['flags']);self.assertEqual(payload['fundamentals']['assets']['value'],0)
             self.assertFalse((root/'trading_audit.sqlite3').exists())
+
+
+class ScannerOwnerWiringTests(unittest.TestCase):
+    def test_policy_attaches_only_to_existing_client_without_connecting(self):
+        from ops.cloud.paper_safety_watch import attach_research_scanner
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);(root/'runtime').mkdir();client=MagicMock();client.research_scanner=None
+            self.assertIsNone(attach_research_scanner(client,root))
+            policy=dict(approved=True,environment='LIVE',broker_scanner_readonly=True,grants_trading_permission=False)
+            path=root/'runtime/screening-policy.json';path.write_text(json.dumps(policy))
+            self.assertIsNone(attach_research_scanner(client,root))
+            policy['environment']='PAPER';path.write_text(json.dumps(policy))
+            adapter=attach_research_scanner(client,root)
+            self.assertIs(adapter.client,client);self.assertIs(client.research_scanner,adapter)
+            client.connect.assert_not_called();client.reqScannerSubscription.assert_not_called()
+            adapter.close()

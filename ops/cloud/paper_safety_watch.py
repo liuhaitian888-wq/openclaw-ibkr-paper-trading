@@ -21,6 +21,21 @@ from trading.paper_strategy_observer import PaperStrategyObserver
 from trading.signal_scheduler import strategy_dependency_registry
 
 
+
+def attach_research_scanner(client, root):
+    """Opt in on this already owned client; absent policy preserves monitoring."""
+    policy_path=root/'runtime/screening-policy.json'
+    if not policy_path.is_file():return None
+    policy=json.loads(policy_path.read_text())
+    if (policy.get('approved') is not True or policy.get('environment')!='PAPER'
+            or policy.get('broker_scanner_readonly') is not True
+            or policy.get('grants_trading_permission') is not False):return None
+    from reporting.agent_secretary import SecretaryArchive
+    from trading.broker_screening import BrokerScanner
+    client.research_scanner=BrokerScanner(client,SecretaryArchive(root/'agent_secretary.sqlite3'))
+    return client.research_scanner
+
+
 def read_system_safety(root, manifest):
     """Bounded reads for existing global safety facts; never changes a gate."""
     safety=manifest.get('safety',{})
@@ -158,6 +173,7 @@ def main():
             client.strategy_observer=observer
             worker=None
             try:
+                attach_research_scanner(client,root)
                 client.connect('127.0.0.1',4002,clientId=18770)
                 worker=threading.Thread(target=client.run_loop,name='paper-safety-api',daemon=True)
                 worker.start()
