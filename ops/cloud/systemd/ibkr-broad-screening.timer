@@ -1,0 +1,10 @@
+[Unit]
+Description=Check due research maintenance and owner requests once per minute
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=60s
+Unit=ibkr-broad-screening.service
+
+[Install]
+WantedBy=timers.target

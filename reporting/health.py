@@ -61,7 +61,8 @@ MODULE_DEPENDENCIES = {
  'TELEGRAM': ('NETWORK',), 'SMTP': ('NETWORK',), 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
  'DELIVERY': ('REPORT','DELIVERY_LEDGER','FEISHU'),
  'INTELLIGENCE_PUBLIC': ('NETWORK',), 'INTELLIGENCE_BROKER': ('NEWS',),
- 'SECRETARY_ARCHIVE': (), 'SECRETARY_MODEL': ('NETWORK',),
+ 'SECRETARY_ARCHIVE': (),
+ 'BROAD_SCREENING': ('NETWORK','SECRETARY_ARCHIVE'), 'BROKER_SCANNER': ('IBKR_CONNECTION','SECRETARY_ARCHIVE'), 'SECRETARY_MODEL': ('NETWORK',),
  'SECRETARY_LIMITS': ('SECRETARY_ARCHIVE',),
  'SECRETARY': ('SECRETARY_ARCHIVE','SECRETARY_MODEL','TELEGRAM'),
  'GATEWAY_RECOVERY': ('LOCAL_STATE',),
@@ -92,10 +93,12 @@ def resolve_modules(observations, *, now=None, max_age=120):
         if state not in MODULE_STATES:state='DEGRADED'
         freshness=raw.get('freshness','UNKNOWN')
         if freshness not in ('FRESH','STALE','UNKNOWN'):freshness='UNKNOWN'
-        if name in LIVE_MODULES or name=='DIAGNOSTICS':
+        if name in LIVE_MODULES or name=='DIAGNOSTICS' or name in ('BROAD_SCREENING','BROKER_SCANNER'):
             try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
             except (KeyError,ValueError,TypeError):age=None
             limit = min(max_age,5) if name in ('PROTECTION','PAPER_SESSION') else max_age
+            if name=='BROAD_SCREENING':limit=36*3600
+            elif name=='BROKER_SCANNER':limit=3600
             if age is None or age<0 or age>limit:
                 freshness='STALE' if raw else 'UNKNOWN'
                 if state=='HEALTHY':state='DEGRADED'
@@ -106,7 +109,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':(not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}

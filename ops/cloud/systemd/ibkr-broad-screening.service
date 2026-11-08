@@ -1,0 +1,18 @@
+[Unit]
+Description=Bounded free-source research maintenance and queued refresh
+After=network-online.target
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/screening-policy.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+Environment=HOME=/home/ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/scripts/refresh_broad_screening.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=180
+MemoryMax=320M
+CPUQuota=25%

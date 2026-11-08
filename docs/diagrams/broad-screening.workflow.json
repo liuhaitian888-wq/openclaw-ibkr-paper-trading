@@ -1,0 +1,154 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "从宽范围研究到券商核对",
+    "subtitle": "免费来源分层缓存；研究投影不授予交易权限",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow"
+  },
+  "lanes": [
+    {
+      "id": "research",
+      "label": "公开数据与私人秘书"
+    },
+    {
+      "id": "broker",
+      "label": "既有 IBKR Paper owner"
+    },
+    {
+      "id": "viewer",
+      "label": "私人查询与展示"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "public",
+      "lane": "research",
+      "col": 0,
+      "type": "external",
+      "label": "Nasdaq · Yahoo · SEC",
+      "sublabel": "价量、部分财务与各自时间",
+      "width": 200
+    },
+    {
+      "id": "cache",
+      "lane": "research",
+      "col": 1,
+      "type": "database",
+      "label": "版本化研究缓存",
+      "sublabel": "来源、缺失、退避与覆盖",
+      "width": 200
+    },
+    {
+      "id": "layers",
+      "lane": "research",
+      "col": 2,
+      "type": "backend",
+      "label": "L1–L3 研究投影",
+      "sublabel": "L4–L6 仍需独立证据",
+      "width": 200
+    },
+    {
+      "id": "telegram",
+      "lane": "viewer",
+      "col": 2,
+      "type": "frontend",
+      "label": "Telegram 私人菜单",
+      "sublabel": "筛选、刷新、扫描和对比",
+      "width": 200
+    },
+    {
+      "id": "owner",
+      "lane": "broker",
+      "col": 0,
+      "type": "backend",
+      "label": "已有只读连接",
+      "sublabel": "不登录 Live；不新建会话",
+      "width": 200
+    },
+    {
+      "id": "scanner",
+      "lane": "broker",
+      "col": 1,
+      "type": "backend",
+      "label": "有界真实 Scanner",
+      "sublabel": "最多 50 项；结束后取消",
+      "width": 200
+    },
+    {
+      "id": "compare",
+      "lane": "broker",
+      "col": 2,
+      "type": "security",
+      "label": "逐字段核对",
+      "sublabel": "合约、币种、时刻与权限",
+      "width": 200
+    }
+  ],
+  "mainPath": [
+    "public",
+    "cache",
+    "layers",
+    "telegram"
+  ],
+  "edges": [
+    {
+      "id": "public-cache",
+      "from": "public",
+      "to": "cache",
+      "label": "有界定时采集",
+      "role": "main"
+    },
+    {
+      "id": "cache-layers",
+      "from": "cache",
+      "to": "layers",
+      "label": "保留数据缺口",
+      "role": "main"
+    },
+    {
+      "id": "layers-telegram",
+      "from": "layers",
+      "to": "telegram",
+      "label": "只读筛选",
+      "role": "main"
+    },
+    {
+      "id": "owner-scanner",
+      "from": "owner",
+      "to": "scanner",
+      "label": "复用原连接",
+      "role": "branch"
+    },
+    {
+      "id": "scanner-layers",
+      "from": "scanner",
+      "to": "layers",
+      "label": "候选交叉核对",
+      "role": "branch"
+    },
+    {
+      "id": "telegram-compare",
+      "from": "telegram",
+      "to": "compare",
+      "label": "按需对照",
+      "role": "branch"
+    },
+    {
+      "id": "owner-compare",
+      "from": "owner",
+      "to": "compare",
+      "label": "既有回读证据",
+      "role": "branch"
+    },
+    {
+      "id": "cache-compare",
+      "from": "cache",
+      "to": "compare",
+      "label": "外部缓存字段",
+      "role": "branch"
+    }
+  ]
+}

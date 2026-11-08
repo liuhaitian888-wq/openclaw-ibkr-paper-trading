@@ -198,6 +198,13 @@ def main():
                             with observer.lock:
                                 observer.evaluate(symbol,dict(client.fields.get(req_id,{})),snapshot,monitor.clock())
                         last_strategy=time.monotonic()
+                    if client.research_scanner is not None:
+                        with monitor.lock:
+                            scan_state=dict(monitor.state)
+                        scanner_admitted=(scan_state.get('identity') is True and scan_state.get('upstream_connected') is True
+                                          and scan_state.get('connected') is True and not scan_state.get('dirty',True)
+                                          and set(scan_state.get('ends',[]))==ENDS and 0<=monitor.clock()-scan_state.get('last_server_reply',0)<=10)
+                        client.research_scanner.poll(admitted=scanner_admitted)
                     # Keep monitoring during 10197. Only bounded data subscription
                     # retries; no Gateway process action, no account session takeover.
                     if time.monotonic()-last_recovery_poll>=5:
@@ -214,7 +221,10 @@ def main():
                 monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
             finally:
-                _close_owned_client(client,worker)
+                try:
+                    if client.research_scanner is not None:client.research_scanner.close()
+                finally:
+                    _close_owned_client(client,worker)
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0
 
