@@ -299,3 +299,13 @@ Paper acceptance preflight has sent zero orders. Real USD ledger returned$LEDGER
 线上只读核查：der机器人隐私模式开启，owner私聊原生getChat可用，群3成员。Healthchecks每分钟上报两个检查，主机正常、Paper API异常信号均获HTTP_ACCEPTED；其覆盖并非全部业务门禁。未故障演练、未broker变更。设计及分类案例见docs/NOTIFICATION_CENTER.md；FYI原生API未接通。第三方仓库仅参考，不自动集成或复制源码。
 
 验证：最终代码树完整隔离离线套件914项通过（/tmp/notification-center-final-tested-tree.log），gitleaks通过。额外覆盖公开日报例外、私人路由、非owner拒绝、未知分类、群人数变化、HTML转义、URL中token脱敏、敏感列别名/截取拒绝、同事件编辑回执及UNKNOWN不重放。上线仅重载Telegram inbox/notifications；Gateway与paper-safety保持，交易/测试额度/资金/风险文件哈希须相同。原生部署回执与回滚备份另存runtime/notification-center-deployment，不包含在Git中。
+
+## 2026-11-08 恢复Nov7 Goal
+
+重新核对SSH、服务、broker状态：云在线不等于IBKR恢复；02:09/02:15 Berlin上游/回读失败，API预算4次用尽，Gateway未重启。修复上游断开时跳过API心跳超时；仍保留新鲜socket与原预算/退避，不清空测试配额。
+
+用户最终要求“能在群里搜索”，不新增整群档案。增加/work、/searchlog查询既有数据；/search与模型telegram_search通过原local bridge调用精确der/机器人白名单的按需用户会话搜索。缺会话明确NEEDS_OWNER_USER_SESSION，登录工具仅本人手动执行，会话不交模型或云。TDLib消息数据库限制与Telethon迁移源已核查并存清单。
+
+Nov8日报实际发出的是缺报告警（group message156，02:00:06 Berlin）；新增内容状态避免误称今日附件已发。全量任务状态、工程门禁与一次参数清单在docs/GOAL_20261107_STATUS.md。没有订单、撤单、保护单修改、故障演练、自动换汇、预算重置或解除暂停。
+
+02:18–02:20 Berlin实际故障修复：GUI卡Shutdown API且旧Java不退出，保存1247FD/963线程资源证据后通过现有systemd owner受控重启一次；新代际1378654、常驻四end与独立READBACK_COMPLETE均恢复。恢复983群message157有原生回执；现有日报补报986已发送。交易/资金/暂停/旧3次试验文件哈希不变。此为实际修复，不是演练；无人值守处理卡死shutdown仍是独立缺口，不能用本次人工修复冒充自动恢复已完善。

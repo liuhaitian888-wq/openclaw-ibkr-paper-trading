@@ -60,6 +60,17 @@ def process_controls(archive,root,config,policy=None):
                     from .notification_text import notification_text
                     item=get_item(store,int(args[0]));summary='私人事件详情｜来源：'+item['incident_key']+'\n投递：'+item['status']+'\n'+notification_text(item,store.clock(),max_length=2600)
                 else:raise ValueError('用法：/inbox [类别] · /event 编号 · /read 编号 · /preview 编号 · /notify [类别 on或off]')
+            elif command in ('/work','/searchlog','/search') and len(parts)==2:
+                if command=='/search':
+                    from .telegram_search import request_values
+                    request={'query':parts[1]};request_values(request)
+                    run=instruction+':control';archive.reserve_run(run,instruction=instruction,model='PYTHON_CONTROL')
+                    archive.append(run+':requested',CONVERSATION,origin='SYSTEM',kind='TELEGRAM_SEARCH_REQUESTED',parent=instruction,
+                        payload={'run':run,'request':request,'target':{'owner_user_id':config['owner_user_id'],'chat_id':config['chat_id'],'bot_ids':[config['bot_id']]+[b['id'] for b in config.get('allowed_additional_bots',[])]}})
+                    continue
+                else:
+                    from .secretary_search import search_records,message
+                    summary=message(search_records(root,{'source':'work' if command=='/work' else 'notifications','query':parts[1]}))
             elif command=='/report' and len(parts)==1:
                 from .report_delivery_status import display
                 from datetime import datetime,timezone
@@ -115,7 +126,7 @@ def process_controls(archive,root,config,policy=None):
                         run=instruction+':control';archive.reserve_run(run,instruction=instruction,model='PYTHON_CONTROL')
                         archive.append(run+':requested',CONVERSATION,origin='SYSTEM',kind='GATEWAY_START_REQUESTED',parent=instruction,payload={'run':run})
                         controls.append({'kind':'GATEWAY_START','instruction':instruction,'run':run});continue
-                    summary='认证尚未通过新鲜完整回读。已跟踪现有唯一Gateway/IBAutomater owner；请在IBKR手机完成需要的二次验证，不要在Telegram发送密码或验证码。成功后将自动通知；不会为了检查而重启正常服务。'
+                    summary='认证尚未通过新鲜完整回读。已跟踪现有唯一Gateway/IBAutomater owner；需要核对Gateway当前登录/连接界面；若出现手机二次验证，再由你完成。不要在Telegram发送密码或验证码。成功后将自动通知；不会为了检查而重启正常服务。'
             else:raise ValueError('Supported commands: /gate, /gate_apply JSON, /login, /login_assist, /focus text, /intel')
         except (ValueError,PermissionError,OSError,sqlite3.Error) as exc:
             summary='命令未确认生效，请核对：'+str(exc)[:250]+'。现有交易权限和订单不变。'
@@ -156,8 +167,25 @@ def tick_login(archive,root):
 
 def pending_controls(archive):
     with closing(archive.connect()) as c:
-        rows=c.execute("SELECT r.occurrence,r.instruction FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.model='PYTHON_CONTROL' AND r.state='STARTED' AND e.kind='GATEWAY_START_REQUESTED' AND NOT EXISTS(SELECT 1 FROM secretary_events d WHERE d.occurrence=r.occurrence||':dispatch') LIMIT 5").fetchall()
+        rows=c.execute("SELECT r.occurrence,r.instruction,e.kind,e.payload FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.model='PYTHON_CONTROL' AND r.state='STARTED' AND e.kind IN ('GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED') AND NOT EXISTS(SELECT 1 FROM secretary_events d WHERE d.occurrence=r.occurrence||':dispatch') LIMIT 5").fetchall()
     controls=[]
-    for run,instruction in rows:
-        if archive.append(run+':dispatch',CONVERSATION,origin='SYSTEM',kind='CONTROL_DISPATCH_STARTED',parent=instruction,payload={'run':run}):controls.append({'kind':'GATEWAY_START','run':run,'instruction':instruction})
+    for run,instruction,kind,payload in rows:
+        if archive.append(run+':dispatch',CONVERSATION,origin='SYSTEM',kind='CONTROL_DISPATCH_STARTED',parent=instruction,payload={'run':run}):
+            data=json.loads(payload);controls.append({'kind':'TELEGRAM_SEARCH' if kind=='TELEGRAM_SEARCH_REQUESTED' else 'GATEWAY_START','run':run,'instruction':instruction,**{k:data[k] for k in ('request','target') if k in data}})
     return controls
+
+
+def finish_search(archive,root,request):
+    run=request['run']
+    with closing(archive.connect()) as c:
+        row=c.execute("SELECT r.instruction,r.model,e.kind FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.occurrence=?",(run,)).fetchone()
+    if not row or row[1:]!=('PYTHON_CONTROL','TELEGRAM_SEARCH_REQUESTED'):raise PermissionError('Reserved owner search required')
+    from .telegram_search import message
+    from .errors import redact
+    result=redact(request['result'])
+    if len(json.dumps(result))>50000:raise ValueError('Bounded search result required')
+    event=run+':result'
+    archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=row[0],payload={'summary':message(result),'source':'on-demand local Telegram search','search_state':result['state']})
+    archive.finish_run(run,state='SUCCEEDED',result_event=event)
+    enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,message(result),role='CONTROL')
+    return {'state':'ARCHIVED_QUERY_RESULT','search_state':result['state']}

@@ -97,6 +97,12 @@ def api_listener_ready():
     return False if readable else None
 
 
+def api_heartbeat_fresh(state, now):
+    """TCP being open and IBKR upstream being down don't prove API liveness."""
+    stamp=state.get('last_server_reply')
+    return type(stamp) in (int,float) and 0<=now-stamp<=10
+
+
 def main():
     os.umask(0o077)
     root=Path.home()/'.local/state/openclaw'
@@ -171,7 +177,7 @@ def main():
                     if time.monotonic()-last_heartbeat>=5:
                         client.reqCurrentTime()
                         last_heartbeat=time.monotonic()
-                    if monitor.state['upstream_connected'] and monitor.clock()-monitor.state['last_server_reply']>10:
+                    if not api_heartbeat_fresh(monitor.state,monitor.clock()):
                         raise RuntimeError('Broker callback heartbeat missing')
                     with monitor.lock:
                         monitor._publish()

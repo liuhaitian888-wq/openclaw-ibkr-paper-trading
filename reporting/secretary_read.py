@@ -9,7 +9,7 @@ from .database_console import DATABASES, contained, collect as snapshot
 from .errors import redact, is_secret_field
 
 REGISTRY = {row[0]: row[1] for row in DATABASES}
-FUNCTIONS = frozenset('count sum avg min max total coalesce ifnull nullif abs round length substr substring lower upper trim ltrim rtrim date time datetime strftime julianday unixepoch typeof json_extract json_valid json_type like glob'.split())
+FUNCTIONS = frozenset('count sum avg min max total coalesce ifnull nullif abs round length substr substring lower upper instr trim ltrim rtrim date time datetime strftime julianday unixepoch typeof json_extract json_valid json_type like glob'.split())
 
 
 def query(root, database, sql, parameters=(), *, limit=100, budget=.1):
@@ -58,6 +58,9 @@ def query(root, database, sql, parameters=(), *, limit=100, budget=.1):
 def tool(root, request):
     if not isinstance(request,dict):raise ValueError('Structured tool request required')
     name=request.get('name')
+    if name=='search_records':
+        from .secretary_search import search_records
+        return search_records(root,request)
     if name=='databases':return snapshot(root)
     if name=='schema':
         return query(root,request['database'],"SELECT name,sql FROM sqlite_master WHERE type IN ('table','view') ORDER BY name")

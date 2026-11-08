@@ -31,3 +31,9 @@ pushed_at只说明上游更新，并非兼容性或安全通过。NOASSERTION/�
 - [TrishkaV/PortfolioHelper](https://github.com/TrishkaV/PortfolioHelper)
 - [promobase/ibkr-web-api](https://github.com/promobase/ibkr-web-api)
 - [caronc/apprise](https://github.com/caronc/apprise)
+
+Nov8按需群搜索参考：
+
+- [Telethon当前维护源](https://codeberg.org/Lonami/Telethon)，可选adapter，未登录验收。
+- [Telethon旧GitHub](https://github.com/LonamiWebs/Telethon)，已归档并声明迁移。
+- [TDLib](https://github.com/tdlib/td)，官方库参考，未安装集成。

@@ -438,6 +438,48 @@
           "file": "docs/NOTIFICATION_CENTER.md"
         }
       ]
+    },
+    {
+      "repository": "Lonami/Telethon",
+      "url": "https://codeberg.org/Lonami/Telethon",
+      "status": "OPTIONAL_ADAPTER_NOT_AUTHENTICATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-08",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/TELEGRAM_SEARCH.md"
+        }
+      ]
+    },
+    {
+      "repository": "LonamiWebs/Telethon",
+      "url": "https://github.com/LonamiWebs/Telethon",
+      "status": "ARCHIVED_MOVED_TO_CODEBERG",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-08",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/TELEGRAM_SEARCH.md"
+        }
+      ]
+    },
+    {
+      "repository": "tdlib/td",
+      "url": "https://github.com/tdlib/td",
+      "status": "REFERENCE_NOT_INTEGRATED",
+      "reviewed_commit": null,
+      "checked_on": "2026-11-08",
+      "auto_update_or_merge": false,
+      "license_spdx": "NOT_SOURCE_AUDITED",
+      "provenance": [
+        {
+          "file": "docs/TELEGRAM_SEARCH.md"
+        }
+      ]
     }
   ]
 }

@@ -9,6 +9,16 @@ from reporting.recovery import RecoveryCoordinator
 
 
 class CloudPaperSafetyTests(unittest.TestCase):
+    def test_api_heartbeat_timeout_is_independent_of_upstream_state(self):
+        from ops.cloud.paper_safety_watch import api_heartbeat_fresh
+        for upstream in (False,True):
+            state={'upstream_connected':upstream,'last_server_reply':100}
+            self.assertTrue(api_heartbeat_fresh(state,105))
+            self.assertFalse(api_heartbeat_fresh(state,111))
+            self.assertFalse(api_heartbeat_fresh(state,99))
+        for invalid in (None,True,float('nan')):
+            self.assertFalse(api_heartbeat_fresh({'last_server_reply':invalid},100))
+
     def test_new_intent_key_cannot_bypass_unknown_order_after_restart(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/'recovery.sqlite3';store=RecoveryCoordinator(path)

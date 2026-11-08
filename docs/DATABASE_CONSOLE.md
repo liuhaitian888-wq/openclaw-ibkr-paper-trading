@@ -29,3 +29,5 @@ python3 scripts/database_console.py --input /absolute/report/database-status.jso
 ## 通知收件箱（2026-11-07）
 
 `runtime/recovery.sqlite3` 继续保存 `incident_events`、`incidents`、`notification_outbox`、`notification_delivery` 和 `notification_receipts`。新增 `notification_read_state(notification_id,read_at)` 为owner本地已读标记，`notification_preferences(category,enabled,updated_at)` 为分类偏好；无Telegram阅读回执假设。最新状态以incident_key+generation分组，未来更新重新未读。SUPPRESSED表示用户偏好未投递，无HTTP回执。详见 [通知中心](NOTIFICATION_CENTER.md)。
+
+Nov8：`/work`与`/searchlog`只查询原有secretary_events/outbox及回执，不新增整群档案表。Telegram群历史需独立用户会话，结果来源必须区分。日报日志新增content_state/daily_report_server_accepted：仅缺报告警获Telegram回执不等于日报附件已生成或投递。

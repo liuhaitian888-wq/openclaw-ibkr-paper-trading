@@ -59,12 +59,18 @@ def dispatch(root,request,config,policy):
         result['job']=claim(archive,model=policy['model'],now=time.time())
         if result['job']:progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
+    if action=='telegram_search_finished':
+        from reporting.secretary_controls import finish_search
+        return finish_search(archive,root,request)
     if action=='gateway_start_finished':return finish_start(archive,root,request)
+    if action=='telegram_search_target':
+        active_run(archive,request['run'])
+        return {'owner_user_id':config['owner_user_id'],'chat_id':config['chat_id'],'bot_ids':[config['bot_id']]+[b['id'] for b in config.get('allowed_additional_bots',[])]}
     if action=='record_local_tool':
         instruction=active_run(archive,request['run']);step=request['step']
-        if type(step) is not int or not 1<=step<=12 or request['request'].get('source')!='local_snapshot':raise ValueError('Bounded local snapshot evidence required')
-        archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':request['request'],'result':request['result'],'source':'verified local backup snapshot'})
-        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理本机副本只读工具 '+str(request['request'].get('name'))+'；结果 '+str(request['result'].get('result',request['result'].get('state'))))
+        if (type(step) is not int or not 1<=step<=12 or not (request['request'].get('source')=='local_snapshot' or request['request'].get('source')=='telegram_live' and request['request'].get('name')=='telegram_search')):raise ValueError('Bounded local snapshot evidence required')
+        archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':request['request'],'result':request['result'],'source':request['request'].get('source')})
+        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理本机只读工具 '+str(request['request'].get('name'))+'；结果 '+str(request['result'].get('result',request['result'].get('state'))))
         return {'state':'ARCHIVED'}
     if action=='tool':
         instruction=active_run(archive,request['run']);step=request['step']

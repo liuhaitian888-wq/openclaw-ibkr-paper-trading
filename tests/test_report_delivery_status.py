@@ -32,6 +32,18 @@ class ReportDeliveryStatusTests(unittest.TestCase):
                 c.execute('INSERT INTO notification_receipts VALUES(?,?)',(i,json.dumps({'transport':'telegram','chat_id':-123,'message_ids':[94],'server_dates':['2026-11-07T01:00:02+00:00']})))
             self.assertEqual(record_status(s,now),1);text=display(s,now);self.assertIn('09:00:02 北京',text);self.assertIn('02:00:02 柏林',text)
             with closing(s.connect()) as c:self.assertEqual(c.execute('SELECT count(*) FROM report_delivery_events').fetchone()[0],2)
+    def test_acknowledged_missing_report_alert_is_not_report_delivery(self):
+        now=datetime(2026,11,7,13,tzinfo=timezone.utc)
+        with tempfile.TemporaryDirectory() as tmp:
+            s,i=self.setup_store(tmp,'TELEGRAM_ACCEPTED')
+            with closing(s.connect()) as c,c:
+                c.execute('UPDATE notification_outbox SET payload=? WHERE id=?',(json.dumps({'included_reports':[],'missing_reports':['DAILY']}),i))
+                c.execute('INSERT INTO notification_receipts VALUES(?,?)',(i,json.dumps({'transport':'telegram','chat_id':-123,'message_ids':[156],'server_dates':['2026-11-07T01:00:02+00:00']})))
+            record_status(s,now)
+            self.assertIn('仅缺报告警，未附今日日报',display(s,now))
+            with closing(s.connect()) as c:d=json.loads(c.execute('SELECT payload FROM report_delivery_status').fetchone()[0])
+            self.assertTrue(d['telegram_server_accepted']);self.assertFalse(d['daily_report_server_accepted'])
+
     def test_status_without_native_receipt_is_not_verified_success(self):
         now=datetime(2026,11,7,13,tzinfo=timezone.utc)
         with tempfile.TemporaryDirectory() as tmp:

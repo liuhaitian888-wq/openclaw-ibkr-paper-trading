@@ -21,6 +21,9 @@ def evidence(c,row):
         and type(receipt.get('chat_id')) is int and receipt['chat_id']!=0 and bool(receipt.get('message_ids'))
         and all(type(i) is int and i>0 for i in receipt['message_ids']) and len(receipt.get('server_dates',[]))==len(receipt['message_ids']))
     return {'notification_id':identifier,'incident_key':key,'kind':kind,'status':status,'telegram_server_accepted':bool(confirmed),
+        'daily_report_included':'DAILY' in data.get('included_reports',[]),
+        'content_state':'DAILY_INCLUDED' if 'DAILY' in data.get('included_reports',[]) else 'MISSING_DAILY_ALERT_ONLY',
+        'daily_report_server_accepted':bool(confirmed and 'DAILY' in data.get('included_reports',[])),
         'scheduled_at':data.get('scheduled_at'),'queued_at':data.get('queued_at'),'included_reports':data.get('included_reports',[]),
         'missing_reports':data.get('missing_reports',[]),'snapshot_current':data.get('snapshot_current'),
         'receipt':receipt,'phone_notification_verified':False,'automatic_replay_allowed':False}
@@ -64,6 +67,7 @@ def display(store,now):
     if not initial:lines.append('原定日报：尚无排队记录'+('（尚未到计划时间）' if now<planned else '；需检查生成和排队日志'))
     for item in chosen:
         label='原定日报' if item is initial else '补发/修正版'
+        if item.get('content_state')=='MISSING_DAILY_ALERT_ONLY':label+='（仅缺报告警，未附今日日报）'
         if item['telegram_server_accepted']:
             receipt=item['receipt'];times=[]
             for raw in receipt['server_dates']:
