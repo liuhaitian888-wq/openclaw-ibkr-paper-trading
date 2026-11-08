@@ -1,10 +1,29 @@
 import unittest
+from dataclasses import replace
 
 from trading.models import TradeProposal
 from trading.risk import RiskEngine, RiskLimits
 
 
 class RiskEngineTests(unittest.TestCase):
+    def test_invalid_inputs_never_pass_risk_arithmetic(self):
+        engine = RiskEngine(self.limits)
+        for field, values in {
+            'quantity': [True, 1.5, float('nan'), float('inf')],
+            'limit_price': [True, float('nan'), float('inf'), -float('inf')],
+            'stop_price': [True, float('nan'), float('inf')],
+            'side': ['HOLD'],
+        }.items():
+            for value in values:
+                with self.subTest(field=field, value=value):
+                    self.assertFalse(engine.validate(replace(self.proposal, **{field: value})).approved)
+        for exposure in [float('nan'), float('inf'), -1, True]:
+            with self.subTest(exposure=exposure):
+                self.assertFalse(engine.validate(self.proposal, current_gross_exposure=exposure).approved)
+        for field in ['max_order_value', 'max_risk_per_order', 'max_symbol_exposure', 'max_gross_exposure']:
+            with self.subTest(limit=field):
+                self.assertFalse(RiskEngine(replace(self.limits, **{field: float('nan')})).validate(self.proposal).approved)
+
     def setUp(self) -> None:
         self.proposal = TradeProposal("AAPL", "BUY", 5, 190.0, 185.0)
         self.limits = RiskLimits(

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import math
 from typing import FrozenSet
 
 from trading.models import RiskDecision, TradeProposal
@@ -27,6 +28,35 @@ class RiskEngine:
         current_symbol_exposure: float = 0.0,
         current_gross_exposure: float = 0.0,
     ) -> RiskDecision:
+        def nonnegative_number(value):
+            return type(value) in (int, float) and math.isfinite(value) and value >= 0
+
+        if (type(proposal.quantity) is not int or proposal.quantity <= 0
+                or proposal.side not in ('BUY', 'SELL')):
+            return self._reject('Positive integer quantity and BUY/SELL side required')
+        for value in (proposal.limit_price, proposal.stop_price):
+            if value is not None and not nonnegative_number(value):
+                return self._reject('Finite numeric entry and stop prices required')
+        if proposal.limit_price is None:
+            return self._reject('Finite numeric entry price required')
+        if not all(nonnegative_number(v) for v in (current_symbol_exposure, current_gross_exposure)):
+            return self._reject('Finite nonnegative portfolio exposure required')
+        if type(self._limits.max_quantity) is not int or self._limits.max_quantity <= 0:
+            return self._reject('Invalid configured quantity maximum')
+        for value in (self._limits.max_order_value, self._limits.max_risk_per_order,
+                      self._limits.max_symbol_exposure, self._limits.max_gross_exposure):
+            if value is not None and not nonnegative_number(value):
+                return self._reject('Invalid configured risk maximum')
+        if self._limits.max_order_value is None or self._limits.max_risk_per_order is None:
+            return self._reject('Required risk maximum is missing')
+        try:
+            order_value = proposal.quantity * proposal.limit_price
+            order_risk = proposal.quantity * abs(proposal.limit_price - proposal.stop_price) if proposal.stop_price is not None else 0
+            if not all(math.isfinite(v) for v in (order_value, order_risk,
+                    current_symbol_exposure + order_value, current_gross_exposure + order_value)):
+                return self._reject('Risk arithmetic overflow')
+        except OverflowError:
+            return self._reject('Risk arithmetic overflow')
         from trading.production_paths import STATE_ROOT
         from reporting.telegram_gate import current
         try:

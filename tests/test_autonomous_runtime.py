@@ -1,6 +1,6 @@
 import tempfile
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -23,6 +23,70 @@ class FakeScanner:
 
 
 class AutonomousRuntimeTests(unittest.TestCase):
+    def test_missing_stale_future_naive_or_crossed_quote_never_submits(self):
+        for changes in [
+            {'quote_timestamp': None}, {'quote_timestamp': 'bad'},
+            {'quote_timestamp': datetime.now().isoformat()},
+            {'quote_timestamp': (datetime.now(timezone.utc)-timedelta(minutes=1)).isoformat()},
+            {'quote_timestamp': (datetime.now(timezone.utc)+timedelta(minutes=1)).isoformat()},
+            {'bid': None}, {'ask': float('nan')}, {'bid': 101, 'ask': 100},
+        ]:
+            with self.subTest(changes=changes), tempfile.TemporaryDirectory() as tmp:
+                submitted=[]
+                runtime=_runtime(tmp,events=[{**_event(), **changes}],submitter=lambda p: submitted.append(p) or {'approved': True})
+                report=runtime.run_once()
+                self.assertEqual(submitted, [])
+                self.assertEqual(report.submitted_count, 0)
+
+    def test_uncertain_or_exception_submission_stops_cycle_without_retry(self):
+        outcomes = [
+            {'approved': True, 'status': 'PAPER_PENDING_CONFIRMATION'},
+            {'approved': False, 'status': 'UNKNOWN'},
+            {'approved': True, 'status': 'UNKNOWN'},
+            {},
+            RuntimeError('transport outcome unknown'),
+        ]
+        for outcome in outcomes:
+            with self.subTest(outcome=outcome), tempfile.TemporaryDirectory() as tmp:
+                calls=[]
+                def submit(p):
+                    calls.append(p)
+                    if isinstance(outcome, Exception): raise outcome
+                    return outcome
+                runtime=_runtime(tmp,events=[_event(),_event()],submitter=submit)
+                report=runtime.run_once()
+                self.assertEqual(len(calls),1)
+                self.assertEqual(report.state,'RECONCILIATION_REQUIRED')
+                self.assertEqual(report.events[0]['runtime_action'],'submission_uncertain')
+                # A second cycle must remain blocked, even when health stays green.
+                runtime.run_once()
+                self.assertEqual(len(calls),1)
+                restarted=_runtime(tmp,events=[_event()],submitter=submit)
+                after_restart=restarted.run_once()
+                self.assertEqual(len(calls),1)
+                self.assertEqual(after_restart.events[0]['proposal']['idempotency_key'],'runtime-aapl-0001')
+
+    def test_confirmed_submission_requires_new_snapshot_before_next_entry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            calls=[]
+            runtime=_runtime(tmp,events=[_event(),_event()],submitter=lambda p: calls.append(p) or {'approved':True,'status':'PAPER_SUBMITTED'})
+            runtime.run_once()
+            self.assertEqual(len(calls),1)
+
+    def test_started_intent_is_durable_before_submitter_is_called(self):
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            def submit(p):
+                data=json.loads((Path(tmp)/'status.json').read_text())
+                self.assertEqual(data['state'],'RECONCILIATION_REQUIRED')
+                self.assertEqual(data['events'][0]['proposal']['idempotency_key'],p.idempotency_key)
+                raise SystemExit('simulated process exit')
+            runtime=_runtime(tmp,events=[_event()],submitter=submit)
+            with self.assertRaises(SystemExit): runtime.run_once()
+            calls=[]
+            _runtime(tmp,events=[_event()],submitter=lambda p: calls.append(p)).run_once()
+            self.assertEqual(calls,[])
+
     def test_kill_switch_blocks_runtime(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             runtime = _runtime(tmp, config=AutonomousRuntimeConfig(kill_switch=True, status_path=Path(tmp) / "status.json", events_path=Path(tmp) / "events.jsonl"))
@@ -103,6 +167,7 @@ def _event():
         "bid": 99.99,
         "ask": 100.01,
         "quote_source": "test",
+        "quote_timestamp": datetime.now(timezone.utc).isoformat(),
         "strategy_name": "tactical_long",
         "proposal": {
             "symbol": "AAPL",
