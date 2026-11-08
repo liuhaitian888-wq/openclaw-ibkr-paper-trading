@@ -231,3 +231,13 @@ class ScannerOwnerWiringTests(unittest.TestCase):
             self.assertIs(adapter.client,client);self.assertIs(client.research_scanner,adapter)
             client.connect.assert_not_called();client.reqScannerSubscription.assert_not_called()
             adapter.close()
+
+
+class NasdaqProviderIdentityTests(unittest.TestCase):
+    def test_padded_provider_codes_preserved_and_normalized_collisions_rejected(self):
+        raw={'data':{'rows':[{'symbol':'ECC           ','lastsale':'$5','volume':'10'}]}}
+        rows,info=s.nasdaq(json.dumps(raw).encode(),json.dumps({'data':{}}).encode())
+        self.assertEqual(rows[0]['symbol'],'ECC');self.assertEqual(rows[0]['provider_symbol'],'ECC           ')
+        self.assertEqual(rows[0]['symbol_normalization'],'TRIM_WHITESPACE')
+        raw['data']['rows'].append({'symbol':'ECC','lastsale':'$5'})
+        with self.assertRaises(ValueError):s.nasdaq(json.dumps(raw).encode(),json.dumps({'data':{}}).encode())

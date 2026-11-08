@@ -75,18 +75,19 @@ def nasdaq(raw, date_raw):
     match = re.search(r'as of (\w+ \d{1,2}, \d{4})', str(metadata.get('asof', '')))
     date = datetime.strptime(match[1], '%b %d, %Y').date().isoformat() if match else None
     date_rows = metadata.get('rows') or metadata.get('table', {}).get('rows') or []
-    lookup = {r.get('symbol'): number(r.get('lastsale')) for r in date_rows}
+    lookup = {str(r.get('symbol','')).strip(): number(r.get('lastsale')) for r in date_rows}
     sample = [r for r in rows if r.get('symbol') in ('AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL')]
     matched = len(sample) >= 3 and all(number(r.get('lastsale')) is not None and number(r.get('lastsale')) == lookup.get(r['symbol']) for r in sample)
     if not matched:
         date = None
     result = []; seen = set()
     for row in rows:
-        symbol = row.get('symbol')
+        provider_symbol = row.get('symbol')
+        symbol = provider_symbol.strip() if isinstance(provider_symbol,str) else provider_symbol
         if not isinstance(symbol, str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.$^=/+\-]{0,31}', symbol) or symbol in seen:
             raise ValueError('Ambiguous Nasdaq symbol')
         seen.add(symbol)
-        result.append(dict(symbol=symbol, price=number(row.get('lastsale')), volume=number(row.get('volume')),
+        result.append(dict(symbol=symbol, provider_symbol=provider_symbol, symbol_normalization='TRIM_WHITESPACE' if symbol!=provider_symbol else 'NONE', price=number(row.get('lastsale')), volume=number(row.get('volume')),
                            average_volume=None, average_volume_window=None, market_cap=number(row.get('marketCap')),
                            sector=row.get('sector'), currency='USD' if str(row.get('lastsale', '')).startswith('$') else 'UNKNOWN',
                            price_date=date, price_at=None, time_quality='DATE_ONLY_CROSS_ENDPOINT_SAMPLE' if date else 'UNKNOWN',

@@ -18,7 +18,9 @@
         "reporting/broad_screening.py": "81c3c3b33f897a7fc0d7aab434e313ac82affb602aa45cfd28ddf3f10a604cf4",
         "trading/broker_screening.py": "440feb7dfccd507c27933ec40ddc1b2c67ba471132fb2dc1fbb3fa252f34456f",
         "scripts/refresh_broad_screening.py": "733a2cf03a185c1f93c85f89224be87db52f4b44f493bd06b37da87ecbfd9e76",
-        "reporting/screening_comparison.py": "98f215b0915112ab0ce4020373e5a9ff542807f71e10244ba3a7cd716ddcaa78"
+        "reporting/screening_comparison.py": "98f215b0915112ab0ce4020373e5a9ff542807f71e10244ba3a7cd716ddcaa78",
+        "reporting/screening_sources.py": "d7051e177adbff1e2c8a723cf9e83293024915cb23b08f89abfe60927e9e8b08",
+        "ops/cloud/paper_safety_watch.py": "9db1265baf4dfac4b1b8fbcba8c39b3d46af750d2618a086df876bffeb7c8784"
       },
       "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109."
     }
