@@ -10,6 +10,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
 from reporting.gate_web import dispatch
+from reporting.telegram_gate import GateValidationError
 
 
 def main():
@@ -21,6 +22,7 @@ def main():
         raise PermissionError('Approved secretary policy required')
     archive=SecretaryArchive(root/'agent_secretary.sqlite3')
     page=(Path(__file__).resolve().parents[2]/'web/secretary-limits/index.html').read_bytes()
+    validation=(Path(__file__).resolve().parents[2]/'web/secretary-limits/validation.js').read_bytes()
 
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
@@ -34,6 +36,7 @@ def main():
             self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
         def do_GET(self):
             if self.path in ('/','/index.html'):self.reply(200,page,'text/html')
+            elif self.path=='/validation.js':self.reply(200,validation,'text/javascript')
             else:self.reply(404,b'{}')
         def do_POST(self):
             try:
@@ -49,6 +52,8 @@ def main():
                 body=json.loads(self.rfile.read(n),object_pairs_hook=unique,parse_constant=invalid)
                 result=dispatch(archive,root,config,policy,self.path,body)
                 self.reply(200,json.dumps(result,ensure_ascii=False,allow_nan=False).encode())
+            except GateValidationError as exc:
+                self.reply(400,json.dumps({'error':str(exc),'field_errors':exc.field_errors},ensure_ascii=False).encode())
             except (PermissionError,ValueError,KeyError,TypeError) as exc:
                 self.reply(403 if isinstance(exc,PermissionError) else 400,json.dumps({'error':str(exc)[:160]},ensure_ascii=False).encode())
             except Exception:

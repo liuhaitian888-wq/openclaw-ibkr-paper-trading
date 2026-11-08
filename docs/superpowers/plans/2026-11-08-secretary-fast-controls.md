@@ -53,3 +53,12 @@
 
 ## Audit outcome
 方案审阅阶段已完成，用户随后批准实施。工程验收、部署及真实点击状态记录于 ENGINEERING.md 与脱敏部署证据。
+
+### Task 4: SEC-UX-001 五项输入错误反馈（用户已批准修复并部署）
+**Files:** web/secretary-limits/index.html、validation.js；reporting/telegram_gate.py、gate_web.py；ops/cloud/secretary_limits_web.py；tests/test_secretary_field_feedback.py。
+**Interfaces:** validateField(key,text) 与 validateFields(values) 返回中文字段错误；validate_form(values) 复用既有数值校验并返回结构化字段错误；HTTP错误保留 error 并增加 field_errors。
+- [ ] 添加回归：QMAX整数限制、四项金额合法小数、空值/负数/非有限值/范围/单位、多字段错误、零值和不限规则、客户端精度边界及服务器字段错误；通过完整离线入口记录先失败。
+- [ ] 实现失焦/输入纠正/点击/键盘统一反馈，红框与错误文字保持到纠正；重复点击短暂强调，滚动聚焦首个错误；支持减少动态效果。预览或确认等待期间明确显示状态，阻止重复点击；输入改变即作废旧草案。
+- [ ] 使用仅含虚构数据、无生产凭据的有界浏览器夹具验证完整交互；不得调用生产确认接口测试。
+- [ ] 完整 worktree 离线套件和秘密扫描通过后 Git 提交整合；按已授权监测部署身份更新云端，只重载表单服务，核对真实限额/门禁哈希与owner进程。生产仅quick smoke。
+- [ ] Telegram owner 私聊发送一次带测试标记的重新试用入口；纪要标明已部署、待用户手机体验复核。SEC-CAP-002小数股继续保留待办。

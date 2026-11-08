@@ -350,3 +350,11 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 验证日志保存在本机 `~/.local/state/openclaw/engineering/secretary-fast-controls-20261108/`。完整离线套件、秘密扫描和生产quick smoke结果以该目录脱敏证据为准；真实Mini App点击与用户提交是单独验收项，不能以模拟签名或HTTP探针冒充真实点击。交易PAUSED/MAINTENANCE、SAFE_MONITOR_ONLY以及实际限额保持；不为验收制造故障、不操作订单、不重启Gateway。
 
 官方接口参考：[Telegram initData校验](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)、[Tailscale Funnel范围与端口](https://tailscale.com/docs/features/tailscale-funnel)。
+
+## 2026-11-08 SEC-UX-001 五项输入错误反馈修复
+
+用户真实试用发现QMAX小数能被拒绝，但点击后提示不明显。本轮为五项字段增加持久红框、一次短暂强调、中文字段说明、修正即清除，以及点击/键盘提交时滚动聚焦首个错误。统一处理空值，避免原生required拦截后无自定义反馈；避免失焦错误文字移动按钮而吞掉首次点击。尊重减少动态效果，金额字段继续支持合法小数，QMAX保持原有整数限制。
+
+客户端逐字段校验只负责反馈；服务端复用既有数值校验收集field_errors并整组拒绝，既有上限与版本事务不变。预览/确认等待明确显示按钮状态，输入变化作废旧草案，确认结果未知不自动重试。新增validation.js通过固定白名单路径提供，不开放任意文件服务。
+
+在仅含虚构数据、禁止确认应用的有界loopback夹具中核验390×844布局、五项同时错误、首次点击、键盘提交、小数金额、纠正清除与服务端错误定位。实际运行完整JS验证器及Python校验回归，完整离线套件仅通过linked worktree入口执行。日志保存在本机engineering/secretary-field-feedback-20261108；生产只quick smoke，部署不改变实际限额、PAUSED/MAINTENANCE或SAFE_MONITOR_ONLY，不重启Gateway。用户手机Telegram体验复核仍单独记录；SEC-CAP-002小数股继续保留在未完成纪要。

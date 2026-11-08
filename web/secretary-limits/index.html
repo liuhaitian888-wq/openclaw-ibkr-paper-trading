@@ -3,47 +3,97 @@
 <title>风控限额 · der秘书</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{color-scheme:light dark;font-family:system-ui,sans-serif;background:var(--tg-theme-bg-color,#10171f);color:var(--tg-theme-text-color,#edf3f8)}
+:root{color-scheme:light dark;font-family:system-ui,sans-serif;background:var(--tg-theme-bg-color,#10171f);color:var(--tg-theme-text-color,#edf3f8);--error:var(--tg-theme-destructive-text-color,#f66b80)}
 body{max-width:460px;margin:auto;padding:24px 20px 40px}h1{font-size:27px;margin-bottom:8px}.muted{opacity:.7;font-size:14px;line-height:1.6}
-label{display:block;margin:22px 0 7px;font-weight:600}input{box-sizing:border-box;width:100%;padding:14px;border-radius:12px;border:1px solid #647588;background:transparent;color:inherit;font-size:18px}
+.field{margin:22px 0}label{display:block;margin:0 0 7px;font-weight:600}input{box-sizing:border-box;width:100%;padding:14px;border-radius:12px;border:1px solid #647588;background:transparent;color:inherit;font-size:18px;scroll-margin-top:30px}
+input:focus-visible{outline:2px solid var(--tg-theme-button-color,#4ba3eb);outline-offset:3px}input[aria-invalid="true"]{border:2px solid var(--error);box-shadow:0 0 0 2px color-mix(in srgb,var(--error) 18%,transparent)}
+.field-error{color:var(--error);font-size:14px;line-height:1.5;margin:8px 2px 0}.error-pulse{animation:error-pulse .4s ease-out}@keyframes error-pulse{0%{background:color-mix(in srgb,var(--error) 24%,transparent)}100%{background:transparent}}
+@media(prefers-reduced-motion:reduce){.error-pulse{animation:none}}
 button{width:100%;border:0;border-radius:12px;padding:16px;margin-top:20px;font-size:16px;font-weight:600;background:var(--tg-theme-button-color,#4ba3eb);color:var(--tg-theme-button-text-color,#fff)}
-button:disabled{opacity:.4}#confirm{background:#d87b20}#status{white-space:pre-line;line-height:1.7}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:12px 4px;border-bottom:1px solid #64758855}details{margin-top:25px;font-size:14px;line-height:1.7}#preview{margin-top:25px}.tag{font-size:12px;color:#69bbef}
+button:disabled{opacity:.5}#confirm{background:#d87b20}#status{white-space:pre-line;line-height:1.7;padding:12px 0}#status[data-error="true"]{color:var(--error);font-weight:600}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:12px 4px;border-bottom:1px solid #64758855}details{margin-top:25px;font-size:14px;line-height:1.7}#preview{margin-top:25px}.tag{font-size:12px;color:#69bbef}
 </style>
 <body><div class="tag">DER · OWNER PRIVATE</div><h1>风控限额</h1><p class="muted">一次编辑五项，预览后整组确认。数值上限与交易门禁分别生效。</p>
-<div id="status" role="status">正在验证 Telegram 身份…</div>
-<form id="form" hidden><div id="fields"></div><p class="muted">QMAX 为整数股数；其他四项为 USD。仅 SMAX / GMAX 可填“不限”。</p><button id="previewButton">预览变更</button></form>
-<section id="preview" hidden><h2>确认整组变更</h2><p class="muted" id="version"></p><table><thead><tr><th>限额</th><th>当前</th><th>新值</th></tr></thead><tbody id="rows"></tbody></table><button id="confirm">确认整组应用</button><button id="back" type="button">返回编辑</button></section>
+<div id="status" role="status" aria-live="polite" tabindex="-1">正在验证 Telegram 身份…</div>
+<form id="form" hidden novalidate><div id="fields"></div><p class="muted">QMAX 为整数股数；其他四项为 USD。仅 SMAX / GMAX 可填“不限”。</p><button id="previewButton" type="submit">预览变更</button></form>
+<section id="preview" hidden><h2>确认整组变更</h2><p class="muted" id="version"></p><table><thead><tr><th>限额</th><th>当前</th><th>新值</th></tr></thead><tbody id="rows"></tbody></table><button id="confirm" type="button">确认整组应用</button><button id="back" type="button">返回编辑</button></section>
 <details id="help"><summary>门禁与风控的区别</summary><p>交易门禁决定是否允许交易，/ready 显示暂停原因。这里设置五项额外数值上限，与原有硬上限取更严值。确认限额不解除 PAUSED / MAINTENANCE，不下单、不撤单。</p><p>预览只保存十分钟草案；只有你点击“确认整组应用”才提交。版本变化时须重新打开并预览。</p></details>
-<script>
-'use strict';
+<script type="module">
+import {fields,validateField,validateFields} from './validation.js';
 const tg=window.Telegram?.WebApp, auth=tg?.initData || '';
 const status=document.querySelector('#status'),form=document.querySelector('#form'),preview=document.querySelector('#preview');
-const fields=[['max_quantity','QMAX · 单笔股数（股）'],['max_order_value','OMAX · 单笔金额（USD）'],['max_risk_per_order','RMAX · 单笔风险（USD）'],['max_symbol_exposure','SMAX · 单股持仓上限（USD）'],['max_gross_exposure','GMAX · 账户总敞口（USD）']];
-let current,draft,busy=false;
+const previewButton=document.querySelector('#previewButton'),confirmButton=document.querySelector('#confirm');
+let current,draft,busy=false,confirmationUnknown=false,previewPointer=false;
+// Keep blur feedback from moving the preview button between pointer-down and click.
+previewButton.addEventListener('pointerdown',()=>previewPointer=true);
+for(const event of ['pointerup','pointercancel','blur'])window.addEventListener(event,()=>previewPointer=false);
 const display=x=>x===null?'不限':String(x);
-function setBusy(value){busy=value;document.querySelectorAll('button').forEach(b=>b.disabled=value);}
+function notice(text,error=false){status.textContent=text;status.dataset.error=String(error);}
+function setBusy(value,stage='preview'){
+ busy=value;form.setAttribute('aria-busy',String(value));preview.setAttribute('aria-busy',String(value));
+ document.querySelectorAll('button,input').forEach(el=>el.disabled=value);
+ previewButton.textContent=value&&stage==='preview'?'正在校验…':'预览变更';
+ confirmButton.textContent=value&&stage==='confirm'?'正在提交…':'确认整组应用';
+ if(confirmationUnknown)confirmButton.disabled=true;
+}
+function fieldError(key,message,pulse=false){
+ const input=form.elements[key],line=document.querySelector('#'+key+'-error');
+ input.setAttribute('aria-invalid',String(Boolean(message)));line.hidden=!message;line.textContent=message?'⚠ '+message:'';
+ input.classList.remove('error-pulse');
+ if(message&&pulse){void input.offsetWidth;input.classList.add('error-pulse');}
+}
+function errorSummary(){
+ const count=form.querySelectorAll('[aria-invalid="true"]').length;
+ notice(count?'有 '+count+' 项需要修改，尚未提交。':'输入已修正，点击“预览变更”继续。',count>0);
+}
+function showErrors(errors,focus=true){
+ for(const [key] of fields)fieldError(key,errors[key]||'',Boolean(errors[key]));
+ errorSummary();
+ const first=fields.find(([key])=>errors[key]);
+ if(focus&&first){const input=form.elements[first[0]];input.focus({preventScroll:true});input.scrollIntoView({block:'center',behavior:'instant'});}
+ else if(errors._form){notice(errors._form,true);status.focus();}
+}
 async function api(path,data={}){
  const response=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:auth,...data})});
- const result=await response.json();if(!response.ok)throw Error(result.error||'请求未确认，请重新查看当前限额');return result;
+ const result=await response.json();
+ if(!response.ok){const error=Error(result.error||'请求未确认，请重新查看当前限额');error.fields=result.field_errors;error.status=response.status;throw error;}
+ return result;
 }
 async function load(){
- if(!auth){status.textContent='请从 der秘书的 owner 私聊中，点击 /gate 下方的“编辑全部限额”打开。';return;}
+ if(!auth){notice('请从 der秘书的 owner 私聊中，点击 /gate 下方的“编辑全部限额”打开。');return;}
  tg.ready();tg.expand();
- try{current=await api('current');status.textContent='当前版本 v'+current.revision+' · 尚未修改';
- for(const [key,label] of fields){const l=document.createElement('label');l.htmlFor=key;l.textContent=label;const input=document.createElement('input');input.id=key;input.name=key;input.value=display(current.settings[key]);input.inputMode='decimal';input.autocomplete='off';input.required=true;document.querySelector('#fields').append(l,input);}
+ try{current=await api('current');notice('当前版本 v'+current.revision+' · 尚未修改');
+ for(const [key,label] of fields){
+  const group=document.createElement('div');group.className='field';
+  const l=document.createElement('label');l.htmlFor=key;l.textContent=label;
+  const input=document.createElement('input');input.id=key;input.name=key;input.value=display(current.settings[key]);input.inputMode='decimal';input.autocomplete='off';input.required=true;
+  input.setAttribute('aria-describedby',key+'-error');input.setAttribute('aria-invalid','false');
+  const line=document.createElement('p');line.id=key+'-error';line.className='field-error';line.hidden=true;line.setAttribute('aria-live','polite');
+  input.addEventListener('input',()=>{draft=null;if(input.getAttribute('aria-invalid')==='true'){fieldError(key,validateField(key,input.value));errorSummary();}});
+  input.addEventListener('blur',event=>{if(previewPointer||event.relatedTarget===previewButton)return;const message=validateField(key,input.value);fieldError(key,message,Boolean(message));if(message||status.dataset.error==='true')errorSummary();});
+  input.addEventListener('animationend',()=>input.classList.remove('error-pulse'));
+  group.append(l,input,line);document.querySelector('#fields').append(group);
+ }
  form.hidden=false;if(location.hash==='#help')document.querySelector('#help').open=true;
- }catch(e){status.textContent=e.message;}
+ }catch(e){notice(e.status?e.message:'网络连接失败，限额未能加载，请关闭后重新打开。',true);}
 }
-form.addEventListener('submit',async event=>{event.preventDefault();if(busy)return;setBusy(true);
- try{const settings={};for(const [key] of fields){const value=form.elements[key].value.trim();settings[key]=value==='不限'?null:value;}
- draft=await api('preview',{revision:current.revision,settings});document.querySelector('#rows').replaceChildren();
+form.addEventListener('submit',async event=>{
+ event.preventDefault();if(busy)return;draft=null;
+ const values=Object.fromEntries(fields.map(([key])=>[key,form.elements[key].value]));
+ const {errors,settings}=validateFields(values);
+ if(Object.keys(errors).length){showErrors(errors);return;}
+ showErrors({},false);setBusy(true);notice('正在校验五项限额，尚未提交…');
+ try{draft=await api('preview',{revision:current.revision,settings});document.querySelector('#rows').replaceChildren();
  for(const [key,label] of fields){const tr=document.createElement('tr');for(const text of [label.split(' · ')[0],display(draft.previous[key]),display(draft.settings[key])]){const td=document.createElement('td');td.textContent=text;tr.append(td);}document.querySelector('#rows').append(tr);}
- document.querySelector('#version').textContent='基于 v'+draft.revision+' · 草案10分钟有效';form.hidden=true;preview.hidden=false;status.textContent='预览已生成，尚未生效。';
- }catch(e){status.textContent=e.message;}finally{setBusy(false);}
+ document.querySelector('#version').textContent='基于 v'+draft.revision+' · 草案10分钟有效';form.hidden=true;preview.hidden=false;notice('预览已生成，尚未生效。');status.scrollIntoView({block:'start',behavior:'instant'});
+ }catch(e){if(e.fields){setBusy(false);showErrors(e.fields);}else{notice(e.status?e.message:'网络连接失败，预览尚未完成，请稍后再试。',true);status.scrollIntoView({block:'center',behavior:'instant'});}}
+ finally{setBusy(false);}
 });
-document.querySelector('#back').onclick=()=>{preview.hidden=true;form.hidden=false;draft=null;status.textContent='编辑中，尚未生效。';};
-document.querySelector('#confirm').onclick=async()=>{if(busy||!draft)return;setBusy(true);
- try{const result=await api('confirm',{draft:draft.id});status.textContent='整组确认成功 · v'+result.revision+'\n交易门禁保持。私聊回执将由既有通知服务送达。';preview.hidden=true;draft=null;}
- catch(e){status.textContent=e.message+'\n如果确认结果未知，请先通过 /gate 核对，不要重新创建草案提交。';}finally{setBusy(false);}
+form.addEventListener('invalid',event=>{event.preventDefault();if(!busy)showErrors(validateFields(Object.fromEntries(fields.map(([key])=>[key,form.elements[key].value]))).errors);},true);
+document.querySelector('#back').onclick=()=>{preview.hidden=true;form.hidden=false;draft=null;notice('编辑中，尚未生效。');};
+confirmButton.onclick=async()=>{
+ if(busy||!draft||confirmationUnknown)return;setBusy(true,'confirm');notice('正在提交整组限额，请等待确认…');
+ try{const result=await api('confirm',{draft:draft.id});notice('整组确认成功 · v'+result.revision+'\n交易门禁保持。私聊回执将由既有通知服务送达。');preview.hidden=true;draft=null;}
+ catch(e){confirmationUnknown=!e.status||e.status>=500;notice((e.status?e.message:'连接中断，提交结果尚未确认。')+'\n请先通过 /gate 核对当前版本；需要编辑时关闭后重新打开表单。',true);if(confirmationUnknown)document.querySelector('#back').hidden=true;}
+ finally{setBusy(false);status.scrollIntoView({block:'center',behavior:'instant'});}
 };load();
 </script></body></html>

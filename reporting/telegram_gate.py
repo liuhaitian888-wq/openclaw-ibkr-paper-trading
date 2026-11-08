@@ -10,6 +10,35 @@ FIELDS=('max_quantity','max_order_value','max_risk_per_order','max_symbol_exposu
 DEFAULT={'max_quantity':1,'max_order_value':'200','max_risk_per_order':'10','max_symbol_exposure':None,'max_gross_exposure':None}
 
 
+class GateValidationError(ValueError):
+    def __init__(self,field_errors):
+        self.field_errors=field_errors
+        super().__init__('有 '+str(len(field_errors))+' 项需要修改，尚未提交。')
+
+
+def validate_form(values):
+    """Collect field feedback while reusing the unchanged authoritative validator."""
+    if not isinstance(values,dict) or set(values)!=set(FIELDS):
+        raise GateValidationError({'_form':'请完整填写五项限额，不接受额外字段。'})
+    errors={}
+    for key in FIELDS:
+        value=values[key]
+        try:validate({**DEFAULT,key:value})
+        except ValueError as exc:
+            quantity=key=='max_quantity';unit='股' if quantity else 'USD'
+            if value is None or isinstance(value,str) and not value.strip():
+                message='请填写单笔股数，当前仅支持整数股数。' if quantity else '请填写金额（USD）。'
+            elif str(exc)=='Whole-share quantity required':
+                message='当前仅支持整数股数，请输入 0 或正整数；暂不支持小数股。'
+            elif str(exc)=='Cap outside supported numeric range':
+                message='请输入 0 至 1,000,000,000 的有效数值（'+unit+'）。'
+            else:message='请输入有效数字，'+('当前仅支持整数股数。' if quantity else '单位 USD；无需填写单位符号。')
+            if key in ('max_symbol_exposure','max_gross_exposure'):message+=' 也可填写“不限”。'
+            errors[key]=message
+    if errors:raise GateValidationError(errors)
+    return validate(values)
+
+
 def validate(values):
     if not isinstance(values,dict) or set(values)!=set(FIELDS):raise ValueError('Only the five numeric risk cap fields are accepted')
     result={}

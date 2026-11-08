@@ -5,7 +5,7 @@ import json
 import time
 import secrets
 from urllib.parse import parse_qsl
-from .telegram_gate import current
+from .telegram_gate import current,validate_form
 from .gate_drafts import create_draft, confirm_draft
 
 
@@ -43,7 +43,7 @@ def dispatch(archive,root,config,policy,path,body):
         result=current(root);audit('READ_ONLY');return result
     if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved')
     if path=='/api/preview' and set(body)=={'initData','revision','settings'}:
-        try:result=create_draft(archive,root,owner,body['revision'],body['settings'])
+        try:result=create_draft(archive,root,owner,body['revision'],validate_form(body['settings']))
         except ValueError:
             audit('REJECTED_NO_APPLY');raise
         audit('PREVIEW_ONLY');return result
