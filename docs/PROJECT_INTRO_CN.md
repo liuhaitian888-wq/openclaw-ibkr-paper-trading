@@ -103,6 +103,10 @@
 
 本次 11 月 8 日本机只读检查为 **NOT_READY**，PAUSED / MAINTENANCE 仍在。该结果描述本机，不能用来判断云端刚刚发生了什么。现行操作边界见 [PRODUCTION.md](../PRODUCTION.md)，详细交付状态见[状态快照](SYSTEM_STATUS_20261106.md)；有日期的旧快照应结合更新记录阅读。
 
+## 怎样查看真正的总名单？
+
+秘书的 `/universe` 现在读取按官方目录维护的ABC范围上市证券，而不是只读运行中的少量候选。可用 `/universe network=C type=STOCK` 筛NASDAQ普通股份，用 `/universe permission=PENDING` 看实时权限待核验的条目。ETF和其他证券单独标记，/eligible仍只看实际合格候选。原先只有3条的根因及LEAN做法见[总名单维护说明](ABC_SECURITY_MASTER.md)。
+
 ## 怎样读一份报告？
 
 先看时间与环境：这是模拟账户还是其他环境？数据是什么时候采集的？接着看账户与持仓，再看信号、拦截原因、订单和成交。最后看盈亏的计算范围及对账是否完成。

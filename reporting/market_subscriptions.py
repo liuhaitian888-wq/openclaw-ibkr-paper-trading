@@ -219,3 +219,27 @@ def check(archive, root, *, periodic=False, now=None):
                        reason='行情权限被拒绝：'+','.join(denied)+'。请 /marketdata 核对或登记当前真实套餐及Paper共享；不是自动购买。',
                        action_taken='仅抽查现有行情证据，未新增请求；原有错误与通知保留。', observed_at=now, grants_trading_permission=False))))
     return result
+
+
+def master_view(root, archive, text=''):
+    """Full reference directory, with per-page runtime evidence overlaid only."""
+    initialize(archive)
+    from .security_directory import view as directory_view
+    result=directory_view(root,text)
+    if result['state']=='DIRECTORY_NOT_READY':
+        return result
+    items=packages(archive)
+    symbols=[r['symbol'] for r in result['rows']]
+    canonical={}
+    if symbols:
+        try:
+            rows=query(root,'trading_audit.sqlite3','SELECT symbol,current_layer,updated_at FROM canonical_pool_state WHERE symbol IN ('+','.join('?' for _ in symbols)+')',symbols,limit=100).get('rows',[])
+            canonical={r['symbol']:r for r in rows}
+        except sqlite3.Error:pass
+    now=time.time()
+    for row in result['rows']:
+        row['subscription']=declaration(items,row['symbol'])
+        row['observed_quote']=quote_status(root,row['symbol'],now)
+        row['canonical_layer']=canonical.get(row['symbol'],{}).get('current_layer','NOT_EVALUATED')
+        row['ibkr_contract']='UNRESOLVED'
+    return result

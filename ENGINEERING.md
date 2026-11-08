@@ -372,3 +372,13 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 客户端逐字段校验只负责反馈；服务端复用既有数值校验收集field_errors并整组拒绝，既有上限与版本事务不变。预览/确认等待明确显示按钮状态，输入变化作废旧草案，确认结果未知不自动重试。新增validation.js通过固定白名单路径提供，不开放任意文件服务。
 
 在仅含虚构数据、禁止确认应用的有界loopback夹具中核验390×844布局、五项同时错误、首次点击、键盘提交、小数金额、纠正清除与服务端错误定位。实际运行完整JS验证器及Python校验回归，完整离线套件仅通过linked worktree入口执行。日志保存在本机engineering/secretary-field-feedback-20261108；生产只quick smoke，部署不改变实际限额、PAUSED/MAINTENANCE或SAFE_MONITOR_ONLY，不重启Gateway。用户手机Telegram体验复核仍单独记录；SEC-CAP-002小数股继续保留在未完成纪要。
+
+## 2026-11-08 ABC全量证券总名单修正
+
+用户要求先查三条根因再维护ABC美股范围。云只读证据确认canonical_pool_state仅PFE/BAC/KO，2026-10-27 CSV MONITOR_ONLY初始化，均MASTER；仓库另有13024条2026-07-11证券主档与71条策略seed。上一版/universe错误地只查运行候选，未连接全量参考目录。此前6小时任务仅NO_OBSERVED_SYMBOLS，不冒充行情核验成功。
+
+新增reporting/security_directory.py和有界每日systemd oneshot/timer，从Nasdaq Trader两份官方目录维护既有秘书库market_security_master及刷新版本。原文件/hash/源时间保留，两源原子更新、测试证券排除、失败保留旧版本、20%异常缩小与时间回退拒绝；消失项保留inactive，不宣称永久退市。当前源标记1106202621:31，共13239条非测试上市证券，其中ABC13217条（A2882/B4733/C5602），另22个未解释交易所代码UNKNOWN。普通股/ETF/其他证券分开，所有当前实时权限PENDING，不从ABC归类或旧套餐记录推断Paper共享/合约身份。
+
+秘书/universe支持network、type、permission=PENDING、q和保留条件的稳定分页，每页叠加已有报价证据，不请求行情；/eligible仍只读真实canonical，不批量晋级。公开目录下载不放进inbox循环，避免阻塞快速控制。既有主档CSV保留历史，新的参考目录在秘书库，模型可经原schema/query只读筛选。LEAN大范围Universe数据与入选后实时订阅的区别、数据提供方/执行券商分离及本地数据前提写入docs/ABC_SECURITY_MASTER.md与简介。
+
+最终linked worktree完整隔离离线980项/66.369s/OK，9项新增目录回归及既有秘书/会话回归通过；secret scan及部署证据见state/engineering/abc-security-master-20261108。主目录只smoke。部署只新增公开目录维护oneshot、重载秘书，保持Gateway/canonical原始载荷/交易门禁，首轮真实目录与分页另作回读，不把离线测试冒充当前实时权限验收。

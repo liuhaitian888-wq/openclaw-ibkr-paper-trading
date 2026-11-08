@@ -10,6 +10,10 @@
 
 本次检索没有找到与本仓库六个canonical层名及全部迁移规则完全相同的上游方案，不能证明不存在，也不把通用分层筛选宣称为本项目首创。[QuantConnect/LEAN UniverseSelection源码](https://github.com/QuantConnect/Lean/blob/master/Engine/DataFeeds/UniverseSelection.cs)管理股票池变化、订阅与持仓相关资源；[官方Universe说明](https://www.quantconnect.com/docs/v2/writing-algorithms/universes/key-concepts)描述筛选后订阅入选股票。可以借鉴筛选与订阅分离、对持仓保持数据需求，不能说安装LEAN就消除了IBKR线路限制。LEAN在本项目为已研究参考，未部署其完整引擎。
 
+## 2026-11-08 总名单接线修正
+
+上一版/universe只读运行候选表，显示3条而未接入13,024条旧证券主档。本轮改接官方目录维护的完整参考总名单，支持ABC网络、证券类型、关键词和待核验权限筛选。详见[根因与LEAN原理](ABC_SECURITY_MASTER.md)。目录归类不授予实时权限或策略资格。
+
 ## 套餐声明、标的覆盖与实际观测
 
 复用agent_secretary.sqlite3，新增market_subscription_registry（套餐当前声明）、market_watchlist（私人关注）与market_subscription_checks（每6小时抽样结果），原始owner声明保存在secretary_events。仍是既有秘书数据库，既有备份/只读schema/query可读取，无新增数据库服务。

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily public security directory maintenance
+
+[Timer]
+OnCalendar=*-*-* 08:10:00 Europe/Berlin
+Persistent=true
+RandomizedDelaySec=120
+Unit=ibkr-security-directory.service
+
+[Install]
+WantedBy=timers.target

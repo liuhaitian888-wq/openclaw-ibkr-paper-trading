@@ -86,8 +86,11 @@ def process_controls(archive,root,config,policy=None):
                     market.register(archive,instruction,json.loads(parts[1]));summary='订阅声明已登记；不是券商核验或购买。\n'+market.registry_message(archive)
                 elif command=='/watch' and len(parts)==2:
                     market.watch(archive,instruction,parts[1].strip().upper());summary='已加入私人关注名单；无实时行情也可关注，canonical资格与交易权限不变。'
-                elif command in ('/universe','/eligible'):
-                    summary=market.message(market.view(root,archive,eligible=command=='/eligible',after=parts[1].strip().upper() if len(parts)==2 else ''),eligible=command=='/eligible')
+                elif command=='/universe':
+                    from .security_directory import message as directory_message
+                    summary=directory_message(market.master_view(root,archive,parts[1] if len(parts)==2 else ''))
+                elif command=='/eligible':
+                    summary=market.message(market.view(root,archive,eligible=True,after=parts[1].strip().upper() if len(parts)==2 else ''),eligible=True)
                 elif command=='/market_check' and len(parts)==1:
                     result=market.check(archive,root)
                     summary='行情抽查（读取已有证据，不新订阅）\n'+json.dumps(result,ensure_ascii=False)+'\n休市陈旧不等于无订阅；权限被拒绝请 /marketdata 核对登记。'
@@ -228,6 +231,6 @@ def finish_search(archive,root,request):
 def menu_commands():
     return [('ready','交易门禁：是否允许交易 / 为何暂停'),('gate','风控限额：查看 / 整组编辑'),
             ('holdings','持仓：最新只读回读'),('report','日报：查看投递回执'),
-            ('marketdata','行情订阅：登记表与抽查'),('universe','股票总名单与行情标记'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
+            ('marketdata','行情订阅：登记表与抽查'),('universe','ABC证券总名单：查看与筛选'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
             ('login','认证：查看连接与登录状态'),('help','秘书帮助：私聊使用说明'),
             ('notify','通知分类与配置'),('preview','通知预览：按编号查看')]

@@ -1,0 +1,19 @@
+[Unit]
+Description=Public US listing directory metadata refresh (no broker requests)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/monitoring-deployment.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+Environment=HOME=/home/ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/scripts/refresh_security_directory.py
+UMask=0077
+NoNewPrivileges=yes
+ProtectSystem=full
+TimeoutStartSec=60
+MemoryMax=192M
+CPUQuota=20%
