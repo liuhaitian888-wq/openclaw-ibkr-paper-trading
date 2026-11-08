@@ -381,4 +381,6 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 
 秘书/universe支持network、type、permission=PENDING、q和保留条件的稳定分页，每页叠加已有报价证据，不请求行情；/eligible仍只读真实canonical，不批量晋级。公开目录下载不放进inbox循环，避免阻塞快速控制。既有主档CSV保留历史，新的参考目录在秘书库，模型可经原schema/query只读筛选。LEAN大范围Universe数据与入选后实时订阅的区别、数据提供方/执行券商分离及本地数据前提写入docs/ABC_SECURITY_MASTER.md与简介。
 
-最终linked worktree完整隔离离线980项/66.369s/OK，9项新增目录回归及既有秘书/会话回归通过；secret scan及部署证据见state/engineering/abc-security-master-20261108。主目录只smoke。部署只新增公开目录维护oneshot、重载秘书，保持Gateway/canonical原始载荷/交易门禁，首轮真实目录与分页另作回读，不把离线测试冒充当前实时权限验收。
+最终linked worktree完整隔离离线980项/66.369s/OK，9项新增目录回归及既有秘书/会话回归通过；secret scan及部署证据见state/engineering/abc-security-master-20261108。主目录只smoke。部署只新增公开目录维护oneshot、重载秘书，保持Gateway/候选业务状态/交易门禁，原生broker_readback允许既有采集正常更新，首轮真实目录与分页另作回读，不把离线测试冒充当前实时权限验收。
+
+实际部署回读：公开目录oneshot Result=success/ExecMainStatus=0，daily timer active，下一次2026-11-09 08:11:41 Europe/Berlin（08:10加随机延后）；owner菜单set/get确认。只读工具与master_view真实筛选：ABC13217项、UNKNOWN22项，所有13239项permission_status=PENDING；C普通股3142、B ETF4403、Apple关键词6项。Gateway与门禁hash不变。canonical全载荷因现有5分钟券商采集更新broker_readback而变化；用旧paper_readback_observations重建后精确匹配部署前全载荷hash，证明候选层级/执行状态未改。详细独立证据在state/engineering/abc-security-master-20261108，不将该动态字段变化伪称全载荷完全未变。

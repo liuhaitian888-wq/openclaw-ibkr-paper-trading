@@ -70,3 +70,9 @@ LEAN将“大范围选谁”和“为入选股票接收什么行情”分开。�
 LEAN还支持将数据提供方与执行券商分开：外部数据源承担广覆盖行情，IBKR承担订单与账户；经第三方数据源取得的订阅不占IBKR行情线路，但外部源本身仍有授权、覆盖与容量边界。本项目本轮只接公开证券目录，没有购买或部署QuantConnect数据源或LEAN引擎。证券目录没有价格／成交量，不能凭它直接筛出高成交额股票。
 
 官方来源（2026-11-08）：[Universe机制](https://www.quantconnect.com/docs/v2/writing-algorithms/universes/key-concepts)、[基本面Universe](https://www.quantconnect.com/docs/v2/writing-algorithms/universes/equity/fundamental-universes)、[IB数据源与混合数据提供方](https://www.quantconnect.com/docs/v2/cloud-platform/datasets/interactive-brokers)、[本地IB部署所需Universe数据](https://www.quantconnect.com/docs/v2/lean-cli/live-trading/brokerages/interactive-brokers)。
+
+## 本轮实际验收
+
+完整隔离离线980项通过、secret scan通过；云首轮刷新成功、每日timer active、私人菜单原生set/get回读成功。通过已注册只读SQL和实际master_view核验ABC13217项、UNKNOWN22项及全部PENDING；C普通股3142项，B ETF4403项。数据仍是11月6日目录，不是11月8日逐股实时报价验证。
+
+Gateway与交易门禁保持。canonical三条候选的业务状态保持；完整载荷中的broker_readback由既有采集正常更新，已对照原始券商观测重建并匹配部署前指纹。不能将其描述为完整载荷字节完全未变。证据保存本机与云state/engineering，原有工作和源文件保留。
