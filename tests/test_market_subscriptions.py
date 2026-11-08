@@ -97,6 +97,15 @@ class MarketSubscriptionsTests(unittest.TestCase):
         self.state['market_errors']={'AAPL':{'code':354,'observed_at':99990}};self.save()
         self.assertEqual(m.quote_status(self.root,'AAPL',100000),'REALTIME_HEALTHY')
 
+    def test_historical_packages_with_unknown_sharing_are_visible_but_not_entitlements(self):
+        m.initialize(self.a)
+        d=dict(self.declaration(),paper_shared=None,verification='HISTORICAL_RECHECK_REQUIRED')
+        with closing(self.a.connect()) as c,c:
+            c.execute('INSERT INTO market_subscription_registry VALUES(?,?,?,?)',('fixture feed',json.dumps(d),'engineering-history',100000))
+        self.assertEqual(m.declaration(m.packages(self.a),'AAPL'),'UNREGISTERED')
+        self.assertIn('历史已验证／当前待复核',m.registry_message(self.a))
+        self.assertIn('Paper共享=待核验',m.registry_message(self.a))
+
     def test_native_command_classification_and_menu(self):
         from reporting.secretary_controls import process_controls,menu_commands
         from reporting.secretary_queue import initialize,accept_update

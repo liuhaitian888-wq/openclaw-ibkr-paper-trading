@@ -357,6 +357,10 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 
 新增既有秘书库的套餐声明表、私人关注和6小时抽查记录。私人命令/marketdata、/universe、/eligible、/market_check以及登记/关注兼容命令复用Python控制路径。套餐LIVE/PAPER及Paper共享、本人声明与实际报价分别展示；不根据套餐名字猜覆盖，不请求额外行情。已观察股票也可在未登记情况下被抽样，明确权限错误提示核对登记，陈旧/延迟/会话冲突分别处理。手机云文档仅列下一步研究，未上传数据库或创建公开链接。
 
-会话事件从现有Gateway脱敏journal接入既有incident-collector与outbox，首次基线不补发历史；初始化与本次之后的新鲜完整Paper回读分别通知，不推断手机身份或云抢占Live。本地固定IBAutomater遇已有会话取消/退出，本轮未增加重启或登录动作。
+会话事件从现有Gateway脱敏journal接入既有秘书inbox owner与outbox，首次基线不补发历史；初始化与本次之后的新鲜完整Paper回读分别通知，不推断手机身份或云抢占Live。本地固定IBAutomater遇已有会话取消/退出，本轮未增加重启或登录动作。
 
-最终linked worktree完整隔离离线967项/65.421s/OK，新增11项关键回归；pre-commit gitleaks与diff check通过。日志保存在本机state/engineering/market-session-20261108。部署与真实回执验收另存该目录；没有新会话事件时保持待自然触发验收，不制造Live冲突。
+最终linked worktree完整隔离离线969项/72.516s/OK，新增13项关键回归；pre-commit gitleaks与diff check通过。日志保存在本机state/engineering/market-session-20261108。部署与真实回执验收另存该目录；没有新会话事件时保持待自然触发验收，不制造Live冲突。
+
+部署核查发现既有ibkr-incidents.timer未运行，因此本次不启动整套旧采集器。会话与订阅观察改由已运行的秘书inbox owner每分钟调用；控制指令先处理，观察来源独立捕获错误，不影响秘书入口。首次真实菜单set/get回读通过，订阅表为空待用户套餐信息；canonical仅3条MASTER记录，合格视图不造数据。Gateway代际、交易门禁hash核对保持。
+
+用户随后确认记忆为A/B/C；查到docs/YUGE_AUTONOMOUS_TRADING_BRIEF.md原文“已订阅并验证”三项Network A/CTA、Network B、Network C/UTP。使用明确工程导入来源登记历史记录，当前状态待复核、Paper共享未知，不伪造Telegram owner指令或当前券商回执。

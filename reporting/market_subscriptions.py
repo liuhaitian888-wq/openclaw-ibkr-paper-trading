@@ -159,9 +159,10 @@ def message(result, *, eligible=False):
 
 def registry_message(archive):
     items = packages(archive)
-    lines = ['行情订阅登记表｜本人声明，非券商自动认证']
+    lines = ['行情订阅登记表｜声明与历史记录，非券商当前认证']
     lines += [p['package']+' · '+p['environment']+' · '+('实时' if p['realtime'] else '非实时')
-              +' · Paper共享='+str(p['paper_shared'])+' · active='+str(p['active'])+' · '+','.join(p['symbols']) for p in items]
+              +' · Paper共享='+('待核验' if p['paper_shared'] is None else str(p['paper_shared']))+' · active='+str(p['active'])+' · '+','.join(p['symbols'])
+              + (' · 历史已验证／当前待复核' if p.get('verification')=='HISTORICAL_RECHECK_REQUIRED' else ' · 本人声明') for p in items]
     if not items:
         lines.append('尚未登记。请从IBKR订阅页面复制真实套餐名；不需要密码、账号或验证码。')
     lines += ['登记／更新（同名套餐覆盖；active=false停用）：',

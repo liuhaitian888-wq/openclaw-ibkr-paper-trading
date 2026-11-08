@@ -4,7 +4,7 @@
 
 **Goal:** 维护零基础大纲，提供私人秘书行情订阅与股票名单入口，将既有Gateway会话证据接入现有通知队列。
 
-**Architecture:** 订阅登记与关注名单保存在既有秘书库，canonical股票池仅只读查询；行情状态读取现有安全owner的持久证据。会话收集器复用incident timer、journal游标和outbox，不创建第二个登录、行情或发送owner。
+**Architecture:** 订阅登记与关注名单保存在既有秘书库，canonical股票池仅只读查询；行情状态读取现有安全owner的持久证据。会话收集器复用秘书inbox owner、journal游标和outbox，不创建第二个登录、行情或发送owner。
 
 **Tech Stack:** Python / SQLite / systemd journal / 既有Telegram。
 
@@ -38,15 +38,17 @@
 
 - [x] 测试未登记、Paper共享、延迟、显式权限错误、休市陈旧、分页与高层合格名单。
 - [x] 增加/marketdata、/market_register、/market_check、/universe、/eligible、/watch，菜单入口；模型复用既有只读schema/query。
-- [x] 在既有incident timer每6小时读取已有行情证据抽查，登记提示去重，不增加broker连接。
+- [x] 在既有秘书inbox owner每6小时读取已有行情证据抽查，登记提示去重，不增加broker连接。
 
 ### Task 3: 既有会话证据通知
 
-**Files:** reporting/gateway_session_events.py、ops/cloud/collect_incidents.py、reporting/notification_text.py；tests/test_gateway_session_events.py。
+**Files:** reporting/gateway_session_events.py、ops/cloud/secretary_inbox.py、reporting/secretary_observations.py、reporting/notification_text.py；tests/test_gateway_session_events.py。
 
 **Interfaces:** collect(store,root,reader=read_journal)保存journal游标并排队；reader(cursor)返回有界原生journal行。
 
 - [x] 测试首次基线、重复游标、不同原生事件、未知发送不重放、初始化与新鲜账户回读分离、坏游标/超限不跳过。
 - [x] 固定Gateway unit，读取脱敏阶段；复用现有outbox，私人认证类别。
 - [x] 完整隔离离线测试、secret scan、commit、主工作区Git整合与smoke。
-- [ ] 云端核对干净Git/manifest、备份并Git更新，只重载既有秘书inbox；incident timer自然加载。回读菜单/游标，保持Gateway代际与交易门禁哈希不变；真实会话事件不制造，未发生保持待验收。
+- [x] 云端核对干净Git/manifest、备份并Git更新，只重载既有秘书inbox/notifications；秘书inbox owner自然加载。回读菜单/游标，保持Gateway代际与交易门禁哈希不变；真实会话事件不制造，未发生保持待验收。
+
+- [ ] 等待自然发生的新会话事件及相应Telegram原生回执；不制造冲突，此项为真实运行验收。

@@ -19,7 +19,7 @@
 - OWNER_REALTIME：本人声明可用于Paper的实时覆盖；不是官方订阅回读认证。
 - OWNER_NON_REALTIME：本人声明可用于Paper的非实时覆盖。
 - UNREGISTERED：没有适用于该股票／Paper环境的有效声明，不等于一定没有订阅。
-- 实际状态独立显示REALTIME_HEALTHY / REALTIME_STALE / DELAYED / FROZEN / PERMISSION_DENIED / SESSION_CONFLICT / UNKNOWN等；缺证据或owner心跳过期不报健康。
+- 实际状态独立显示：REALTIME_HEALTHY＝实时且新鲜，REALTIME_STALE＝实时报价已陈旧，DELAYED＝延迟，FROZEN＝冻结，PERMISSION_DENIED＝明确权限拒绝，SESSION_CONFLICT＝会话竞争，UNKNOWN＝证据不足。缺证据或owner心跳过期不报健康。
 - 套餐仅LIVE且未声明paper_shared时不应用于Paper。非实时股票保留关注，不自动申请付费snapshot，不购买订阅。
 
 秘书私人菜单：
@@ -35,7 +35,7 @@
 
 名单每页最多20项，末尾给下一页命令。缺表／缺记录如实返回，不造一个“合格”股票池。注册从原生owner控制路径进入Python，不让模型凭分析修改套餐声明。模型继续通过既有schema/query只读接口查询这些登记表，不增加可写工具。
 
-复用现有incident-collector timer，每6小时轮换抽查最多10个已声明覆盖或已有监测的股票。抽查只看安全owner已有证据，不验证从未订阅股票的真实权限；不能替代主动订阅验收。明确权限错误且来源心跳新鲜时提示owner核对或登记套餐，每天同一错误集合／登记版本去重；会话竞争不当作没买套餐，休市陈旧也不当作权限拒绝。未登记套餐无法凭空初始化，等待本人提供真实名称和Paper共享情况。
+复用现有秘书inbox owner每分钟观察，由持久时间槽限制为每6小时轮换抽查最多10个已声明覆盖或已有监测的股票。抽查只看安全owner已有证据，不验证从未订阅股票的真实权限；不能替代主动订阅验收。明确权限错误且来源心跳新鲜时提示owner核对或登记套餐，每天同一错误集合／登记版本去重；会话竞争不当作没买套餐，休市陈旧也不当作权限拒绝。本轮用户回忆A/B/C后，在旧[项目简介](YUGE_AUTONOMOUS_TRADING_BRIEF.md)找到“已订阅并验证”的Network A/CTA、Network B、Network C/UTP。按历史来源登记这三项，标为HISTORICAL_RECHECK_REQUIRED，Paper共享为未知；不是本次券商回读，不据此宣称当前全市场实时权限。
 
 ## 登录／会话接口审计
 
@@ -50,7 +50,7 @@
 
 **关键发现：本地固定IBAutomater Java遇“Existing session detected”选择Exit Application／Cancel；本次不能声称它主动抢占了你的Live。** 云今天确有退出和重新初始化记录，但没有证据把它们与本次手机提示对应，也不知道提示所称另一会话的身份。
 
-本次新增reporting/gateway_session_events.py，由既有incident-collector读取固定ibkr-gateway.service的journal。首次仅保存游标，之后按原生cursor区别独立事件；游标与outbox同一事务提交。历史不重放，STARTED/UNKNOWN仍按既有规则对账。journal无权限／游标失效／有界批次超限返回错误，保留原游标，不静默跳过。
+本次新增reporting/gateway_session_events.py，由既有秘书inbox owner每分钟读取固定ibkr-gateway.service的journal。首次仅保存游标，之后按原生cursor区别独立事件；游标与outbox同一事务提交。历史不重放，STARTED/UNKNOWN仍按既有规则对账。journal无权限／游标失效／有界批次超限返回错误，保留原游标，不静默跳过。
 
 可通知的阶段：检测已有会话、Gateway退出、初始化／软重启完成、需要人工检查。初始化不等于认证或行情恢复；只有本次初始化之后的新鲜正确Paper身份与完整账户／订单／成交回读，才另发账户回读核验消息。既有行情竞争及恢复通知继续负责实际行情证据；没有新增重启、抢占Live或账户登录行为。
 

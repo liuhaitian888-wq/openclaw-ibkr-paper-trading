@@ -65,3 +65,16 @@ class GatewaySessionEventsTests(unittest.TestCase):
         self.assertEqual(state['pending'],[])
         self.assertIsNone(phase('Loading credentials private text'))
         self.assertIn('不能证明',phase('Existing session detected')[1])
+
+
+class SecretaryObservationTests(unittest.TestCase):
+    def test_failure_of_session_source_does_not_skip_market_sample_or_controls(self):
+        from reporting.secretary_observations import observe
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            with patch('reporting.secretary_observations.collect',side_effect=ValueError('private journal detail')) as session, patch('reporting.secretary_observations.check',return_value=None) as sample:
+                result=observe(object(),root)
+            sample.assert_called_once()
+            self.assertEqual(result['errors'],{'gateway_sessions':'ValueError'})
+            self.assertNotIn('private journal',json.dumps(result))
+            self.assertEqual(result['observations']['market_subscription_sample'],'NOT_DUE')
