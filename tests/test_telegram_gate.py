@@ -10,6 +10,26 @@ from trading.risk import RiskEngine,RiskLimits
 from trading.models import TradeProposal
 
 class TelegramGateTests(unittest.TestCase):
+    def test_external_owner_approval_is_exact_and_never_fabricates_telegram_origin(self):
+        request=self.req(max_quantity=100,max_order_value='2000',max_symbol_exposure='250000',max_gross_exposure='1500000')
+        payload={'source':'CODEX_OWNER_CHAT','scope':'NUMERIC_LIMITS_ONLY','account':'DUQ503649','environment':'PAPER','request':request}
+        self.a.append('codex-owner','der',origin='USER',kind='EXTERNAL_OWNER_CONTROL',payload=payload)
+        changed={**request,'settings':{**request['settings'],'max_quantity':101}}
+        with self.assertRaises(PermissionError):apply(self.a,self.root,'codex-owner',changed)
+        self.assertEqual(apply(self.a,self.root,'codex-owner',request)['settings']['max_quantity'],100)
+        with closing(self.a.connect()) as c:
+            self.assertEqual(c.execute("SELECT kind FROM secretary_events WHERE occurrence='codex-owner'").fetchone()[0],'EXTERNAL_OWNER_CONTROL')
+
+    def test_all_additive_caps_nullable_but_hard_caps_still_reject_large_orders(self):
+        from reporting.telegram_gate import validate_form
+        request=self.req(**{key:None for key in DEFAULT})
+        apply(self.a,self.root,'owner1',request)
+        self.assertEqual(validate_form({key:'' for key in DEFAULT}),{key:None for key in DEFAULT})
+        with patch('trading.production_paths.STATE_ROOT',self.root):
+            engine=RiskEngine(RiskLimits(True,frozenset({'AAPL'}),100,2000,10))
+            self.assertFalse(engine.validate(TradeProposal('AAPL','BUY',100,100,99.99)).approved)
+            self.assertTrue(engine.validate(TradeProposal('AAPL','BUY',10,100,99.99)).approved)
+
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
         self.a=SecretaryArchive(self.root/'agent.sqlite3')

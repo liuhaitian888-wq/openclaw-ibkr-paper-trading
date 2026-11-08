@@ -6,6 +6,35 @@ This adapter does not import their strategy permissions or fabricate balances.
 from decimal import Decimal, InvalidOperation
 import math
 
+
+def convert_reference(book, amount, source_currency, target_currency, *, now, max_age_seconds=60):
+    """CashBook-style accounting conversion, never an executable FX quote."""
+    from datetime import datetime
+    if (book.get('source') != 'BROKER_API' or book.get('account') != 'DUQ503649'
+            or not 0 < max_age_seconds <= 300):
+        raise PermissionError('Exact broker cashbook and bounded freshness required')
+    at = datetime.fromisoformat(book['observed_at'])
+    if at.tzinfo is None or not 0 <= now - at.timestamp() <= max_age_seconds:
+        raise PermissionError('Currency conversion reference is stale or future')
+    if isinstance(amount, bool): raise ValueError('Numeric amount required')
+    value = Decimal(str(amount))
+    if not value.is_finite() or value < 0: raise ValueError('Finite nonnegative amount required')
+    def rate(currency):
+        if not isinstance(currency, str) or len(currency) != 3: raise ValueError('Currency code required')
+        if currency == book.get('base_currency'): return Decimal(1)
+        row = book['currencies'][currency]
+        if row.get('currency') != currency: raise ValueError('Currency identity mismatch')
+        result = Decimal(str(row['rate_to_base']))
+        if not result.is_finite() or result <= 0: raise ValueError('Positive finite conversion rate required')
+        return result
+    conversion = rate(source_currency) / rate(target_currency)
+    converted = value * conversion
+    if not converted.is_finite(): raise ValueError('Conversion overflow')
+    return dict(amount=str(value), currency=source_currency, converted_amount=str(converted),
+                target_currency=target_currency, rate=str(conversion), observed_at=book['observed_at'],
+                purpose='ACCOUNTING_REFERENCE_ONLY', executable_fx_quote=False,
+                grants_trading_permission=False)
+
 PAPER_FINANCING = 'PAPER_ONLY_MAX_200USD_NEW_EXPOSURE'
 
 

@@ -9,9 +9,9 @@ export const fields = [
 
 export function validateField(key, raw) {
   const quantity = key === 'max_quantity';
-  const optional = ['max_symbol_exposure', 'max_gross_exposure'].includes(key);
+  const optional = true;
   const value = typeof raw === 'string' ? raw.trim() : '';
-  if (!value) return quantity ? '请填写单笔股数，当前仅支持整数股数。' : `请填写金额（USD）${optional ? '，或填写“不限”' : ''}。`;
+  if (!value) return '';
   if (optional && value === '不限') return '';
   // Compare decimal digits directly: Number() can round 1.0000000000000001 to 1.
   const match = /^([+-]?)(?:(\d+)(?:\.(\d*))?|\.(\d+))(?:[eE]([+-]?\d+))?$/.exec(value);
@@ -36,7 +36,7 @@ export function validateFields(values) {
     const text = typeof values[key] === 'string' ? values[key].trim() : '';
     const error = validateField(key, text);
     if (error) errors[key] = error;
-    settings[key] = text === '不限' ? null : text;
+    settings[key] = !text || text === '不限' ? null : text;
   }
   return {errors, settings};
 }

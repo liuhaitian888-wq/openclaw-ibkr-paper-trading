@@ -5,6 +5,15 @@ from types import SimpleNamespace as NS
 from trading.paper_strategy_observer import PaperStrategyObserver
 
 class StrategyObserverTests(unittest.TestCase):
+ @patch('trading.market_data.Quote.age_ms',return_value=0)
+ def test_hundred_share_ceiling_is_sized_by_two_thousand_dollars(self,age):
+  o=PaperStrategyObserver(['BAC'],dict(quantity=100,fast_window=2,slow_window=3,stop_loss_pct=.0015,min_gap_pct=.0001,cooldown_steps=0),Path(self.tmp.name)/'sized.json',max_quantity=100,max_order_value=2000)
+  for t,p in ((600,49),(660,50),(720,51)):o.history('BAC',self.raw(t,p),780)
+  o.history_complete.add('BAC')
+  r=o.evaluate('BAC',dict(bid=51,ask=51.01,bid_at=780,ask_at=780,data_type=1),dict(entries_ready=False),780)
+  self.assertEqual(r['signal']['quantity'],39)
+  self.assertLessEqual(r['proposed_native_protection']['parent']['quantity']*51.01,2000)
+  self.assertTrue(r['risk_engine']['approved']);self.assertFalse(r['transmit'])
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
   p=patch('trading.paper_strategy_observer.session_for_symbol',return_value='REGULAR');p.start();self.addCleanup(p.stop)

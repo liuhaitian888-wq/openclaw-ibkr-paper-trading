@@ -89,9 +89,10 @@ def claim(archive, *, model, now):
         if archive.reserve_run(run,instruction=occurrence,model=model):
             data=json.loads(payload)
             data['autonomous']=kind=='AUTONOMOUS_INSTRUCTION'
-            from .secretary_conversation import recent_context
+            from .secretary_conversation import recent_context, owner_preferences
             return {'run':run,'instruction':occurrence,'payload':data,'model':model,
-                    'conversation_context':recent_context(archive,occurrence,data)}
+                    'conversation_context':recent_context(archive,occurrence,data),
+                    'owner_preferences':owner_preferences(archive,occurrence)}
     return None
 
 

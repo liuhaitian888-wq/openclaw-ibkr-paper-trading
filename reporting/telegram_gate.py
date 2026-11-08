@@ -43,7 +43,8 @@ def validate(values):
     if not isinstance(values,dict) or set(values)!=set(FIELDS):raise ValueError('Only the five numeric risk cap fields are accepted')
     result={}
     for key,value in values.items():
-        if value is None and key in ('max_symbol_exposure','max_gross_exposure'):result[key]=None;continue
+        if value is None or isinstance(value,str) and value.strip() in ('','不限'):
+            result[key]=None;continue
         if isinstance(value,bool) or not isinstance(value,(str,int,float)):raise ValueError('Finite nonnegative numeric cap required')
         try:d=Decimal(str(value))
         except InvalidOperation:raise ValueError('Invalid numeric cap')
@@ -88,8 +89,15 @@ def apply(archive,root,instruction,request):
     with closing(archive.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         c.execute('CREATE TABLE IF NOT EXISTS secretary_gate_versions (instruction TEXT PRIMARY KEY, revision INTEGER UNIQUE NOT NULL, payload TEXT NOT NULL)')
-        authority=c.execute('SELECT origin,kind FROM secretary_events WHERE occurrence=?',(instruction,)).fetchone()
-        if authority!=('USER','CONTROL_INSTRUCTION'):raise PermissionError('Native owner control instruction required')
+        authority=c.execute('SELECT origin,kind,payload FROM secretary_events WHERE occurrence=?',(instruction,)).fetchone()
+        if authority and authority[:2]==('USER','EXTERNAL_OWNER_CONTROL'):
+            approval=json.loads(authority[2])
+            if (approval.get('source')!='CODEX_OWNER_CHAT' or approval.get('scope')!='NUMERIC_LIMITS_ONLY'
+                    or approval.get('account')!='DUQ503649' or approval.get('environment')!='PAPER'
+                    or approval.get('request')!=request):
+                raise PermissionError('Exact external owner numeric approval required')
+        elif not authority or authority[:2]!=('USER','CONTROL_INSTRUCTION'):
+            raise PermissionError('Native or explicit external owner control instruction required')
         prior=c.execute('SELECT payload FROM secretary_gate_versions WHERE instruction=?',(instruction,)).fetchone()
         if prior:
             data=json.loads(prior[0])
@@ -124,13 +132,13 @@ def template(root):
     data=current(root);v=data['settings']
     money=lambda key:'Not set' if v[key] is None else '$'+str(v[key])
     return ('Risk limits · v'+str(data['revision'])+'\n\n'
-        +'QMAX · Shares/order: '+str(v['max_quantity'])+'\n'
+        +'QMAX · Shares/order: '+('Not set' if v['max_quantity'] is None else str(v['max_quantity']))+'\n'
         +'OMAX · Order value: '+money('max_order_value')+'\n'
         +'RMAX · Risk/order: '+money('max_risk_per_order')+'\n'
         +'SMAX · Symbol exposure: '+money('max_symbol_exposure')+'\n'
         +'GMAX · Gross exposure: '+money('max_gross_exposure')+'\n\n'
         +'整组编辑：点击下方表单，预览后确认。兼容：/gate_batch QMAX=1 OMAX=150 RMAX=8 SMAX=500 GMAX=1200\n\n单项兼容：\n/qmax 1\n/omax 150\n/rmax 8\n/smax 500\n/gmax 1200\n\n'
-        +'USD except QMAX. Applied by Python; stricter existing limits still apply.\n'
+        +'USD except QMAX. 留空/不限表示不增加该项附加限制；执行硬上限、现金和保护门禁仍生效。\n'
         +'These commands do not send orders or clear trading approvals/pauses.')
 
 

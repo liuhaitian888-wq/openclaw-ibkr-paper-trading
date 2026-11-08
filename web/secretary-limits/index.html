@@ -14,7 +14,7 @@ button:disabled{opacity:.5}#confirm{background:#d87b20}#status{white-space:pre-l
 </style>
 <body><div class="tag">DER · OWNER PRIVATE</div><h1>风控限额</h1><p class="muted">一次编辑五项，预览后整组确认。数值上限与交易门禁分别生效。</p>
 <div id="status" role="status" aria-live="polite" tabindex="-1">正在验证 Telegram 身份…</div>
-<form id="form" hidden novalidate><div id="fields"></div><p class="muted">QMAX 为整数股数；其他四项为 USD。仅 SMAX / GMAX 可填“不限”。</p><button id="previewButton" type="submit">预览变更</button></form>
+<form id="form" hidden novalidate><div id="fields"></div><p class="muted">QMAX 填写时须为整数股数；其他四项为 USD。五项均可留空或填“不限”，表示不增加该项附加限制；执行硬上限、现金和保护门禁仍生效。单笔金额与股数同时填写时取更严。</p><button id="previewButton" type="submit">预览变更</button></form>
 <section id="preview" hidden><h2>确认整组变更</h2><p class="muted" id="version"></p><table><thead><tr><th>限额</th><th>当前</th><th>新值</th></tr></thead><tbody id="rows"></tbody></table><button id="confirm" type="button">确认整组应用</button><button id="back" type="button">返回编辑</button></section>
 <details id="help"><summary>门禁与风控的区别</summary><p>交易门禁决定是否允许交易，/ready 显示暂停原因。这里设置五项额外数值上限，与原有硬上限取更严值。确认限额不解除 PAUSED / MAINTENANCE，不下单、不撤单。</p><p>预览只保存十分钟草案；只有你点击“确认整组应用”才提交。版本变化时须重新打开并预览。</p></details>
 <script type="module">

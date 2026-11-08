@@ -25,8 +25,8 @@ class SecretaryFieldFeedbackTests(unittest.TestCase):
             const good={max_quantity:'100',max_order_value:'20000',max_risk_per_order:'10.50',max_symbol_exposure:'不限',max_gross_exposure:'0'};
             assert.equal(Object.keys(validateFields(good).errors).length,0);
             for(const key of Object.keys(good)){
-                for(const value of ['', '-1', 'NaN', 'Infinity', '1 USD', '1000000001']) assert.ok(validateField(key,value),key+': '+value);
-                assert.equal(validateField(key,'0'),'');
+                for(const value of ['-1', 'NaN', 'Infinity', '1 USD', '1000000001']) assert.ok(validateField(key,value),key+': '+value);
+                assert.equal(validateField(key,'0'),''); assert.equal(validateField(key,''),''); assert.equal(validateField(key,'不限'),'');
             }
             assert.match(validateField('max_quantity','1.5'),/整数股数/);
             assert.match(validateField('max_quantity','1.0000000000000001'),/整数股数/);
@@ -34,10 +34,10 @@ class SecretaryFieldFeedbackTests(unittest.TestCase):
             assert.equal(validateField('max_quantity','1.00'),'');
             assert.equal(validateField('max_quantity','1e2'),'');
             for(const key of Object.keys(good).slice(1)) assert.equal(validateField(key,'0.25'),'');
-            assert.ok(validateField('max_order_value','不限'));
-            assert.ok(validateField('max_risk_per_order','不限'));
+            assert.equal(validateField('max_order_value','不限'),'');
+            assert.equal(validateField('max_risk_per_order','不限'),'');
             const invalid=validateFields({...good,max_quantity:'1.5',max_order_value:'',max_symbol_exposure:'-2'});
-            assert.deepEqual(Object.keys(invalid.errors),['max_quantity','max_order_value','max_symbol_exposure']);
+            assert.deepEqual(Object.keys(invalid.errors),['max_quantity','max_symbol_exposure']);
             assert.equal(validateFields(good).settings.max_symbol_exposure,null);
         '''
         result=subprocess.run([node,'--input-type=module','-',str(source)],input=script,text=True,capture_output=True,timeout=10)
@@ -47,7 +47,7 @@ class SecretaryFieldFeedbackTests(unittest.TestCase):
         from reporting.telegram_gate import validate_form,GateValidationError
         with self.assertRaises(GateValidationError) as caught:
             validate_form({**DEFAULT,'max_quantity':'1.5','max_order_value':'','max_gross_exposure':-1})
-        self.assertEqual(set(caught.exception.field_errors),{'max_quantity','max_order_value','max_gross_exposure'})
+        self.assertEqual(set(caught.exception.field_errors),{'max_quantity','max_gross_exposure'})
         self.assertIn('整数股数',caught.exception.field_errors['max_quantity'])
         result=validate_form({**DEFAULT,'max_order_value':'0.25'})
         self.assertEqual(result['max_order_value'],'0.25')

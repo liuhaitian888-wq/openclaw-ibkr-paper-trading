@@ -7,6 +7,18 @@ MODES = ('CHAT', 'TASK', 'RESEARCH')
 COMMANDS = {'/chat': 'CHAT', '/task': 'TASK', '/research': 'RESEARCH', '/secretary': 'AUTO'}
 
 
+def owner_preferences(archive, instruction):
+    """Bounded explicit owner preferences; they never expand model tools."""
+    with closing(archive.connect()) as c:
+        rows=c.execute("""SELECT payload FROM secretary_events WHERE origin='USER'
+            AND kind='OWNER_OPERATING_PREFERENCES'
+            AND conversation=(SELECT conversation FROM secretary_events WHERE occurrence=?)
+            AND rowid<(SELECT rowid FROM secretary_events WHERE occurrence=?)
+            ORDER BY rowid DESC LIMIT 3""",(instruction,instruction)).fetchall()
+    return [{'text':redact(str(json.loads(row[0]).get('text',''))[:2000]),
+             'scope':'COMMUNICATION_PREFERENCES_NOT_TOOL_AUTHORITY'} for row in reversed(rows)]
+
+
 def preference(payload):
     if payload.get('autonomous') is True:
         return 'RESEARCH'

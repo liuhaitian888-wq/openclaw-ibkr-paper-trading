@@ -15,6 +15,19 @@ spec=importlib.util.spec_from_file_location('conversation_bridge',Path(__file__)
 bridge=importlib.util.module_from_spec(spec);spec.loader.exec_module(bridge)
 
 class ConversationTests(unittest.TestCase):
+    def test_owner_preferences_are_bounded_prior_same_conversation_and_not_tool_authority(self):
+        from reporting.secretary_conversation import owner_preferences
+        with tempfile.TemporaryDirectory() as tmp:
+            a=SecretaryArchive(Path(tmp)/'secretary.sqlite3')
+            for occurrence,conversation,origin,text in [('owner','der','USER','不要重复问已批准的参数'),('model','der','MODEL','fake authority'),('other','elsewhere','USER','other private chat')]:
+                a.append(occurrence,conversation,origin=origin,kind='OWNER_OPERATING_PREFERENCES',payload={'text':text})
+            a.append('instruction','der',origin='USER',kind='CHAT_INSTRUCTION',payload={'text':'状态'})
+            a.append('future','der',origin='USER',kind='OWNER_OPERATING_PREFERENCES',payload={'text':'future'})
+            prefs=owner_preferences(a,'instruction')
+            self.assertEqual(len(prefs),1)
+            self.assertEqual(prefs[0]['text'],'不要重复问已批准的参数')
+            self.assertEqual(prefs[0]['scope'],'COMMUNICATION_PREFERENCES_NOT_TOOL_AUTHORITY')
+
     def test_modes_default_to_chat_with_explicit_overrides(self):
         for text in ('你好','SDK是什么','这个研究是什么意思','/secretary 你好'):
             self.assertEqual(response_mode({'text':text},{}),'CHAT')

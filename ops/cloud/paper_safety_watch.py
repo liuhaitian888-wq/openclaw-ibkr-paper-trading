@@ -130,7 +130,9 @@ def main():
     for sig in (signal.SIGTERM,signal.SIGINT):
         signal.signal(sig,lambda *_:stopped.set())
     with monitoring_service('paper-safety',root), safety_email_owner(root,stopped):
+        limits=manifest.get('execution_limits',{})
         observer=PaperStrategyObserver(cfg['symbols'],strategy,root/'reports/paper_strategy/latest.json',
+            max_quantity=limits.get('max_quantity',1),max_order_value=limits.get('max_order_value',200),max_risk=limits.get('max_risk_per_order',10),
             signal_configurations=manifest.get('signal_strategy_configurations'))
         dependencies=strategy_dependency_registry(manifest.get('signal_strategy_configurations'),cfg['symbols'])
         safety=manifest.get('safety',{})

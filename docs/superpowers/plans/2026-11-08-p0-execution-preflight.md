@@ -40,3 +40,18 @@ Files: docs/production-audit/P0_EXECUTION_20261108.md; ENGINEERING.md.
 - [x] Save bounded cloud readiness/deployment facts, owner parameter candidate and remaining native acceptance cases.
 - [x] Run full offline suite and gitleaks; commit and integrate through Git preserving unrelated work.
 - [x] Main smoke and cloud read-only checks only; publish no execution manifest and start no strategy owner. Integration and deployment observations are appended to the closeout document.
+
+## Nov9 delegated owner decisions
+
+Owner explicitly delegated strategy and portfolio cap choices, requested QMAX100/OMAX2000 and nullable additive fields, authorized adding missing protection and a Telegram update. Preserve actual Paper identity and existing PFE stop. Currency display conversion is distinct from a cash-funded FX order. Adopt finite SMAX250000/GMAX1500000 USD as large ceilings, not target allocations; existing cash-only and per-order risk gates remain. Stop rules require fresh data and scoped, independently validated native transport; do not mark uncovered holdings protected based on authorization alone.
+
+### Task4: Reflect the delegated numeric policy honestly
+- [x] All five additive caps may be blank/null: no extra override, never removal of executable hard caps. UI and server agree; quantity remains integer when supplied.
+- [x] Explicit CODEX_OWNER_CHAT numeric approval provenance bound to exact revision/settings, separate from native Telegram CONTROL_INSTRUCTION.
+- [x] Update actual QMAX100/OMAX2000/RMAX10/SMAX250000/GMAX1500000 and hard quantity/order limits100/2000 through auditable deployment; keep execution paused.
+- [x] Send one concise owner-only Telegram update through the existing outbox; verify native receipt.
+
+### Task5: Monetary conversion and signal sizing
+- [x] Reuse CashBook-style Decimal conversion via a common base currency, require timestamp/identity/positive finite rates; clearly label accounting conversion versus executable FX.
+- [x] Candidate observer sizes integer BUY proposals under both quantity and money/risk ceilings, no forced100-share order. Preserve monitor-only mode.
+- [x] Full isolated regression and secret scan, Git integration, bounded deployment/readback. Protection and native partial-fill acceptance remain separately audited.

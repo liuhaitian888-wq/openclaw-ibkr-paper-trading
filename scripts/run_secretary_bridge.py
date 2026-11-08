@@ -38,7 +38,7 @@ def rpc(request):
 
 
 def execute(job,settings):
-    transcript=[{'instruction':job['payload'],'recent_conversation':job.get('conversation_context',[]),'mode_preference':preference(job['payload']),'source':'authorized cloud archive'}];usage=[];step=0
+    transcript=[{'instruction':job['payload'],'recent_conversation':job.get('conversation_context',[]),'owner_preferences':job.get('owner_preferences',[]),'mode_preference':preference(job['payload']),'source':'authorized cloud archive'}];usage=[];step=0
     saved=job.get('checkpoint',{})
     transcript=saved.get('transcript',transcript);usage=saved.get('usage',usage);step=saved.get('step',step)
     for turn in range(saved.get('turn',0),3):

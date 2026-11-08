@@ -1,5 +1,5 @@
 """Existing K-line strategy in monitor-only mode. No broker submission methods."""
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 import json
@@ -19,11 +19,12 @@ from trading.price_normalizer import normalize_order_price
 
 
 class PaperStrategyObserver:
-    def __init__(self, symbols, config, report_path, *, max_order_value=200, max_risk=10, signal_configurations=None):
+    def __init__(self, symbols, config, report_path, *, max_quantity=1, max_order_value=200, max_risk=10, signal_configurations=None):
         fields=ConservativeTrendConfig.__dataclass_fields__
         self.config=ConservativeTrendConfig(**{k:v for k,v in config.items() if k in fields})
         self.module=ConservativeTrendModule(symbols,self.config)
-        self.risk=RiskEngine(RiskLimits(True,frozenset(symbols),1,min(200,max_order_value),max_risk))
+        self.risk=RiskEngine(RiskLimits(True,frozenset(symbols),max_quantity,max_order_value,max_risk))
+        self.entry_caps=(max_quantity,max_order_value,max_risk)
         self.path=Path(report_path)
         self.bars={s:{} for s in symbols};self.history_complete=set();self.contracts={}
         self.last_report={}
@@ -106,6 +107,22 @@ class PaperStrategyObserver:
                 # Existing long stop formula, referenced to proposed entry limit.
                 # Actual fill-relative protection still needs broker acceptance.
                 stop=normalize_order_price(symbol=symbol,side='SELL',order_type='STP',price=decision.limit_price*(1-self.config.stop_loss_pct),log=False)
+                from decimal import Decimal, ROUND_FLOOR
+                from reporting.telegram_gate import current
+                from trading.production_paths import STATE_ROOT
+                # quantity is a ceiling, never a request to force 100 expensive shares.
+                hard_qty,hard_money,hard_risk=self.entry_caps
+                controls=current(STATE_ROOT)
+                caps=controls['settings'] if controls['revision'] else {k:None for k in ('max_quantity','max_order_value','max_risk_per_order')}
+                def cap(key,hard): return Decimal(str(hard)) if caps[key] is None else min(Decimal(str(hard)),Decimal(str(caps[key])))
+                price=Decimal(str(decision.limit_price));distance=abs(price-Decimal(str(stop)))
+                if distance <= 0: quantity=0
+                else:
+                    quantity=int(min(Decimal(decision.quantity),cap('max_quantity',hard_qty),
+                        (cap('max_order_value',hard_money)/price).to_integral_value(rounding=ROUND_FLOOR),
+                        (cap('max_risk_per_order',hard_risk)/distance).to_integral_value(rounding=ROUND_FLOOR)))
+                decision=replace(decision,quantity=max(0,quantity))
+                signal=asdict(decision)
                 p=TradeProposal(symbol,'BUY',decision.quantity,decision.limit_price,stop)
                 risk=asdict(self.risk.validate(p))
                 proposal=dict(parent=dict(side='BUY',quantity=p.quantity,order_type='LMT',tif='DAY',limit_price=p.limit_price),
@@ -125,7 +142,7 @@ class PaperStrategyObserver:
                     safety_entries_ready=snapshot['entries_ready'],execution_pause=snapshot.get('pause_scopes',{}).get('decisions',{}).get(self.module.name,{}).get(symbol),transmit=False,
                     eligible_to_submit=False,approval_required=True,mode='MONITOR_ONLY',
                     remaining_gates=['Formal execution approval','Broker-native partial-fill acceptance',
-                                     'Portfolio exposure including external holdings','Fees/FX allowance within 200 USD'])
+                                     'Portfolio exposure including external holdings','Fresh cash and explicit fees/FX allowance within effective limits'])
         self.last_report[symbol]=report
         self.path.parent.mkdir(parents=True,exist_ok=True)
         temporary=self.path.with_suffix('.tmp')
