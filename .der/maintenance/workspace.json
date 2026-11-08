@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "workspace": "~/Documents/der",
+  "owner_scope": "User 2026-11-08: cover all five projects separately; evidence, architecture reconciliation and automatic maintenance",
+  "policy": {
+    "collector": "read-only source and metadata; write only independent engineering outputs",
+    "delete_sources": false,
+    "quarantine": "proposal until ownership, replacement, references and recoverability are proved",
+    "preserve_dirty_work": true,
+    "never_infer_runtime_from_document": true,
+    "separate_statuses": [
+      "source",
+      "offline_tests",
+      "deployment",
+      "acceptance"
+    ],
+    "automatic_scope": [
+      "refresh evidence and project context",
+      "detect architecture and diagram drift",
+      "generate scoped tasks",
+      "develop and verify routine maintenance in isolated worktrees"
+    ],
+    "business_permissions": "unchanged; never start/send/trade or replay UNKNOWN for maintenance"
+  },
+  "projects": [
+    {
+      "id": "kan-standalone",
+      "name": "看der · 独立项目",
+      "root": "kander-cross-display",
+      "goal": "稳定兼容串流与设备控制，保留未来原生架构作为目标设计",
+      "test_command": [
+        "swift",
+        "test"
+      ],
+      "file_rules": [
+        {
+          "glob": "docs/13_NATIVE_FUTURE_ARCHITECTURE.md",
+          "kind": "target_design",
+          "epoch": "future"
+        }
+      ]
+    },
+    {
+      "id": "openworkspace",
+      "name": "看der · 后续开发",
+      "root": "OpenWorkspace",
+      "goal": "维护当前Swift控制层与近期连接修复，区分外部调研资料",
+      "test_command": [
+        "swift",
+        "test"
+      ],
+      "file_rules": [
+        {
+          "glob": "*-review-*/**",
+          "kind": "third_party_reference",
+          "epoch": "reference"
+        }
+      ]
+    },
+    {
+      "id": "buy-der",
+      "name": "买der",
+      "root": "买der",
+      "goal": "融合历史交易设计与云端监测事实，保留交易暂停及证据边界",
+      "test_command": [
+        "python",
+        "scripts/run_worktree_tests.py"
+      ],
+      "epochs": [
+        {
+          "id": "local-history",
+          "status": "HISTORICAL_WITH_ACTIVE_LOCAL_GATES",
+          "sources": [
+            "PRODUCTION.md",
+            "docs/production-audit/MAINTENANCE.md"
+          ]
+        },
+        {
+          "id": "cloud-preparation",
+          "status": "HISTORICAL_DESIGN",
+          "sources": [
+            "ops/cloud/README.md"
+          ],
+          "evidence": "2026-10-23 Git records cloud preparation; code date is not deployment date"
+        },
+        {
+          "id": "cloud-monitoring",
+          "status": "CURRENT_EVIDENCE_REQUIRED",
+          "sources": [
+            "ENGINEERING.md",
+            "ops/cloud/monitoring_guard.py"
+          ],
+          "evidence": "2026-11-04 deployment and 2026-11-05 broker baseline recorded; execution permission remains separate"
+        },
+        {
+          "id": "target-design",
+          "status": "NOT_DEPLOYED_BY_DEFAULT",
+          "sources": [
+            "docs/manual/diagrams/layered_system_architecture.svg"
+          ]
+        }
+      ],
+      "file_rules": [
+        {
+          "glob": "docs/manual/**",
+          "kind": "historical_design",
+          "epoch": "local-history"
+        },
+        {
+          "glob": "ops/cloud/**",
+          "kind": "current_runtime_source",
+          "epoch": "cloud-monitoring"
+        },
+        {
+          "glob": "docs/production-audit/**",
+          "kind": "protected_evidence",
+          "epoch": "local-history"
+        }
+      ]
+    },
+    {
+      "id": "shua-der",
+      "name": "刷der",
+      "root": "刷der",
+      "goal": "保留现有未提交工作；维护只读消息管理与工程工作流",
+      "test_command": [
+        "pnpm",
+        "test"
+      ],
+      "constraints": [
+        "DER_WRITE_ENABLED=0",
+        "No third-party message mutations"
+      ]
+    },
+    {
+      "id": "der-token",
+      "name": "der token",
+      "root": "der token",
+      "code_root": "der-tokenwatch",
+      "goal": "保护尚未提交的独立token监控源码，建立可追溯基线",
+      "test_command": [
+        "python",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests"
+      ],
+      "constraints": [
+        "Do not inspect raw Codex sessions or production SQLite",
+        "Do not automatically stage the complete untracked directory"
+      ]
+    }
+  ]
+}

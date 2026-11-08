@@ -384,3 +384,12 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 最终linked worktree完整隔离离线980项/66.369s/OK，9项新增目录回归及既有秘书/会话回归通过；secret scan及部署证据见state/engineering/abc-security-master-20261108。主目录只smoke。部署只新增公开目录维护oneshot、重载秘书，保持Gateway/候选业务状态/交易门禁，原生broker_readback允许既有采集正常更新，首轮真实目录与分页另作回读，不把离线测试冒充当前实时权限验收。
 
 实际部署回读：公开目录oneshot Result=success/ExecMainStatus=0，daily timer active，下一次2026-11-09 08:11:41 Europe/Berlin（08:10加随机延后）；owner菜单set/get确认。只读工具与master_view真实筛选：ABC13217项、UNKNOWN22项，所有13239项permission_status=PENDING；C普通股3142、B ETF4403、Apple关键词6项。Gateway与门禁hash不变。canonical全载荷因现有5分钟券商采集更新broker_readback而变化；用旧paper_readback_observations重建后精确匹配部署前全载荷hash，证明候选层级/执行状态未改。详细独立证据在state/engineering/abc-security-master-20261108，不将该动态字段变化伪称全载荷完全未变。
+
+
+## 2026-11-09 五项目证据维护与云端阶段分界
+
+用户明确覆盖der工作区五个子项目，各自维护状态。新增`.der/maintenance/workspace.json`和只读工程采集入口`scripts/maintain_workspace.py`，按项目生成Git/指纹、上下文、文件分类、图表依赖收据检查及下一步任务；输出在独立工程状态目录。历史本机、云端准备、云端观测、未来目标分别记录；PRODUCTION.md补充适用环境说明，不解除本机停写或任何业务门禁。核查与融合规则见`.der/maintenance/research-and-baseline.md`。
+
+已在linked worktree通过990项完整离线测试（tests-receipts.log）；保护未提交/无提交源码、凭据和外部symlink，输出单owner锁，重复扫描不制造源码更新循环，输入/图表变化能标记STALE_CONTENT。测试日志、秘密扫描与架构图9/9校验/浏览器/视觉证据保存在`~/.local/state/openclaw/engineering/project-maintenance-20261108/`。后续整合并行主线后仍需在worktree验证合并树。图表仅本次分界模型，不代表全部旧架构已完成语义融合。
+
+原生定期维护拟在本机Codex接续五项目上下文、差异裁决和常规worktree维护；不新增云端生产worker。本次未删除/移动文件，v1隔离只生成候选；刷der未提交工作与der token未提交来源保留。源码、离线验证、部署、真实验收分别记录，不把采集成功算成五项目产品验收。
