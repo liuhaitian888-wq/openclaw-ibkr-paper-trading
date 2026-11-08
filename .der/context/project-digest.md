@@ -1,6 +1,6 @@
 # 买der项目摘要
 
-更新：2026-11-08。来源：本次五项目维护核查；精确源提交和当前事实以独立采集状态为准。本文件不替代部署manifest或交易门禁。
+更新：2026-11-09。来源：本次五项目维护核查；精确源提交和当前事实以独立采集状态为准。本文件不替代部署manifest或交易门禁。
 
 本项目属于der工作区五项目之一。早期本机交易/研究设计、本机历史维护、云端准备、云端运行和未来目标需要分别维护，不能把2026-07-29的注册摘要当作当前进展。
 
@@ -11,3 +11,10 @@
 
 项目当前事实与任务入口：`~/.local/state/openclaw/engineering/workspace-maintenance/current/projects/buy-der/`。
 原始记录继续保留在ENGINEERING.md、PRODUCTION.md、计划与交接记录及其指向的脱敏验收证据中。
+
+2026-11-09维护入口更新：五项目各自接入OpenSpec；保留dee、archify和采集器。旧小时任务暂停，按用户要求只在有源码/设计变化的Codex任务结束时请求一次收尾，不设置每日空跑。实现和配置验证证据另存engineering/openspec-task-completion-20261109；自然任务触发的真实行为另行观察，不冒充已验收。
+
+Source revision: 4509c04
+该源提交为本次整合并通过1017项离线验证的实现基线；最终文档归档提交及精确当前指纹以独立工程回执为准。
+
+宽范围研究：Nasdaq/Yahoo/SEC分来源缓存，L1–L3独立投影，Paper既有owner扫描和Telegram入口已完成离线实现；部署与实际缺口以openspec/changes/broad-screening/verification.md为准。

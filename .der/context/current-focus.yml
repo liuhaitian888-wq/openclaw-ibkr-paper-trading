@@ -13,3 +13,7 @@ status_rules:
   - File presence, offline PASS, deployment and real acceptance are separate.
   - Unknown or stale evidence cannot grant business permission.
   - Context-only updates must not create an infinite source-update loop.
+
+maintenance_trigger: task-completion-with-source-or-design-change
+idle_schedule: disabled
+openspec: openspec/config.yaml

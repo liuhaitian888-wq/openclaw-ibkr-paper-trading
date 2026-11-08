@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "接云前后分界与自动维护",
+    "title": "接云分界与任务收尾维护",
     "locale": "zh-CN",
     "quality_profile": "showcase",
     "viewBox": [
@@ -84,8 +84,8 @@
     {
       "id": "automatic-maintenance",
       "type": "backend",
-      "label": "自动维护循环（拟建）",
-      "sublabel": "变更 → 任务 → 验证 → 同步",
+      "label": "任务收尾维护",
+      "sublabel": "有变化才接续；无定时空跑",
       "pos": [
         835,
         420
@@ -144,7 +144,7 @@
       "id": "contract-maintenance",
       "from": "cloud-contract",
       "to": "automatic-maintenance",
-      "label": "只读采集运行事实",
+      "label": "按任务核对运行证据",
       "labelDy": 24
     },
     {
@@ -176,8 +176,8 @@
       "dot": "rose",
       "title": "自动维护的边界",
       "items": [
-        "缺证据保持UNKNOWN",
-        "未知文件先隔离候选，保留恢复来源"
+        "dee → OpenSpec → archify → 验证",
+        "无变化不接续；最多维护一轮"
       ]
     }
   ]

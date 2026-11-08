@@ -22,3 +22,12 @@ workspace.json 是当前用户指定的项目范围、资料分期与维护边�
 
 
 图表依赖收据由各项目`.der/maintenance/diagram-dependencies.json`登记：`{"diagrams":[{"path":"docs/flow.svg","output_sha256":"输出SHA256","inputs":{"src/module.py":"输入SHA256"}}]}`。输入与输出指纹相符时只标CONTENT_MATCHES_RECEIPT；输入或输出变化标STALE_CONTENT。无收据继续NEEDS_DEPENDENCY_BASELINE；内容相符不代表业务语义审阅通过。维护代理更新设计/代码后重建受影响图表，审阅后更新收据。
+
+
+## 2026-11-09 起的触发方式
+
+用户要求仅在开发任务收尾时触发，旧小时heartbeat已暂停；不配置每日空跑。全局Codex UserPromptSubmit/Stop hook仅对登记五项目及其linked worktree生效：起点/上次完成指纹与结束指纹不同才请求一轮维护；纯问答、无变化和context-only更新不接续。stop_hook_active与事件去重避免维护自身循环。事件仅保留有界元数据，不保存prompt或模型原文；返回不是语义验收，缺口继续记录UNKNOWN。
+
+每个项目各自使用openspec/config.yaml、specs和changes；OpenSpec CLI固定1.16.1，官方技能全局共享。按dee路由既有任务，OpenSpec保留设计变化和规格同步，archify更新受影响图表，采集器刷新独立证据。任务未结束时不因每次保存触发；没有活动任务就不执行维护。手工改动在下一次项目任务结束时被比较到；hook不监听其他编辑器独立保存。
+
+配置与信任：~/.codex/hooks.json新增本次两个命令hook，保留已有hook和notify。hook通过原生审阅和真实currentHash信任，不关闭信任机制、不使用bypass。脚本入口只引用已测试的买der主工作区，不让生产worker或工作树承担新的常驻服务。

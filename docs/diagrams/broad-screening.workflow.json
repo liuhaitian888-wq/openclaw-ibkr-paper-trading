@@ -15,11 +15,7 @@
     },
     {
       "id": "broker",
-      "label": "既有 IBKR Paper owner"
-    },
-    {
-      "id": "viewer",
-      "label": "私人查询与展示"
+      "label": "券商证据与按需比对"
     }
   ],
   "nodes": [
@@ -30,16 +26,16 @@
       "type": "external",
       "label": "Nasdaq · Yahoo · SEC",
       "sublabel": "价量、部分财务与各自时间",
-      "width": 200
+      "width": 170
     },
     {
       "id": "cache",
       "lane": "research",
       "col": 1,
       "type": "database",
-      "label": "版本化研究缓存",
-      "sublabel": "来源、缺失、退避与覆盖",
-      "width": 200
+      "label": "本地证据库",
+      "sublabel": "研究、券商与缺口记录",
+      "width": 170
     },
     {
       "id": "layers",
@@ -48,43 +44,34 @@
       "type": "backend",
       "label": "L1–L3 研究投影",
       "sublabel": "L4–L6 仍需独立证据",
-      "width": 200
+      "width": 170
     },
     {
       "id": "telegram",
-      "lane": "viewer",
-      "col": 2,
+      "lane": "research",
+      "col": 3,
       "type": "frontend",
       "label": "Telegram 私人菜单",
       "sublabel": "筛选、刷新、扫描和对比",
-      "width": 200
+      "width": 170
     },
     {
       "id": "owner",
       "lane": "broker",
       "col": 0,
       "type": "backend",
-      "label": "已有只读连接",
-      "sublabel": "不登录 Live；不新建会话",
-      "width": 200
-    },
-    {
-      "id": "scanner",
-      "lane": "broker",
-      "col": 1,
-      "type": "backend",
-      "label": "有界真实 Scanner",
-      "sublabel": "最多 50 项；结束后取消",
+      "label": "既有 Paper 只读 owner",
+      "sublabel": "Scanner ≤50；已有回读",
       "width": 200
     },
     {
       "id": "compare",
       "lane": "broker",
-      "col": 2,
+      "col": 3,
       "type": "security",
       "label": "逐字段核对",
       "sublabel": "合约、币种、时刻与权限",
-      "width": 200
+      "width": 170
     }
   ],
   "mainPath": [
@@ -116,17 +103,17 @@
       "role": "main"
     },
     {
-      "id": "owner-scanner",
+      "id": "owner-cache",
       "from": "owner",
-      "to": "scanner",
-      "label": "复用原连接",
+      "to": "cache",
+      "label": "回读与扫描排名",
       "role": "branch"
     },
     {
-      "id": "scanner-layers",
-      "from": "scanner",
-      "to": "layers",
-      "label": "候选交叉核对",
+      "id": "cache-compare",
+      "from": "cache",
+      "to": "compare",
+      "label": "缓存字段与时间",
       "role": "branch"
     },
     {
@@ -134,20 +121,6 @@
       "from": "telegram",
       "to": "compare",
       "label": "按需对照",
-      "role": "branch"
-    },
-    {
-      "id": "owner-compare",
-      "from": "owner",
-      "to": "compare",
-      "label": "既有回读证据",
-      "role": "branch"
-    },
-    {
-      "id": "cache-compare",
-      "from": "cache",
-      "to": "compare",
-      "label": "外部缓存字段",
       "role": "branch"
     }
   ]
