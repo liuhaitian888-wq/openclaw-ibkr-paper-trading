@@ -72,10 +72,13 @@ def message(r):
         lines.append(c['source']+'：'+str(c['external_price'])+'（'+str(c['external_date'])+'）／券商最近成交 '+str(c['broker_price']))
         lines.append(c['status']+' · '+(','.join(c['reasons']) if c['reasons'] else '差异 '+str(round(c['difference_pct'], 4))+'%'))
     names = {'assets': '资产', 'equity': '股东权益', 'revenue': '季度营收', 'net_income': '季度净利润'}
-    for f in r['fundamentals'][:4]:
+    latest={}
+    for fact in r['fundamentals']:
+        latest.setdefault(fact['metric'],fact)
+    for f in latest.values():
         p = json.loads(f['payload'])
         lines.append('SEC '+names.get(f['metric'], f['metric'])+' '+str(p['value'])+' '+p['unit']+' · 截至 '+p['end']+' · '+p['period'])
-    if not r['fundamentals']:
-        lines.append('SEC基本面缺失／映射未确认，不填零。')
+    missing=[label for metric,label in names.items() if metric not in latest]
+    if missing:lines.append('SEC缺字段／映射未确认：'+'、'.join(missing)+'；不填零。')
     lines.append('季度财报不是实时估值；未计算未经核对的PE。权限仍待核验，未查询Live，也不据非同期差异判错。')
     return '\n'.join(lines)[:3200]

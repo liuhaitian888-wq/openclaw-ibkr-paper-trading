@@ -241,3 +241,13 @@ class NasdaqProviderIdentityTests(unittest.TestCase):
         self.assertEqual(rows[0]['symbol_normalization'],'TRIM_WHITESPACE')
         raw['data']['rows'].append({'symbol':'ECC','lastsale':'$5'})
         with self.assertRaises(ValueError):s.nasdaq(json.dumps(raw).encode(),json.dumps({'data':{}}).encode())
+
+
+class VisibleMissingDataTests(unittest.TestCase):
+    def test_phone_messages_expose_missing_fields_instead_of_only_database_flags(self):
+        rendered=b.message(dict(total=1,state='RESEARCH_PROJECTION',next=None,rows=[dict(symbol='ABC',network='A',layer='MASTER_UNIVERSE',stale=False,price=None,volume=None,data_date=None,source=None,flags=json.dumps(['PRICE_MISSING','AVERAGE_VOLUME_MISSING','FUNDAMENTALS_PARTIAL_OR_MISSING']))]))
+        self.assertIn('缺价格',rendered);self.assertIn('缺平均量',rendered);self.assertIn('基本面不全',rendered)
+        from reporting.screening_comparison import message
+        r=dict(symbol='ABC',comparisons=[],fundamentals=[dict(metric='assets',payload=json.dumps(dict(value=0,unit='USD',end='2026-09-30',period='CY2026Q3I')))])
+        rendered=message(r)
+        self.assertIn('资产 0 USD',rendered);self.assertIn('SEC缺字段／映射未确认：股东权益、季度营收、季度净利润',rendered)

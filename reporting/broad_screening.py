@@ -301,6 +301,13 @@ def message(result):
         layer = '已过期' if r['stale'] else {'MASTER_UNIVERSE':'L1资料／条件待补','ELIGIBLE_UNIVERSE':'L2研究初筛','SCAN_POOL':'L3券商交叉候选'}.get(r['layer'],r['layer'])
         lines.append(r['symbol']+' · '+r['network']+'网 · '+layer+' · 价 '+str(r['price'])+' · 当日量 '+str(r['volume'])
                      +' · '+str(r['data_date'])+' · '+str(r['source']))
+        flag_names={'PRICE_MISSING':'缺价格','PRICE_INVALID':'价格无效','SESSION_VOLUME_MISSING':'缺当日量',
+                    'PRICE_TIME_UNKNOWN':'价格日期不明','PRICE_DATE_STALE_OR_FUTURE':'价格日期失效',
+                    'CURRENCY_UNVERIFIED':'币种待核验','AVERAGE_VOLUME_MISSING':'缺平均量',
+                    'FUNDAMENTALS_PARTIAL_OR_MISSING':'基本面不全','NOT_COMMON_STOCK_RESEARCH_SCOPE':'非普通股初筛范围',
+                    'SOURCE_REFRESH_FAILED_USING_CACHE':'来源失败／使用旧缓存'}
+        flags=json.loads(r.get('flags') or '[]') if isinstance(r.get('flags'),str) else r.get('flags',[])
+        if flags:lines.append('  标记：'+'、'.join(flag_names.get(f,f) for f in flags))
     if result['next']:
         lines.append('下一页：/screen '+' '.join(k+'='+shlex.quote(v) for k, v in result['next'].items()))
     lines += ['L1/L2/L3为研究投影，不是canonical交易资格。所有实时权限待核验；缺值显示None，不填零。',
