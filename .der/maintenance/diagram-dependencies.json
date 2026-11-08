@@ -1,0 +1,14 @@
+{
+  "diagrams": [
+    {
+      "path": ".der/maintenance/cloud-boundary.architecture.json",
+      "output_sha256": "554e98b7f88054a0e8eb36c97e8cd9fed1855c28526cce8f86ea4b17d1170fe9",
+      "inputs": {
+        "engineering/task_completion.py": "60dc16361aa6685baa14c4edf48eac387c336493adecd2aeab91ef84df46839e",
+        ".der/maintenance/README.md": "2036cf1f7b96991ac4cfd1f455b32ef3b66ed621dbf14c589572d1d1031dd9d2",
+        "PRODUCTION.md": "4d08f027e1ca5ec443c65ec9b31b446382ad01e8d93387ff14633bc928a98494"
+      },
+      "semantic_review": "Separate from content identity; artifact/browser/visual receipts in engineering/openspec-task-completion-20261109"
+    }
+  ]
+}

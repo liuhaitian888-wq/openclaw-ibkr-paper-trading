@@ -11,3 +11,5 @@
 
 项目当前事实与任务入口：`~/.local/state/openclaw/engineering/workspace-maintenance/current/projects/buy-der/`。
 原始记录继续保留在ENGINEERING.md、PRODUCTION.md、计划与交接记录及其指向的脱敏验收证据中。
+
+2026-11-09维护入口更新：五项目各自接入OpenSpec；保留dee、archify和采集器。旧小时任务暂停，按用户要求只在有源码/设计变化的Codex任务结束时请求一次收尾，不设置每日空跑。实现和配置验证证据另存engineering/openspec-task-completion-20261109；自然任务触发的真实行为另行观察，不冒充已验收。

@@ -20,7 +20,17 @@
       "generate scoped tasks",
       "develop and verify routine maintenance in isolated worktrees"
     ],
-    "business_permissions": "unchanged; never start/send/trade or replay UNKNOWN for maintenance"
+    "business_permissions": "unchanged; never start/send/trade or replay UNKNOWN for maintenance",
+    "trigger": "task completion with content changes; no hourly or daily idle schedule",
+    "toolchain": {
+      "openspec": "1.16.1",
+      "skills": "official OpenSpec global skills",
+      "existing": [
+        "dee",
+        "archify",
+        "five-project collector"
+      ]
+    }
   },
   "projects": [
     {
@@ -38,7 +48,9 @@
           "kind": "target_design",
           "epoch": "future"
         }
-      ]
+      ],
+      "openspec_root": "openspec",
+      "maintenance_trigger": "Codex Stop after source/design changes; no idle timer"
     },
     {
       "id": "openworkspace",
@@ -55,7 +67,9 @@
           "kind": "third_party_reference",
           "epoch": "reference"
         }
-      ]
+      ],
+      "openspec_root": "openspec",
+      "maintenance_trigger": "Codex Stop after source/design changes; no idle timer"
     },
     {
       "id": "buy-der",
@@ -116,7 +130,9 @@
           "kind": "protected_evidence",
           "epoch": "local-history"
         }
-      ]
+      ],
+      "openspec_root": "openspec",
+      "maintenance_trigger": "Codex Stop after source/design changes; no idle timer"
     },
     {
       "id": "shua-der",
@@ -130,7 +146,9 @@
       "constraints": [
         "DER_WRITE_ENABLED=0",
         "No third-party message mutations"
-      ]
+      ],
+      "openspec_root": "openspec",
+      "maintenance_trigger": "Codex Stop after source/design changes; no idle timer"
     },
     {
       "id": "der-token",
@@ -149,7 +167,9 @@
       "constraints": [
         "Do not inspect raw Codex sessions or production SQLite",
         "Do not automatically stage the complete untracked directory"
-      ]
+      ],
+      "openspec_root": "openspec",
+      "maintenance_trigger": "Codex Stop after source/design changes; no idle timer"
     }
   ]
 }

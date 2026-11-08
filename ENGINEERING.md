@@ -402,3 +402,12 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 
 Nov9用户追加委托已收录：QMAX上限100、OMAX2000；采用有限大额SMAX250000/GMAX1500000USD，RMAX10保留；五项附加限制可空但不取消执行硬门禁。新增外部Codex owner数值来源且绑定精确revision/settings，不伪造Telegram原生指令。候选观察器按金额/风险/股数向下取整；跨币种Decimal换算明确仅账面参考，非可执行实时FX报价。秘书后续新任务可读取同会话既有owner沟通偏好，不扩大工具权限。991项隔离离线通过，旧仓补保护已授权但尚无五只新鲜报价/已验收专用传输；不能冒称完成。部署和Telegram原生回执另存state/engineering/p0-execution-20261108。
 五项目维护整合并行主线5fef4e1后，在linked worktree完整995项/40.944s/OK；gitleaks全文件及工作树扫描通过。合并树验证日志：engineering/project-maintenance-20261108/tests-integrated.log。定期任务的实际启用回执与最终本机smoke另存同一独立证据目录。
+
+
+## 2026-11-09 OpenSpec与开发任务收尾维护
+
+用户要求五项目接入OpenSpec，并明确只在有源码/设计变化的开发任务结束时维护，不运行无人使用时的小时或每日检查。旧der小时heartbeat已通过原生automation入口暂停，不创建每日任务。保留dee、archify、五项目采集器、现有notify和secret scan hook。
+
+OpenSpec CLI固定1.16.1，官方propose/apply/update/sync/archive/verify技能全局安装；五项目各自配置与维护规格，不能把初始化当作历史架构融合完成。UserPromptSubmit/Stop门禁只处理登记项目及linked worktree，比较源码/设计指纹，无变化或context-only不接续；变化最多请求一次，重复/继续Stop不循环。事件仅有界元数据，不保存prompt和模型原文，接续返回不冒充语义验收。
+
+linked worktree完整1009项/43.183s/OK；五项目OpenSpec strict验证通过。修改了分界图的任务收尾节点，9/9 showcase、四尺寸browser及light/dark视觉审阅通过，无几何修正。记录位于本机engineering/openspec-task-completion-20261109。其他项目仅OpenSpec元数据，通过各自worktree扫描/提交与Git整合；刷der原tracked diff逐字节核对保留。der token仍unborn，只新增已校验OpenSpec设置，未暂存其源码。原生hook信任、最终安装和smoke回执另存同目录，真实自然任务触发不以夹具回放代替。
