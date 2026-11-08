@@ -65,10 +65,10 @@ class GatewayRecoveryTests(unittest.TestCase):
   self.assertEqual(audience(item,{'audience_mode':'shared_group'}),'owner')
  def test_supervisor_targets_only_fixed_unit_after_generation_recheck(self):
   request=dict(action='RESTART_RESERVED',generation='1:100')
-  with patch.object(watchdog.os,'geteuid',return_value=0),patch.object(watchdog,'delegate',return_value=request),patch.object(watchdog,'gateway_generation',return_value='1:100'),patch.object(watchdog,'unit',return_value={'ActiveState':'active'}),patch.object(watchdog.subprocess,'run') as run:
-   result=watchdog.supervise();self.assertEqual(result['action'],'RESTART_SUBMITTED_REQUIRES_READBACK')
-   self.assertEqual(run.call_args.args[0],['/usr/bin/systemctl','--no-block','restart','ibkr-gateway.service'])
-  with patch.object(watchdog.os,'geteuid',return_value=0),patch.object(watchdog,'delegate',return_value={'action':'RESTART_RESERVED','generation':'1:100'}),patch.object(watchdog,'gateway_generation',return_value='2:200'),patch.object(watchdog.subprocess,'run') as run:
-   self.assertEqual(watchdog.supervise()['action'],'HELD_AFTER_RESERVATION');run.assert_not_called()
+  with patch.object(watchdog,'require_service_user'),patch.object(watchdog,'gateway_generation',return_value='1:100'),patch.object(watchdog,'unit',return_value={'ActiveState':'active'}),patch.object(watchdog.subprocess,'run') as run:
+   result=watchdog.submit_restart(request);self.assertEqual(result['action'],'RESTART_SUBMITTED_REQUIRES_READBACK')
+   self.assertEqual(run.call_args.args[0],['/usr/bin/systemctl','--no-ask-password','--no-block','restart','ibkr-gateway.service'])
+  with patch.object(watchdog,'require_service_user'),patch.object(watchdog,'gateway_generation',return_value='2:200'),patch.object(watchdog.subprocess,'run') as run:
+   self.assertEqual(watchdog.submit_restart({'action':'RESTART_RESERVED','generation':'1:100'})['action'],'HELD_AFTER_RESERVATION');run.assert_not_called()
 
 if __name__=='__main__':unittest.main()

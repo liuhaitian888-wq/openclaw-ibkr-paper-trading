@@ -329,3 +329,11 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 既有systemd/IBAutomater处理退出/每日软重启，但无法凭进程存活识别此前Shutdown API卡住。新增固定systemd监督timer，每30秒观察原生心跳、唯一Java generation、独立5分钟readback及认证journal；15分钟持续本地无响应并有两个不同失败回读才允许固定单元重启，24小时最多一次。原子STARTED后执行，UNKNOWN不重放；新generation+重启后两个独立回读来源+稳定60秒才恢复，10分钟仍失败转人工。只root监督器操作固定unit，观察/账本/通知仍ibkr用户，既有Gateway单owner不变。
 
 基于IBKR、QuantConnect/IBAutomater、ib_async Watchdog和IBC官方项目文档的分层思路，来源存docs/GATEWAY_HANG_RECOVERY.md及参考清单。此次实际观测Gateway MainPID1378628仍正常、API心跳新鲜、4个end完整、非dirty；不重启健康服务，不重复演练。Java卡死根因和未来自动恢复长跑尚未证明。离线日志/tmp/gateway-hang-durable-tests.log；部署证据/门禁哈希另存engineering/gateway-hang-20261108与云端runtime/goal-remainder-deployment。
+
+## 2026-11-08 安全修复：撤销watchdog的root应用执行路径
+
+用户指出新watchdog.service缺少User，且/opt/openclaw/app与venv均ibkr所有。确认存在ibkr可写Python/imports/启动环境到root执行的权限路径；固定systemctl参数不能约束已加载的任意root代码。已立即disable --now timer并停止watchdog service；Gateway PID1378628保持、NRestarts=0。现场没有gateway-hang事件，不能据此证明未被利用。
+
+修复把整个watchdog改为ibkr服务身份，删除root/runuser/JSON委托，检查真实/有效UID，锁覆盖STARTED落盘、重查和动作提交；配置NoNewPrivileges与空capabilities。仅root-owned polkit规则授权ibkr对固定ibkr-gateway.service执行restart，拒绝其他manage-units请求。部署需验证规则/父目录/目标unit及dropins root所有且ibkr不可写、目标User=ibkr且无root钩子，使用真实polkit授权查询验收允许与拒绝矩阵，不触发实际重启。原先“root固定动作即安全”的说法已在当前文档更正。
+
+独立只读调查与候选审查、针对性UID/锁回归及linked-worktree完整离线套件按codex-security:fix-finding执行；安全验证报告通过该插件artifact API保存。账户、保护单、交易暂停、维护与测试额度不改动。

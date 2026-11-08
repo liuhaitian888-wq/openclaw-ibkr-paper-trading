@@ -1,8 +1,9 @@
-"""Fixed-unit hang supervisor; observation runs as ibkr, no trading permissions."""
+"""Unprivileged Gateway watchdog; polkit grants only the fixed service restart."""
 from contextlib import closing
 from datetime import datetime
 import json
 import os
+import pwd
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -58,7 +59,14 @@ def evidence(root, now):
                 identity_mismatch=readback.get('failure_class')=='IDENTITY_MISMATCH',auth_required=auth)
 
 
-def evaluate(root=ROOT):
+def require_service_user():
+    expected=pwd.getpwnam('ibkr').pw_uid
+    if expected==0 or os.getuid()!=expected or os.geteuid()!=expected:
+        raise PermissionError('Watchdog must run entirely as the ibkr service user')
+
+
+def evaluate(root=ROOT, *, submit=False):
+    require_service_user()
     with monitoring_service('gateway-hang-watchdog',root):
         path=root/'runtime/gateway-recovery-state.json'
         before=bounded_json(path) if path.exists() else {}
@@ -78,28 +86,25 @@ def evaluate(root=ROOT):
                 IncidentStore(co.path).ingest('gateway-hang:'+state['request_id']+':'+state['operation'],'gateway-hang',
                     dict(severity='GREEN' if resolved else 'RED' if state['operation']=='OPERATOR_REQUIRED' else 'YELLOW',scope='GATEWAY_HANG',reason=text,
                          action_taken='仅操作既有ibkr-gateway.service；交易门禁与测试额度保持。',grants_trading_permission=False),resolved=resolved)
-        return dict(action=action,generation=e.get('generation'),request_id=state.get('request_id'),reason=state['reason'])
+        result=dict(action=action,generation=e.get('generation'),request_id=state.get('request_id'),reason=state['reason'])
+        # Keep the same kernel lock through reservation, recheck and submission.
+        return submit_restart(result,root) if submit else result
 
 
-def delegate():
-    p=subprocess.run(['/usr/sbin/runuser','-u','ibkr','--','/opt/openclaw/venv/bin/python',
-        '/opt/openclaw/app/ops/cloud/gateway_watchdog.py','--evaluate'],capture_output=True,text=True,timeout=20,check=True)
-    # monitoring_service logs identity before the evaluator's final JSON line.
-    return json.loads(p.stdout.splitlines()[-1])
+def submit_restart(result, root=ROOT):
+    require_service_user()
+    if result['action']=='RESTART_RESERVED':
+        if ((root/'runtime/GATEWAY_RECOVERY_HOLD').exists() or gateway_generation()!=result['generation']
+                or unit().get('ActiveState')!='active'):
+            return {'action':'HELD_AFTER_RESERVATION','reason':'No replay; reconciliation required'}
+        subprocess.run(['/usr/bin/systemctl','--no-ask-password','--no-block','restart',UNIT],
+                       capture_output=True,timeout=5,check=True)
+        result['action']='RESTART_SUBMITTED_REQUIRES_READBACK'
+    return result
 
 
 def supervise():
-    if os.geteuid()!=0:raise PermissionError('Fixed systemd supervisor required')
-    result=delegate()
-    if result['action']=='RESTART_RESERVED':
-        # Recheck service generation and hold immediately before the sole fixed action.
-        if ((ROOT/'runtime/GATEWAY_RECOVERY_HOLD').exists() or gateway_generation()!=result['generation']
-                or unit().get('ActiveState')!='active'):
-            return {'action':'HELD_AFTER_RESERVATION','reason':'No replay; reconciliation required'}
-        subprocess.run(['/usr/bin/systemctl','--no-block','restart',UNIT],capture_output=True,timeout=5,check=True)
-        # A submitted systemd job is NOT verified recovery. STARTED survives crashes.
-        result['action']='RESTART_SUBMITTED_REQUIRES_READBACK'
-    return result
+    return evaluate(submit=True)
 
 
 if __name__=='__main__':
@@ -107,6 +112,6 @@ if __name__=='__main__':
     try:
         value=evaluate() if sys.argv[1:]==['--evaluate'] else supervise() if not sys.argv[1:] else None
         if value is None:raise ValueError('Fixed invocation required')
-        print(json.dumps(value))
+        print(json.dumps({**value,'effective_uid':os.geteuid()}))
     except Exception as exc:
         print(json.dumps({'action':'HELD','error_type':type(exc).__name__}));sys.exit(2)
