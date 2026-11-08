@@ -10,3 +10,14 @@ OpenSpec：当前规格与本次delta内容一致后归档；五项目strict验�
 生产：本次不部署/启停云端业务服务、不扩大业务权限；本机smoke仍NOT_READY，属于保留的生产门禁。
 真实自然任务模型维护：本次尚未观察，不用适配器夹具替代。历史架构仍按项目逐次核对；无活动时不运行维护。
 证据：~/.local/state/openclaw/engineering/openspec-task-completion-20261109/。
+
+
+## P0 Paper execution — Nov9 continuation
+
+Owner delegated numeric policy and missing-protection action; no repeat parameter approval requested. Source baseline6b181b5 includes previous maintenance integration. Prior cloud deploymentb6bd676: limitsv4=100/2000/10/250000/1500000USD (quantity shares), nullable additive fields with hard limits retained; Telegram owner message124 accepted. Finite inherited protection timer armed with first WAIT_SESSION/0 attempt and zero unknown order operations. Five native stops remain unconfirmed until actual regular-session callbacks.
+
+Current code fingerprint: 0d06636c5e071cf8ee285d1a9a8e4ac2c445d13409f11431df2940cb8cc05c20. Explicit USD/base refresh prevents cached EUR reuse; one own-cash funding scope plus exact fee/cash/execution reconciliation implemented. Broker quote/what-if are preparation, not exchange acceptance. New active OpenSpec changep0-paper-execution remains open because native protection, continuous executor/atomic entry budget/partial-fill/restart acceptance and final T0/release remain unclosed. Registered engineering-maintenance boundary diagram workflow unchanged; untracked trading diagram artifacts preserved and not represented as regenerated.
+
+Deterministic linked-worktree logs: ~/.local/state/openclaw/engineering/p0-execution-20261108/; main only quick smoke. Actual exchange/deployment receipt must be appended as separate evidence, no global READY inference. No Live authority, no blanket strategy release.
+
+Current final isolated verification1022 tests/44.125s/OK and OpenSpec strict PASS; full P0 remains PARTIAL pending native outcomes and continuous executor acceptance. Shared health dependency registry updated with disabled-by-default cash conversion.
