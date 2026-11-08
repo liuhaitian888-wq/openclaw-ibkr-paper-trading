@@ -5,6 +5,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 import signal
 import sys
+import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
@@ -60,10 +61,14 @@ def main():
     for sig in (signal.SIGINT,signal.SIGTERM):signal.signal(sig,stop)
     with monitoring_service('secretary-limits-web',root),HTTPServer(('127.0.0.1',8792),Handler) as server:
         from reporting.recovery import RecoveryCoordinator
-        RecoveryCoordinator(root/'runtime/recovery.sqlite3').observe('SECRETARY_LIMITS','HEALTHY',freshness='FRESH',enabled=True,
-            reason='Single loopback form owner bound; public HTTPS and Telegram clicks require separate acceptance')
+        coordinator=RecoveryCoordinator(root/'runtime/recovery.sqlite3');sampled=0
         server.timeout=.5
-        while not stopped:server.handle_request()
+        while not stopped:
+            if time.monotonic()-sampled>=60:
+                coordinator.observe('SECRETARY_LIMITS','HEALTHY',freshness='FRESH',enabled=True,
+                    reason='Single loopback form owner bound; public HTTPS and Telegram clicks require separate acceptance')
+                sampled=time.monotonic()
+            server.handle_request()
 
 
 if __name__=='__main__':main()

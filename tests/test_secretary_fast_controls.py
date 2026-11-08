@@ -158,3 +158,11 @@ class FastControlsTests(unittest.TestCase):
             with self.assertRaises(ValueError):dispatch(self.a,self.root,self.cfg,{'numeric_gate_controls_approved':True},'/api/preview',
                 {'initData':'test','revision':0,'settings':{**DEFAULT,'max_quantity':'1.5'}})
         self.assertEqual(current(self.root)['revision'],0)
+
+    def test_form_service_health_expires_when_owner_stops_heartbeating(self):
+        from reporting.health import resolve_modules
+        from datetime import datetime,timezone
+        observation=dict(state='HEALTHY',freshness='FRESH',observed_at='2026-11-08T00:00:00+00:00')
+        result=resolve_modules({'SECRETARY_ARCHIVE':observation,'SECRETARY_LIMITS':observation},
+            now=datetime(2026,11,8,0,3,tzinfo=timezone.utc))['SECRETARY_LIMITS']
+        self.assertEqual(result['state'],'DEGRADED');self.assertEqual(result['freshness'],'STALE')
