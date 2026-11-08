@@ -22,7 +22,7 @@
         "reporting/screening_sources.py": "d7051e177adbff1e2c8a723cf9e83293024915cb23b08f89abfe60927e9e8b08",
         "ops/cloud/paper_safety_watch.py": "9db1265baf4dfac4b1b8fbcba8c39b3d46af750d2618a086df876bffeb7c8784"
       },
-      "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109."
+      "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light/dark visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109."
     }
   ]
 }

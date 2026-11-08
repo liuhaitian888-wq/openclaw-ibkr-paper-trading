@@ -20,4 +20,6 @@ Source revision: 4509c04
 
 ### Nov9 P0 business continuation
 Paper100-share/2000USD ceilings and owner communication preferences deployed. Finite five-position inherited protection is armed but waiting real session/quote/acknowledgement. Cash conversion and fresh dual-ledger helper are separately tested/prepared; offline pass and what-if do not establish native acceptance. Full automatic stock entry remains blocked on continuous executor/atomic budgeting/partial-fill restart proof and current protection/cash/ownership. See task-closeout.md and openspec/changes/p0-paper-execution.
-宽范围研究：Nasdaq/Yahoo/SEC分来源缓存，L1–L3独立投影，Paper既有owner扫描和Telegram入口已完成离线实现；部署与实际缺口以openspec/changes/broad-screening/verification.md为准。
+宽范围研究：Nasdaq/Yahoo/SEC分来源缓存，L1–L3独立投影，Paper既有owner扫描和Telegram入口已完成离线实现；部署与实际缺口以openspec/changes/archive/2026-11-09-broad-screening/verification.md为准。
+
+宽筛部署验收更新：源码adb3841已上线；ABC13217、价量覆盖6645、研究L2=1503/L3=22，真实Paper扫描50，Telegram菜单/完成通知已回读。Nasdaq/Yahoo/SEC字段缺口和权限待核验继续可见；详情docs/BROAD_SCREENING.md与broad-screening归档verification。未放开canonical执行或Live范围。
