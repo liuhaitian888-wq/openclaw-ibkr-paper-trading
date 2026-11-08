@@ -7,6 +7,7 @@ from ops.cloud.secretary_rpc import poll
 from reporting.agent_secretary import SecretaryArchive
 from reporting.secretary_queue import initialize
 from reporting.secretary_controls import process_controls,tick_login
+from reporting.secretary_observations import observe
 
 
 async def run_worker():
@@ -21,11 +22,14 @@ async def run_worker():
         archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
         from telegram import Bot
         async with Bot(token=config['bot_token']) as bot:
-            proof={}
+            proof={};last_observation=0
             while not stopped.is_set():
                 try:
                     result=await poll(archive,root,config,policy['armed_at'],owned_bot=bot,proof=proof)
                     process_controls(archive,root,config,policy);tick_login(archive,root)
+                    if time.monotonic()-last_observation>=60:
+                        last_observation=time.monotonic()
+                        print(json.dumps(observe(archive,root)),flush=True)
                     if result['accepted']:print(json.dumps({'accepted_native_owner_messages':result['accepted'],'at':time.time()}),flush=True)
                 except Exception as exc:
                     print(json.dumps({'state':'INBOX_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True);await asyncio.sleep(5)

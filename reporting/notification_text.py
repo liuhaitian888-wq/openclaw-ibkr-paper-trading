@@ -70,6 +70,8 @@ def notification_text(item,started,*,max_length=4000):
         footer='信息不改变交易授权。' if role in ('RESEARCH','INTELLIGENCE') else '现有交易门禁独立生效。' if role in ('CONTROL','AUTH') else '任务结果。' if role=='TASK' else '完成后推送结果。'
         return ('买 der｜'+label+'\n\n'+display(data.get('reason',''))+'\n\n记录 #'+str(item['id'])+' · '+footer)[:max_length]
     name=KINDS.get(kind,'持续故障提醒' if kind.startswith('REMINDER_') else '风险升级' if kind.startswith('ESCALATION_') else kind)
+    if kind=='AUTH_SESSION_EVENT':name='账户回读已核验' if data.get('phase')=='ACCOUNT_VERIFIED' else 'Gateway会话事件'
+    elif kind=='AUTH_MARKET_SUBSCRIPTION':name='行情订阅核对'
     badge='🟩' if kind=='RECOVERY' else '🟥' if data.get('severity')=='RED' else '🟨' if data.get('severity') is not None else '📄'
     if data.get('scope')=='PAPER_MARKET_SESSION_CONFLICT':name='行情会话竞争恢复' if kind=='RECOVERY' else '行情会话竞争告警'
     elif item.get('incident_key')=='paper-safety:connection':name='API连接恢复' if kind=='RECOVERY' else 'API连接告警'
@@ -99,7 +101,7 @@ def notification_text(item,started,*,max_length=4000):
         if data.get(key) is not None:tail.append(label+'：'+format_time(data[key]))
     tail.append('实际发送发起（柏林）：'+format_time(started))
     if data.get('scheduled_at') is not None:tail.append('相对计划延迟：'+str(math.floor(started-data['scheduled_at']))+' 秒')
-    if kind not in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):tail.append('故障批次：'+batch_name(item))
+    if kind not in ('REPORT_BUNDLE','REPORT_SUPPLEMENT','AUTH_SESSION_EVENT','AUTH_MARKET_SUBSCRIPTION'):tail.append('故障批次：'+batch_name(item))
     tail.append('事件编号：'+str(item['id']))
     suffix='\n\n'+'\n\n'.join(tail);body='\n\n'.join(lines);budget=max_length-len(suffix)
     if budget<1:raise ValueError('Timing and identity exceed notification budget')
