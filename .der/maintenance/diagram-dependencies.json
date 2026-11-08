@@ -9,6 +9,18 @@
         "PRODUCTION.md": "4d08f027e1ca5ec443c65ec9b31b446382ad01e8d93387ff14633bc928a98494"
       },
       "semantic_review": "Separate from content identity; artifact/browser/visual receipts in engineering/openspec-task-completion-20261109"
+    },
+    {
+      "path": "docs/diagrams/broad-screening.html",
+      "output_sha256": "f69b5ecf4165dfe9262e0ed0ad8ac018654a7dc6b9da8e10545a3b3f7caaa7c6",
+      "inputs": {
+        "docs/diagrams/broad-screening.workflow.json": "878dba3fa89c037062a9a2e3686d5759bbbf341898a2a8727236edba501c18b7",
+        "reporting/broad_screening.py": "81c3c3b33f897a7fc0d7aab434e313ac82affb602aa45cfd28ddf3f10a604cf4",
+        "trading/broker_screening.py": "440feb7dfccd507c27933ec40ddc1b2c67ba471132fb2dc1fbb3fa252f34456f",
+        "scripts/refresh_broad_screening.py": "733a2cf03a185c1f93c85f89224be87db52f4b44f493bd06b37da87ecbfd9e76",
+        "reporting/screening_comparison.py": "98f215b0915112ab0ce4020373e5a9ff542807f71e10244ba3a7cd716ddcaa78"
+      },
+      "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109."
     }
   ]
 }

@@ -230,12 +230,12 @@ def run_ibkr_scanner(run_id: str, config: PipelineConfig) -> dict[str, Any]:
     source_type = "MOCK_SCANNER" if config.mock_scanner_enabled else "CACHED_SCANNER"
     if config.scanner_enabled and tws_ok:
         status = "TWS_AVAILABLE_LOCAL_SIMULATION_SCANNER_USED"
-        source_type = "IBKR_SCANNER"
+        source_type = "MOCK_SCANNER"
     elif config.scanner_enabled and config.mock_scanner_enabled:
         status = "USED_FIXTURE"
     elif config.scanner_enabled and cached_scanner_symbols():
         status = "USED_CACHE"
-    for scan_index, code in enumerate(SCAN_CODES):
+    for scan_index, code in enumerate(SCAN_CODES if config.mock_scanner_enabled else ()):
         symbols = scanner_symbols_for_code(code)
         for rank, symbol in enumerate(symbols, start=1):
             row = {
@@ -281,7 +281,8 @@ def run_ibkr_scanner(run_id: str, config: PipelineConfig) -> dict[str, Any]:
         "source": "ibkr_scanner",
         "status": status,
         "tws_available": tws_ok,
-        "tws_scanner_pipeline_ran": config.scanner_enabled,
+        "tws_scanner_pipeline_ran": False,
+        "local_fixture_pipeline_ran": config.scanner_enabled and config.mock_scanner_enabled,
         "live_tws_scanner_request_used": False,
         "scanner_result_origin": "local_simulation_fixture",
         "scanner_codes": SCAN_CODES,

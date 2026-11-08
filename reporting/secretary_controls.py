@@ -79,6 +79,26 @@ def process_controls(archive,root,config,policy=None):
                 from .engineering_relay import proposals
                 items=proposals(archive)['items']
                 summary='Engineering inbox · '+str(len(items))+' recent proposals\n'+'\n'.join(x['id'][-8:]+' · '+x['proposal']['title']+' · '+x['engineering_status']['state'] for x in items)+'\nShared archive only; no automatic deployment or desktop wakeup.'
+            elif command in ('/screen','/screen_refresh','/scan','/compare','/data_status'):
+                from . import broad_screening as screening
+                screening.initialize(archive)
+                if command=='/screen':summary=screening.message(screening.view(root,parts[1] if len(parts)==2 else ''))
+                elif command=='/screen_refresh' and len(parts)==1:
+                    job=screening.enqueue(archive,origin='TELEGRAM:'+instruction,identity=instruction+':screen-refresh')
+                    summary='宽范围数据维护已排队／复用近期任务：'+str(job)+'。现有worker约1分钟领取；只读免费源，完成状态见 /data_status。'
+                elif command=='/scan':
+                    from trading.broker_screening import queue,CODES
+                    code=parts[1].strip().upper() if len(parts)==2 else 'MOST_ACTIVE'
+                    job=queue(archive,code,identity=instruction+':scanner')
+                    from .secretary_read import query as bounded_query
+                    rows=bounded_query(root,'agent_secretary.sqlite3',
+                        'SELECT rank,symbol,con_id FROM broker_screen_results WHERE request=? ORDER BY rank',[job['id']],limit=10).get('rows',[])
+                    summary='IBKR Paper只读扫描：'+str(job)+'\n'+json.dumps(rows,ensure_ascii=False)+'\n仅现有行情owner发送；候选排名不含报价，不是全市场覆盖。最多50项，3分钟过期，未知不重放。'
+                elif command=='/compare' and len(parts)==2:
+                    from .screening_comparison import compare,message
+                    summary=message(compare(root,parts[1].strip().upper()))
+                elif command=='/data_status' and len(parts)==1:summary=screening.status(root)
+                else:raise ValueError('用法：/screen [筛选] · /screen_refresh · /scan [MOST_ACTIVE/TOP_PERC_GAIN/TOP_PERC_LOSE] · /compare 股票 · /data_status')
             elif command in ('/marketdata','/market_register','/market_check','/universe','/eligible','/watch'):
                 from . import market_subscriptions as market
                 if command=='/marketdata' and len(parts)==1:summary=market.registry_message(archive)
@@ -231,6 +251,6 @@ def finish_search(archive,root,request):
 def menu_commands():
     return [('ready','交易门禁：是否允许交易 / 为何暂停'),('gate','风控限额：查看 / 整组编辑'),
             ('holdings','持仓：最新只读回读'),('report','日报：查看投递回执'),
-            ('marketdata','行情订阅：登记表与抽查'),('universe','ABC证券总名单：查看与筛选'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
+            ('screen','价量与基本面：宽范围研究筛选'),('scan','IBKR扫描：既有Paper只读连接'),('compare','单股对照：外部与券商回读'),('data_status','数据来源、覆盖与维护状态'),('screen_refresh','立即排队刷新免费筛选数据'),('marketdata','行情订阅：登记表与抽查'),('universe','ABC证券总名单：查看与筛选'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
             ('login','认证：查看连接与登录状态'),('help','秘书帮助：私聊使用说明'),
             ('notify','通知分类与配置'),('preview','通知预览：按编号查看')]

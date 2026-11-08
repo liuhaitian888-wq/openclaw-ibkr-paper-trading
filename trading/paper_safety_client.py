@@ -22,6 +22,7 @@ class PaperSafetyClient(TwsPaperClient):
         self.history_tickers = {49000+i:s for i,s in enumerate(symbols)}
         self.read_only_completed_orders_blocked = False
         self._history_gap_pending=set()
+        self.research_scanner = None
 
     def useProtoBuf(self,msgId):
         from ibapi.message import OUT
@@ -74,6 +75,7 @@ class PaperSafetyClient(TwsPaperClient):
     def error(self, reqId, *args):
         super().error(reqId, *args)
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
+        if self.research_scanner is not None and self.research_scanner.error(reqId,code):return
         if isinstance(code,int):
             if code in (10197,1100,1101,1102,2110,162,321,101,10225,354,10168,10186) or reqId in self.bar_tickers or reqId in self.history_tickers:
                 self.monitor._record('error',dict(request_id=reqId,code=code,details=str(args)))
@@ -97,6 +99,12 @@ class PaperSafetyClient(TwsPaperClient):
                     self.monitor._publish()
         if code == 326:
             self.monitor.invalidate('AUTH_OR_API_CONFIGURATION_REQUIRED')
+
+    def scannerData(self, reqId, rank, contractDetails, distance, benchmark, projection, legsStr):
+        if self.research_scanner is not None:self.research_scanner.data(reqId,rank,contractDetails)
+
+    def scannerDataEnd(self, reqId):
+        if self.research_scanner is not None:self.research_scanner.end(reqId)
 
     def openOrder(self, orderId, contract, order, orderState):
         super().openOrder(orderId, contract, order, orderState)

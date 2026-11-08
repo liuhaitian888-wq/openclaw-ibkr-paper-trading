@@ -34,7 +34,7 @@ def accept_update(archive, update, config, *, armed_at):
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
             'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
     with closing(archive.connect()) as c,c:

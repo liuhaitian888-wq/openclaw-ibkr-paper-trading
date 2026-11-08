@@ -1,0 +1,127 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "从宽范围研究到券商核对",
+    "subtitle": "免费来源分层缓存；研究投影不授予交易权限",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "visual_preset": "signal-flow"
+  },
+  "lanes": [
+    {
+      "id": "research",
+      "label": "公开数据与私人秘书"
+    },
+    {
+      "id": "broker",
+      "label": "券商证据与按需比对"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "public",
+      "lane": "research",
+      "col": 0,
+      "type": "external",
+      "label": "Nasdaq · Yahoo · SEC",
+      "sublabel": "价量、部分财务与各自时间",
+      "width": 170
+    },
+    {
+      "id": "cache",
+      "lane": "research",
+      "col": 1,
+      "type": "database",
+      "label": "本地证据库",
+      "sublabel": "研究、券商与缺口记录",
+      "width": 170
+    },
+    {
+      "id": "layers",
+      "lane": "research",
+      "col": 2,
+      "type": "backend",
+      "label": "L1–L3 研究投影",
+      "sublabel": "L4–L6 仍需独立证据",
+      "width": 170
+    },
+    {
+      "id": "telegram",
+      "lane": "research",
+      "col": 3,
+      "type": "frontend",
+      "label": "Telegram 私人菜单",
+      "sublabel": "筛选、刷新、扫描和对比",
+      "width": 170
+    },
+    {
+      "id": "owner",
+      "lane": "broker",
+      "col": 0,
+      "type": "backend",
+      "label": "既有 Paper 只读 owner",
+      "sublabel": "Scanner ≤50；已有回读",
+      "width": 200
+    },
+    {
+      "id": "compare",
+      "lane": "broker",
+      "col": 3,
+      "type": "security",
+      "label": "逐字段核对",
+      "sublabel": "合约、币种、时刻与权限",
+      "width": 170
+    }
+  ],
+  "mainPath": [
+    "public",
+    "cache",
+    "layers",
+    "telegram"
+  ],
+  "edges": [
+    {
+      "id": "public-cache",
+      "from": "public",
+      "to": "cache",
+      "label": "有界定时采集",
+      "role": "main"
+    },
+    {
+      "id": "cache-layers",
+      "from": "cache",
+      "to": "layers",
+      "label": "保留数据缺口",
+      "role": "main"
+    },
+    {
+      "id": "layers-telegram",
+      "from": "layers",
+      "to": "telegram",
+      "label": "只读筛选",
+      "role": "main"
+    },
+    {
+      "id": "owner-cache",
+      "from": "owner",
+      "to": "cache",
+      "label": "回读与扫描排名",
+      "role": "branch"
+    },
+    {
+      "id": "cache-compare",
+      "from": "cache",
+      "to": "compare",
+      "label": "缓存字段与时间",
+      "role": "branch"
+    },
+    {
+      "id": "telegram-compare",
+      "from": "telegram",
+      "to": "compare",
+      "label": "按需对照",
+      "role": "branch"
+    }
+  ]
+}
