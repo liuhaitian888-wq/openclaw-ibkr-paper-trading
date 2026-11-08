@@ -1,6 +1,6 @@
 """Bounded secretary RPC. SSH authenticates operator; Telegram authenticates owner."""
 import asyncio
-from contextlib import closing, redirect_stdout
+from contextlib import closing, redirect_stdout, nullcontext
 import json
 import logging
 import os
@@ -10,7 +10,7 @@ import time
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
-from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress
+from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress, checkpoint, reconcile_acknowledgements
 from reporting.secretary_read import tool
 from reporting.secretary_conversation import response_mode
 from reporting.incident_telegram import verify_audience, verify_destination
@@ -19,20 +19,23 @@ from reporting.recovery import RecoveryCoordinator
 from reporting.secretary_controls import process_controls,tick_login,finish_start
 
 
-async def poll(archive, root, config, armed_at):
+async def poll(archive, root, config, armed_at, *, owned_bot=None, proof=None):
     from telegram import Bot
     logging.getLogger('httpx').setLevel(logging.CRITICAL)
     logging.getLogger('httpcore').setLevel(logging.CRITICAL)
     async with asyncio.timeout(25):
-        async with Bot(token=config['bot_token']) as bot:
-            if config.get('audience_mode')=='shared_group':
+        async with (nullcontext(owned_bot) if owned_bot is not None else Bot(token=config['bot_token'])) as bot:
+            verify=proof is None or not 0<=time.monotonic()-proof.get('at',0)<30
+            if verify and config.get('audience_mode')=='shared_group':
                 await verify_destination(bot,config,{'incident_key':'private-inbox-proof','kind':'SECRETARY_REPLY','payload':{}})
-            else:
+            elif verify:
                 await verify_audience(bot,config)
-            if (await bot.get_webhook_info()).url:
+            if verify and (await bot.get_webhook_info()).url:
                 raise PermissionError('Existing webhook receiver; do not compete')
+            if verify and proof is not None:proof['at']=time.monotonic()
             updates=await bot.get_updates(offset=cursor(archive),limit=20,timeout=5,allowed_updates=['message'],read_timeout=10,connect_timeout=5)
             accepted=sum(accept_update(archive,json.loads(u.to_json()),config,armed_at=armed_at) for u in updates)
+            reconcile_acknowledgements(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
     return {'received':len(updates),'accepted':accepted}
 
 
@@ -46,6 +49,13 @@ def active_run(archive,run):
 def dispatch(root,request,config,policy):
     archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
     action=request.get('action')
+    if action in ('model_started','model_finished'):
+        instruction=active_run(archive,request['run']);turn=request['turn']
+        if type(turn) is not int or not 1<=turn<=3:raise ValueError('Bounded model turn required')
+        inserted=archive.append(request['run']+':'+action+':'+str(turn),'der-secretary',origin='SYSTEM',kind=action.upper(),parent=instruction,
+            payload={'turn':turn,'duration_seconds':request.get('duration_seconds')})
+        if action=='model_started' and not inserted:raise ValueError('Model occurrence already started; reconcile, never replay')
+        return {'state':'ARCHIVED'}
     if action=='poll':
         reconcile_replies(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
         if policy.get('receiver_owner')=='cloud':
@@ -56,10 +66,15 @@ def dispatch(root,request,config,policy):
             result['controls']=process_controls(archive,root,config,policy)
             tick_login(archive,root)
         if result['controls']:return result
+        if (root/'runtime/SECRETARY_MODEL_DRAIN').exists():
+            result['job']=None;return result
         autonomous(archive,now=time.time())
         result['job']=claim(archive,model=policy['model'],now=time.time())
         if result['job'] and result['job']['payload'].get('autonomous'):progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
+    if action=='checkpoint':
+        active_run(archive,request['run']);checkpoint(archive,request['run'],request['checkpoint'])
+        return {'state':'YIELDED'}
     if action=='telegram_search_finished':
         from reporting.secretary_controls import finish_search
         return finish_search(archive,root,request)

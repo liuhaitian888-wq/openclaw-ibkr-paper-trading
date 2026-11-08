@@ -39,10 +39,15 @@ def rpc(request):
 
 def execute(job,settings):
     transcript=[{'instruction':job['payload'],'recent_conversation':job.get('conversation_context',[]),'mode_preference':preference(job['payload']),'source':'authorized cloud archive'}];usage=[];step=0
-    for turn in range(3):
+    saved=job.get('checkpoint',{})
+    transcript=saved.get('transcript',transcript);usage=saved.get('usage',usage);step=saved.get('step',step)
+    for turn in range(saved.get('turn',0),3):
         prompt=SYSTEM+'\n'+CONVERSATION_POLICY+'\n'+json.dumps({'turn':turn+1,'last_turn':turn==2,'evidence':transcript},ensure_ascii=False)
         if len(prompt)>60_000:raise RuntimeError('Context budget reached; requires reconciliation')
+        rpc({'action':'model_started','run':job['run'],'turn':turn+1})
+        inference_at=time.monotonic()
         result,used=analyze(prompt,codex=settings['codex'],codex_home=settings['codex_home'],empty_dir=settings['empty_dir'],model=job['model'])
+        rpc({'action':'model_finished','run':job['run'],'turn':turn+1,'duration_seconds':round(time.monotonic()-inference_at,3)})
         usage.append(used)
         mode=response_mode(job['payload'],result)
         result['response_mode']=mode
@@ -77,6 +82,8 @@ def execute(job,settings):
             # Exact tool evidence remains in cloud archive; cap only model context.
             packed=json.dumps(evidence,ensure_ascii=False)
             transcript.append({'request':request,'result':evidence if len(packed)<=12_000 else {'truncated_for_model':True,'preview':packed[:12_000]}})
+        rpc({'action':'checkpoint','run':job['run'],'checkpoint':dict(turn=turn+1,step=step,transcript=transcript,usage=usage)})
+        return {'state':'YIELDED','run':job['run']}
     raise RuntimeError('Bounded turns exhausted')
 
 
@@ -127,7 +134,7 @@ def main():
                     except Exception:pass  # STARTED survives; never infer safely replayable.
                 logger.info(json.dumps({'state':'REQUIRES_RECONCILIATION' if job else 'POLL_UNAVAILABLE','error_type':type(exc).__name__,'reason':str(exc)[:500] if isinstance(exc,(RuntimeError,ValueError)) else 'details omitted','at':time.time()}))
                 if isinstance(exc,(KeyboardInterrupt,SystemExit)):break
-            stopped.wait(30)
+            stopped.wait(.1 if job else 1)
     return 0
 
 

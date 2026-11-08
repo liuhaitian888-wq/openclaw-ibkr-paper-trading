@@ -14,7 +14,7 @@ class SearchTests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.r=Path(self.tmp.name)
   self.a=SecretaryArchive(self.r/'agent_secretary.sqlite3');initialize(self.a)
-  self.cfg={'owner_user_id':42,'chat_id':-10077,'bot_id':9,'bot_username':'fixture'}
+  self.cfg={'owner_user_id':42,'chat_id':-10077,'bot_id':9,'bot_username':'fixture','owner_private_chat_id':42,'owner_private_verified':True}
  def test_existing_logs_search_is_bounded_readonly_and_redacted(self):
   for i in range(4):self.a.append('work:'+str(i),'der-secretary',origin='TOOL',kind='EXPERIMENT',payload={'text':'timeout issue','password':'fake-private'})
   data=search_records(self.r,{'source':'work','query':'timeout','limit':2})
@@ -58,7 +58,7 @@ class SearchTests(unittest.TestCase):
   result=asyncio.run(search(self.config(),{'query':'outage'},{**self.cfg,'bot_ids':[9]},client_factory=lambda c:client))
   self.assertEqual(result['state'],'NEEDS_OWNER_LOGIN');self.assertTrue(client.closed)
  def test_owner_search_queue_dispatches_once_and_unknown_auth_stays_explicit(self):
-  u={'update_id':1,'message':{'chat':{'id':-10077},'from':{'id':42,'is_bot':False},'date':1000,'message_id':1,'text':'/search outage'}}
+  u={'update_id':1,'message':{'chat':{'id':42,'type':'private'},'from':{'id':42,'is_bot':False},'date':1000,'message_id':1,'text':'/search outage'}}
   self.assertTrue(accept_update(self.a,u,self.cfg,armed_at=1000));process_controls(self.a,self.r,self.cfg)
   controls=pending_controls(self.a);self.assertEqual(controls[0]['kind'],'TELEGRAM_SEARCH');self.assertEqual(pending_controls(self.a),[])
   result={'state':'NEEDS_OWNER_USER_SESSION','rows':[],'reason':'Owner login needed'}
@@ -66,5 +66,5 @@ class SearchTests(unittest.TestCase):
   with closing(sqlite3.connect(self.r/'runtime/recovery.sqlite3')) as c:self.assertEqual(c.execute('SELECT count(*) FROM notification_outbox').fetchone()[0],1)
   self.assertIsNone(claim(self.a,model='gpt-6.1-sol',now=1000))
  def test_friend_cannot_queue_search(self):
-  u={'update_id':1,'message':{'chat':{'id':-10077},'from':{'id':43,'is_bot':False},'date':1000,'message_id':1,'text':'/search password'}}
+  u={'update_id':1,'message':{'chat':{'id':42,'type':'private'},'from':{'id':43,'is_bot':False},'date':1000,'message_id':1,'text':'/search password'}}
   self.assertFalse(accept_update(self.a,u,self.cfg,armed_at=1000));self.assertEqual(pending_controls(self.a),[])

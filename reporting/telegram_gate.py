@@ -77,16 +77,18 @@ def apply(archive,root,instruction,request):
 
 
 def reconcile(archive,root):
-    with closing(archive.connect()) as c:
+    # Serialize committed-version read and materialization across inbox/form/RPC owners.
+    with closing(archive.connect()) as c,c:
+        c.execute('BEGIN IMMEDIATE')
         if not c.execute("SELECT 1 FROM sqlite_master WHERE name='secretary_gate_versions'").fetchone():return
         row=c.execute('SELECT payload FROM secretary_gate_versions ORDER BY revision DESC LIMIT 1').fetchone()
-    if row:
-        latest=json.loads(row[0])
-        required=contained(root,'runtime/RISK_CONTROLS_REQUIRED');required.parent.mkdir(parents=True,exist_ok=True)
-        required.touch(mode=0o600,exist_ok=True)
-        try:matches=current(root)==latest
-        except (OSError,ValueError,TypeError):matches=False
-        if not matches:materialize(root,latest)
+        if row:
+            latest=json.loads(row[0])
+            required=contained(root,'runtime/RISK_CONTROLS_REQUIRED');required.parent.mkdir(parents=True,exist_ok=True)
+            required.touch(mode=0o600,exist_ok=True)
+            try:matches=current(root)==latest
+            except (OSError,ValueError,TypeError):matches=False
+            if not matches:materialize(root,latest)
 
 
 def template(root):
@@ -98,6 +100,17 @@ def template(root):
         +'RMAX · Risk/order: '+money('max_risk_per_order')+'\n'
         +'SMAX · Symbol exposure: '+money('max_symbol_exposure')+'\n'
         +'GMAX · Gross exposure: '+money('max_gross_exposure')+'\n\n'
-        +'Set one limit per message:\n/qmax 1\n/omax 150\n/rmax 8\n/smax 500\n/gmax 1200\n\n'
+        +'整组编辑：点击下方表单，预览后确认。兼容：/gate_batch QMAX=1 OMAX=150 RMAX=8 SMAX=500 GMAX=1200\n\n单项兼容：\n/qmax 1\n/omax 150\n/rmax 8\n/smax 500\n/gmax 1200\n\n'
         +'USD except QMAX. Applied by Python; stricter existing limits still apply.\n'
         +'These commands do not send orders or clear trading approvals/pauses.')
+
+
+def parse_batch(text):
+    import re
+    aliases=dict(zip(('QMAX','OMAX','RMAX','SMAX','GMAX'),FIELDS))
+    values={}
+    for part in text.split():
+        match=re.fullmatch(r'(QMAX|OMAX|RMAX|SMAX|GMAX)=(不限|[0-9]+(?:\.[0-9]+)?)',part)
+        if not match or match[1] in values:raise ValueError('五项各一次：QMAX=1 OMAX=200 RMAX=10 SMAX=不限 GMAX=不限；金额单位USD')
+        values[match[1]]=None if match[2]=='不限' else match[2]
+    return validate({aliases[k]:v for k,v in values.items()})

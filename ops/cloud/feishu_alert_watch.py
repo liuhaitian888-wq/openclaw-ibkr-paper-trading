@@ -1,5 +1,6 @@
 """Cloud-only notification owner; no broker interface or model invocation."""
 import json
+from contextlib import AsyncExitStack
 import asyncio
 import os
 from pathlib import Path
@@ -30,7 +31,7 @@ def delivery_preflight(url):
         return False
 
 
-def main():
+async def run_worker():
     os.umask(0o077)
     root = Path.home()/'.local/state/openclaw'
     runtime = root/'runtime'
@@ -72,45 +73,54 @@ def main():
         coordinator.configure_delivery_transport('telegram' if telegram else 'smtp' if smtp else 'feishu')
         store = IncidentStore(coordinator.path)
         store.enqueue_current_summary('cloud-monitoring-delivery-20261104')
-        report_audit_at=0
-        while not stopped.is_set() and armed.is_file():
-            if ((root/'runtime/FEISHU_ALERTS_ARMED').exists() if (smtp or telegram) else smtp_armed.exists()):
-                raise RuntimeError('Concurrent SMTP arming is not permitted')
-            try:
-                enqueue_authentication_notice(store, datetime.now(timezone.utc))
-                if (runtime/'FINANCIAL_REPORTS_ARMED').is_file():
-                    expected = json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
-                    enqueue_reports(store, root/'reports/financial', expected, datetime.now(timezone.utc), transport="telegram" if telegram or (runtime/"TELEGRAM_REPORTS_ARMED").is_file() else "smtp" if smtp else "feishu")
-                if time.monotonic()-report_audit_at>=60:
-                    from reporting.report_delivery_status import record_status
-                    record_status(store,datetime.now(timezone.utc));report_audit_at=time.monotonic()
-                store.enqueue_due_reminders()
-                item=store.claim()
-                if item is None:
-                    result='BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
-                elif telegram or item['payload'].get('delivery_transport')=='telegram':
-                    if not telegram and not (runtime/'TELEGRAM_REPORTS_ARMED').is_file():
-                        result=store.defer_unsent(item['id'])
+        async with AsyncExitStack() as clients:
+            owned_bot=None;private_proof={}
+            if telegram:
+                from telegram import Bot
+                owned_bot=await clients.enter_async_context(Bot(token=cfg['bot_token']))
+            report_audit_at=0
+            while not stopped.is_set() and armed.is_file():
+                if ((root/'runtime/FEISHU_ALERTS_ARMED').exists() if (smtp or telegram) else smtp_armed.exists()):
+                    raise RuntimeError('Concurrent SMTP arming is not permitted')
+                try:
+                    enqueue_authentication_notice(store, datetime.now(timezone.utc))
+                    if (runtime/'FINANCIAL_REPORTS_ARMED').is_file():
+                        expected = json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']
+                        enqueue_reports(store, root/'reports/financial', expected, datetime.now(timezone.utc), transport="telegram" if telegram or (runtime/"TELEGRAM_REPORTS_ARMED").is_file() else "smtp" if smtp else "feishu")
+                    if time.monotonic()-report_audit_at>=60:
+                        from reporting.report_delivery_status import record_status
+                        record_status(store,datetime.now(timezone.utc));report_audit_at=time.monotonic()
+                    store.enqueue_due_reminders()
+                    item=store.claim()
+                    if item is None:
+                        result='BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
+                    elif telegram or item['payload'].get('delivery_transport')=='telegram':
+                        if not telegram and not (runtime/'TELEGRAM_REPORTS_ARMED').is_file():
+                            result=store.defer_unsent(item['id'])
+                        else:
+                            from reporting.incident_telegram import send_one as send_telegram
+                            private=Path.home()/'.config/openclaw/telegram.json'
+                            if private.stat().st_mode & 0o077:raise PermissionError('Private Telegram configuration required')
+                            with private.open() as handle:telegram_cfg=json.load(handle)
+                            if owned_bot is not None and telegram_cfg!=cfg:raise RuntimeError('Telegram configuration changed; restart owner for identity verification')
+                            result=await send_telegram(store,coordinator,telegram_cfg,report_root=root/'reports/financial',claimed_item=item,owned_bot=owned_bot,private_proof=private_proof)
                     else:
-                        from reporting.incident_telegram import send_one as send_telegram
-                        private=Path.home()/'.config/openclaw/telegram.json'
-                        if private.stat().st_mode & 0o077:raise PermissionError('Private Telegram configuration required')
-                        with private.open() as handle:telegram_cfg=json.load(handle)
-                        result=asyncio.run(send_telegram(store,coordinator,telegram_cfg,report_root=root/'reports/financial',claimed_item=item))
-                else:
-                    result=(send_smtp(store,coordinator,cfg,report_root=root/'reports/financial',claimed_item=item) if smtp
-                            else send_one(store,coordinator,cfg,preflight=delivery_preflight,claimed_item=item))
-            except Exception:
-                print('NOTIFICATION_DELIVERY_UNKNOWN_REQUIRES_RECONCILIATION', flush=True)
-                stopped.wait(5)
-                continue
-            if result not in ('EMPTY', 'BLOCKED_UNKNOWN'):
-                print(result, flush=True)
-            if result in ('UNKNOWN', 'BLOCKED_UNKNOWN'):
-                stopped.wait(5)
-            elif result == 'EMPTY':
-                stopped.wait(1)
+                        result=(send_smtp(store,coordinator,cfg,report_root=root/'reports/financial',claimed_item=item) if smtp
+                                else send_one(store,coordinator,cfg,preflight=delivery_preflight,claimed_item=item))
+                except Exception:
+                    print('NOTIFICATION_DELIVERY_UNKNOWN_REQUIRES_RECONCILIATION', flush=True)
+                    await asyncio.sleep(5)
+                    continue
+                if result not in ('EMPTY', 'BLOCKED_UNKNOWN'):
+                    print(result, flush=True)
+                if result == 'UNKNOWN':
+                    await asyncio.sleep(5)
+                elif result in ('EMPTY', 'BLOCKED_UNKNOWN'):
+                    await asyncio.sleep(.2)
     return 0
+
+
+def main():return asyncio.run(run_worker())
 
 
 if __name__ == '__main__':

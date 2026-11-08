@@ -37,7 +37,7 @@ def process_controls(archive,root,config,policy=None):
     reconcile(archive,root);store=IncidentStore(root/'runtime/recovery.sqlite3')
     with closing(archive.connect()) as c:
         rows=c.execute("""SELECT e.occurrence,e.payload FROM secretary_events e WHERE e.kind='CONTROL_INSTRUCTION'
-            AND NOT EXISTS(SELECT 1 FROM secretary_runs r WHERE r.instruction=e.occurrence) ORDER BY e.rowid LIMIT 5""").fetchall()
+            AND coalesce(json_extract(e.payload,'$.handled_by'),'')!='gate-form' AND NOT EXISTS(SELECT 1 FROM secretary_runs r WHERE r.instruction=e.occurrence) ORDER BY e.rowid LIMIT 5""").fetchall()
     controls=[]
     for instruction,payload in rows:
         text=json.loads(payload)['text'];parts=text.split(maxsplit=1);raw=parts[0];command=raw.split('@')[0]
@@ -46,7 +46,7 @@ def process_controls(archive,root,config,policy=None):
             parts=['/gate_set',aliases_short[command]+' '+(parts[1] if len(parts)==2 else '')];command='/gate_set'
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
-            if command=='/start' and len(parts)==1:
+            if command in ('/start','/help') and len(parts)==1:
                 summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n直接发文字即可交给秘书；不需要 /secretary。'
             elif command in ('/inbox','/event','/read','/notify','/preview'):
                 from .notification_center import inbox,get_item,mark_read,settings,set_preference,preview
@@ -100,7 +100,28 @@ def process_controls(archive,root,config,policy=None):
                     if data.get('sources'):reports.extend(str(x['source'])+' '+str(x['state'])+(' HTTP '+str(x['http_status']) if x.get('http_status') else '') for x in data['sources'])
                     if data.get('per_symbol'):reports.extend(x['symbol']+'：'+('已验证本次新闻读取' if x.get('news_usable') else '本次可用性未建立') for x in data['per_symbol'])
                 summary='情报源实际状态\n'+'\n'.join(reports)+'\n新闻相关性不证明价格因果，交易门禁独立。'
-            elif command=='/gate' and len(parts)==1:summary=template(root)
+            elif command=='/gate' and len(parts)==1:
+                summary=template(root)
+                url=policy.get('limits_web_url')
+                if url:
+                    from urllib.parse import urlsplit
+                    parsed=urlsplit(url)
+                    if parsed.scheme!='https' or not parsed.hostname or parsed.username or parsed.password:raise ValueError('HTTPS form URL required')
+                    archive.append(instruction+':control:presentation',CONVERSATION,origin='TOOL',kind='CONTROL_PRESENTATION',parent=instruction,payload={'web_app_url':url})
+                else:summary+='\n表单入口尚未部署。'
+            elif command=='/gate_help' and len(parts)==1:
+                summary='交易门禁决定是否允许交易，/ready 显示暂停原因。风控限额是额外数值上限，与现有硬上限取更严值。修改限额不解除PAUSED/MAINTENANCE，不下单或撤单。'
+            elif command=='/gate_batch' and len(parts)==2:
+                if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved')
+                from .telegram_gate import parse_batch,current
+                from .gate_drafts import create_draft,preview_text
+                draft=create_draft(archive,root,config['owner_user_id'],current(root)['revision'],parse_batch(parts[1]))
+                summary=preview_text(draft)+'\n尚未生效。确认整组应用：\n/gate_confirm '+draft['id']
+            elif command=='/gate_confirm' and len(parts)==2:
+                if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved')
+                from .gate_drafts import confirm_draft
+                data=confirm_draft(archive,root,config['owner_user_id'],parts[1].strip())
+                summary='整组已确认 · v'+str(data['revision'])+'\n'+template(root)
             elif command=='/gate_set' and len(parts)==2:
                 if policy.get('numeric_gate_controls_approved') is not True:raise PermissionError('Numeric controls not approved')
                 from .telegram_gate import current
@@ -189,3 +210,11 @@ def finish_search(archive,root,request):
     archive.finish_run(run,state='SUCCEEDED',result_event=event)
     enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,message(result),role='CONTROL')
     return {'state':'ARCHIVED_QUERY_RESULT','search_state':result['state']}
+
+
+def menu_commands():
+    return [('ready','交易门禁：是否允许交易 / 为何暂停'),('gate','风控限额：查看 / 整组编辑'),
+            ('holdings','持仓：最新只读回读'),('report','日报：查看投递回执'),
+            ('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
+            ('login','认证：查看连接与登录状态'),('help','秘书帮助：私聊使用说明'),
+            ('notify','通知分类与配置'),('preview','通知预览：按编号查看')]

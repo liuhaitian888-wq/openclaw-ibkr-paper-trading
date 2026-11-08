@@ -12,9 +12,9 @@ class SecretaryQueueTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
         self.a=SecretaryArchive(self.root/'agent.sqlite3',clock=lambda:100000)
-        initialize(self.a);self.config={'chat_id':-100,'owner_user_id':123}
+        initialize(self.a);self.config={'chat_id':-100,'owner_user_id':123,'owner_private_chat_id':123,'owner_private_verified':True}
     def update(self,**changes):
-        m={'chat':{'id':-100},'from':{'id':123,'is_bot':False},'text':'research data quality','date':100000,'message_id':1};m.update(changes)
+        m={'chat':{'id':123,'type':'private'},'from':{'id':123,'is_bot':False},'text':'research data quality','date':100000,'message_id':1};m.update(changes)
         return {'update_id':1,'message':m}
     def test_only_owner_native_recent_messages_are_accepted(self):
         variants=[{'from':{'id':124,'is_bot':False}},{'from':{'id':123,'is_bot':True}},

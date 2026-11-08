@@ -111,7 +111,7 @@ class IncidentStore:
                 AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY n.id LIMIT 1""", (self.clock(),)).fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 1""", (self.clock(),)).fetchone()
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))

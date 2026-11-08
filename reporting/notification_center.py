@@ -25,7 +25,7 @@ GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstre
 def category(item):
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
     if kind=='SECRETARY_REPLY':
-        return {'CHAT':'chat','TASK':'task','RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
+        return {'ACK':'chat','CHAT':'chat','TASK':'task','RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
     if kind.startswith('REPORT_'):return 'report'
     if kind.startswith('AUTH_') or p.get('scope')=='GATEWAY_AUTHENTICATION':return 'auth'
     if p.get('source')=='IBKR_FYI':return 'fyi'
@@ -134,6 +134,8 @@ def render(item,config,at):
         summary=(display(reason).splitlines() or ['状态已更新'])[0][:150]
         detail=notification_text(item,at,max_length=3300)
     if kind in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):detail=detail[:520]
+    if kind=='SECRETARY_REPLY' and p.get('message_role') in ('ACK','CHAT','CONTROL') and audience(item,config)=='owner':
+        return {'text':str(p.get('reason','')),'html':html.escape(str(p.get('reason',''))),'category':cat,'audience':'owner','chat_id':recipient(item,config)}
     top=title+'\n'+summary+'\n事件 #'+str(item['id'])+' · /event '+str(item['id'])
     body=html.escape(top)+'\n<blockquote expandable>'+html.escape(detail)+'</blockquote>'
     return {'text':top+'\n'+detail,'html':body,'category':cat,'audience':audience(item,config),'chat_id':recipient(item,config)}

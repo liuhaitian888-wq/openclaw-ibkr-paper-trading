@@ -114,14 +114,14 @@ class NotificationCenterTests(unittest.TestCase):
   self.event(key='paper-safety:upstream',occ='recovery',resolved=True)
   self.assertEqual(self.send(bot),'UNKNOWN');self.assertEqual(self.send(bot),'BLOCKED_UNKNOWN')
   self.assertEqual(len(bot.sends),1);self.assertEqual(len(bot.edits),1);self.assertTrue(bot.closed)
- def test_owner_only_both_chats_and_deterministic_inbox_commands(self):
+ def test_owner_private_only_and_deterministic_inbox_commands(self):
   archive=SecretaryArchive(self.root/'a.sqlite3');initialize(archive)
-  for i,(cid,sender,text,allowed) in enumerate([(-100,43,'/holdings',False),(43,43,'/inbox',False),(42,42,'/inbox',True),(-100,42,'/notify',True),(42,42,'/start',True)]):
+  for i,(cid,sender,text,allowed) in enumerate([(-100,43,'/holdings',False),(43,43,'/inbox',False),(42,42,'/inbox',True),(-100,42,'/notify',False),(42,42,'/start',True)]):
    u={'update_id':i,'message':{'chat':{'id':cid},'from':{'id':sender,'is_bot':False},'text':text,'date':1000,'message_id':i}}
    self.assertEqual(accept_update(archive,u,CFG,armed_at=1000),allowed)
   with patch('reporting.secretary_controls.subprocess.run') as start:process_controls(archive,self.root,CFG)
   start.assert_not_called();self.assertIsNone(claim(archive,model='gpt-6.1-sol',now=1000))
-  with closing(archive.connect()) as c:self.assertEqual(c.execute("SELECT count(*) FROM secretary_runs WHERE model='PYTHON_CONTROL' AND state='SUCCEEDED'").fetchone()[0],3)
+  with closing(archive.connect()) as c:self.assertEqual(c.execute("SELECT count(*) FROM secretary_runs WHERE model='PYTHON_CONTROL' AND state='SUCCEEDED'").fetchone()[0],2)
  def test_tokens_and_password_fields_are_redacted_from_model_and_message_views(self):
   from reporting.errors import redact
   secret=CFG['bot_token']

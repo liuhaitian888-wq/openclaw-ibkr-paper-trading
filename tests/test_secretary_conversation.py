@@ -66,9 +66,15 @@ class ConversationTests(unittest.TestCase):
         job={'run':'r','payload':{'text':'/chat 随便聊聊'},'model':'gpt-6.1-sol'}
         settings={'codex':'unused','codex_home':'unused','empty_dir':'unused'}
         with patch.object(bridge,'analyze',side_effect=[({'summary':'x','response_mode':'RESEARCH','tools':[{'name':'research_universe'},{'name':'engineering_proposal'}]},{}),({'summary':'done','tools':[]},{})]),patch.object(bridge,'rpc',return_value={'state':'SUCCEEDED'}) as rpc:
+            yielded=bridge.execute(job,settings)
+            self.assertEqual(yielded['state'],'YIELDED')
+            checkpoint=rpc.call_args.args[0]
+            self.assertEqual(checkpoint['action'],'checkpoint')
+            self.assertEqual(len(checkpoint['checkpoint']['transcript']),3)
+            job['checkpoint']=checkpoint['checkpoint']
             bridge.execute(job,settings)
-            self.assertEqual(rpc.call_count,1)
             self.assertEqual(rpc.call_args.args[0]['result']['response_mode'],'CHAT')
+            self.assertFalse(any(c.args[0]['action']=='tool' for c in rpc.call_args_list))
 
 
     def test_rpc_persists_chat_kind_and_replay_retains_role(self):

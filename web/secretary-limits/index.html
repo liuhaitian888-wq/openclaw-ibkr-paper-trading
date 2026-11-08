@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>风控限额 · der秘书</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,sans-serif;background:var(--tg-theme-bg-color,#10171f);color:var(--tg-theme-text-color,#edf3f8)}
+body{max-width:460px;margin:auto;padding:24px 20px 40px}h1{font-size:27px;margin-bottom:8px}.muted{opacity:.7;font-size:14px;line-height:1.6}
+label{display:block;margin:22px 0 7px;font-weight:600}input{box-sizing:border-box;width:100%;padding:14px;border-radius:12px;border:1px solid #647588;background:transparent;color:inherit;font-size:18px}
+button{width:100%;border:0;border-radius:12px;padding:16px;margin-top:20px;font-size:16px;font-weight:600;background:var(--tg-theme-button-color,#4ba3eb);color:var(--tg-theme-button-text-color,#fff)}
+button:disabled{opacity:.4}#confirm{background:#d87b20}#status{white-space:pre-line;line-height:1.7}table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:12px 4px;border-bottom:1px solid #64758855}details{margin-top:25px;font-size:14px;line-height:1.7}#preview{margin-top:25px}.tag{font-size:12px;color:#69bbef}
+</style>
+<body><div class="tag">DER · OWNER PRIVATE</div><h1>风控限额</h1><p class="muted">一次编辑五项，预览后整组确认。数值上限与交易门禁分别生效。</p>
+<div id="status" role="status">正在验证 Telegram 身份…</div>
+<form id="form" hidden><div id="fields"></div><p class="muted">QMAX 为整数股数；其他四项为 USD。仅 SMAX / GMAX 可填“不限”。</p><button id="previewButton">预览变更</button></form>
+<section id="preview" hidden><h2>确认整组变更</h2><p class="muted" id="version"></p><table><thead><tr><th>限额</th><th>当前</th><th>新值</th></tr></thead><tbody id="rows"></tbody></table><button id="confirm">确认整组应用</button><button id="back" type="button">返回编辑</button></section>
+<details id="help"><summary>门禁与风控的区别</summary><p>交易门禁决定是否允许交易，/ready 显示暂停原因。这里设置五项额外数值上限，与原有硬上限取更严值。确认限额不解除 PAUSED / MAINTENANCE，不下单、不撤单。</p><p>预览只保存十分钟草案；只有你点击“确认整组应用”才提交。版本变化时须重新打开并预览。</p></details>
+<script>
+'use strict';
+const tg=window.Telegram?.WebApp, auth=tg?.initData || '';
+const status=document.querySelector('#status'),form=document.querySelector('#form'),preview=document.querySelector('#preview');
+const fields=[['max_quantity','QMAX · 单笔股数（股）'],['max_order_value','OMAX · 单笔金额（USD）'],['max_risk_per_order','RMAX · 单笔风险（USD）'],['max_symbol_exposure','SMAX · 单股持仓上限（USD）'],['max_gross_exposure','GMAX · 账户总敞口（USD）']];
+let current,draft,busy=false;
+const display=x=>x===null?'不限':String(x);
+function setBusy(value){busy=value;document.querySelectorAll('button').forEach(b=>b.disabled=value);}
+async function api(path,data={}){
+ const response=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:auth,...data})});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'请求未确认，请重新查看当前限额');return result;
+}
+async function load(){
+ if(!auth){status.textContent='请从 der秘书的 owner 私聊中，点击 /gate 下方的“编辑全部限额”打开。';return;}
+ tg.ready();tg.expand();
+ try{current=await api('current');status.textContent='当前版本 v'+current.revision+' · 尚未修改';
+ for(const [key,label] of fields){const l=document.createElement('label');l.htmlFor=key;l.textContent=label;const input=document.createElement('input');input.id=key;input.name=key;input.value=display(current.settings[key]);input.inputMode='decimal';input.autocomplete='off';input.required=true;document.querySelector('#fields').append(l,input);}
+ form.hidden=false;if(location.hash==='#help')document.querySelector('#help').open=true;
+ }catch(e){status.textContent=e.message;}
+}
+form.addEventListener('submit',async event=>{event.preventDefault();if(busy)return;setBusy(true);
+ try{const settings={};for(const [key] of fields){const value=form.elements[key].value.trim();settings[key]=value==='不限'?null:value;}
+ draft=await api('preview',{revision:current.revision,settings});document.querySelector('#rows').replaceChildren();
+ for(const [key,label] of fields){const tr=document.createElement('tr');for(const text of [label.split(' · ')[0],display(draft.previous[key]),display(draft.settings[key])]){const td=document.createElement('td');td.textContent=text;tr.append(td);}document.querySelector('#rows').append(tr);}
+ document.querySelector('#version').textContent='基于 v'+draft.revision+' · 草案10分钟有效';form.hidden=true;preview.hidden=false;status.textContent='预览已生成，尚未生效。';
+ }catch(e){status.textContent=e.message;}finally{setBusy(false);}
+});
+document.querySelector('#back').onclick=()=>{preview.hidden=true;form.hidden=false;draft=null;status.textContent='编辑中，尚未生效。';};
+document.querySelector('#confirm').onclick=async()=>{if(busy||!draft)return;setBusy(true);
+ try{const result=await api('confirm',{draft:draft.id});status.textContent='整组确认成功 · v'+result.revision+'\n交易门禁保持。私聊回执将由既有通知服务送达。';preview.hidden=true;draft=null;}
+ catch(e){status.textContent=e.message+'\n如果确认结果未知，请先通过 /gate 核对，不要重新创建草案提交。';}finally{setBusy(false);}
+};load();
+</script></body></html>

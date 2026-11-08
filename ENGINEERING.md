@@ -337,3 +337,16 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 修复把整个watchdog改为ibkr服务身份，删除root/runuser/JSON委托，检查真实/有效UID，锁覆盖STARTED落盘、重查和动作提交；配置NoNewPrivileges与空capabilities。仅root-owned polkit规则授权ibkr对固定ibkr-gateway.service执行restart，拒绝其他manage-units请求。部署需验证规则/父目录/目标unit及dropins root所有且ibkr不可写、目标User=ibkr且无root钩子，使用真实polkit授权查询验收允许与拒绝矩阵，不触发实际重启。原先“root固定动作即安全”的说法已在当前文档更正。
 
 独立只读调查与候选审查、针对性UID/锁回归及linked-worktree完整离线套件按codex-security:fix-finding执行；安全验证报告通过该插件artifact API保存。账户、保护单、交易暂停、维护与测试额度不改动。
+
+
+## 2026-11-08 Telegram 私聊快速控制与五项 Mini App
+
+在 linked worktree `codex/secretary-fast-controls` 实施已批准方案。接收端只接受已核验owner原生私聊，群内owner命令也拒绝；通知白名单和独立Healthchecks兜底保留。owner菜单前两项为交易门禁 `/ready`、风控限额 `/gate`。`/gate` 私聊按钮打开五项预填 Mini App，整组预览后确认；`/gate_batch` 为兼容路径。
+
+表单使用现有 Tailscale 的独立8443 HTTPS入口，loopback 8792由单独systemd owner管理；443管理入口维持tailnet only。initData按Telegram官方HMAC与600秒有效期验证owner，API不接受客户端owner/交易权限字段，token不下发。草案绑定owner、revision与五项设置，10分钟过期；确认复用既有数值版本事务与原子文件，旧revision/无效字段整组拒绝，重复确认及提交后落盘中断均按原版本回读。并发物化也在同一SQLite锁内串行。
+
+普通私聊的短确认持久化至既有outbox，只为此次上线后接收的新消息生成。通知worker复用有界生命周期客户端，私人目标证明缓存30秒且配置指纹变化失效，群目标继续逐次核验；紧急通知及同incident顺序、STARTED/UNKNOWN不重放保持。模型仍为gpt-6.1-sol/low；只将三轮执行拆成已确认模型与工具结果的持久检查点，新的用户消息优先于续跑，ACTIVE/UNKNOWN不恢复计费调用。轮询等待1秒，逐调用开始/完成与原生收信/入库/领取/投递/ACK有只读计时脚本 `scripts/secretary_latency.py`。
+
+验证日志保存在本机 `~/.local/state/openclaw/engineering/secretary-fast-controls-20261108/`。完整离线套件、秘密扫描和生产quick smoke结果以该目录脱敏证据为准；真实Mini App点击与用户提交是单独验收项，不能以模拟签名或HTTP探针冒充真实点击。交易PAUSED/MAINTENANCE、SAFE_MONITOR_ONLY以及实际限额保持；不为验收制造故障、不操作订单、不重启Gateway。
+
+官方接口参考：[Telegram initData校验](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)、[Tailscale Funnel范围与端口](https://tailscale.com/docs/features/tailscale-funnel)。

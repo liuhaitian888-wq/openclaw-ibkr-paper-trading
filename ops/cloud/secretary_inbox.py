@@ -9,7 +9,7 @@ from reporting.secretary_queue import initialize
 from reporting.secretary_controls import process_controls,tick_login
 
 
-def main():
+async def run_worker():
     os.umask(0o077);root=Path.home()/'.local/state/openclaw'
     policy=json.loads((root/'runtime/secretary-policy.json').read_text())
     if policy.get('approved') is not True or policy.get('receiver_owner')!='cloud' or policy.get('grants_trading_permission') is not False:raise PermissionError('Approved cloud inbox ownership required')
@@ -19,14 +19,20 @@ def main():
     for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,lambda *_:stopped.set())
     with monitoring_service('secretary-inbox',root):
         archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
-        while not stopped.is_set():
-            try:
-                result=asyncio.run(poll(archive,root,config,policy['armed_at']))
-                process_controls(archive,root,config,policy);tick_login(archive,root)
-                if result['accepted']:print(json.dumps({'accepted_native_owner_messages':result['accepted'],'at':time.time()}),flush=True)
-            except Exception as exc:
-                print(json.dumps({'state':'INBOX_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True);stopped.wait(5)
-            stopped.wait(.5)
+        from telegram import Bot
+        async with Bot(token=config['bot_token']) as bot:
+            proof={}
+            while not stopped.is_set():
+                try:
+                    result=await poll(archive,root,config,policy['armed_at'],owned_bot=bot,proof=proof)
+                    process_controls(archive,root,config,policy);tick_login(archive,root)
+                    if result['accepted']:print(json.dumps({'accepted_native_owner_messages':result['accepted'],'at':time.time()}),flush=True)
+                except Exception as exc:
+                    print(json.dumps({'state':'INBOX_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True);await asyncio.sleep(5)
+                await asyncio.sleep(.1)
+
+
+def main():return asyncio.run(run_worker())
 
 
 if __name__=='__main__':main()

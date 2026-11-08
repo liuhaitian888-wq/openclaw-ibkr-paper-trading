@@ -1,4 +1,5 @@
 """Telegram report and operational notification delivery with durable no-replay ownership."""
+from contextlib import nullcontext
 from datetime import timezone
 import asyncio
 import hashlib
@@ -93,7 +94,7 @@ async def verify_destination(bot,config,item):
     return chat
 
 
-async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_factory=None,clock=time.time):
+async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_factory=None,clock=time.time,owned_bot=None,private_proof=None):
     validate_config(config)
     item=claimed_item if claimed_item is not None else store.claim()
     if item is None:return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
@@ -111,8 +112,17 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
             store.suppress(item['id']);return 'SUPPRESSED'
         documents=report_bytes(item,report_root)
         async with asyncio.timeout(25):
-            async with bot_factory(token=config['bot_token']) as bot:
-                chat=await verify_destination(bot,config,item)
+            async with (nullcontext(owned_bot) if owned_bot is not None else bot_factory(token=config['bot_token'])) as bot:
+                from .notification_center import recipient
+                target=recipient(item,config)
+                fingerprint=hashlib.sha256(repr(sorted(config.items())).encode()).hexdigest()
+                proof_key=(target,fingerprint)
+                if target==config.get('owner_private_chat_id') and private_proof is not None and proof_key in private_proof and 0<=clock()-private_proof[proof_key][0]<30:
+                    chat=private_proof[proof_key][1]
+                else:
+                    chat=await verify_destination(bot,config,item)
+                    if target==config.get('owner_private_chat_id') and private_proof is not None:
+                        private_proof.clear();private_proof[proof_key]=(clock(),chat)
                 sending_at=clock()
                 caption=notification_text(item,sending_at,max_length=1024 if documents else 4000)
                 compact=config.get('notification_format')=='compact-v1'
@@ -122,6 +132,13 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     raise PermissionError('Credential detected in notification; refuse before wire')
                 previous=prior_card(store,item,chat.id) if compact and not documents else None
                 formatting={'parse_mode':'HTML'} if compact else {}
+                if item['payload'].get('message_role')=='CONTROL' and item['payload'].get('web_app_url'):
+                    from telegram import InlineKeyboardButton,InlineKeyboardMarkup,WebAppInfo
+                    url=item['payload']['web_app_url']
+                    if not url.startswith('https://') or chat.id!=config.get('owner_private_chat_id'):raise PermissionError('Private HTTPS form required')
+                    formatting['reply_markup']=InlineKeyboardMarkup([
+                        [InlineKeyboardButton('编辑全部限额',web_app=WebAppInfo(url=url))],
+                        [InlineKeyboardButton('门禁与风控的区别',web_app=WebAppInfo(url=url+'#help'))]])
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'
                 started=True;store.delivery_started(item['id'],sending_at)
