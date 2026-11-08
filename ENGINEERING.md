@@ -384,3 +384,9 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 最终linked worktree完整隔离离线980项/66.369s/OK，9项新增目录回归及既有秘书/会话回归通过；secret scan及部署证据见state/engineering/abc-security-master-20261108。主目录只smoke。部署只新增公开目录维护oneshot、重载秘书，保持Gateway/候选业务状态/交易门禁，原生broker_readback允许既有采集正常更新，首轮真实目录与分页另作回读，不把离线测试冒充当前实时权限验收。
 
 实际部署回读：公开目录oneshot Result=success/ExecMainStatus=0，daily timer active，下一次2026-11-09 08:11:41 Europe/Berlin（08:10加随机延后）；owner菜单set/get确认。只读工具与master_view真实筛选：ABC13217项、UNKNOWN22项，所有13239项permission_status=PENDING；C普通股3142、B ETF4403、Apple关键词6项。Gateway与门禁hash不变。canonical全载荷因现有5分钟券商采集更新broker_readback而变化；用旧paper_readback_observations重建后精确匹配部署前全载荷hash，证明候选层级/执行状态未改。详细独立证据在state/engineering/abc-security-master-20261108，不将该动态字段变化伪称全载荷完全未变。
+
+## 2026-11-08/09 P0 自动交易工程收口
+
+按用户优先级指令核验真实云端：完整新鲜四end、未知操作/待闭环请求均0；五只旧仓无有效保护，PFE8既有23.01保护保留。实际风控revision3为1/2000/10/null/null，执行硬上限仍1/200，不能沿用旧模板描述。独立有界只读USD/EUR现金读取确认美元-69788.66、欧元1007456.40；不换汇、不下单、不发布为永久新鲜cashbook。参数已一次请求，已批准现金政策不重问。
+
+修复候选执行入口的原始报价时间丢失、NaN/inf风控比较、提交异常被当普通拒绝，以及同轮复用提交前快照继续下单。STARTED意图在调用前原子持久化，不确定结果跨重启保留身份并停止，不能自动重放。完整离线985项/39.065s/OK，秘密扫描通过；连续执行器、原生部分成交保护/重启验收、资金原子预占与旧仓归属仍独立阻塞，未宣称自动交易READY。详见docs/production-audit/P0_EXECUTION_20261108.md。

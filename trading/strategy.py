@@ -314,6 +314,7 @@ class StrategyScanEvent:
             "symbol": self.symbol,
             "price": self.quote.last,
             "quote_source": self.quote.source,
+            "quote_timestamp": self.quote.timestamp.isoformat(),
             "quote_age_ms": self.quote.age_ms(),
             "bid": self.quote.bid,
             "ask": self.quote.ask,
