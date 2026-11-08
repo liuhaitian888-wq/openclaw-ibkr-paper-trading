@@ -64,8 +64,9 @@ def notification_text(item,started,*,max_length=4000):
     data=item['payload'];kind=item['kind']
     if kind=='SECRETARY_REPLY':
         role=data.get('message_role','RESEARCH')
-        label={'RESEARCH':'🟦 研究秘书','INTELLIGENCE':'🟪 市场情报','CONTROL':'⚙️ 远程控制','AUTH':'🔐 登录认证','PROGRESS':'🔵 任务进度'}.get(role,'🟦 研究秘书')
-        footer='信息不改变交易授权。' if role in ('RESEARCH','INTELLIGENCE') else '现有交易门禁独立生效。' if role in ('CONTROL','AUTH') else '完成后推送结果。'
+        if role=='CHAT':return ('买 der｜💬 秘书\n\n'+display(data.get('reason','')))[:max_length]
+        label={'TASK':'🛠 任务助手','RESEARCH':'🟦 研究秘书','INTELLIGENCE':'🟪 市场情报','CONTROL':'⚙️ 远程控制','AUTH':'🔐 登录认证','PROGRESS':'🔵 任务进度'}.get(role,'🟦 研究秘书')
+        footer='信息不改变交易授权。' if role in ('RESEARCH','INTELLIGENCE') else '现有交易门禁独立生效。' if role in ('CONTROL','AUTH') else '任务结果。' if role=='TASK' else '完成后推送结果。'
         return ('买 der｜'+label+'\n\n'+display(data.get('reason',''))+'\n\n记录 #'+str(item['id'])+' · '+footer)[:max_length]
     name=KINDS.get(kind,'持续故障提醒' if kind.startswith('REMINDER_') else '风险升级' if kind.startswith('ESCALATION_') else kind)
     badge='🟩' if kind=='RECOVERY' else '🟥' if data.get('severity')=='RED' else '🟨' if data.get('severity') is not None else '📄'

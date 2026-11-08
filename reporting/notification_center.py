@@ -11,6 +11,8 @@ CATEGORIES = {
  'risk': ('🟥', '账户风险', '保护覆盖、敞口、对账、订单拒绝'),
  'auth': ('🔐', '认证', '登录到期、二次认证、认证回读'),
  'report': ('📊', '日报', '日报、缺报、投递回执'),
+ 'chat': ('💬', '秘书对话', '普通问答与讨论'),
+ 'task': ('🛠', '委托任务', '明确委托的具体工作'),
  'research': ('🟦', '研究秘书', '课题、实验、证伪、研究进度'),
  'intel': ('🟪', '市场情报', '新闻、财报、SEC、宏观'),
  'control': ('⚙️', '控制', '风控参数、账户查询、工程提案'),
@@ -23,7 +25,7 @@ GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstre
 def category(item):
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
     if kind=='SECRETARY_REPLY':
-        return {'RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
+        return {'CHAT':'chat','TASK':'task','RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
     if kind.startswith('REPORT_'):return 'report'
     if kind.startswith('AUTH_') or p.get('scope')=='GATEWAY_AUTHENTICATION':return 'auth'
     if p.get('source')=='IBKR_FYI':return 'fyi'

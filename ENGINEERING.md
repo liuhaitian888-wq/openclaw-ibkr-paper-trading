@@ -313,3 +313,13 @@ Nov8日报实际发出的是缺报告警（group message156，02:00:06 Berlin）
 Nov8 Telegram用户会话接入：用户已明确同意本机授权，已在官方my.telegram.org取得应用凭据，未发到聊天。准备隔离Telethon1.45.0环境、固定四项依赖与官方wheel哈希；修正缺少项目ibapi路径后该运行环境完整离线924通过、pip check通过。初始化准确披露会话列表可能附带最近消息摘要，本机不检查/持久化其他群正文或交模型；所有认证输入隐藏、一次失败不自动重试。Terminal受电脑工具安全限制，登录命令由本人手动执行；此记录不声称已取得用户会话或已验收群搜索。
 
 Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能仍缺EUR基准币种现金行。fetch_paper_cashbook在USD end后核对base cash，缺失则显式请求$LEDGER:EUR并等待end/cancel；缺USD或base现金仍拒绝，不从TotalCashValue/AvailableFunds推导EUR现金。记录requested_currencies与USD_AND_BASE_VERIFIED，不声称覆盖所有可能币种。925项完整离线通过；不触发换汇、不新增账户借款、不重置有限测试范围。
+
+## 2026-11-08 私人秘书对话与课题分流
+
+用户明确要求秘书支持日常GPT式对话，不把每句话都走课题/任务路线。保持已授权owner入口、私人投递和独立交易门禁；普通用户消息由同一次受限模型回答选择CHAT/TASK/RESEARCH，不新增分类调用。可选/chat、/task、/research覆盖，自主轮次固定RESEARCH。CHAT移除research结构，禁止研究列表修改/工程提案，无领取课题通知和研究脚注。保留现有运行回执和费用计数，不把普通聊天写成长期研究方向。
+
+近期上下文只读现有工作账本：最多4轮、过去24小时、同一原生chat、先于当前指令、成功完成的owner问答，排除自主轮次、其他chat和未知结果。新增CONVERSATION_REPLY/TASK_RESULT类型；宕机后outbox修复沿用原回复角色，避免重启变回研究消息。
+
+验收日志：/tmp/secretary-conversation-final-tests.log（linked worktree完整离线套件）；gitleaks扫描通过。部署记录另存本机engineering/secretary-conversation-20261108及云端runtime/goal-remainder-deployment，保留源commit、manifest备份和门禁哈希。不运行故障演练、不发测试群消息、不触碰Gateway或交易额度。
+
+本人已完成Telegram用户会话登录；本机受限搜索SEARCHED返回der机器人149、148两条，凭据0600且未输出/上传，未建立整群镜像。

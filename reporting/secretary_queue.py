@@ -66,13 +66,17 @@ def claim(archive, *, model, now):
     with closing(archive.connect()) as c:
         # Daily paid-task bound includes all outcomes and starts, including UNKNOWN.
         if c.execute("SELECT count(*) FROM secretary_runs WHERE model='gpt-6.1-sol' AND started_at>=?",(int(now//86400)*86400,)).fetchone()[0]>=24:return None
-        rows=c.execute("""SELECT e.occurrence,e.payload FROM secretary_events e LEFT JOIN secretary_runs r ON r.instruction=e.occurrence
+        rows=c.execute("""SELECT e.occurrence,e.payload,e.kind FROM secretary_events e LEFT JOIN secretary_runs r ON r.instruction=e.occurrence
             WHERE e.kind IN ('CHAT_INSTRUCTION','AUTONOMOUS_INSTRUCTION') AND r.occurrence IS NULL
             ORDER BY CASE e.origin WHEN 'USER' THEN 0 ELSE 1 END,e.rowid LIMIT 25""").fetchall()
-    for occurrence,payload in rows:
+    for occurrence,payload,kind in rows:
         run=occurrence+':run'
         if archive.reserve_run(run,instruction=occurrence,model=model):
-            return {'run':run,'instruction':occurrence,'payload':json.loads(payload),'model':model}
+            data=json.loads(payload)
+            data['autonomous']=kind=='AUTONOMOUS_INSTRUCTION'
+            from .secretary_conversation import recent_context
+            return {'run':run,'instruction':occurrence,'payload':data,'model':model,
+                    'conversation_context':recent_context(archive,occurrence,data)}
     return None
 
 
@@ -92,12 +96,12 @@ def reconcile_replies(archive, store):
         rows=c.execute("SELECT r.occurrence,e.payload FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.result_event WHERE r.state='SUCCEEDED' ORDER BY r.rowid DESC LIMIT 100").fetchall()
     for run,payload in rows:
         result=json.loads(payload)
-        if isinstance(result.get('summary'),str):enqueue_reply(archive,store,run,result['summary'])
+        if isinstance(result.get('summary'),str):enqueue_reply(archive,store,run,result['summary'],role=result.get('response_mode','RESEARCH'))
 
 
 def progress(store,run,stage,text):
     """Public activity milestones only; unique enqueue, no private reasoning stream."""
     if stage not in ('CLAIMED','FIRST_TOOL'):raise ValueError('Bounded public milestone required')
-    payload=json.dumps({'reason':'研究进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram','message_role':'PROGRESS'},ensure_ascii=False)
+    payload=json.dumps({'reason':'处理进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram','message_role':'PROGRESS'},ensure_ascii=False)
     with closing(store.connect()) as c,c:
         c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-progress:'+run+':'+stage,payload))

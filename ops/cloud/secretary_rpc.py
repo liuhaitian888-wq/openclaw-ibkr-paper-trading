@@ -12,6 +12,7 @@ from ops.cloud.monitoring_guard import monitoring_service
 from reporting.agent_secretary import SecretaryArchive
 from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress
 from reporting.secretary_read import tool
+from reporting.secretary_conversation import response_mode
 from reporting.incident_telegram import verify_audience, verify_destination
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
@@ -57,7 +58,7 @@ def dispatch(root,request,config,policy):
         if result['controls']:return result
         autonomous(archive,now=time.time())
         result['job']=claim(archive,model=policy['model'],now=time.time())
-        if result['job']:progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
+        if result['job'] and result['job']['payload'].get('autonomous'):progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
     if action=='telegram_search_finished':
         from reporting.secretary_controls import finish_search
@@ -70,12 +71,14 @@ def dispatch(root,request,config,policy):
         instruction=active_run(archive,request['run']);step=request['step']
         if (type(step) is not int or not 1<=step<=12 or not (request['request'].get('source')=='local_snapshot' or request['request'].get('source')=='telegram_live' and request['request'].get('name')=='telegram_search')):raise ValueError('Bounded local snapshot evidence required')
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':request['request'],'result':request['result'],'source':request['request'].get('source')})
-        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理本机只读工具 '+str(request['request'].get('name'))+'；结果 '+str(request['result'].get('result',request['result'].get('state'))))
+        if step==1 and request.get('response_mode','RESEARCH')!='CHAT':progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理本机只读工具 '+str(request['request'].get('name'))+'；结果 '+str(request['result'].get('result',request['result'].get('state'))))
         return {'state':'ARCHIVED'}
     if action=='tool':
         instruction=active_run(archive,request['run']);step=request['step']
         if type(step) is not int or not 1<=step<=12:raise ValueError('Bounded tool step required')
         req=request['request']
+        if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal'):
+            return {'state':'REFUSED','reason':'Conversation cannot create work'}
         if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
         try:
             if req.get('name') in ('engineering_proposal','engineering_updates'):
@@ -89,20 +92,23 @@ def dispatch(root,request,config,policy):
         except (ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
             result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':str(exc)[:200]}
         archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result})
-        if step==1:progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理云端只读工具 '+str(req.get('name'))+'；结果 '+str(result.get('result',result.get('state'))))
+        if step==1 and request.get('response_mode','RESEARCH')!='CHAT':progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理云端只读工具 '+str(req.get('name'))+'；结果 '+str(result.get('result',result.get('state'))))
         return result
     if action=='finish':
         run=request['run'];state=request['state']
         if state=='SUCCEEDED':
             # Repeated finish after an SSH ACK loss reconciles, never resends directly.
             with closing(archive.connect()) as c:
-                row=c.execute('SELECT instruction FROM secretary_runs WHERE occurrence=?',(run,)).fetchone()
+                row=c.execute('SELECT r.instruction,e.payload,e.kind FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.instruction WHERE r.occurrence=?',(run,)).fetchone()
             if row is None:raise ValueError('Reserved run required')
             result=request['result'];text=result['summary']
             if not isinstance(text,str) or not 0<len(text)<=3300:raise ValueError('Bounded public summary required')
-            archive.append(run+':result','der-secretary',origin='MODEL',kind='PUBLIC_RESEARCH_RESULT',parent=row[0],payload=result)
+            payload=json.loads(row[1]);payload['autonomous']=row[2]=='AUTONOMOUS_INSTRUCTION'
+            mode=response_mode(payload,result);result['response_mode']=mode
+            if mode!='RESEARCH':result.pop('research',None)
+            archive.append(run+':result','der-secretary',origin='MODEL',kind={'CHAT':'CONVERSATION_REPLY','TASK':'TASK_RESULT','RESEARCH':'PUBLIC_RESEARCH_RESULT'}[mode],parent=row[0],payload=result)
             archive.finish_run(run,state=state,result_event=run+':result')
-            enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,text)
+            enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,text,role=mode)
         elif state in ('FAILED','UNKNOWN'):
             archive.finish_run(run,state=state)
             IncidentStore(root/'runtime/recovery.sqlite3').ingest('secretary-risk:'+run,'secretary-risk:'+run,
