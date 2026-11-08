@@ -26,3 +26,5 @@ Current final isolated verification1022 tests/44.125s/OK and OpenSpec strict PAS
 实现基线0b21081；合并6b181b5后1034项/43.977s离线通过。来源、六层研究投影、Telegram、既有Paper Scanner owner与维护窗口已实现。当前规格/变更：openspec broad-screening；来源与缺口说明docs/BROAD_SCREENING.md。图表9/9、浏览器PASS，1440浅色视觉复核无重叠；输入输出指纹见diagram-dependencies。云端实际验收尚待后续verification记录，不将离线结果当原生券商响应。PAUSED/MAINTENANCE与交易权限保持独立。
 
 Concurrent broad-screening source integrated without enabling its timer here; shared health registry retains both CASH_CONVERSION and BROAD_SCREENING/BROKER_SCANNER opt-in entries. Final merged isolated1039/44.349s/OK and all5 OpenSpec strict PASS. P0 remains PARTIAL; do not overwrite the other task's deployment status.
+
+Latest scanner-owner attachment preserved; final combined source1040 tests/42.961s/OK, all5 OpenSpec strict PASS. Funding and protection are separately scoped actions; neither is a full automatic strategy release.
