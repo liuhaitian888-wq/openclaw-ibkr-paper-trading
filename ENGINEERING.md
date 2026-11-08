@@ -417,3 +417,7 @@ linked worktree完整1009项/43.183s/OK；五项目OpenSpec strict验证通过�
 用户已明确委托“发现没有保护直接补”，不再重复索要该授权。新增有限reduce-only补保护scope：仅AAPL17/META100/MSFT13/NIO200/T3，保留PFE和任何已有订单，最多5张/每轮1张，按项目既有临时5%规则引用新鲜bid并取broker tick；仅US RTH和实际liquidHours。新增单独有界oneshot/Nov9日期timer、共享health依赖登记（默认不启用）、规范审计与RecoveryCoordinator双持久意图。失联/ACK丢失/不匹配/中断均UNKNOWN且不自动重放，成功必须原生确认及新一轮四end精确覆盖。独立客户端18992仅临时订阅与当前监测池不重叠的旧仓股票，关闭自有资源，不动Gateway。详见docs/production-audit/SCOPED_PROTECTION_20261109.md；离线通过不代替未来开盘原生回执，首次部署维护运行应WAIT_SESSION/0单。
 
 OpenSpec收尾最终回执：整合并行b6bd676后完整1017项/43.919s/OK。两个用户级hook在五项目原生hooks/list均enabled/trusted；以实际currentHash通过原生配置入口确认，既有Codex配置除两个新信任项外逐项相等，notify及旧secret hook定义未改。实际stdin适配器在可丢弃linked worktree回放通过一次触发/继续不递归/重复不触发，夹具恢复干净后正常移除。task-completion-gate主规格已逐块同步，与delta一致后归档2026-11-09-task-completion-maintenance；校验通过。自然用户任务的模型维护仍待后续观察，未冒充真实验收。旧小时任务PAUSED，无每日任务。
+
+## 2026-11-09 资金P0与真实换汇边界
+
+已取得只读EURUSD type1原生bid/ask及独立what-if零保证金增量/约1.79EUR费用；均不冒充真实换汇。发现复用客户端时EUR缓存可能冒充新鲜余额，修复为每次显式请求USD和非USD基准币种ledger end，失败不回退旧EUR。新增有限自有现金scope：总EUR支出（含5EUR费用预留）<=65000，覆盖既有USD缺口并留2010USD周转，单一不可重放订单身份；原生执行/费用/现金两边变化/无挂单/非现金旧仓不变须全部对账才FILLED。资金兑换不计为股票策略日成交额或策略收益；股票OMAX仍2000，全局暂停不改。源码/离线/部署/真实结果分别记在docs/production-audit/CASH_FUNDING_20261109.md与state证据。

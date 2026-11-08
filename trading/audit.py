@@ -570,6 +570,7 @@ class AuditLog:
                 for record in self.list_for_date(day, timezone_name)
                 if str(record["mode"]).startswith("PAPER")
                 and record["status"] != "FAILED"
+                and record["mode"] != "PAPER_CASH_CONVERSION"
             ),
             6,
         )

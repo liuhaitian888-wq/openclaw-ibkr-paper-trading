@@ -120,7 +120,9 @@ async def fetch_paper_cashbook(ib, account):
     await ledger('USD')
     book=cashbook(list(ib.wrapper.acctSummary.values()),account)
     base=book['base_currency']
-    if base not in book['currencies']:await ledger(base)
+    # A cached base row may predate an FX fill. Its presence is not freshness;
+    # every call must obtain a new base ledger end as well as the USD end.
+    if base!='USD':await ledger(base)
     book=cashbook(list(ib.wrapper.acctSummary.values()),account)
     if 'USD' not in book['currencies'] or base not in book['currencies']:
         raise PermissionError('Broker USD and base cash rows required; missing is not zero')

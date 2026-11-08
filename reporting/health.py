@@ -55,6 +55,7 @@ MODULE_DEPENDENCIES = {
  'RISK': ('ACCOUNT','POSITIONS','ORDERS'),
  'PROTECTION': ('ACCOUNT','POSITIONS','ORDERS','EXECUTIONS'),
  'PROTECTION_REPAIR': ('ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','MARKET_DATA','AUDIT'),
+ 'CASH_CONVERSION': ('ACCOUNT','ORDERS','MARKET_DATA','AUDIT'),
  'PAPER_SESSION': ('PROTECTION','MARKET_DATA'),
  'STRATEGY': ('CANONICAL_STATE','MARKET_DATA','ACCOUNT','RISK','DATABASE','PROTECTION','PAPER_SESSION'),
  'ORDER_SUBMISSION': ('STRATEGY','ORDERS','EXECUTIONS'),
@@ -70,7 +71,7 @@ MODULE_DEPENDENCIES = {
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+LIVE_MODULES = {'CASH_CONVERSION','PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
 
 
 def dependency_registry(observations):
@@ -110,7 +111,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':(name not in ('PROTECTION_REPAIR','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('PROTECTION_REPAIR','CASH_CONVERSION','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}
