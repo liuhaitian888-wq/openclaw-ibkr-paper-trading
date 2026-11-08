@@ -1,10 +1,15 @@
-schema_version: 0.1.0
+schema_version: 1
 project_id: PROJ-IBKR-000001
-name: IBKR finance knowledge
-status: registered
+name: 买der
+updated: '2026-11-08'
 current_focus:
-  - Preserve separation between development work and trading operations.
-  - Keep finance/trading notes resumable without storing secrets.
-next_actions:
-  - Define the current trading/research objective before implementation resumes.
-updated: 2026-07-29
+  - Maintain the five projects independently through the shared evidence workflow.
+  - Reconcile historical local design with current cloud monitoring facts.
+  - Preserve PAUSED, MAINTENANCE, SAFE_MONITOR_ONLY and all unrelated work.
+maintenance_registry: .der/maintenance/workspace.json
+current_state: ~/.local/state/openclaw/engineering/workspace-maintenance/current/projects/buy-der/state.json
+next_prompt: ~/.local/state/openclaw/engineering/workspace-maintenance/current/projects/buy-der/next-task.txt
+status_rules:
+  - File presence, offline PASS, deployment and real acceptance are separate.
+  - Unknown or stale evidence cannot grant business permission.
+  - Context-only updates must not create an infinite source-update loop.

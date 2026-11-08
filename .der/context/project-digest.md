@@ -1,15 +1,13 @@
-# Project Digest
+# 买der项目摘要
 
-Generated: 2026-07-29
-Project ID: PROJ-IBKR-000001
-Name: IBKR finance knowledge
-Local path: `/Users/nbhsbgnb/Documents/New project`
-Status: registered
+更新：2026-11-08。来源：本次五项目维护核查；精确源提交和当前事实以独立采集状态为准。本文件不替代部署manifest或交易门禁。
 
-## Purpose
+本项目属于der工作区五项目之一。早期本机交易/研究设计、本机历史维护、云端准备、云端运行和未来目标需要分别维护，不能把2026-07-29的注册摘要当作当前进展。
 
-Finance, trading, research, backtesting, and IBKR-related workspace.
+- 本机：历史库与PAUSED/MAINTENANCE继续保留，当前只读smoke为NOT_READY；这不能推导云端未运行。
+- 云端：已有Gateway、Paper只读监测、Telegram接收/通知/表单等独立owner；部署及真实验收逐组件核查，仍为SAFE_MONITOR_ONLY。
+- 设计：旧业务模块逐项保留/适配；旧路径、启动方式和通道假设重新核验，未来架构不默认视作已部署。
+- 维护：`.der/maintenance/workspace.json`登记五项目范围；`scripts/maintain_workspace.py`生成独立状态、图表依赖缺口及接续任务，输出在独立工程状态目录，不覆盖用户源码。
 
-## der Engineering Link
-
-Managed by der engineering registry as `PROJ-IBKR-000001`.
+项目当前事实与任务入口：`~/.local/state/openclaw/engineering/workspace-maintenance/current/projects/buy-der/`。
+原始记录继续保留在ENGINEERING.md、PRODUCTION.md、计划与交接记录及其指向的脱敏验收证据中。

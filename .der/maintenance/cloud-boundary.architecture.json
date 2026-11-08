@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "接云前后分界与自动维护",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "viewBox": [
+      1120,
+      650
+    ]
+  },
+  "components": [
+    {
+      "id": "historical-design",
+      "type": "backend",
+      "label": "接云前架构设计",
+      "sublabel": "保留业务意图、模块与历史来源",
+      "pos": [
+        55,
+        100
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "migration-decisions",
+      "type": "security",
+      "label": "逐项融合与裁决",
+      "sublabel": "复用 / 适配 / 替换 / 隔离",
+      "pos": [
+        445,
+        100
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "cloud-contract",
+      "type": "cloud",
+      "label": "接云后实际运行",
+      "sublabel": "云端单owner；Mac受限模型",
+      "pos": [
+        835,
+        100
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "local-history",
+      "type": "database",
+      "label": "本机维护与历史证据",
+      "sublabel": "历史停写状态不代表云端现状",
+      "pos": [
+        55,
+        420
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "evidence-register",
+      "type": "database",
+      "label": "进度与证据登记",
+      "sublabel": "实现 / 测试 / 部署 / 验收分开",
+      "pos": [
+        445,
+        420
+      ],
+      "size": [
+        235,
+        90
+      ]
+    },
+    {
+      "id": "automatic-maintenance",
+      "type": "backend",
+      "label": "自动维护循环（拟建）",
+      "sublabel": "变更 → 任务 → 验证 → 同步",
+      "pos": [
+        835,
+        420
+      ],
+      "size": [
+        235,
+        90
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "历史区：不能直接作为当前事实",
+      "wraps": [
+        "historical-design",
+        "local-history"
+      ],
+      "pad": 28
+    },
+    {
+      "kind": "security-group",
+      "label": "维护自动化不授予业务许可",
+      "wraps": [
+        "automatic-maintenance"
+      ],
+      "pad": 28
+    }
+  ],
+  "connections": [
+    {
+      "id": "design-decision",
+      "from": "historical-design",
+      "to": "migration-decisions",
+      "label": "按来源核对"
+    },
+    {
+      "id": "decision-contract",
+      "from": "migration-decisions",
+      "to": "cloud-contract",
+      "label": "确认当前适用范围"
+    },
+    {
+      "id": "history-design",
+      "from": "local-history",
+      "to": "historical-design",
+      "label": "保留历史依据"
+    },
+    {
+      "id": "evidence-decision",
+      "from": "evidence-register",
+      "to": "migration-decisions",
+      "label": "支持状态裁决"
+    },
+    {
+      "id": "contract-maintenance",
+      "from": "cloud-contract",
+      "to": "automatic-maintenance",
+      "label": "只读采集运行事实",
+      "labelDy": 24
+    },
+    {
+      "id": "maintenance-evidence",
+      "from": "automatic-maintenance",
+      "to": "evidence-register",
+      "label": "同步文档与新证据",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "旧设计怎样保留",
+      "items": [
+        "有效的业务设计继续复用",
+        "部署路径与运行状态逐项重证"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "哪些事实可以确认",
+      "items": [
+        "11/04已有云端部署验收记录",
+        "11/05建立券商期初事实基线"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "自动维护的边界",
+      "items": [
+        "缺证据保持UNKNOWN",
+        "未知文件先隔离候选，保留恢复来源"
+      ]
+    }
+  ]
+}
