@@ -47,7 +47,7 @@ def process_controls(archive,root,config,policy=None):
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
             if command in ('/start','/help') and len(parts)==1:
-                summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n直接发文字即可交给秘书；不需要 /secretary。'
+                summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n/marketdata 行情订阅 · /universe 总名单 · /eligible 合格名单\n直接发文字即可交给秘书；不需要 /secretary。'
             elif command in ('/inbox','/event','/read','/notify','/preview'):
                 from .notification_center import inbox,get_item,mark_read,settings,set_preference,preview
                 args=parts[1].split() if len(parts)==2 else []
@@ -79,6 +79,19 @@ def process_controls(archive,root,config,policy=None):
                 from .engineering_relay import proposals
                 items=proposals(archive)['items']
                 summary='Engineering inbox · '+str(len(items))+' recent proposals\n'+'\n'.join(x['id'][-8:]+' · '+x['proposal']['title']+' · '+x['engineering_status']['state'] for x in items)+'\nShared archive only; no automatic deployment or desktop wakeup.'
+            elif command in ('/marketdata','/market_register','/market_check','/universe','/eligible','/watch'):
+                from . import market_subscriptions as market
+                if command=='/marketdata' and len(parts)==1:summary=market.registry_message(archive)
+                elif command=='/market_register' and len(parts)==2:
+                    market.register(archive,instruction,json.loads(parts[1]));summary='订阅声明已登记；不是券商核验或购买。\n'+market.registry_message(archive)
+                elif command=='/watch' and len(parts)==2:
+                    market.watch(archive,instruction,parts[1].strip().upper());summary='已加入私人关注名单；无实时行情也可关注，canonical资格与交易权限不变。'
+                elif command in ('/universe','/eligible'):
+                    summary=market.message(market.view(root,archive,eligible=command=='/eligible',after=parts[1].strip().upper() if len(parts)==2 else ''),eligible=command=='/eligible')
+                elif command=='/market_check' and len(parts)==1:
+                    result=market.check(archive,root)
+                    summary='行情抽查（读取已有证据，不新订阅）\n'+json.dumps(result,ensure_ascii=False)+'\n休市陈旧不等于无订阅；权限被拒绝请 /marketdata 核对登记。'
+                else:raise ValueError('用法：/marketdata · /market_register JSON · /market_check · /universe [上页末代码] · /eligible [上页末代码] · /watch 股票代码')
             elif command in ('/ready','/holdings') and len(parts)==1:
                 from .paper_readiness import collect,message
                 summary=message(collect(root),holdings_only=command=='/holdings')
@@ -215,6 +228,6 @@ def finish_search(archive,root,request):
 def menu_commands():
     return [('ready','交易门禁：是否允许交易 / 为何暂停'),('gate','风控限额：查看 / 整组编辑'),
             ('holdings','持仓：最新只读回读'),('report','日报：查看投递回执'),
-            ('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
+            ('marketdata','行情订阅：登记表与抽查'),('universe','股票总名单与行情标记'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
             ('login','认证：查看连接与登录状态'),('help','秘书帮助：私聊使用说明'),
             ('notify','通知分类与配置'),('preview','通知预览：按编号查看')]

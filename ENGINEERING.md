@@ -350,3 +350,13 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 验证日志保存在本机 `~/.local/state/openclaw/engineering/secretary-fast-controls-20261108/`。完整离线套件、秘密扫描和生产quick smoke结果以该目录脱敏证据为准；真实Mini App点击与用户提交是单独验收项，不能以模拟签名或HTTP探针冒充真实点击。交易PAUSED/MAINTENANCE、SAFE_MONITOR_ONLY以及实际限额保持；不为验收制造故障、不操作订单、不重启Gateway。
 
 官方接口参考：[Telegram initData校验](https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app)、[Tailscale Funnel范围与端口](https://tailscale.com/docs/features/tailscale-funnel)。
+
+## 2026-11-08 行情订阅登记、六层大纲与会话事件
+
+按用户第1–5项实施：核心“当行情额度有限时，怎样从大量股票中找到机会，同时把实时行情留给最需要盯住的股票。”已进入简介与工程大纲。核查LEAN、IBAutomater、ib_async和IBC官方源码/接口，六层同名完整上游方案未找到；相近机制与来源边界见docs/MARKET_SUBSCRIPTIONS_AND_SESSION.md。
+
+新增既有秘书库的套餐声明表、私人关注和6小时抽查记录。私人命令/marketdata、/universe、/eligible、/market_check以及登记/关注兼容命令复用Python控制路径。套餐LIVE/PAPER及Paper共享、本人声明与实际报价分别展示；不根据套餐名字猜覆盖，不请求额外行情。已观察股票也可在未登记情况下被抽样，明确权限错误提示核对登记，陈旧/延迟/会话冲突分别处理。手机云文档仅列下一步研究，未上传数据库或创建公开链接。
+
+会话事件从现有Gateway脱敏journal接入既有incident-collector与outbox，首次基线不补发历史；初始化与本次之后的新鲜完整Paper回读分别通知，不推断手机身份或云抢占Live。本地固定IBAutomater遇已有会话取消/退出，本轮未增加重启或登录动作。
+
+最终linked worktree完整隔离离线967项/65.421s/OK，新增11项关键回归；pre-commit gitleaks与diff check通过。日志保存在本机state/engineering/market-session-20261108。部署与真实回执验收另存该目录；没有新会话事件时保持待自然触发验收，不制造Live冲突。

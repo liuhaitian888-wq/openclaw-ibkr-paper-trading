@@ -22,7 +22,18 @@ def main():
     expected = json.loads(config.read_text())['expected_account']
     with monitoring_service('incident-collector', STATE_ROOT):
         collector = IncidentCollector(IncidentStore(RUNTIME_ROOT / 'recovery.sqlite3'))
-        return collect_once(collector, REPORT_ROOT, RUNTIME_ROOT, expected)
+        outcome=collect_once(collector, REPORT_ROOT, RUNTIME_ROOT, expected)
+        extra={};errors={}
+        from reporting.gateway_session_events import collect as sessions
+        from reporting.market_subscriptions import check
+        from reporting.agent_secretary import SecretaryArchive
+        for name,run in {'gateway_sessions':lambda:sessions(collector.store,STATE_ROOT),
+                         'market_subscription_sample':lambda:check(SecretaryArchive(STATE_ROOT/'agent_secretary.sqlite3'),STATE_ROOT,periodic=True)}.items():
+            try:
+                result=run();extra[name]=result if isinstance(result,int) else 'RECORDED' if result else 'NOT_DUE'
+            except Exception as exc:errors[name]=type(exc).__name__
+        print(json.dumps(dict(collected=extra,errors=errors,grants_trading_permission=False)))
+        return 2 if errors else outcome
 
 
 def collect_once(collector, reports, runtime, expected):
