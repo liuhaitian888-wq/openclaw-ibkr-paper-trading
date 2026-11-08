@@ -16,3 +16,11 @@ Final isolated verification:1022 tests/44.125s/OK; source/base cache-failure, ex
 
 Concurrent broad-screening integration preserved its health entries, code and context summaries. Final merged isolated verification1039 tests/44.349s/OK, FD bounded, all5 OpenSpec items strict PASS. No full production suite. Candidate funding execution still requires its exact deployment scope; an offline assertion does not create authority or report a fill.
 Latest combined source including the approved scanner-owner attachment:1040 tests/42.961s/OK; all5 OpenSpec strict items pass. The FX action will not enable a scanner/timer or release entry gates.
+
+## Native acceptance (2026-11-09 Berlin)
+
+Cloud sourceb3d00e6. One SELL64414EUR LMT minimum1.11465USD/EUR, permId957281729, execId0000e215.6af0f839.01.01. Actual commission1.79496EUR. USD cash-69788.66 ->2019.4231; EUR1007456.40 ->943040.605. StatusFILLED in canonical audit and CONFIRMED operation. An independent client18996 reread both ledgers, all open orders and positions:0 CASH active orders,0 uncertain order operations, the same6 STK quantities and unchanged PFE8/STP23.01/permId911411084. Global stock pause/limits and legacy NVDA scope unchanged.
+
+The broker now also reports a CASH EUR/USD trade position of-64414EUR. It is retained as an FX transaction/virtual-position fact, not erased or mistaken for a stock short or actual negative EUR cash. Actual EUR/USD cash balances are both positive. Full portfolio currency classification, fresh available/settled funding at entry and continuous strategy execution remain separate P0 work; this individual fill is not a global READY event or strategy return.
+
+Evidence: local engineering/p0-execution-20261108/{funding-execution.json,funding-independent-readback.json,funding-deployment.json}; cloud runtime/cash-conversion.latest.json, canonical cash_conversion_attempts/order_requests and recovery operation record.

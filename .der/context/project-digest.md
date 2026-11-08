@@ -23,3 +23,5 @@ Paper100-share/2000USD ceilings and owner communication preferences deployed. Fi
 宽范围研究：Nasdaq/Yahoo/SEC分来源缓存，L1–L3独立投影，Paper既有owner扫描和Telegram入口已完成离线实现；部署与实际缺口以openspec/changes/archive/2026-11-09-broad-screening/verification.md为准。
 
 宽筛部署验收更新：源码adb3841已上线；ABC13217、价量覆盖6645、研究L2=1503/L3=22，真实Paper扫描50，Telegram菜单/完成通知已回读。Nasdaq/Yahoo/SEC字段缺口和权限待核验继续可见；详情docs/BROAD_SCREENING.md与broad-screening归档verification。未放开canonical执行或Live范围。
+
+Native funding acceptance: cloudb3d00e6 converted64414EUR from own cash; actual1.79496EUR fee; independent USD2019.4231/EUR943040.605,0 FX active orders/0 uncertainty. Five stock protections still await regular-session acceptance. Full automatic stock entry remains disabled; retain new CASH virtual FX position separately and complete currency/canonical/atomic execution acceptance before release.
