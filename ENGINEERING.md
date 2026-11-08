@@ -323,3 +323,9 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 验收日志：/tmp/secretary-conversation-final-tests.log（linked worktree完整离线套件）；gitleaks扫描通过。部署记录另存本机engineering/secretary-conversation-20261108及云端runtime/goal-remainder-deployment，保留源commit、manifest备份和门禁哈希。不运行故障演练、不发测试群消息、不触碰Gateway或交易额度。
 
 本人已完成Telegram用户会话登录；本机受限搜索SEARCHED返回der机器人149、148两条，凭据0600且未输出/上传，未建立整群镜像。
+
+## 2026-11-08 Gateway卡死自动恢复
+
+既有systemd/IBAutomater处理退出/每日软重启，但无法凭进程存活识别此前Shutdown API卡住。新增固定systemd监督timer，每30秒观察原生心跳、唯一Java generation、独立5分钟readback及认证journal；15分钟持续本地无响应并有两个不同失败回读才允许固定单元重启，24小时最多一次。原子STARTED后执行，UNKNOWN不重放；新generation+重启后两个独立回读来源+稳定60秒才恢复，10分钟仍失败转人工。只root监督器操作固定unit，观察/账本/通知仍ibkr用户，既有Gateway单owner不变。
+
+基于IBKR、QuantConnect/IBAutomater、ib_async Watchdog和IBC官方项目文档的分层思路，来源存docs/GATEWAY_HANG_RECOVERY.md及参考清单。此次实际观测Gateway MainPID1378628仍正常、API心跳新鲜、4个end完整、非dirty；不重启健康服务，不重复演练。Java卡死根因和未来自动恢复长跑尚未证明。离线日志/tmp/gateway-hang-durable-tests.log；部署证据/门禁哈希另存engineering/gateway-hang-20261108与云端runtime/goal-remainder-deployment。

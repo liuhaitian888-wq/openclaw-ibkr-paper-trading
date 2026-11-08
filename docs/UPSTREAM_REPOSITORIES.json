@@ -481,5 +481,15 @@
         }
       ]
     }
-  ]
+  ],
+  "gateway_recovery_review": {
+    "checked_on": "2026-11-08",
+    "document": "docs/GATEWAY_HANG_RECOVERY.md",
+    "sources": [
+      "https://github.com/QuantConnect/IBAutomater",
+      "https://github.com/ib-api-reloaded/ib_async",
+      "https://github.com/IbcAlpha/IBC"
+    ],
+    "adaptation": "Layered liveness/recovery design only; no new upstream release installation"
+  }
 }

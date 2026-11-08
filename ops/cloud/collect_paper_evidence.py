@@ -33,7 +33,7 @@ def main():
         result['status'] = 'READBACK_COMPLETE' if result.get('complete') else 'INCOMPLETE'
     except Exception as exc:
         result = dict(status='AUTH_OR_CONNECTION_REQUIRED', error_type=type(exc).__name__,
-                      complete=False, environment='PAPER',
+                      complete=False, environment='PAPER', gateway_api_handshake=getattr(exc,'gateway_api_handshake',None),
                       failure_class='IDENTITY_MISMATCH' if isinstance(exc, PaperIdentityError) else 'AUTH_OR_CONNECTION_UNVERIFIED')
     result['observed_at'] = datetime.now(timezone.utc).isoformat()
     result['grants_trading_permission'] = False

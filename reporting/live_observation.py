@@ -70,7 +70,12 @@ def probe(host='127.0.0.1',port=7497,client_id=18765,timeout=15,*,symbols=(),exp
             'complete':{'summary','positions','orders','executions'}<=c.ends and len(c.values)==len(TAGS),
             'account':c.values,'positions':c.positions,'orders':c.orders,'executions':c.executions,'pnl':c.pnl_value,
             'resource_during':{'fd':len(os.listdir('/dev/fd')),'threads':threading.active_count(),'subscriptions':len(subscriptions)},
+            'gateway_api_handshake':type(c.serverVersion()) is int and c.serverVersion()>0,
             'server_time':c.server_time,'end_markers':sorted(c.ends),'quotes':{s:c.quotes.get(i,{}) for i,s in enumerate(symbols,8200)},'raw_errors':c.errors}
+    except Exception as exc:
+        # Carry only local protocol liveness, never credentials or raw errors.
+        exc.gateway_api_handshake=type(c.serverVersion()) is int and c.serverVersion()>0
+        raise
     finally:
         try:
             if c.isConnected():

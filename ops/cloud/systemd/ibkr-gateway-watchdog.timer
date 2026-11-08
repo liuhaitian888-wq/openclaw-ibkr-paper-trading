@@ -1,0 +1,10 @@
+[Unit]
+Description=Observe Gateway hang evidence every 30 seconds
+
+[Timer]
+OnBootSec=90s
+OnUnitActiveSec=30s
+AccuracySec=2s
+
+[Install]
+WantedBy=timers.target

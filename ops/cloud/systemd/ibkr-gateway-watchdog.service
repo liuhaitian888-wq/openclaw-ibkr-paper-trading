@@ -1,0 +1,11 @@
+[Unit]
+Description=Bounded Paper Gateway hang recovery through the existing service owner
+After=network.target
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/gateway-recovery-policy.json
+
+[Service]
+Type=oneshot
+ExecStart=/opt/openclaw/venv/bin/python /opt/openclaw/app/ops/cloud/gateway_watchdog.py
+UMask=0077
+ProtectSystem=full
+TimeoutStartSec=30

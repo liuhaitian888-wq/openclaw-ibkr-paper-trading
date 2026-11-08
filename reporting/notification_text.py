@@ -15,7 +15,7 @@ KINDS={'ALERT':'故障告警','RECOVERY':'恢复通知','CURRENT_SUMMARY':'当�
 PROTECTION={'PROTECTED':'已核验保护覆盖','PARTIALLY_PROTECTED':'仅部分持仓有保护',
  'UNPROTECTED':'当前持仓没有已核验的保护覆盖','PROTECTION_UNKNOWN':'暂时无法核验','NO_EXPOSURE':'已确认无持仓、无挂单'}
 SCOPES={'PAPER_SAFETY':'Paper账户与订单安全监测','PAPER_MARKET_SESSION_CONFLICT':'Paper行情会话',
- 'SYMBOL_MARKET_DATA':'单标的行情','FINANCIAL_REPORTS':'财务报告','GATEWAY_AUTHENTICATION':'Gateway认证'}
+ 'SYMBOL_MARKET_DATA':'单标的行情','FINANCIAL_REPORTS':'财务报告','GATEWAY_AUTHENTICATION':'Gateway认证','GATEWAY_HANG':'Gateway持续无响应'}
 TEXT={
  'API_CONNECTION_CLOSED':'API连接已关闭',
  'PROTECTION_UNKNOWN':'当前证据不足，暂时无法确认保护覆盖；不代表保护单已被撤销。',
@@ -52,6 +52,7 @@ def display(value):
 def batch_name(item):
     key=item['incident_key']
     if key.startswith('paper-safety:protection:'):name=key.rsplit(':',1)[1]+'保护状态'
+    elif key=='gateway-hang':name='Gateway卡死恢复'
     elif key=='paper-safety:connection':name='API连接'
     elif key=='paper-safety:upstream':name='券商上游连接'
     elif key.startswith('market-session-conflict:'):name=key.rsplit(':',1)[1]+'行情会话冲突'

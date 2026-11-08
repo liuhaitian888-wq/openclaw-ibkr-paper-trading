@@ -29,7 +29,7 @@ def category(item):
     if kind.startswith('REPORT_'):return 'report'
     if kind.startswith('AUTH_') or p.get('scope')=='GATEWAY_AUTHENTICATION':return 'auth'
     if p.get('source')=='IBKR_FYI':return 'fyi'
-    if k in GROUP_KEYS:return 'ops'
+    if k in GROUP_KEYS or k=='gateway-hang':return 'ops'
     if k.startswith(('paper-safety:','rejection:','market-session-conflict:')):return 'risk'
     if p.get('scope')=='MODULE':return 'ops'
     return 'other'
