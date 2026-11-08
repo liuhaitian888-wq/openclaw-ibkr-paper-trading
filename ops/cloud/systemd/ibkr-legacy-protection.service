@@ -1,0 +1,19 @@
+[Unit]
+Description=Finite owner-authorized inherited Paper stop repair (no entries/cancels)
+After=ibkr-gateway.service
+ConditionPathExists=/home/ibkr/.local/state/openclaw/runtime/legacy-protection-scope.json
+
+[Service]
+Type=oneshot
+User=ibkr
+Group=ibkr
+Environment=HOME=/home/ibkr
+WorkingDirectory=/opt/openclaw/app
+ExecStart=/opt/openclaw/news-venv/bin/python /opt/openclaw/app/ops/cloud/protection_repair.py
+UMask=0077
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectSystem=full
+TimeoutStartSec=140
+TimeoutStopSec=15

@@ -402,3 +402,7 @@ Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能
 
 Nov9用户追加委托已收录：QMAX上限100、OMAX2000；采用有限大额SMAX250000/GMAX1500000USD，RMAX10保留；五项附加限制可空但不取消执行硬门禁。新增外部Codex owner数值来源且绑定精确revision/settings，不伪造Telegram原生指令。候选观察器按金额/风险/股数向下取整；跨币种Decimal换算明确仅账面参考，非可执行实时FX报价。秘书后续新任务可读取同会话既有owner沟通偏好，不扩大工具权限。991项隔离离线通过，旧仓补保护已授权但尚无五只新鲜报价/已验收专用传输；不能冒称完成。部署和Telegram原生回执另存state/engineering/p0-execution-20261108。
 五项目维护整合并行主线5fef4e1后，在linked worktree完整995项/40.944s/OK；gitleaks全文件及工作树扫描通过。合并树验证日志：engineering/project-maintenance-20261108/tests-integrated.log。定期任务的实际启用回执与最终本机smoke另存同一独立证据目录。
+
+## 2026-11-09 旧仓独立补保护
+
+用户已明确委托“发现没有保护直接补”，不再重复索要该授权。新增有限reduce-only补保护scope：仅AAPL17/META100/MSFT13/NIO200/T3，保留PFE和任何已有订单，最多5张/每轮1张，按项目既有临时5%规则引用新鲜bid并取broker tick；仅US RTH和实际liquidHours。新增单独有界oneshot/Nov9日期timer、共享health依赖登记（默认不启用）、规范审计与RecoveryCoordinator双持久意图。失联/ACK丢失/不匹配/中断均UNKNOWN且不自动重放，成功必须原生确认及新一轮四end精确覆盖。独立客户端18992仅临时订阅与当前监测池不重叠的旧仓股票，关闭自有资源，不动Gateway。详见docs/production-audit/SCOPED_PROTECTION_20261109.md；离线通过不代替未来开盘原生回执，首次部署维护运行应WAIT_SESSION/0单。
