@@ -69,21 +69,31 @@ def paper_funding(book, policy='CASH_ONLY'):
 
 
 async def fetch_paper_cashbook(ib, account):
-    """Own one explicit USD-ledger request through its end marker and cancellation.
+    """Verify USD and base-currency cash through explicit ledger end markers.
 
-    ib_async 2.1.0's default $LEDGER:ALL request can return only base summary
-    fields. An explicit USD request is required; never synthesize a USD row.
-    The caller owns the connected client and its bounded lifetime.
+    Default $LEDGER:ALL can omit currency cash rows. Never infer EUR cash
+    from base-denominated net cash or available funds. Caller owns the client.
     """
     import asyncio
     if ib.managedAccounts() != [account]:
         raise PermissionError('Exact account required before monetary request')
     await asyncio.wait_for(ib.accountSummaryAsync(account),8)
-    request_id=ib.client.getReqId()
-    future=ib.wrapper.startReq(request_id)
-    try:
-        ib.client.reqAccountSummary(request_id,'All','$LEDGER:USD')
-        await asyncio.wait_for(future,8)
-        return cashbook(list(ib.wrapper.acctSummary.values()),account)
-    finally:
-        if ib.isConnected():ib.client.cancelAccountSummary(request_id)
+    requested=[]
+    async def ledger(currency):
+        request_id=ib.client.getReqId()
+        future=ib.wrapper.startReq(request_id)
+        try:
+            ib.client.reqAccountSummary(request_id,'All','$LEDGER:'+currency)
+            await asyncio.wait_for(future,8)
+            requested.append(currency)
+        finally:
+            if ib.isConnected():ib.client.cancelAccountSummary(request_id)
+    await ledger('USD')
+    book=cashbook(list(ib.wrapper.acctSummary.values()),account)
+    base=book['base_currency']
+    if base not in book['currencies']:await ledger(base)
+    book=cashbook(list(ib.wrapper.acctSummary.values()),account)
+    if 'USD' not in book['currencies'] or base not in book['currencies']:
+        raise PermissionError('Broker USD and base cash rows required; missing is not zero')
+    book.update(requested_currencies=requested,currency_coverage='USD_AND_BASE_VERIFIED')
+    return book

@@ -55,3 +55,28 @@ class CashbookRequestTests(unittest.IsolatedAsyncioTestCase):
      with self.assertRaises(ConnectionError):await fetch_paper_cashbook(IB(),'DU1')
     else:self.assertEqual((await fetch_paper_cashbook(IB(),'DU1'))['currencies']['USD']['amount'],'-69786.59')
     self.assertEqual(calls,[(17,'All','$LEDGER:USD'),('cancel',17)])
+
+ async def test_missing_eur_cash_is_explicitly_requested_not_inferred_from_base_totals(self):
+  import asyncio
+  from trading.currency_book import fetch_paper_cashbook
+  rows=[r for r in CurrencyBookTests().rows() if not (r.currency=='EUR' and r.tag=='$LEDGER-CashBalance')]
+  cache={i:r for i,r in enumerate(rows)};futures={};calls=[]
+  class Client:
+   next_id=20
+   def getReqId(self):self.next_id+=1;return self.next_id
+   def reqAccountSummary(self,req,group,tags):
+    calls.append((req,tags))
+    if tags=='$LEDGER:EUR':cache[99]=V(account='DU1',tag='CashBalance',currency='EUR',value='1000000')
+    futures[req].set_result(None)
+   def cancelAccountSummary(self,req):calls.append(('cancel',req))
+  def start(req):futures[req]=asyncio.get_running_loop().create_future();return futures[req]
+  class IB:
+   client=Client();wrapper=V(startReq=start,acctSummary=cache)
+   def managedAccounts(self):return ['DU1']
+   def isConnected(self):return True
+   async def accountSummaryAsync(self,account):return []
+  b=await fetch_paper_cashbook(IB(),'DU1')
+  self.assertEqual(b['currencies']['EUR']['amount'],'1000000')
+  self.assertNotEqual(b['currencies']['EUR']['amount'],b['total_cash_value'])
+  self.assertEqual(calls,[(21,'$LEDGER:USD'),('cancel',21),(22,'$LEDGER:EUR'),('cancel',22)])
+  self.assertEqual(b['currency_coverage'],'USD_AND_BASE_VERIFIED')

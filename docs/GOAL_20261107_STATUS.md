@@ -59,3 +59,5 @@
 Gateway不是为了演练下线：GUI卡在Restart in progress/Shutdown API，旧Java进程未更换，日志自00:45 Berlin停止推进；修复前1247FD/963线程/RSS约972MB，低于FD软限70%但线程数量异常，不能声称泄漏根因已修复。现有owner受控启动后新Java代际1378654，02:20常驻fresh四end与独立READBACK_COMPLETE通过。API预算按既有代际变化与稳定60秒完整回读规则恢复，不是人工重置；旧3/3交易试验和全局门禁哈希一致。native恢复983（群message157）、API恢复982等均TELEGRAM_ACCEPTED。
 
 02:20:43准备了当日日报，源快照02:20:22，现有补报986成功；原980缺报告警保留。资源和gate哈希前后证据：云runtime/gateway-recovery/20261108T011830Z。自动化本身尚不能处理这类卡住shutdown；本轮实际修复成功不等于已验证无人值守恢复所有卡死场景。
+
+Nov8 02:25新增真实数据：连接恢复后的IBKR新闻读取均完成身份核验，META与NVDA返回可用新闻；其余公司本次无可用新闻不能推断无订阅，实时新闻流仍未验证。一次只读USD ledger确认余额-69788.66；发现base EUR现金行仍缺，因此增加显式base ledger读取。T0草案已写runtime/performance-start-proposal.json（approved=false/performance_t0=null），没有重设统计起点。工作/通知检索上线只读探针各返回2条，明确不冒充Telegram全群历史。

@@ -311,3 +311,5 @@ Nov8日报实际发出的是缺报告警（group message156，02:00:06 Berlin）
 02:18–02:20 Berlin实际故障修复：GUI卡Shutdown API且旧Java不退出，保存1247FD/963线程资源证据后通过现有systemd owner受控重启一次；新代际1378654、常驻四end与独立READBACK_COMPLETE均恢复。恢复983群message157有原生回执；现有日报补报986已发送。交易/资金/暂停/旧3次试验文件哈希不变。此为实际修复，不是演练；无人值守处理卡死shutdown仍是独立缺口，不能用本次人工修复冒充自动恢复已完善。
 
 Nov8 Telegram用户会话接入：用户已明确同意本机授权，已在官方my.telegram.org取得应用凭据，未发到聊天。准备隔离Telethon1.45.0环境、固定四项依赖与官方wheel哈希；修正缺少项目ibapi路径后该运行环境完整离线924通过、pip check通过。初始化准确披露会话列表可能附带最近消息摘要，本机不检查/持久化其他群正文或交模型；所有认证输入隐藏、一次失败不自动重试。Terminal受电脑工具安全限制，登录命令由本人手动执行；此记录不声称已取得用户会话或已验收群搜索。
+
+Nov8多币种事实补齐：独立只读现金读取发现显式USD ledger可能仍缺EUR基准币种现金行。fetch_paper_cashbook在USD end后核对base cash，缺失则显式请求$LEDGER:EUR并等待end/cancel；缺USD或base现金仍拒绝，不从TotalCashValue/AvailableFunds推导EUR现金。记录requested_currencies与USD_AND_BASE_VERIFIED，不声称覆盖所有可能币种。925项完整离线通过；不触发换汇、不新增账户借款、不重置有限测试范围。
