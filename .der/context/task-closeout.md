@@ -32,3 +32,5 @@ Latest scanner-owner attachment preserved; final combined source1040 tests/42.96
 宽筛实际进展：集成源码adb3841离线1041项/42.465s；云端真实MOST_ACTIVE收到scannerDataEnd/50项，Telegram完成通知TELEGRAM_ACCEPTED，私人19项菜单set/get一致。公共源原始响应保留，Nasdaq空格修正与Yahoo/SEC覆盖详见broad-screening verification。未来维护窗口没有冒充已执行；实际权限及严格对照仍待核验。
 
 宽筛收尾实际验收：源码adb3841；1041项/42.465s/OK、gitleaks PASS、OpenSpec strict PASS。真实Nasdaq7062/Yahoo450/SEC9227事实；ABC13217匹配价量6645，缺6572保留。研究L1/L2/L3=11692/1503/22，真实scanner50，通知Telegram接受；19项菜单回读一致。云端两次备份和回读均证明每次部署范围内Gateway/执行门禁/canonical业务字段不变。维护timer active且oneshot成功；未来计划窗口未冒充已完成。源文件指纹以采集器当前state为准（adb3841时0f9d4aa3f804dff7809b953ff64973697d1a46796185abbb3cad94ffac0b5d0e）。图表两主题视觉审阅PASS，来源/缺口/时区维护安排已同步docs/BROAD_SCREENING.md与当前OpenSpec。严格跨源比较和实时订阅仍PENDING，手机云文档仍下一步；归档本次已实现范围，不关闭其他P0变更。
+
+宽筛最终补齐手机缺口展示：源码e7e5661，1042项/42.249s/OK，secret scan PASS；云端原始缓存ABVX/SPY实际回读验证了逐股缺平均量/基本面不全/非普通股标记及具体缺失财务字段。仅重启既有inbox加载回复；Paper与timer保持active，第三次部署备份及不变性证明在broad-screening-20261108T235508Z。OpenSpec已同步当前规格并归档本次完成范围；其他P0变更保留活动。文档提交可领先云端源码提交，manifest继续精确匹配cloud HEAD。

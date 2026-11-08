@@ -425,3 +425,5 @@ OpenSpec收尾最终回执：整合并行b6bd676后完整1017项/43.919s/OK。�
 ## 2026-11-09 宽范围研究与Telegram接入
 
 源码adb3841已经Git上线，保留并行现金/保护功能且不操作其配置或服务。linked worktree完整离线1041项/42.465s通过；主区只smoke，仍NOT_READY。真实数据：Nasdaq7062、Yahoo450、SEC9227财务事实；ABC13217中6645有价量，缺失保留；研究L2=1503、L3=22。既有Paper owner收到MOST_ACTIVE原生scannerDataEnd/50项，完成通知TELEGRAM_ACCEPTED；私人19项菜单set/get一致。新增五命令与每日维护说明见docs/BROAD_SCREENING.md；维护timer已启用，oneshot实际成功。每次部署均保全秘书/恢复库备份，Gateway身份、canonical业务字段及执行门禁哈希不变；broker_readback为自然变化字段不当作静态哈希。未查询Live；既有Paper monitor重启加载一次，Scanner不新建额外broker会话，未新增行情全量订阅或订单；实时权限/跨源严格比较仍待核验。来源免费无SLA，未来窗口以实际状态为准。详细可复查证据~/.local/state/openclaw/engineering/broad-screening-20261109/及云state/engineering/broad-screening-20261108T234919Z。
+
+同日最终手机展示修正：e7e5661上线；完整离线1042项/42.249s/OK、secret scan PASS。逐股缺口和具体财务缺字段已用真实缓存回读；第三次部署保持Gateway/门禁/canonical业务字段，inbox/Paper/timer均active。未制造Telegram用户指令或宣称未来维护成功。
