@@ -40,6 +40,24 @@ paper-trading TWS session.
   delivery remain acceptance work. Existing notification code is not proof that
   the newly changed audience can currently receive messages.
 
+## 云端监控与报警职责概述
+
+**自己的机器人解释连接故障，云外 Healthchecks 在云端无法发消息时提供心跳兜底。** 两条通知保留作冗余；它们可能报告同一次故障，不代表发生了两次断线。
+
+Hetzner 云机上的 systemd 定时器每 60 秒运行我们的心跳程序，通过 HTTP 向 Healthchecks.io 报到；不是 Hetzner 自动发送，也不是长连接。Healthchecks 的 Paper API 检查读取现有唯一监控 owner 保存的身份、连接、券商上游心跳与账户回读证据，不另建 IBKR 连接。因此，两路主要共用检测证据，但报警发送路径不同；云外平台还独立判断心跳是否超时。
+
+| 场景 | 自己的机器人 | 云外 Healthchecks |
+| --- | --- | --- |
+| 云正常，只有 Paper 连接链路故障 | Telegram 通道可用时能发连接异常 | API 检查 Down，主机可保持 Up |
+| 云仍在运行，但完全断网 | 当时无法发出 Telegram 通知 | 主机、API 两条心跳都超时，可能分别报 Down |
+| 云关机 | 无法发出通知 | 同样可能报主机、API 两条 Down |
+
+主机心跳覆盖网络不可达的结果，但仅凭心跳消失无法区分关机、断网或发送程序停止。主机检查还包含资源样本新鲜度和磁盘空间，故 Down 也不必然意味着云宕机。两路最终都依赖 Telegram，不保证完全独立或绝无漏报。
+
+解释通知时，区分“云主机心跳异常／恢复”和“IBKR Paper 连接链路异常／恢复”；这是职责用语，不表示已修改线上名称。**Up 表示检查恢复正常，不证明服务器或 API 重启，也不表示行情、交易门禁全部恢复。** 当前 period 60 秒加 grace 60 秒，失联约在最后一次成功心跳后 120 秒判定，调度与通知传输另计；主动上报失败可更早触发。
+
+验收边界：2026-11-06 已暂停共用心跳发送器并自动恢复，用户确认收到 Down／Up；这不等于真实云断网或断电演练。2026-11-08 真实断网演练尚未执行，等待独立救援控制台就绪。实现与通知范围见 [通知中心](docs/NOTIFICATION_CENTER.md)；既有演练证据见 [外部心跳验收](docs/AGENT_SECRETARY_AND_COSTS_20261106.md)。
+
 ## Upstream projects and attribution
 
 统一上游清单（URL、版本、许可证、已接入/候选状态）：[UPSTREAM_REPOSITORIES](docs/UPSTREAM_REPOSITORIES.md)。
