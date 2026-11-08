@@ -24,7 +24,7 @@ Telegram官方messages.search标注Only users。现有Bot API轮询不能搜索�
 1. 在官方 https://my.telegram.org 取得自己的API应用ID/hash；条款由本人处理。
 2. 审核本页会话权限后，使用独立本机venv安装经固定版本审核的Telethon（官方当前文档1.45.0；上游GitHub已迁至Codeberg），不得把未核验主干直接装进生产环境。
 3. 已审核的非秘密target放 `~/.config/openclaw/telegram-search-target.json`（0600，精确owner、der、机器人ID）。它由云端现有私密配置提取身份字段，不含bot token。
-4. 本人运行 `python scripts/authorize_telegram_search.py`，在本机终端输入明确授权、API ID/hash、手机号、验证码及必要的2FA；不发到聊天。初始化只枚举最多500条会话元数据以定位der，不读取其他群正文。
+4. 本人运行 `python scripts/authorize_telegram_search.py`，在本机终端输入明确授权、API ID/hash、手机号、验证码及必要的2FA；不发到聊天。初始化枚举最多500条会话以定位der；Telegram会话列表响应可能附带最近消息摘要，本机SDK会接收，但脚本不检查/持久化其他会话正文，也不交给模型。终端在本人确认前明确显示这一边界。
 5. 用户会话保存到 `~/.config/openclaw/telegram-search.json`（0600）；用本机独立venv提供的受审核Telethon给bridge执行环境。验证 `/search` 返回真实机器人消息、时间和原消息链接后，才能称群搜索接通。
 
 没有用户会话时，/work与/searchlog仍可用，/search会明确报告待本人授权。工作查询不消耗模型推理；自然语言研究是否调用模型沿用已有费用边界。
@@ -38,3 +38,15 @@ Telegram官方messages.search标注Only users。现有Bot API轮询不能搜索�
 - https://docs.telethon.dev/en/stable/concepts/sessions.html — 会话是敏感认证材料；StringSession不建立消息数据库。
 - https://codeberg.org/Lonami/Telethon — 目前维护源；https://github.com/LonamiWebs/Telethon 已归档并声明迁移。
 - https://github.com/tdlib/td — 官方客户端库参考；searchChatMessages文档要求消息数据库，不作为本轮无镜像方案。
+
+## Nov8已授权的本机环境
+
+用户已明确同意建立本机用户会话。隔离运行环境为 `~/.local/state/openclaw/telegram-search/venv`；Telethon1.45.0的PyPI wheel SHA-256为339e24c83aedc9f12cbe389264627edc49779e4289c535aa90aafc4ce62f7972，固定依赖清单在ops/local/requirements-telegram-search.txt。通过显式路径复用项目已审核的核心SDK；最初缺少ibapi的失败日志保留，补齐路径后该环境完整离线924项通过，pip check通过。未因此修改生产IBKR凭据或交易门禁。
+
+电脑控制工具禁止操作Terminal应用，本人需手动打开终端运行（不含任何凭据）：
+
+```sh
+/Users/nbhsbgnb/.local/state/openclaw/telegram-search/venv/bin/python '/Users/nbhsbgnb/Documents/New project/scripts/authorize_telegram_search.py'
+```
+
+先阅读提示，输入AUTHORIZE DER SEARCH。API ID/hash、手机号、登录码与2FA密码全部隐藏输入，不进入shell命令历史；单次登录失败不自动重试，不打印异常凭据细节。
