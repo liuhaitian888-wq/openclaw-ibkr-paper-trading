@@ -108,7 +108,15 @@ class PaperSafetyClient(TwsPaperClient):
 
     def currentTime(self, timestamp):
         with self.monitor.lock:
-            self.monitor.state['last_server_reply'] = self.monitor.clock()
+            if self.monitor.state.get('api_protocol',{}).get('connection')!=self.connection_generation:return
+            received=self.monitor.clock()
+            valid=type(timestamp) is int and abs(received-timestamp)<=10
+            # Keep broker event time separate from local callback receipt time.
+            # Invalid or old-generation replies must not refresh the heartbeat.
+            self.monitor.state['native_server_clock']=dict(valid=valid,
+                timestamp=timestamp if valid else None,received_at=received,
+                connection_generation=self.connection_generation)
+            if valid:self.monitor.state['last_server_reply'] = received
             self.monitor._publish()
 
     def error(self, reqId, *args):

@@ -39,6 +39,25 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.assertFalse(book['grants_trading_permission']);self.assertEqual(self.target.stat().st_mode&0o077,0)
         self.assertIn('sha256',self.monitor.state['currency_book_status'])
         self.assertEqual(self.monitor.coordinator.observations()['CURRENCY_BOOK']['state'],'HEALTHY')
+    def test_server_event_time_is_not_replaced_by_callback_receipt_time(self):
+        self.now+=.25;timestamp=int(self.now)
+        self.client.currentTime(timestamp)
+        evidence=self.monitor.state['native_server_clock']
+        self.assertTrue(evidence['valid']);self.assertEqual(evidence['timestamp'],timestamp)
+        self.assertEqual(evidence['received_at'],self.now)
+        self.assertEqual(self.monitor.state['last_server_reply'],self.now)
+    def test_invalid_server_time_never_refreshes_heartbeat(self):
+        for timestamp in (True,None,float('nan'),float('inf'),int(self.now)-11,int(self.now)+11):
+            before=self.monitor.state['last_server_reply'];self.now+=.1
+            self.client.currentTime(timestamp)
+            self.assertFalse(self.monitor.state['native_server_clock']['valid'])
+            self.assertEqual(self.monitor.state['last_server_reply'],before)
+    def test_old_client_server_callback_cannot_refresh_replacement_generation(self):
+        before=self.monitor.state['last_server_reply']
+        self.monitor.state['api_protocol']['connection']='replacement'
+        self.now+=1;self.client.currentTime(int(self.now))
+        self.assertEqual(self.monitor.state['last_server_reply'],before)
+        self.assertNotIn('native_server_clock',self.monitor.state)
     def test_default_client_has_no_cash_request_or_additional_worker(self):
         client=PaperSafetyClient(self.monitor,['PFE']);self.assertIsNone(client.cashbook_collector)
         client.poll_cashbook();client.close_cashbook()
