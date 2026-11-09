@@ -93,8 +93,10 @@ class RecoveryCoordinator:
         if status not in ('SENT_ACCEPTED','CONFIRMED','UNKNOWN','FAILED_FINAL','SAFE_TO_RETRY'):raise ValueError('Invalid outcome')
         # SAFE_TO_RETRY still needs a new explicitly approved attempt, never delete old identity.
         with closing(self.connect()) as c,c:c.execute('UPDATE operation_attempts SET status=? WHERE identity=?',(status,identity))
-    def uncertainties(self):
-        with closing(self.connect()) as c:return c.execute("SELECT identity,kind,status FROM operation_attempts WHERE status IN ('STARTED','UNKNOWN')").fetchall()
+    def uncertainties(self,kind=None):
+        sql="SELECT identity,kind,status FROM operation_attempts WHERE status IN ('STARTED','UNKNOWN')"
+        with closing(self.connect()) as c:
+            return c.execute(sql+(" AND kind=?" if kind is not None else ""),() if kind is None else (kind,)).fetchall()
     def tick(self):
         if not self.lock.acquire(False):return []
         attempted=[]
@@ -307,7 +309,7 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
                 pending=c.execute("SELECT idempotency_key,status FROM order_requests WHERE status IS NULL OR status NOT IN ('FILLED','CANCELLED','REJECTED','FAILED_FINAL')").fetchall()
                 latest=c.execute('SELECT completed_at,status FROM reconciliation_runs ORDER BY completed_at DESC LIMIT 1').fetchone()
             age=time.time()-datetime.fromisoformat(latest[0]).timestamp() if latest else float('inf')
-            ok=not pending and not coordinator.uncertainties() and latest and latest[1]=='OK' and 0<=age<=60
+            ok=not pending and not coordinator.uncertainties(kind='order') and latest and latest[1]=='OK' and 0<=age<=60
             return bool(ok),'Existing broker reconciliation must be current; ambiguous attempts remain held',{'pending':pending,'latest_reconciliation':latest}
         if module=='DELIVERY':
             d=read(root/'delivery.json')
@@ -333,10 +335,10 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
                     'refresh':b.get('complete') is True,
                     'freshness':bool(b.get('observed_at')) and 0<=time.time()-datetime.fromisoformat(b['observed_at']).timestamp()<60,
                     'reconcile':all(x.get('account')==expected_account for k in ('positions','orders','executions') for x in b.get(k,[])),
-                    'backlog':not coordinator.uncertainties(), # Unresolved operations block promotion; never replay.
+                    'backlog':not coordinator.uncertainties(kind='order'), # Broker ambiguity only; delivery remains under DELIVERY.
                 }
                 self.observation['phase_verified']=phase.get(step,False)
-                if step=='backlog':self.observation['uncertainties_retained']=coordinator.uncertainties()
+                if step=='backlog':self.observation['uncertainties_retained']=coordinator.uncertainties(kind='order')
                 return self.observation['ok'] is True and phase.get(step,False)
             return self.observation['ok'] is True
     coordinator.adapters={name:Adapter(name) for name in MODULE_DEPENDENCIES}

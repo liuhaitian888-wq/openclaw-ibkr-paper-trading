@@ -37,3 +37,16 @@ class ProductionAcceptanceTests(unittest.TestCase):
    adapter=wire_live_adapters(co,root,root)['ORDER_SUBMISSION']
    self.assertFalse(adapter('connect'))
    self.assertEqual(len(adapter.observation['evidence']['pending']),len(statuses))
+
+ def test_order_reconciliation_ignores_delivery_unknown_but_holds_order_unknown(self):
+  with tempfile.TemporaryDirectory() as tmp:
+   root=Path(tmp);(root/'production.json').write_text('{}');co=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
+   with closing(sqlite3.connect(root/'trading_audit.sqlite3')) as c,c:
+    c.executescript('CREATE TABLE order_requests(idempotency_key TEXT,status TEXT); CREATE TABLE reconciliation_runs(completed_at TEXT,status TEXT);')
+    c.execute('INSERT INTO reconciliation_runs VALUES (?,?)',(datetime.now(timezone.utc).isoformat(),'OK'))
+   co.begin_operation('notice:lost','delivery',{});co.finish_operation('notice:lost','UNKNOWN')
+   adapter=wire_live_adapters(co,root,root)['ORDER_SUBMISSION']
+   self.assertTrue(adapter('connect'))
+   co.begin_operation('order:lost','order',{});co.finish_operation('order:lost','UNKNOWN')
+   self.assertFalse(adapter('connect'))
+   self.assertEqual(len(co.uncertainties()),2)

@@ -24,7 +24,7 @@
 |---|---|---|
 |看der独立kander-cross-display|HEAD055c42e；本日独立OpenSpec维护上下文|README确认BetterDisplay虚拟屏、Sunshine服务端、Moonlight客户端；控制层不冒充自研编码器。Package.swift没有外部SwiftPM包声明；未重跑媒体验收。|
 |看der后续OpenWorkspace|HEADaceaf93；Nov8含快捷键队列与断连回收提交，Nov9维护上下文|同样复用外部媒体栈；SwiftTesting6.1.3与SwiftSyntax601.0.1来自清单/锁文件，是测试工具链证据。ibflex/ib_async/Canary/healthchecks等review目录是参考材料，不等于嵌入了这些交易后端。|
-|买der|当前云端217ac90；保护、通知、Gateway和只读资金结果分别核对|官方IBSDK1051.1/protobuf5.29.5，既有ib_async2.1.0；QuantConnect IBAutomater已固定源适配；Telegram库/通知现有owner。资金/准入代码已部署，只读现金owner获准运行；正式交易仍暂停。|
+|买der|现金owner由217ac90部署，随后云端含并行deehub修复5df418d；保护、通知、Gateway和只读资金结果分别核对|官方IBSDK1051.1/protobuf5.29.5，既有ib_async2.1.0；QuantConnect IBAutomater已固定源适配；Telegram库/通知现有owner。资金/准入代码已部署，只读现金owner获准运行；正式交易仍暂停。|
 |刷der|HEAD5181c50，本轮只读清单核对，未碰既有脏工作|package声明Zod、Electron、OpenClaw、TypeScript、tsx；版本范围不等于已安装锁定版本。wx-cli-readonly目录是本地适配/研究线索，不据此宣称连接器已部署或写消息已获许可。|
 |der token|Git仍无首次提交；未暂存其整个源目录|pyproject声明PyYAML6.x，定位本地只读token可观测；本次没有读取原始Codex会话或生产SQLite。未宣称完成源码基线或运行验收。|
 
@@ -54,3 +54,5 @@
 本表能供记录；后续原生事实变化须重新读取，不把当时保护/资金/会话状态说成永久成立。
 
 22:13Z部署验收补充：只读现金原生回执约1.1秒新且epoch/connection/reconciliation匹配；CURRENCY_BOOK依赖仍WAITING_DEPENDENCY。paper-safety四次资源样本FD5–6、线程4、RSS约41MB，秘书FD9/线程2；短样本不等于长期无泄漏。工程通知outbox1202 TELEGRAM_ACCEPTED，手机显示未验证。
+
+并行变更核对：云端已通过另一条经核验的Git部署前进到5df418d（deehub身份/公共路由）；本轮保留该源码及相关配置，未回退217ac90。故障锁及通知/订单不确定性分域是后续隔离候选，未据此启用新交易。

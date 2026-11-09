@@ -81,3 +81,7 @@ PaperSafetyClient可选接收现金publisher；同一SDK实例重连后账户请
 有限FX的独立native结果仍保存；配置持续writer后不覆盖latest。缓存发布失败不把已确认的FXFILLED冒充未知金融结果。全套1130项/75.179秒/OK，包含原子写入故障、30次文件/SQLite/线程资源闭环、SDK重连迟到回调以及新对账epoch拒绝旧现金请求。独立只读代码复核未见可执行回归；未重复测试或触及生产服务，该结论不等于完整金融验收。
 
 真实只读协议探针：源四文件指纹f17d1912eb2c86b7a41ef16f22b4de2ca3b018eec7f0816a1c971bd7a716adf9，2026-11-09约21:41Z，精确Paper账户、多币种现金及结算回调成功。USD2019.4231、EUR943040.605，普通现金与结算负值分别保留；线程1→1、client关闭、0订单请求。候选仅在私有工程探针中执行，没有写生产latest或promote共享health；真正生产owner回读仍待部署验收。
+
+## 通知与券商不确定性分域（后续候选）
+
+保留uncertainties()全量默认接口；broker adapter backlog及ORDER_SUBMISSION仅查询order种类，delivery UNKNOWN仍保留并禁止重放。并行deehub三笔提交已在隔离工作树保留整合。完整离线1135项/77.716s/OK，独立静态复核无实质缺陷；当前云端5df418d，分域修复及文件故障锁尚未云端部署。新增订单仍受当前风险、所有原生资金/对账与正式暂停门禁约束。
