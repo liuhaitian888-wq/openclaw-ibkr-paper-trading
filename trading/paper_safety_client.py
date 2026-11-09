@@ -7,7 +7,7 @@ from trading.tws_paper import TwsPaperClient
 
 
 class PaperSafetyClient(TwsPaperClient):
-    def __init__(self, monitor, symbols, *, bar_wire_protocol='auto',cashbook_publisher=None):
+    def __init__(self, monitor, symbols, *, bar_wire_protocol='auto',cashbook_publisher=None,native_pnl_observation=False):
         if bar_wire_protocol not in ('auto','legacy'):raise ValueError('Explicit supported bar protocol required')
         self.bar_wire_protocol=bar_wire_protocol
         super().__init__()
@@ -28,6 +28,10 @@ class PaperSafetyClient(TwsPaperClient):
         self.cashbook_publisher=cashbook_publisher
         self.cashbook_collector=None
         self._reset_cashbook_collector()
+        self.native_pnl_observation=native_pnl_observation is True
+        if not hasattr(monitor,'pnl_publication_state'):monitor.pnl_publication_state={}
+        self.pnl_collector=None
+        self._reset_pnl_collector()
 
     def useProtoBuf(self,msgId):
         from ibapi.message import OUT
@@ -41,6 +45,7 @@ class PaperSafetyClient(TwsPaperClient):
             self._initial_pending.clear()
             self.upstream_reported_lost=False
             self._reset_cashbook_collector()
+            self._reset_pnl_collector()
         return super().connect(*args,**kwargs)
 
     def _next_cash_request_id(self):
@@ -69,6 +74,46 @@ class PaperSafetyClient(TwsPaperClient):
 
     def close_cashbook(self):
         if self.cashbook_collector is not None:self.cashbook_collector.close()
+
+    def _reset_pnl_collector(self):
+        if self.pnl_collector is not None:self.pnl_collector.close()
+        if not self.native_pnl_observation or self.monitor.pnl_publication_state.get('blocked'):return
+        from trading.native_pnl_collector import NativePnLCollector
+        self.pnl_collector=NativePnLCollector(self,account='DUQ503649',connection_generation=self.connection_generation,
+            admitted=self._pnl_admission,allocate_request_id=self._next_cash_request_id,
+            publish=self._publish_native_pnl,clock=self.monitor.clock)
+
+    def _pnl_admission(self):
+        with self.monitor.lock:
+            return self.monitor.state['epoch'] if self._cashbook_admitted() else None
+
+    def _publish_native_pnl(self,receipt):
+        from trading.entry_admission import aware_stamp
+        from trading.native_pnl_collector import PnLFrameRejected
+        with self.monitor.lock:
+            now=self.monitor.clock();start=aware_stamp(receipt['started_at']);end=aware_stamp(receipt['observed_at'])
+            if (receipt.get('account')!='DUQ503649' or receipt.get('source')!='NATIVE_ACCOUNT_PNL'
+                or receipt.get('grants_trading_permission') is not False or receipt.get('admission_generation')!=self.monitor.state['epoch']
+                or not self._cashbook_admitted() or receipt['connection_generation']!=self.connection_generation
+                or not 0<=now-end<=10 or not start<=end<=now or start<self.monitor.state.get('reconciled_at',0)):
+                raise PnLFrameRejected('Current exact native PnL epoch and read ordering required')
+            prior=self.monitor.state.get('native_pnl')
+            self.monitor.state['native_pnl']=dict(receipt,broker_epoch=self.monitor.state['epoch'])
+            try:self.monitor._publish()
+            except Exception:
+                if prior is None:self.monitor.state.pop('native_pnl',None)
+                else:self.monitor.state['native_pnl']=prior
+                self.monitor.pnl_publication_state.update(blocked=True,reason='NATIVE_PNL_PUBLICATION_FAILED')
+                raise
+
+    def poll_pnl(self):
+        if self.pnl_collector is not None:self.pnl_collector.poll()
+
+    def close_pnl(self):
+        if self.pnl_collector is not None:self.pnl_collector.close()
+
+    def pnl(self,reqId,dailyPnL,unrealizedPnL,realizedPnL):
+        if self.pnl_collector is not None:self.pnl_collector.value(reqId,dailyPnL,unrealizedPnL,realizedPnL)
 
     def accountUpdateMulti(self,reqId,account,modelCode,key,value,currency):
         if self.cashbook_collector is not None:self.cashbook_collector.value(reqId,account,modelCode,key,value,currency)
