@@ -38,3 +38,10 @@ Production Acceptance：正式 manifest/audit/financial/delivery 仍未发布；
 用户批准从今天开始跟踪当前券商事实。云端/opt/openclaw/app已建立PAPER DUQ503649期初持仓/订单基线，2026-11-05 00:19:33 Europe/Berlin，6持仓与1张既有PFE保护单持久化回读一致。旧109条请求保留在legacy_epoch；当前broker_orders不再为空，PFE活动标记已同步；历史收益与原始交易来源不因此变完整。详细表/备份/证据与未完成事项见ENGINEERING.md最新纪要。
 
 Broker baseline批准标记只授权现有只读采集器持久化券商事实，不授权订单、撤单或策略。PAUSED/MAINTENANCE保持；production.json仍为SAFE_MONITOR_ONLY且未批准执行。Brevo通知/PNG报表在单独监测身份下运行，不能把邮件通道批准当交易批准。
+
+## 2026-11-09 有限保护与资金 scope（不解除策略暂停）
+
+- 旧仓补保护：`runtime/legacy-protection-scope.json`，仅AAPL/META/MSFT/NIO/T五只既有仓位新增SELL STP，最多5个不可重放身份，保留PFE旧单，2026-11-09T21:00:00Z到期。`ibkr-legacy-protection.timer`仅Nov9日期窗口；原生回执之前不得称已保护。
+- 自有资金兑换：`runtime/cash-conversion-scope.json`，`cash-funding-20261109-v1:EURUSD`已FILLED/CONFIRMED；已用完唯一提交机会，不能重置/更换key重放。现金以新鲜各币种ledger为准，保留CASH类FX交易头寸事实；不当股票空仓，不删除或隐瞒。
+- 云端任何Git部署须核对这两份scope及monitoring/gateway部署身份。保护scope仍在有效期时，先比较其核心代码/依赖与目标提交并跑规定离线验证，再记录源identity整合；只更新经过核验的身份字段，原数量、权限、到期和已提交预算不变。不能仅更新monitoring manifest而让保护scope身份悄悄失配，也不能为避免失配放宽验证。
+- 源码指纹/原生结果与剩余P0见`docs/production-audit/CASH_FUNDING_20261109.md`、`SCOPED_PROTECTION_20261109.md`、`.der/context/task-closeout.md`。连续股票执行/原子预算/部分成交与重启对账、币种/旧仓归属、实时及结算资金、T0和正式release仍未验收。PAUSED/MAINTENANCE与SAFE_MONITOR_ONLY保留。
