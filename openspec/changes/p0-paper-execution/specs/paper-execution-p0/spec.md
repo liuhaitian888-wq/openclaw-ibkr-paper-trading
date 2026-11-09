@@ -85,7 +85,7 @@ The system SHALL distinguish native trade-date cash from per-currency cumulative
 - **THEN** neither may reuse that one debit as proof that the whole newly known cash-flow cohort was accounted for
 
 ### Requirement: One read-only native currency evidence owner
-The system SHALL collect native cash and settlement through at most one owned accountUpdateMulti request on the existing read-only SDK owner, with timeout8s and refresh no faster than5s. Only exact account/request/generation callbacks and an explicit end may publish an atomic bounded book; owned subscriptions SHALL be cancelled on completion, timeout and shutdown. Missing or negative facts SHALL NOT be replaced with zero or promoted to spending permission. The opt-in CURRENCY_BOOK dependency SHALL belong to the shared health registry and expire after10s. Approved continuous collection SHALL prevent the finite FX adapter from overwriting its latest-book file while retaining original FX receipts.
+The system SHALL collect native cash and settlement through at most one owned accountUpdateMulti request on the existing read-only SDK owner. Only exact account/request/generation callbacks and an explicit end may publish the bounded book. Missing or negative facts SHALL NOT be replaced with zero or promoted to spending permission.
 
 #### Scenario: Late callback follows reconnect
 - **WHEN** a callback from an earlier request or connection arrives after its owner is closed
@@ -94,3 +94,17 @@ The system SHALL collect native cash and settlement through at most one owned ac
 #### Scenario: Completion lacks a coherent exact currency schedule
 - **WHEN** the end marker arrives with missing USD, accountReady=false, conflicting values or an overlarge snapshot
 - **THEN** the last published file remains unchanged and no entry permission is granted
+
+### Requirement: Bounded cash subscription lifecycle
+The system SHALL use timeout8s and refresh no faster than5s, cancel only owned subscriptions on completion, timeout and shutdown, and publish through one atomic private-file owner. Its opt-in CURRENCY_BOOK dependency SHALL belong to the shared health registry and expire after10s.
+
+#### Scenario: Request times out or cancellation fails
+- **WHEN** a request exceeds8s or cancellation cannot be completed
+- **THEN** the owned client must close before another request is admitted and no partial book is published
+
+### Requirement: Preserve finite FX evidence without a competing writer
+Approved continuous cash collection SHALL prevent the finite FX adapter from overwriting the continuous owner's latest-book file while retaining the original finite FX receipt and immutable operation outcome.
+
+#### Scenario: Finite FX completes while continuous publication is approved
+- **WHEN** a finite exchange produces its independently reconciled cash receipt
+- **THEN** that receipt remains archived and the continuous cashbook file is left to its approved owner
