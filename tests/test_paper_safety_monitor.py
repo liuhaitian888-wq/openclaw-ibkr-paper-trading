@@ -445,6 +445,42 @@ class PaperSafetyTests(unittest.TestCase):
         self.assertTrue(self.m.state['connected'])
         self.assertFalse(self.m.snapshot()['reconciliation_complete'])
 
+    def test_virtual_fx_position_preserves_raw_fact_and_resolves_only_false_stock_stop_incident(self):
+        self.ready();self.m._incident('protection:EUR','Legacy unknown instrument stop coverage',symbol='EUR',quantity=-64414,protection='PROTECTION_UNKNOWN')
+        self.m.start_reconciliation();self.m.position('PFE',2,con_id=11031,currency='USD',sec_type='STK')
+        self.m.position('EUR',-64414,con_id=12087792,currency='USD',sec_type='CASH');self.m.order(self.stop())
+        for end in ('positions','orders','completed_orders','executions'):self.m.end(end)
+        snap=self.m.snapshot()
+        self.assertEqual(set(snap['protection']),{'PFE'})
+        self.assertEqual(self.m.state['positions']['EUR'],-64414)
+        self.assertEqual(snap['portfolio']['fx_pair_positions'][0]['pair'],'EUR/USD')
+        with closing(self.m.incidents.connect()) as c:
+            self.assertEqual(c.execute("SELECT state FROM incidents WHERE incident_key='paper-safety:protection:EUR'").fetchone()[0],'RESOLVED')
+        restarted=self.make();self.assertFalse(restarted.snapshot()['reconciliation_complete'])
+        self.assertFalse(restarted.snapshot()['entries_ready'])
+        self.assertFalse(restarted.snapshot()['portfolio']['broker_snapshot_verified'])
+        self.assertEqual(restarted.state['positions']['EUR'],-64414)
+
+    def test_legacy_execution_contract_enrichment_survives_but_conflict_blocks(self):
+        self.ready()
+        old=dict(exec_id='fx-exact',account=ACCOUNT,order_id=51,perm_id=51,order_ref='funding',symbol='EUR',side='SLD',shares=64414,price=1.1,time='now')
+        self.m.execution(old)
+        typed={**old,'con_id':12087792,'currency':'USD','sec_type':'CASH'}
+        self.m.execution(typed);self.m.execution(old)
+        self.assertEqual(self.m.state['executions']['fx-exact'],typed)
+        with closing(self.m.audit._connect()) as c:
+            payload=json.loads(c.execute("SELECT raw_json FROM executions WHERE exec_id='fx-exact'").fetchone()[0])
+        self.assertEqual(payload['sec_type'],'CASH')
+        with self.assertRaises(ValueError):self.m.execution({**typed,'con_id':42})
+        self.assertFalse(self.m.state['connected'])
+
+    def test_native_execution_callback_preserves_instrument_identity(self):
+        self.ready();client=PaperSafetyClient(self.m,['PFE'])
+        client.execDetails(1,NS(symbol='EUR',secType='CASH',currency='USD',conId=12087792),NS(execId='FX-typed',orderId=51,permId=51,side='SLD',shares=64414,price=1.1,time='now',acctNumber=ACCOUNT,orderRef='funding'))
+        self.assertEqual(self.m.state['executions']['FX-typed']['sec_type'],'CASH')
+        self.assertNotIn('EUR',self.m.protection())
+
+
 class SymbolIsolationAdapterTests(unittest.TestCase):
  def test_targeted_conflict_keeps_healthy_peer_and_bar_subscriptions_scoped(self):
   from tempfile import TemporaryDirectory

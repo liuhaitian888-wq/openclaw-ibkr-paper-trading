@@ -40,3 +40,13 @@ class PortfolioExposureTests(unittest.TestCase):
         with patch('reporting.telegram_gate.current',return_value=caps),patch('trading.portfolio_exposure.measured_exposure',return_value=(1900,1900)),patch.object(service._risk,'validate',return_value='verified') as validate:
             proposal=TradeProposal('AAPL','BUY',1,100,95)
             self.assertEqual(service._validate_risk(proposal),'verified');validate.assert_called_once_with(proposal,current_symbol_exposure=1900,current_gross_exposure=1900)
+
+    def test_typed_fx_pair_position_is_not_a_security_mark_but_open_fx_order_blocks(self):
+        s=self.state();s['positions']['EUR']=-64414;s['contracts']['EUR']={'con_id':12087792,'currency':'USD','sec_type':'CASH'}
+        self.assertEqual(self.measure(s),(1700,11700))
+        s['orders']['fx']={'account':'DUQ503649','symbol':'EUR','currency':'USD','sec_type':'CASH','side':'SELL','remaining':1,'status':'Submitted','order_type':'LMT','limit_price':1.1}
+        with self.assertRaises(PermissionError):self.measure(s)
+
+    def test_malformed_currency_position_remains_fail_closed(self):
+        s=self.state();s['positions']['EUR']=-64414;s['contracts']['EUR']={'con_id':0,'currency':'USD','sec_type':'CASH'}
+        with self.assertRaises(PermissionError):self.measure(s)

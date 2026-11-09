@@ -133,7 +133,10 @@ class PaperSafetyClient(TwsPaperClient):
         super().execDetails(reqId,contract,execution)
         key = str(getattr(execution,'execId',''))
         if key:
-            self.monitor.execution(dict(self.executions[key]))
+            evidence=dict(self.executions[key],con_id=getattr(contract,'conId',0),
+                          currency=getattr(contract,'currency',''),sec_type=getattr(contract,'secType',''))
+            self.executions[key]=evidence
+            self.monitor.execution(evidence)
 
     def position(self, account, contract, quantity, avgCost):
         self.monitor.position(contract.symbol, quantity, account,

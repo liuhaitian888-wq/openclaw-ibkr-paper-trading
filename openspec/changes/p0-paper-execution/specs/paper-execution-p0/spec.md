@@ -20,3 +20,18 @@ The system SHALL obtain explicit new USD and base currency ledger ends on every 
 #### Scenario: Own-cash exchange is reconciled
 - **WHEN** the finite EUR to USD scope fills
 - **THEN** exact executions, actual fee, EUR debit, USD credit, no active scoped order and unchanged inherited non-cash positions must reconcile before FILLED is recorded
+
+### Requirement: Typed portfolio and currency facts
+The system SHALL retain raw broker exposure while separating verified stock holdings, identified currency-pair position facts and unsupported instruments. Currency-pair position quantities SHALL NOT be represented as actual currency balances, stock shorts or missing stock-stop coverage; funding and currency liabilities SHALL remain independently verified. Unsupported instrument identity and active external currency orders SHALL NOT be silently omitted from risk checks.
+
+#### Scenario: Negative virtual currency position after own-cash conversion
+- **WHEN** native readback contains a CASH EUR/USD pair position and actual EUR/USD cash balances are separately available
+- **THEN** the pair remains visible as an FX position fact, stock protection excludes it, and no cash or borrowing permission is inferred from its quantity
+
+#### Scenario: Ambiguous currency contract
+- **WHEN** CASH metadata is incomplete, unsupported or conflicting
+- **THEN** the exposure remains visible and applicable admission remains blocked
+
+#### Scenario: Legacy execution gains instrument evidence
+- **WHEN** an exact existing execId is read back with previously missing contract metadata
+- **THEN** only missing contract fields may be enriched; changed economics or known identity conflicts remain blocked

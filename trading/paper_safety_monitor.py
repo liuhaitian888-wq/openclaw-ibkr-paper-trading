@@ -13,6 +13,7 @@ from reporting.runtime_history import record, monitor_states
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from trading.audit import AuditLog
+from trading.instrument_facts import is_fx_pair,portfolio_facts,enrich_execution,instrument_kind
 from trading.symbol_health import SymbolRecovery, classify_symbol, session_for_symbol, compute_pause_scopes, session_error_code
 
 ACCOUNT = 'DUQ503649'
@@ -20,6 +21,7 @@ ENDS = {'orders', 'completed_orders', 'executions', 'positions'}
 
 
 def number(value):
+    if isinstance(value,bool):raise ValueError('Boolean is not a broker quantity')
     result = float(value)
     if not math.isfinite(result):
         raise ValueError('Non-finite broker quantity')
@@ -243,9 +245,11 @@ class PaperSafetyMonitor:
                 raise ValueError('Execution account/execId required')
             key = execution['exec_id']
             old = self.state['executions'].get(key)
-            if old is not None and old != execution:
+            try:
+                execution=enrich_execution(old,execution)
+            except ValueError:
                 self.invalidate('EXECUTION_ID_CONFLICT')
-                raise ValueError('Conflicting duplicate execId')
+                raise
             # Existing unique execId and identity checks, durable before permission.
             try:
                 with closing(self.audit._connect()) as c, c:
@@ -387,7 +391,9 @@ class PaperSafetyMonitor:
                 continue
             status, covered = 'PROTECTION_UNKNOWN', 0.0
             contract = self.state['contracts'].get(symbol,{})
-            if complete and qty > 0 and contract.get('con_id') and contract.get('currency')=='USD' and contract.get('sec_type')=='STK':
+            if is_fx_pair(symbol,contract):
+                continue
+            if complete and qty > 0 and instrument_kind(symbol,contract)=='SECURITY' and contract.get('currency')=='USD':
                 ambiguous = False
                 perm_ids = set()
                 for order in self.state['orders'].values():
@@ -425,6 +431,7 @@ class PaperSafetyMonitor:
         if not complete:
             for execution in self.state['executions'].values():
                 symbol = execution['symbol']
+                if is_fx_pair(symbol,execution):continue
                 if symbol not in result and execution.get('side') in ('BOT','BUY'):
                     result[symbol] = dict(quantity=execution['shares'], covered_quantity=0, status='PROTECTION_UNKNOWN')
         return result
@@ -452,7 +459,7 @@ class PaperSafetyMonitor:
             'identity_verified':bool(self.state['identity']),
             'broker_connected':bool(self.state['connected'] and self.state['upstream_connected'] and 0<=now-self.state['last_server_reply']<=10),
             'reconciliation_verified':fresh_reconciliation,
-            'authoritative_state_verified':bool(fresh_reconciliation and dynamic.get('authoritative_state_verified',self.system_safety.get('authoritative_state_verified')) is True)}
+            'authoritative_state_verified':bool(fresh_reconciliation and not portfolio_facts(self.state,verified=complete)['unsupported'] and dynamic.get('authoritative_state_verified',self.system_safety.get('authoritative_state_verified')) is True)}
         risks={}
         for symbol in set(self.symbols)|set(protection):
             uncertain=any(o.get('symbol')==symbol and (o.get('status') in ('Unknown','UNKNOWN','PendingCancel','ApiPending','PendingSubmit')
@@ -492,7 +499,8 @@ class PaperSafetyMonitor:
         now = self.clock()
         protection = self.protection()
         complete = self._complete()
-        covered = complete and all(p['status']=='PROTECTED' for p in protection.values())
+        portfolio=portfolio_facts(self.state,verified=complete)
+        covered = complete and not portfolio['unsupported'] and all(p['status']=='PROTECTED' for p in protection.values())
         data = True
         for symbol in self.symbols:
             q = self.state['quotes'].get(symbol,{})
@@ -505,6 +513,7 @@ class PaperSafetyMonitor:
         health=self.symbol_health()
         scopes=self.pause_projection(health,protection,complete)
         return dict(account=ACCOUNT, environment='PAPER', observed_at=now, epoch=self.state['epoch'],
+                    portfolio=portfolio,
                     protection=protection, symbol_health=health, pause_scopes=scopes,
                     entries_ready_scope='AGGREGATE_REPORT_ONLY; scoped trade decisions are authoritative for market isolation',
                     protection_ready=bool(covered), reconciliation_complete=bool(complete),
@@ -554,6 +563,10 @@ class PaperSafetyMonitor:
             for key in tuple(self.state['incident_signatures']):
                 if not key.startswith('protection:'):continue
                 symbol=key.split(':',1)[1]
+                if is_fx_pair(symbol,self.state['contracts'].get(symbol,{})):
+                    self._incident(key,'Complete broker identity classifies this as an FX pair position, not stock-stop exposure; actual cash risk remains separate',
+                                   resolved=True,symbol=symbol,quantity=self.state['positions'].get(symbol,0),protection='NOT_APPLICABLE_FX_PAIR')
+                    continue
                 if number(self.state['positions'].get(symbol,0))!=0:continue
                 if any(o.get('symbol')==symbol and not o.get('completed')
                        and o.get('status') not in ('Filled','Cancelled','ApiCancelled','Inactive')

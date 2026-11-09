@@ -11,3 +11,8 @@
 - [ ] 2.3 Atomic continuous entry budget admission, actual signal-to-executor integration and partial-entry-fill/restart acceptance.
 - [ ] 2.4 Fresh USD funding, full portfolio marks, canonical ownership and final exact strategy deployment release.
 - [ ] 2.5 Actual T0 start event with fresh NAV/cash/FX/fees; inherited holdings remain visible in risk.
+
+## 3. Typed portfolio continuation
+- [x] 3.1 Preserve typed broker facts and classify FX-pair positions separately; verify negative virtual FX, genuine stock shorts, malformed/unsupported instruments and retained raw state.
+- [x] 3.2 Wire protection/readiness/security-gross projections and typed execution provenance; verify legacy enrichment conflicts and external FX orders still fail closed.
+- [ ] 3.3 Complete isolated suite and secret scan, Git integration and native stock/FX/cash readback; verify unchanged broker orders, gates and remaining P0 status.

@@ -7,6 +7,7 @@ import math
 import sqlite3
 import time
 from .database_console import contained
+from trading.instrument_facts import is_fx_pair,portfolio_facts,instrument_kind
 
 ENDS={'positions','orders','completed_orders','executions'}
 ACCOUNT='DUQ503649'
@@ -39,10 +40,11 @@ def inventory(state, *, verified):
         if not finite(quantity) or not quantity:continue
         native=[o for o in orders if o.get('symbol')==symbol and not o.get('completed') and o.get('status') not in ('Filled','Cancelled','ApiCancelled','Inactive')]
         contract=state.get('contracts',{}).get(symbol,{})
+        if is_fx_pair(symbol,contract):continue
         valid=[o for o in native if o.get('account')==ACCOUNT and o.get('side')=='SELL' and o.get('order_type')=='STP'
                and o.get('status') in ('Submitted','PreSubmitted') and o.get('transmit') is True
                and not o.get('parent_id') and not o.get('oca_group') and o.get('perm_id')
-               and contract.get('currency')=='USD' and contract.get('sec_type')=='STK' and contract.get('con_id')
+               and contract.get('currency')=='USD' and instrument_kind(symbol,contract)=='SECURITY'
                and all(o.get(k)==contract[k] for k in ('currency','sec_type','con_id'))
                and finite(o.get('remaining')) and o['remaining']>0 and finite(o.get('aux_price')) and o['aux_price']>0]
         covered=sum(o['remaining'] for o in valid)
@@ -73,6 +75,7 @@ def collect(root, *, now=None):
         uncertain=database_read(root,'runtime/recovery.sqlite3',lambda c:c.execute("SELECT count(*) FROM operation_attempts WHERE kind='order' AND status IN ('STARTED','UNKNOWN')").fetchone()[0])
         pending=database_read(root,'trading_audit.sqlite3',lambda c:c.execute("SELECT count(*) FROM order_requests WHERE status IN ('RESERVED','STARTED','UNKNOWN','SUBMITTED','ACKNOWLEDGED','PARTIALLY_FILLED')").fetchone()[0])
     except (OSError,ValueError,sqlite3.Error):uncertain=pending=None;errors.append('operation_ledgers')
+    portfolio=portfolio_facts(state,verified=verified)
     holdings=inventory(state,verified=verified);strategy=manifest.get('strategy_configuration',{});safety=manifest.get('safety',{})
     from .telegram_gate import current
     try:controls=current(root)
@@ -85,6 +88,7 @@ def collect(root, *, now=None):
     check('STRATEGY_EXECUTION',strategy.get('execution_approved') is True,'APPROVAL',{'observed_configuration':strategy,'execution_symbols':manifest.get('market_symbols',[])})
     check('OPERATOR_RELEASE',not (root/'PAUSED').exists() and not (root/'runtime/MAINTENANCE').exists(),'APPROVAL','Existing operator pause/maintenance preserved; environment kill/transmit/session gates also apply')
     check('CANONICAL_AND_OWNERSHIP',manifest.get('canonical_current_state_verified') is True and safety.get('reconciled') is True and safety.get('ownership_verified') is True,'ENGINEERING','Broker quantities are not strategy ownership or canonical lifecycle reconciliation')
+    check('INSTRUMENT_CLASSIFICATION',verified and not portfolio['unsupported'],'ENGINEERING',{'unsupported':portfolio['unsupported'],'fx_pair_positions':portfolio['fx_pair_positions'],'cash_balances_inferred':False})
     check('PORTFOLIO_PROTECTION',verified and all(x['protection']=='PROTECTED' for x in holdings),'APPROVAL_AND_ENGINEERING',{'uncovered':[x['symbol'] for x in holdings if x['protection']!='PROTECTED'],'policy':'Preserve existing orders; do not adopt, sell or add stops without owner scope'})
     currency=load('runtime/currency-book.latest.json')
     funding=load('runtime/funding-policy.json')
@@ -104,7 +108,7 @@ def collect(root, *, now=None):
     check('PERFORMANCE_T0',False,'APPROVAL_AND_ENGINEERING','Draft only until scoped strategy inventory, fresh NAV/cash/FX/fees and start event are fixed; factual collection continues')
     return {'observed_at':datetime.fromtimestamp(now,timezone.utc).isoformat(),'account':ACCOUNT,'environment':'PAPER',
             'mode':'READ_ONLY_READINESS_REPORT','grants_trading_permission':False,'automatic_trading_ready':False,
-            'broker_state_verified':verified,'server_reply_age_seconds':age,'holdings':holdings,'checks':checks,'risk_controls':controls,
+            'broker_state_verified':verified,'server_reply_age_seconds':age,'holdings':holdings,'portfolio':portfolio,'checks':checks,'risk_controls':controls,
             'unavailable_evidence':errors,'source':'Existing Paper owner and local control/operation ledgers; no broker request',
             'limitations':['Snapshot, not an execution permission','No live net liquidation/cash/FX or market value inferred from quantities','Execution service health and per-order production guards remain mandatory']}
 
@@ -116,5 +120,9 @@ def message(data, *, holdings_only=False):
     if not holdings_only:lines.extend(x['gate']+' · '+x['state'] for x in data['checks'])
     for x in data['holdings']:
         for o in x['orders']:lines.append(x['symbol']+' '+str(o['side'])+' '+str(o['order_type'])+' '+str(o['remaining'])+' @ '+str(o['aux_price'])+' · '+str(o['status']))
+    for fx in data.get('portfolio',{}).get('fx_pair_positions',[]):
+        lines.append('FX pair '+fx['pair']+' '+format(fx['quantity'],'g')+' · 非现金余额/非股票空仓；资金另核验')
+    for row in data.get('portfolio',{}).get('unsupported',[]):
+        lines.append('⚠️ 未识别持仓 '+row['symbol']+' · 继续阻止新增风险')
     lines.append('Read-only. No orders sent/cancelled; no pause or approval changed.')
     return '\n'.join(lines)

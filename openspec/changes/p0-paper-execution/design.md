@@ -6,3 +6,8 @@ Source, isolated offline verification, cloud deployment and native acceptance ar
 
 ## Diagrams
 Registered .der maintenance boundary diagram concerns historical/cloud engineering maintenance and task completion; this patch does not change that workflow. New business paths are specified here and SCOPED_PROTECTION_20261109.md. Existing untracked output/archify artifacts are preserved, not represented as regenerated or verified against these paths.
+
+## Typed portfolio continuation
+Keep the original broker `positions`/`contracts` intact. A pure shared classifier recognizes explicit STK versus identified CASH currency pairs (account, positive conId, distinct known fiat base/quote), and exposes unsupported facts without dropping them. A negative FX-pair position is neither a stock short nor a cash balance. Stock protection and security gross notional project only the appropriate instrument class; cash/FX risk remains visible and actual funding requires its separate fresh ledger evidence. Active FX orders still block the equity-only risk calculator.
+
+Legacy untyped executions remain unknown. New callbacks retain contract evidence; duplicate execId may only enrich missing contract fields, never change immutable economics or a known identity. Startup still requires complete native reconciliation. No cash balance or leverage permission is inferred from the FX pair fact. Official IBKR virtual FX/real balances distinction is the evidence source, not a strategy authorization. No broker order/cancel methods are added.

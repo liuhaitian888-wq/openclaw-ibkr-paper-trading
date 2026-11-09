@@ -5,6 +5,7 @@ import math
 import sqlite3
 import time
 from pathlib import Path
+from .instrument_facts import is_fx_pair,instrument_kind
 
 
 def measured_exposure(root,symbol,*,now=None):
@@ -25,9 +26,12 @@ def measured_exposure(root,symbol,*,now=None):
             if not number(qty):raise ValueError('Invalid broker position')
             if not qty:continue
             contract=s.get('contracts',{}).get(ticker,{})
+            # This calculator measures securities gross in USD, not a virtual FX trade ledger.
+            # All actual cash/FX liabilities still require the separate funding guard.
+            if is_fx_pair(ticker,contract):continue
             q=s.get('quotes',{}).get(ticker,{})
             bid,ask=q.get('bid'),q.get('ask')
-            if not (contract.get('currency')=='USD' and contract.get('sec_type')=='STK' and contract.get('con_id')
+            if not (contract.get('currency')=='USD' and instrument_kind(ticker,contract)=='SECURITY'
                     and number(bid) and number(ask) and 0<bid<=ask and q.get('data_type')==1
                     and all(number(q.get(k)) and 0<=now-q[k]<=5 for k in ('bid_at','ask_at'))):
                 raise ValueError('Fresh USD mark unavailable for '+ticker)

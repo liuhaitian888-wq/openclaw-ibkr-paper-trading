@@ -45,3 +45,13 @@ class PaperReadinessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             r=self.root(tmp,self.state());(r/'runtime/RISK_CONTROLS_REQUIRED').touch();(r/'runtime/risk-controls.json').write_text('{')
             d=collect(r,now=101);self.assertIsNone(d['risk_controls']);self.assertIn('risk_controls',d['unavailable_evidence'])
+
+    def test_fx_pair_and_actual_funding_remain_separate(self):
+        s=self.state();s['positions']['EUR']=-64414;s['contracts']['EUR']={'con_id':12087792,'currency':'USD','sec_type':'CASH'}
+        with tempfile.TemporaryDirectory() as tmp:
+            r=self.root(tmp,s);d=collect(r,now=101)
+            self.assertNotIn('EUR',[x['symbol'] for x in d['holdings']])
+            self.assertEqual(d['portfolio']['fx_pair_positions'][0]['quantity'],-64414)
+            self.assertIn('非现金余额',message(d,holdings_only=True))
+            self.assertEqual(next(x for x in d['checks'] if x['gate']=='USD_CASH_AVAILABLE')['state'],'BLOCKED')
+            self.assertFalse(d['automatic_trading_ready']);self.assertTrue((r/'PAUSED').exists())
