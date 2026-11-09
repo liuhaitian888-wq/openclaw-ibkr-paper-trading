@@ -13,5 +13,5 @@
 
 ## 3. Integration
 - [x] 3.1 Run complete worktree suite, OpenSpec validation and secret scan; retain logs.
-- [ ] 3.2 Merge through Git, quick-smoke approved workspace and deploy notification producer; verify native receipt and unchanged trading gates.
-- [ ] 3.3 Update project context, affected diagrams and five-project collector; record unresolved P0 items honestly.
+- [x] 3.2 Merge through Git, quick-smoke approved workspace and deploy notification producer; verify native receipt and unchanged trading gates.
+- [x] 3.3 Update project context, affected diagrams and five-project collector; record unresolved P0 items honestly.

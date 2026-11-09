@@ -45,3 +45,7 @@ EQQQ绑定来自原生IB合约18706552、BVME.ETF、EUR。仅借用合约/场所
 Linked worktree完整套件1054项/80.411秒/OK；FD回归300轮恒5，恢复320轮FD4、线程1→1；gitleaks与OpenSpec全部5项strict PASS。Git整合、云端身份与真实Telegram回执待追加。股票全自动P0、五只继承仓原生保护回读与完整executor验收继续独立跟踪，不能由本提醒功能宣布完成。
 
 本机能力探测：Codex CLI 0.167.0-alpha.3.2，官方App Server stdio `initialize`实际返回ACK；探测拥有并关闭其子进程/管道，无thread/turn创建、无付费推理。这只证明协议入口可用，仍不等于Telegram消息已进入桌面会话。
+
+云端实际：源码02d264b部署到既有分支codex/ibkr-cloud-paper；仅优雅重启inbox与notification两个既有owner。监测、Gateway和有限保护scope身份逐项验证，保护scope只更新commit，原到期/数量/预算不变；7个核心依赖逐字节一致，health差异只增加两个opt-in通知模块并已复核。Gateway PID1450345未变，production.json/PAUSED/MAINTENANCE哈希不变，未发订单。私人22项菜单set/get一致，3条日历通知message137/138/139与上线说明message140均TELEGRAM_ACCEPTED；这是服务器接受，不证明手机已显示。周报真实归档预览2227字符；首次自然周日运行尚未发生。旧delivery UNKNOWN1原样保留、未重放；无新增未知券商订单。
+
+部署验证中先被Git拒绝了一次错误提交号（未改源码），后续验证脚本需补repo导入路径；均已纠正并完成身份/门禁/进程与原生回执复核。备份、失败日志及最终收据保留于engineering/secretary-market-operations-20261109，不把失败尝试写成成功。

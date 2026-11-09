@@ -54,3 +54,5 @@ Nasdaq官方计划2026-12-06启用夜盘，当前阶段规则保守核验至12-0
 风控分类与第三方方法/适用合规边界记录在docs/RISK_CONTROL_REVIEW.md；本轮查阅LEAN、Nautilus、exchange_calendars与官方交易所/法规，不声称引入整套引擎、全部控制已实现或取得合规认证。极端环境多标的大规模交易、门禁放宽保持后续讨论。
 
 受影响图表核对：现有工程维护分界图与宽筛来源/券商关系图拓扑不变；本次增加的是既有秘书通知路径的两个有界生产者，不改宽筛或维护流程。旧untracked交易图保留，没有伪造重绘/视觉验收。源码/离线验证/部署/真实回执分开追加。
+
+实际验收追加：02d264b；1054项/80.411s/OK、secret scan与OpenSpec5项strict PASS。云端源码和身份已整合，保护scope7个核心文件未改、health新增通知依赖经复核，scope只换commit，原保护授权不扩大。仅inbox和notification优雅重启；Gateway1450345、全局门禁哈希不变。22项私人菜单set/get一致，日历137/138/139及上线说明140已Telegram接受。真实周报预览2227字，首次周日定时未观察；App Server仍仅initialize ACK。旧delivery UNKNOWN1不重放、未新增未知券商订单。两次部署辅助脚本错误已纠正，失败与最终收据一并保留。完整股票自动化仍PARTIAL，不在此变更放行。
