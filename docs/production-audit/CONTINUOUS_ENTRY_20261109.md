@@ -65,3 +65,9 @@ API health日预算字段已改为与事务准入同一投影：分别显示actu
 ## 周报交接修复
 
 完整周报和16条证据仍归档；发送文案以3000 UTF-16单位为界，选择完整证据行，保留任务要求、完整归档key和未被Codex接收/部署的边界。省略数量明确可见，不在Telegram传输层截断提示尾部。此修复已包含在1104项隔离验证中，尚未部署。
+
+## 原生只读现金采集单元（尚未接生产owner）
+
+NativeCashCollector使用已有SDK client，不创建线程/进程；一次一个账户Multi请求、8秒单调时钟超时、最少5秒刷新，精确reqId/account/model及connection_generation，128行/90KB原始证据上界。完成、拒绝、超时和close只取消自己的账户订阅；发送/取消结果异常后须关闭原client再重连，不追加另一个请求。负结算余额作为有效事实保留，不授予资金权限。
+
+先运行的完整红灯验证1107项/82.324s、唯一ModuleNotFoundError；实现后1117项/75.759s/OK，包含200次请求/取消循环且无新线程、迟到/外部回调、身份变化、取消/发送异常及发布失败。此时尚未接入监测owner、尚未部署；计划见docs/superpowers/plans/2026-11-09-native-cash-owner.md。

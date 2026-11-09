@@ -83,3 +83,14 @@ The system SHALL distinguish native trade-date cash from per-currency cumulative
 #### Scenario: Two filled intents share one lagging ledger observation
 - **WHEN** a later account RPC reflects only one of two known filled intents
 - **THEN** neither may reuse that one debit as proof that the whole newly known cash-flow cohort was accounted for
+
+### Requirement: One read-only native currency evidence owner
+The system SHALL collect native cash and settlement through at most one owned accountUpdateMulti request on the existing read-only SDK owner, with timeout8s and refresh no faster than5s. Only exact account/request/generation callbacks and an explicit end may publish an atomic bounded book; owned subscriptions SHALL be cancelled on completion, timeout and shutdown. Missing or negative facts SHALL NOT be replaced with zero or promoted to spending permission. The opt-in CURRENCY_BOOK dependency SHALL belong to the shared health registry and expire after10s. Approved continuous collection SHALL prevent the finite FX adapter from overwriting its latest-book file while retaining original FX receipts.
+
+#### Scenario: Late callback follows reconnect
+- **WHEN** a callback from an earlier request or connection arrives after its owner is closed
+- **THEN** it cannot publish a cashbook for the current account/generation
+
+#### Scenario: Completion lacks a coherent exact currency schedule
+- **WHEN** the end marker arrives with missing USD, accountReady=false, conflicting values or an overlarge snapshot
+- **THEN** the last published file remains unchanged and no entry permission is granted
