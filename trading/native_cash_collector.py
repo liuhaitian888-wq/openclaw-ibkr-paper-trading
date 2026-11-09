@@ -9,13 +9,16 @@ from zoneinfo import ZoneInfo
 from .currency_book import cashbook,normalized_tag
 from .settlement_book import settlement_book
 
+class CashbookFrameRejected(PermissionError):
+    """An obsolete native frame, safe to replace with a fresh read."""
+
 ACCOUNT='DUQ503649'
 KEEP={'CashBalance','ExchangeRate','AvailableFunds','TotalCashValue','NetLiquidation',
       'AccountReady','AccountType','SettledCashByDate','SettledCashByDate-S'}
 
 class NativeCashCollector:
     def __init__(self,client,*,account,connection_generation,admitted,publish,observe,
-                 clock=time.time,monotonic=time.monotonic,allocate_request_id=None):
+                 clock=time.time,monotonic=time.monotonic,allocate_request_id=None,publication_state=None):
         if account!=ACCOUNT or not isinstance(connection_generation,str) or not connection_generation:
             raise PermissionError('Exact Paper account and connection generation required')
         self.client,self.account=client,account
@@ -23,6 +26,7 @@ class NativeCashCollector:
         self.admitted,self.publish,self.observe=admitted,publish,observe
         self.clock,self.monotonic=clock,monotonic
         self.allocate_request_id=allocate_request_id
+        self.publication_state={} if publication_state is None else publication_state
         self.lock=threading.RLock();self.pending=None;self.closed=False;self.poisoned=False
         self.sequence=0;self.last_attempt=None
 
@@ -51,6 +55,7 @@ class NativeCashCollector:
     def poll(self):
         with self.lock:
             if self.closed:return
+            if self.publication_state.get('blocked',False):return
             if self.poisoned:raise RuntimeError('Cash subscription requires owned-client reconnect')
             elapsed=self.monotonic()
             if self.pending:
@@ -123,7 +128,13 @@ class NativeCashCollector:
             self._finish(None)
             if self.poisoned:return
             try:self.publish(book)
+            except CashbookFrameRejected:
+                self._observe('DEGRADED','CASHBOOK_FRAME_OBSOLETE',enabled=True,grants_trading_permission=False);return
             except Exception:
+                # A local persistence fault must not reconnect a healthy SDK or
+                # create another private partial every five seconds. The long-lived monitor
+                # retains this latch across replacement SDK clients.
+                self.publication_state['blocked']=True
                 self._observe('DEGRADED','CASHBOOK_PUBLICATION_FAILED',enabled=True,grants_trading_permission=False);return
             self._observe('HEALTHY','Complete native cash and settlement facts; no spending permission',
                 enabled=True,connection_generation=self.connection_generation,request_id=request,grants_trading_permission=False)

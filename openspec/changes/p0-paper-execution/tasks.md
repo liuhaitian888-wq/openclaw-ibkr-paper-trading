@@ -26,6 +26,8 @@
 
 ## 5. Settlement and account-cache continuation
 - [x] 5.1 Read native per-currency settlement dates without trading, parse cumulative amounts and distinguish ordinary cash, actual currency units and BASE projections in isolated tests.
-- [ ] 5.2 Wire one bounded read-only cash/settlement producer into the approved lifecycle with exact request/end ownership and fresh execution/fee ordering.
+- [x] 5.2 Wire one bounded read-only cash/settlement producer into the approved lifecycle with exact request/end ownership and fresh execution/fee ordering.
 - [ ] 5.3 Verify stock value-date/funding semantics and full account cash baselines; never infer no-new-borrowing from a positive trade-date balance.
 - [ ] 5.4 Native partial-fill/restart/account-cache acceptance and exact formal release remain required.
+
+- [ ] 5.5 Publish actual ACCOUNT/EXECUTIONS/AUDIT dependency evidence through the existing owner, and scope broker uncertainty to order operations without replaying retained delivery UNKNOWN.

@@ -44,6 +44,18 @@ class LiveAdapterTests(unittest.TestCase):
   self.co.begin_operation('order:one','order',{})
   a=self.adapters(self.bundle())['ORDERS'];self.assertTrue(a('connect'));self.assertFalse(a('backlog'))
   restarted=RecoveryCoordinator(self.co.path);self.assertFalse(restarted.begin_operation('order:one','order',{}))
+ def test_delivery_unknown_retained_without_poisoning_broker_backlog(self):
+  self.co.begin_operation('notification:old','delivery',{})
+  self.co.finish_operation('notification:old','UNKNOWN')
+  a=self.adapters(self.bundle())['ACCOUNT']
+  self.assertTrue(all(a(step) for step in RECOVERY_STEPS))
+  self.assertEqual(self.co.uncertainties(),[('notification:old','delivery','UNKNOWN')])
+  self.assertEqual(self.co.uncertainties(kind='order'),[])
+  self.co.begin_operation('order:lost','order',{})
+  self.co.finish_operation('order:lost','UNKNOWN')
+  self.assertFalse(a('backlog'))
+  self.assertEqual(len(self.co.uncertainties()),2)
+  self.assertFalse(self.co.begin_operation('notification:old','delivery',{}))
  def test_adapter_cannot_create_missing_database(self):
   with self.assertRaises(sqlite3.Error):audit_write_probe(self.root/'absent.sqlite3')
   self.assertFalse((self.root/'absent.sqlite3').exists())
