@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Give the owner a recurring private evidence-based engineering review and editable Codex handoff, with honest delivery and integration status and bounded authority for autonomous research.
+Give the owner a recurring evidence-based engineering review in the authorized automatic-update group and editable Codex handoff, with honest delivery and integration status and bounded authority for autonomous research.
 
 ## Requirements
 
 
 ### Requirement: Weekly engineering prompt
-The system SHALL generate at most one scheduled owner-private engineering review per local ISO week, with explicit evidence freshness, unresolved blockers, bounded proposals, and an editable Codex prompt. It SHALL NOT claim missing evidence or research as completed work.
+The system SHALL generate at most one scheduled engineering review in the authorized automatic-update group per local ISO week, with explicit evidence freshness, unresolved blockers, bounded proposals, and an editable Codex prompt. It SHALL NOT claim missing evidence or research as completed work.
 
 #### Scenario: Repeated weekly check
 - **WHEN** the due check runs again within the same scheduled ISO week
@@ -35,16 +35,16 @@ The secretary SHALL distinguish durable receipt from confirmed model execution a
 - **WHEN** an owner instruction is stored without confirmed model execution
 - **THEN** the acknowledgement describes receipt and pending processing without promising an executing analysis or guaranteed response time.
 
-### Requirement: Bounded public filing explanations
-The system SHALL publish only validated public SEC filing metadata through a fixed explanation template to deehub. Arbitrary model research, account details and payload prose SHALL remain private. The explanation SHALL identify unparsed financial information and SHALL NOT claim that the filing body was analyzed.
+### Requirement: Owner-authorized automatic update routing
+The system SHALL deliver noninteractive automatic notifications, delegated task progress and completion, research reports, market intelligence and weekly engineering reviews to deehub when automatic_updates_to_group is approved. Interactive CHAT/ACK/CONTROL/AUTH replies and explicit requires_response requests SHALL use the verified secretary interaction destination. Credentials SHALL remain redacted. Existing uncertain sends SHALL NOT be replayed or copied.
 
-#### Scenario: Valid public filing with private prose
-- **WHEN** a validated SEC filing notification also contains arbitrary private prose
-- **THEN** the group receives only fixed metadata explanations, source and publication time without that prose.
+#### Scenario: Research and task updates
+- **WHEN** a new automatic research result or task progress notification is ready
+- **THEN** it is delivered to deehub with its substantive result, without requiring fixed SEC metadata.
 
-#### Scenario: Unapproved source or model research
-- **WHEN** a notification has an unapproved SEC URL or is a private model research result
-- **THEN** it remains owner-private and is not eligible for public group delivery.
+#### Scenario: Immediate response required
+- **WHEN** a message is an interactive reply, authentication request or explicitly requires a response
+- **THEN** it uses the verified secretary interaction destination and never falls back to the group.
 
 ### Requirement: Cloud model ownership and credential boundary
 The system SHALL use a dedicated private credential for gpt-6.1-sol with low reasoning on Hetzner when cloud ownership is activated. It SHALL retain the existing inbox, delivery and tool permission boundaries, deny Mac claims after cutover, and never automatically replay uncertain model attempts or pre-cutover checkpoints.

@@ -16,7 +16,7 @@ def validate_config(config):
         if config.get('notification_format')!='compact-v1':
             raise PermissionError('Shared group requires privacy-safe compact rendering')
         from .notification_center import recipient
-        recipient({'incident_key':'private-target-proof','kind':'SECRETARY_REPLY','payload':{}},config)
+        recipient({'incident_key':'private-target-proof','kind':'SECRETARY_REPLY','payload':{'message_role':'CHAT'}},config)
     extra=config.get('allowed_additional_bots',[])
     if (not isinstance(extra,list) or len(extra)>1
             or any(not isinstance(x,dict) or x.get('username')!='HealthchecksBot'
