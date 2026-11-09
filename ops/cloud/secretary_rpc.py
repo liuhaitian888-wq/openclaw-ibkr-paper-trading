@@ -96,11 +96,35 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
         instruction=active_run(archive,request['run']);step=request['step']
         if type(step) is not int or not 1<=step<=12:raise ValueError('Bounded tool step required')
         req=request['request']
+        if not isinstance(req,dict):raise ValueError('Structured tool request required')
+        with closing(archive.connect()) as c:
+            prior=c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(request['run']+':tool:'+str(step),)).fetchone()
+        if prior:
+            saved=json.loads(prior[0])
+            if saved['request']!=req:raise ValueError('Tool step reused with different content')
+            return saved['result']
         if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal'):
             return {'state':'REFUSED','reason':'Conversation cannot create work'}
         if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
+        tool_started_at=time.time();tool_timer=time.monotonic()
         try:
-            if req.get('name') in ('engineering_proposal','engineering_updates'):
+            if req.get('name') in ('broker_query','broker_result'):
+                if policy.get('broker_queries_approved') is not True:raise PermissionError('Live broker queries not configured')
+                from reporting.secretary_broker import submit,result as broker_result,initialize as broker_initialize
+                broker_initialize(archive)
+                if req['name']=='broker_query':
+                    from reporting.secretary_operations import service_status
+                    owner=service_status({'services':['paper-safety']})
+                    active=owner['services'][0]['properties'].get('ActiveState')=='active'
+                    result=submit(archive,req,run=request['run'],step=step) if active else {'state':'BROKER_OWNER_INACTIVE','reason':'Existing broker owner is stopped; query does not start it or create a second connection','owner_observation':owner}
+                else:result=broker_result(archive,req.get('id'))
+            elif req.get('name')=='service_status':
+                from reporting.secretary_operations import service_status
+                result=service_status(req)
+            elif req.get('name') in ('cloud_tasks','cloud_task_status','cloud_task_submit'):
+                from reporting.secretary_operations import cloud_task
+                result=cloud_task(archive,root,req,policy,run=request['run'],step=step,instruction=instruction)
+            elif req.get('name') in ('engineering_proposal','engineering_updates'):
                 from reporting.engineering_relay import propose,proposals
                 result=propose(archive,req,instruction=instruction) if req['name']=='engineering_proposal' else proposals(archive)
             elif req.get('name')=='research_universe':
@@ -108,9 +132,9 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
                 from reporting.research_universe import select
                 result=select(archive,root,req,run=request['run'],instruction=instruction,step=step)
             else:result=tool(root,req)
-        except (ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
-            result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':str(exc)[:200]}
-        archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result})
+        except (OSError,RuntimeError,ValueError,PermissionError,KeyError,TypeError, __import__('sqlite3').Error) as exc:
+            result={'state':'REFUSED_OR_UNAVAILABLE','error_type':type(exc).__name__,'message':__import__('reporting.errors',fromlist=['redact']).redact(str(exc)[:200])}
+        archive.append(request['run']+':tool:'+str(step),'der-secretary',origin='TOOL',kind='READ_ONLY_EXPERIMENT',parent=instruction,payload={'request':req,'result':result,'tool_started_at':tool_started_at,'tool_finished_at':time.time(),'duration_seconds':round(time.monotonic()-tool_timer,3)})
         if step==1 and request.get('response_mode','RESEARCH')!='CHAT':progress(IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],'FIRST_TOOL','已处理云端只读工具 '+str(req.get('name'))+'；结果 '+str(result.get('result',result.get('state'))))
         return result
     if action=='finish':

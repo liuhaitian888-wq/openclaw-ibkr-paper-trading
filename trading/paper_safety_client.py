@@ -24,6 +24,7 @@ class PaperSafetyClient(TwsPaperClient):
         self.read_only_completed_orders_blocked = False
         self._history_gap_pending=set()
         self.research_scanner = None
+        self.secretary_broker = None
         self._cash_request_sequence=0
         self.cashbook_publisher=cashbook_publisher
         self.cashbook_collector=None
@@ -115,6 +116,12 @@ class PaperSafetyClient(TwsPaperClient):
     def pnl(self,reqId,dailyPnL,unrealizedPnL,realizedPnL):
         if self.pnl_collector is not None:self.pnl_collector.value(reqId,dailyPnL,unrealizedPnL,realizedPnL)
 
+    def accountSummary(self,reqId,account,tag,value,currency):
+        if self.secretary_broker is not None:self.secretary_broker.summary(reqId,account,tag,value,currency)
+
+    def accountSummaryEnd(self,reqId):
+        if self.secretary_broker is not None:self.secretary_broker.summary_end(reqId)
+
     def accountUpdateMulti(self,reqId,account,modelCode,key,value,currency):
         if self.cashbook_collector is not None:self.cashbook_collector.value(reqId,account,modelCode,key,value,currency)
 
@@ -167,6 +174,7 @@ class PaperSafetyClient(TwsPaperClient):
     def error(self, reqId, *args):
         super().error(reqId, *args)
         code = args[1] if len(args)>1 and isinstance(args[0],int) and args[0]>10**10 else args[0] if args else None
+        if self.secretary_broker is not None and self.secretary_broker.error(reqId,code):return
         if self.research_scanner is not None and self.research_scanner.error(reqId,code):return
         if isinstance(code,int):
             if code in (10197,1100,1101,1102,2110,162,321,101,10225,354,10168,10186) or reqId in self.bar_tickers or reqId in self.history_tickers:

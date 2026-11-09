@@ -1,0 +1,10 @@
+# Exact false positives: deterministic SHA-256 values in the secretary diagram
+# dependency receipt. Each value is recomputed from the named source file.
+# No credentials are stored here. Do not ignore the whole receipt file/rule.
+.der/maintenance/diagram-dependencies.json:generic-api-key:32
+.der/maintenance/diagram-dependencies.json:generic-api-key:33
+.der/maintenance/diagram-dependencies.json:generic-api-key:34
+.der/maintenance/diagram-dependencies.json:generic-api-key:35
+.der/maintenance/diagram-dependencies.json:generic-api-key:37
+.der/maintenance/diagram-dependencies.json:generic-api-key:38
+.der/maintenance/diagram-dependencies.json:generic-api-key:39

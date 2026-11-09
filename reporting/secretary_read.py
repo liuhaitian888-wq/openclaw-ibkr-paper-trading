@@ -61,7 +61,13 @@ def tool(root, request):
     if name=='search_records':
         from .secretary_search import search_records
         return search_records(root,request)
-    if name=='databases':return snapshot(root)
+    if name=='databases':
+        value=snapshot(root)
+        for row in value['databases']:
+            row['absolute_path']=str(contained(root,row['path']))
+            row['query_database_id']=row['path']
+        value['coverage']='All registered business databases; backups and migration candidates are not production targets'
+        return value
     if name=='schema':
         return query(root,request['database'],"SELECT name,sql FROM sqlite_master WHERE type IN ('table','view') ORDER BY name")
     if name=='query':return query(root,request['database'],request['sql'],request.get('parameters',[]))
