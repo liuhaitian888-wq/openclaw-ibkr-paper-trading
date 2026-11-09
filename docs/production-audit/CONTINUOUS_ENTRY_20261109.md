@@ -85,3 +85,13 @@ PaperSafetyClient可选接收现金publisher；同一SDK实例重连后账户请
 ## 通知与券商不确定性分域（后续候选）
 
 保留uncertainties()全量默认接口；broker adapter backlog及ORDER_SUBMISSION仅查询order种类，delivery UNKNOWN仍保留并禁止重放。并行deehub三笔提交已在隔离工作树保留整合。完整离线1135项/77.716s/OK，独立静态复核无实质缺陷；当前云端5df418d，分域修复及文件故障锁尚未云端部署。新增订单仍受当前风险、所有原生资金/对账与正式暂停门禁约束。
+
+## 合并部署实际验收：2026-11-09T22:49:25Z
+
+云端已通过Git整合c93ff60，保留并行秘书API准备源码，未激活模型API。修复包括：跨客户端/进程保留首份写盘失败证据而不持续生成partial；过期帧可新读但本地持久化故障不触发SDK/Gateway重连；broker不确定性仅用order，delivery未知仍保留；原生服务器时间与本地接收时间分别记录，旧连接/无效时间不刷新心跳。
+
+完整隔离1147项/62.096s/OK，秘密扫描通过，7项OpenSpec严格校验通过。现场cashbook约1.85秒新，原生时间/epoch/connection匹配；六只股票六张保护单经济参数与仓位不变。order_requests9/executions3/protection_attempts5/FX_attempts1不变，金融UNKNOWN为0；通知953和1094仍UNKNOWN。GatewayPID2406467保持，PAUSED/MAINTENANCE/全局政策和已花完scope哈希均不变；正式交易未放行，quick smoke仍NOT_READY。
+
+部署前两次版本校验安全中止：先发现并行发布漏同步Gateway manifest，核对直接owner/guard源码及原有发布hash/权限后同步身份；随后发现源码并行前进到98cd05a，恢复监测/秘书接收，保留现场，并将两支合并测试后再发布。未覆盖并行源码、未重启Gateway、未操作订单。最终monitoring/Gateway manifests均匹配c93ff60。私有证据engineering/native-cash-merged-c93ff60。
+
+仍缺ACCOUNT/EXECUTIONS/AUDIT基础事实接线；本次服务器时间采集只是第一步。股票/费用价值日、完整账户资金基线、执行owner、部分成交/重启闭环、inherited归属及正式T0保持未完成。
