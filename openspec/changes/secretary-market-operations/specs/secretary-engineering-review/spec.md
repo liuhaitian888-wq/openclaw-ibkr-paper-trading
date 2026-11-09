@@ -1,5 +1,5 @@
 ## Purpose
-Give the owner a recurring private evidence-based engineering review and editable Codex handoff, with honest delivery and integration status and bounded authority for autonomous research.
+Give the owner a recurring evidence-based engineering review in the authorized automatic-update group and editable Codex handoff, with honest delivery and integration status and bounded authority for autonomous research.
 
 ## ADDED Requirements
 
