@@ -1,5 +1,9 @@
 # Protection recovery notifications
 
+## Purpose
+
+Preserve per-symbol protection evidence while grouping newly resolved incidents into one bounded recovery digest through the existing sender, without replaying uncertain outcomes.
+
 ## Requirements
 
 A complete broker observation MUST create at most one protection recovery digest for newly resolved symbol incidents. Initial healthy observations without an open incident and repeated identical observations MUST NOT generate a recovery message.
