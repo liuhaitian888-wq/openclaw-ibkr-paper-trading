@@ -45,3 +45,5 @@ ACK绑定须符合本次原生回调的account/contract/client/permId/父子订�
 [IBKR官方execution details](https://www.interactivebrokers.com/docs/tws-api/doc/order-management/execution-details)明确：部分成交各有execId；更正通过最后一个点之后数字变化的execId额外发送。因此不能把所有不同execId无条件相加，也不能删除原始行。本文候选需识别更正家族并保留未核验状态；完整经济版本投影/撤销与费用归属不能只凭字符串选最新后宣称完成。IB Gateway原生执行查询默认仅当日，跨日历史依赖本地已持久化证据，不能把新快照没有旧成交当作撤销。
 
 API health日预算字段已改为与事务准入同一投影：分别显示actual buy/sell、未成交承诺和准入预算；无法核实时entry_budget_used/null，而非报告零。旧paper_notional_for_date仅保留历史请求报表兼容用途。此轮完整离线1091项/76.088秒/OK。
+
+更正家族现被明确识别：同一TWS末段数字变化或单独出现非初始版本，均不当作独立新增成交；保留原始execId并返回待核验。现金核销同样拒绝更正家族，即使错误相加的数量碰巧符合原生filled也不释放。完整经济更正/撤销解析仍待后续验证，没有选择最新版后抹除原始事实。全套1094项/78.973s/OK。

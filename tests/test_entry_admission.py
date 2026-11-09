@@ -186,3 +186,13 @@ class EntryAdmissionTests(unittest.TestCase):
         with patch('trading.production_paths.STATE_ROOT',self.root),patch.object(service,'_tws_status',return_value={'ready_for_orders':True}),patch('trading.service.TwsPaperBroker') as broker:
             with self.assertRaisesRegex(PermissionError,'Linked native protective entry required'):service.submit_limit(payload,transmit=True)
         broker.assert_not_called();self.assertIsNone(service._audit.get(payload['idempotency_key']))
+
+    def test_correction_family_cannot_release_cash_even_when_summed_quantity_looks_valid(self):
+        from trading.entry_admission import reconcile_cash_claims
+        p,parent,at=self.bound_cash();stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        with closing(self.audit._connect()) as c,c:
+            for identity,shares in (('corrected.fill.01',.4),('corrected.fill.02',.6)):
+                execution=dict(exec_id=identity,account='DUQ503649',perm_id=parent['perm_id'],order_id=11,order_ref=p.idempotency_key,symbol='BAC',side='BOT',shares=shares,price=100,time=stamp(.5),con_id=9029,sec_type='STK',currency='USD')
+                self.audit._upsert_execution(c,execution,stamp(.5))
+            reconcile_cash_claims(c,self.cash_proof(parent,at),stamp(4))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('ACKNOWLEDGED_UNRECONCILED','105'))

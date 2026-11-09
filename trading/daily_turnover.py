@@ -41,7 +41,9 @@ def native_turnover(connection,day,timezone_name,*,account='DUQ503649'):
     start=datetime.combine(date,time(),zone).astimezone(timezone.utc)
     end=datetime.combine(date+timedelta(days=1),time(),zone).astimezone(timezone.utc)
     buy=Decimal(0);sell=Decimal(0);ids=[];unresolved=[]
-    rows=connection.execute('SELECT exec_id,raw_json,first_seen_at FROM executions WHERE account=? ORDER BY exec_id',(account,))
+    rows=connection.execute('SELECT exec_id,raw_json,first_seen_at FROM executions WHERE account=? ORDER BY exec_id',(account,)).fetchall()
+    from .execution_identity import correction_markers
+    corrections=correction_markers(json.loads(row[1]) for row in rows)
     for exec_id,raw,seen in rows:
         fact=json.loads(raw)
         try:instant=execution_instant(fact.get('time'))
@@ -54,6 +56,8 @@ def native_turnover(connection,day,timezone_name,*,account='DUQ503649'):
             continue
         if not start<=instant<end:continue
         if fact.get('sec_type')=='CASH':continue
+        if exec_id in corrections:
+            unresolved.append({'exec_id':exec_id,'reason':'EXECUTION_CORRECTION_REQUIRES_RECONCILIATION'});continue
         if (fact.get('account')!=account or fact.get('sec_type')!='STK'
             or fact.get('currency')!='USD' or type(fact.get('con_id')) is not int or fact['con_id']<=0):
             unresolved.append({'exec_id':exec_id,'reason':'STOCK_CONTRACT_OR_USD_UNVERIFIED'});continue
@@ -95,8 +99,10 @@ def admission_usage(connection,day,timezone_name):
         p=json.loads(raw)
         if binding:
             parent=binding['parent'];quantity=decimal(parent['quantity']);filled=Decimal(0)
-            for row in connection.execute('SELECT raw_json FROM executions WHERE account=? AND perm_id=?',(parent['account'],parent['perm_id'])):
-                execution=json.loads(row[0])
+            bound_facts=[json.loads(row[0]) for row in connection.execute('SELECT raw_json FROM executions WHERE account=? AND perm_id=?',(parent['account'],parent['perm_id']))]
+            from .execution_identity import correction_markers
+            if correction_markers(bound_facts):raise PermissionError('Bound execution corrections require reconciliation')
+            for execution in bound_facts:
                 if any(execution.get(k)!=parent.get(k) for k in ('account','symbol','currency','sec_type','con_id','order_ref')) or execution.get('side') not in ('BUY','BOT'):
                     raise PermissionError('Bound daily execution identity requires reconciliation')
                 shares=decimal(execution['shares'])

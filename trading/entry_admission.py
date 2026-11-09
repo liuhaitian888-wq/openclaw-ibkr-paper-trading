@@ -174,6 +174,8 @@ def reconcile_cash_claims(connection,context,at):
                 if aware_stamp(row[1])>started.timestamp():raise ValueError('Ledger read predates execution receipt')
                 if decimal(execution['shares'])<=0 or not 0<decimal(execution['price'])<=decimal(parent['limit_price']):raise ValueError('Unsupported execution economics')
                 executions.append(execution)
+            from .execution_identity import correction_markers
+            if correction_markers(executions):continue
             if sum((decimal(e['shares']) for e in executions),Decimal(0))!=filled:continue
             if not terminal:
                 # Exact active parent is already reserved by cash_guard's broker-order calculation.

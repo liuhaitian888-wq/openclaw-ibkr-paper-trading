@@ -89,3 +89,14 @@ class NativeTurnoverTests(unittest.TestCase):
         self.assertFalse(report['admission_reconciled'])
         self.assertIsNone(report['entry_budget_used'])
         self.assertEqual(report['unresolved'][0]['exec_id'],'missing-time')
+
+    def test_corrected_exec_ids_are_not_counted_as_independent_fills(self):
+        self.add('broker.partial.01');self.add('broker.partial.02',price=41)
+        p=self.project();self.assertFalse(p['complete']);self.assertEqual(p['gross_notional'],'0')
+        self.assertEqual(len(p['unresolved']),2)
+        self.assertTrue(all(x['reason']=='EXECUTION_CORRECTION_REQUIRES_RECONCILIATION' for x in p['unresolved']))
+
+    def test_orphan_correction_and_non_numeric_ids_are_distinct(self):
+        self.add('orphan.03');self.add('opaque-id')
+        p=self.project();self.assertFalse(p['complete']);self.assertEqual(p['gross_notional'],'80')
+        self.assertEqual(p['unresolved'][0]['exec_id'],'orphan.03')
