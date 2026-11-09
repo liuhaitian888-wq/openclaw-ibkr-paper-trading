@@ -18,7 +18,7 @@ class SecretaryQueueTests(unittest.TestCase):
         return {'update_id':1,'message':m}
     def test_only_owner_native_recent_messages_are_accepted(self):
         variants=[{'from':{'id':124,'is_bot':False}},{'from':{'id':123,'is_bot':True}},
-                  {'sender_chat':{'id':-100}},{'forward_from':{'id':123}},{'forward_date':100000},{'via_bot':{'id':7}},{'forward_origin':{'type':'user'}},{'date':99999},{'chat':{'id':-200}}]
+                  {'sender_chat':{'id':-100}},{'forward_from':{'id':123}},{'forward_date':100000},{'via_bot':{'id':7}},{'forward_origin':{'type':'user'}},{'date':99999},{'chat':{'id':-200}}, {'chat':{'id':123,'type':'supergroup'}}, {'chat':{'id':123}}]
         for v in variants:self.assertFalse(accept_update(self.a,self.update(**v),self.config,armed_at=100000))
         self.assertTrue(accept_update(self.a,self.update(),self.config,armed_at=100000))
         self.assertTrue(accept_update(self.a,self.update(),self.config,armed_at=100000))

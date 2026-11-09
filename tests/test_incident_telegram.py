@@ -111,3 +111,11 @@ class TelegramTests(unittest.TestCase):
    with self.assertRaises(PermissionError):validate_config(cfg)
    cfg['allowed_additional_bots']=[dict(id=88,username='AnotherBot')]
    with self.assertRaises(PermissionError):validate_config(cfg)
+
+class ReviewedTitleTests(unittest.TestCase):
+ def test_only_reviewed_titles_preserve_native_identity_requirements(self):
+  from reporting.incident_telegram import validate_config
+  from test_notification_center import CFG
+  validate_config(dict(CFG,expected_group_title='deehub'))
+  for change in ({'expected_group_title':'unexpected'}, {'target_verified':False}, {'owner_private_verified':False}):
+   with self.assertRaises(PermissionError):validate_config(dict(CFG,**change))

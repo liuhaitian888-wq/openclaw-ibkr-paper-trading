@@ -28,7 +28,7 @@ def accept_update(archive, update, config, *, armed_at):
     native_chat=m.get('chat',{}).get('id')
     allowed=(config.get('owner_private_verified') is True
              and config.get('owner_private_chat_id')==config['owner_user_id']
-             and native_chat==config['owner_user_id'] and m.get('chat',{}).get('type','private')=='private'
+             and native_chat==config['owner_user_id'] and m.get('chat',{}).get('type')=='private'
              and sender.get('id')==config['owner_user_id']
              and sender.get('is_bot') is False and not any(m.get(k) for k in ('sender_chat','forward_origin','forward_from','forward_from_chat','forward_date','via_bot'))
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
@@ -153,7 +153,7 @@ def reconcile_acknowledgements(archive,store):
         rows=c.execute("SELECT e.occurrence,e.recorded_at FROM secretary_events e JOIN secretary_received v ON v.instruction=e.occurrence LEFT JOIN secretary_ack_checkpoint a ON a.instruction=e.occurrence WHERE a.instruction IS NULL AND e.kind='CHAT_INSTRUCTION' AND e.origin='USER' AND e.occurrence LIKE 'telegram:%' ORDER BY e.rowid LIMIT 100").fetchall()
     with closing(store.connect()) as c,c:
         for occurrence,saved in rows:
-            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason='收到，正在处理。完整答复会在分析完成后发到这里。',delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
+            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason='已收到并入库，等待处理；这不是模型已开始执行的确认。当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。',delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
     # Commit outbox first; crash before this checkpoint is repaired by INSERT OR IGNORE.
     with closing(archive.connect()) as c,c:
         c.executemany('INSERT OR IGNORE INTO secretary_ack_checkpoint VALUES (?)',[(x[0],) for x in rows])

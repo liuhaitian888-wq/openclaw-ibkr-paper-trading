@@ -15,3 +15,12 @@
 - [x] 3.1 Run complete worktree suite, OpenSpec validation and secret scan; retain logs.
 - [x] 3.2 Merge through Git, quick-smoke approved workspace and deploy notification producer; verify native receipt and unchanged trading gates.
 - [x] 3.3 Update project context, affected diagrams and five-project collector; record unresolved P0 items honestly.
+
+## deehub correction (2026-11-09)
+
+- [x] Pin reviewed rename titles and regenerate public calendar templates with privacy regression coverage.
+- [x] Replace misleading inference ACK and reject missing native chat type.
+- [ ] Native group rename/config/readback and deployed owner reload acceptance.
+- [ ] Cloud supported model API credential/adapter and real owner conversation acceptance.
+- [ ] Source-linked plain-language public research/report summaries and real acceptance.
+- [ ] Reconcile Nov9 UNKNOWN report from native evidence; never replay on missing local receipt.

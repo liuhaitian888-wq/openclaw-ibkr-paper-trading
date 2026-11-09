@@ -89,7 +89,9 @@ class FastControlsTests(unittest.TestCase):
             return urlencode({**d,'hash':hmac.new(secret,check.encode(),hashlib.sha256).hexdigest()})
         self.assertEqual(verify_init_data(signed(data),token,123,now=101),123)
         for raw,now in ((signed(data)+'&auth_date=100',101),(signed(data),701),(signed(data),0),
-                        (signed({**data,'user':json.dumps(dict(id=124))}),101),('hash=bad',101)):
+                        (signed({**data,'user':json.dumps(dict(id=124))}),101),
+                        (signed({**data,'chat_type':'supergroup'}),101),
+                        (signed({**data,'chat':json.dumps(dict(id=-100,type='supergroup'))}),101),('hash=bad',101)):
             with self.assertRaises((ValueError,PermissionError)):verify_init_data(raw,token,123,now=now)
 
     def test_notification_priority_keeps_incident_order_and_unknown(self):

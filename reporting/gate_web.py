@@ -20,6 +20,12 @@ def verify_init_data(raw,token,owner,*,now=None):
     secret=hmac.new(b'WebAppData',token.encode(),hashlib.sha256).digest()
     expected=hmac.new(secret,check.encode(),hashlib.sha256).hexdigest()
     if not hmac.compare_digest(signature,expected):raise PermissionError('Telegram身份签名无效')
+    if data.get('chat_type') not in (None,'private','sender'):
+        raise PermissionError('仅owner原生私聊可打开控制表单')
+    if 'chat' in data:
+        chat=json.loads(data['chat'])
+        if chat.get('type')!='private' or type(chat.get('id')) is not int or chat['id']!=owner:
+            raise PermissionError('控制表单不得来自群聊')
     stamp=int(data['auth_date'])
     if not 0<=now-stamp<=600:raise PermissionError('身份凭证已过期，请重新打开表单')
     user=json.loads(data['user'])

@@ -117,7 +117,7 @@ class NotificationCenterTests(unittest.TestCase):
  def test_owner_private_only_and_deterministic_inbox_commands(self):
   archive=SecretaryArchive(self.root/'a.sqlite3');initialize(archive)
   for i,(cid,sender,text,allowed) in enumerate([(-100,43,'/holdings',False),(43,43,'/inbox',False),(42,42,'/inbox',True),(-100,42,'/notify',False),(42,42,'/start',True)]):
-   u={'update_id':i,'message':{'chat':{'id':cid},'from':{'id':sender,'is_bot':False},'text':text,'date':1000,'message_id':i}}
+   u={'update_id':i,'message':{'chat':{'id':cid,'type':'private' if cid>0 else 'supergroup'},'from':{'id':sender,'is_bot':False},'text':text,'date':1000,'message_id':i}}
    self.assertEqual(accept_update(archive,u,CFG,armed_at=1000),allowed)
   with patch('reporting.secretary_controls.subprocess.run') as start:process_controls(archive,self.root,CFG)
   start.assert_not_called();self.assertIsNone(claim(archive,model='gpt-6.1-sol',now=1000))
@@ -144,3 +144,14 @@ class NotificationCenterTests(unittest.TestCase):
  def test_report_caption_is_bounded_and_public_as_authorized(self):
   item={'id':1,'incident_key':'report:today','generation':1,'kind':'REPORT_BUNDLE','payload':{'reason':'日报'*1600}}
   view=render(item,CFG,1000);self.assertLess(len(view['text']),1024);self.assertEqual(view['chat_id'],-100)
+
+class PublicFilingTests(unittest.TestCase):
+ def test_only_fixed_sec_metadata_is_public(self):
+  item=dict(id=1,kind='SECRETARY_REPLY',incident_key='intel:fixture',payload=dict(message_role='INTELLIGENCE',reason='PRIVATE ACCOUNT secret',public_filing=dict(source='SEC_EDGAR',entity='0000320193-26-000001',url='https://www.sec.gov/Archives/edgar/data/320193/000032019326000001/report.htm',form='10-K',symbols=['AAPL'],published_at=100)))
+  result=render(item,CFG,101)
+  self.assertEqual(result['chat_id'],CFG['chat_id']);self.assertNotIn('PRIVATE',result['text'])
+  self.assertIn('重点看三点',result['text']);self.assertIn('尚未解析正文',result['text'])
+  item['payload']['public_filing']['url']='https://evil.invalid/private'
+  self.assertEqual(recipient(item,CFG),CFG['owner_user_id'])
+  item['payload']['message_role']='RESEARCH'
+  self.assertEqual(recipient(item,CFG),CFG['owner_user_id'])

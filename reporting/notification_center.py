@@ -39,11 +39,54 @@ def category(item):
     return 'other'
 
 
+def public_filing(item):
+    """Only bounded public SEC metadata; never model/account/private prose."""
+    if item['kind']!='SECRETARY_REPLY' or item['payload'].get('message_role')!='INTELLIGENCE':return None
+    p=item['payload'].get('public_filing')
+    if not isinstance(p,dict) or p.get('source')!='SEC_EDGAR':return None
+    import re
+    forms={'10-K':'年度报告，关注全年业务、盈利和风险', '10-Q':'季度报告，关注当季业绩和财务变化',
+           '8-K':'重大事项公告；不一定是业绩报告', '4':'内部人士交易申报；不等于看涨或看跌信号',
+           '6-K':'境外发行人事项披露', '20-F':'境外发行人年度报告'}
+    form=p.get('form');base=form[:-2] if isinstance(form,str) and form.endswith('/A') else form
+    symbols=p.get('symbols')
+    if (base not in forms or not isinstance(symbols,list) or len(symbols)!=1
+            or not isinstance(symbols[0],str) or not re.fullmatch(r'[A-Z][A-Z0-9.-]{0,7}',symbols[0])
+            or not isinstance(p.get('entity'),str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}',p['entity'])
+            or not isinstance(p.get('url'),str) or not re.fullmatch(r'https://www\.sec\.gov/Archives/edgar/data/[0-9]+/'+p['entity'].replace('-','')+r'/[A-Za-z0-9_.-]+',p['url'])):return None
+    try:
+        from datetime import datetime,timezone
+        if type(p.get('published_at')) not in (int,float):return None
+        published=datetime.fromtimestamp(p['published_at'],timezone.utc).isoformat()
+    except (ValueError,OverflowError,OSError):return None
+    return ('公开披露｜'+symbols[0]+' '+form+'\n发布时间UTC：'+published+'\n重点看三点：\n'
+            +'1. 发生了什么：SEC新增上述文件'+('的修订版' if form.endswith('/A') else '')+'。\n'
+            +'2. 文件含义：'+forms[base]+'。\n'
+            +'3. 当前缺口：尚未解析正文中的营收、利润或指引，不能判断利好利空；这不是买卖建议。\n来源：'+p['url'])
+
+
+def public_calendar(item):
+    """Rebuild fixed public text; payload prose never crosses the boundary."""
+    if item['kind'] != 'MARKET_SESSION':return None
+    p=item['payload']
+    try:
+        from datetime import datetime, timezone
+        from .market_clock import snapshot
+        observed=p['observed']
+        if type(observed) not in (int,float):return None
+        state=snapshot(p['venue'],datetime.fromtimestamp(observed,timezone.utc))
+        if (p.get('grants_trading_permission') is not False
+                or item['incident_key']!='market-session:'+state['occurrence']
+                or any(p.get(k)!=state[k] for k in ('phase','source_version','occurrence','expires_at'))):return None
+        return state['reason']
+    except (KeyError,ValueError,TypeError,OverflowError,OSError):return None
+
+
 def audience(item, config):
     # Only fixed generic templates can enter a shared group. Never infer public
     # safety from a producer-provided audience/category field.
     if config.get('audience_mode')=='shared_group':
-        return 'group' if (item['kind'] in ('REPORT_BUNDLE','REPORT_SUPPLEMENT') or item['incident_key'] in GROUP_KEYS and category(item)=='ops') else 'owner'
+        return 'group' if (item['kind'] in ('REPORT_BUNDLE','REPORT_SUPPLEMENT') or public_calendar(item) is not None or public_filing(item) is not None or item['incident_key'] in GROUP_KEYS and category(item)=='ops') else 'owner'
     return 'group'
 
 
@@ -145,6 +188,13 @@ def render(item,config,at):
         summary=(display(reason).splitlines() or ['状态已更新'])[0][:150]
         detail=notification_text(item,at,max_length=3300)
     if kind in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):detail=detail[:520]
+    if public_filing(item) is not None and audience(item,config)=='group':
+        text=public_filing(item)
+        return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
+    if kind=='MARKET_SESSION' and audience(item,config)=='group':
+        text=public_calendar(item)
+        if text is None:raise PermissionError('Fixed public calendar template required')
+        return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
     if kind in ('MARKET_SESSION','ENGINEERING_WEEKLY'):
         return {'text':str(p.get('reason','')),'html':html.escape(str(p.get('reason',''))),'category':cat,'audience':audience(item,config),'chat_id':recipient(item,config)}
     if kind=='SECRETARY_REPLY' and p.get('message_role') in ('ACK','CHAT','CONTROL') and audience(item,config)=='owner':
@@ -156,7 +206,7 @@ def render(item,config,at):
 
 def preview(store,config,ident):
     item=get_item(store,ident);view=render(item,config,store.clock())
-    return '仅预览，不执行投递\n发给：'+(('der群（公开日报）' if view['category']=='report' else 'der群（公共运维摘要）') if view['audience']=='group' else '仅你的机器人私聊')+'\n配置：'+('投递开启' if enabled(store,item) else '已静音；保留收件箱')+'\n将发内容（详情折叠）：\n'+view['text'][:2700]
+    return '仅预览，不执行投递\n发给：'+(('deehub群（公开日报）' if view['category']=='report' else 'deehub群（公共运维摘要）') if view['audience']=='group' else '仅你的机器人私聊')+'\n配置：'+('投递开启' if enabled(store,item) else '已静音；保留收件箱')+'\n将发内容（详情折叠）：\n'+view['text'][:2700]
 
 
 def prior_card(store,item,chat_id):

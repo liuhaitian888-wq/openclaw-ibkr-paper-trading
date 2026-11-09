@@ -128,9 +128,9 @@ def held_symbols(state):
     return sorted(result)[:12]
 
 
-def enqueue(store,key,text):
+def enqueue(store,key,text,*,public_filing=None):
     with closing(store.connect()) as c,c:
-        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",(key,json.dumps({'reason':text[:3300],'delivery_transport':'telegram','message_role':'INTELLIGENCE'},ensure_ascii=False)))
+        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",(key,json.dumps({'reason':text[:3300],'delivery_transport':'telegram','message_role':'INTELLIGENCE', 'public_filing':public_filing},ensure_ascii=False)))
 
 
 def ingest(archive,store,record,*,now,armed_at):
@@ -155,7 +155,7 @@ def ingest(archive,store,record,*,now,armed_at):
         notification_key=occurrence
         if payload['source'].startswith('IBKR_NEWS:'):
             notification_key='intel-news:'+hashlib.sha256(json.dumps([payload['source'],payload['entity'],payload['published_at'],payload['headline']],ensure_ascii=False).encode()).hexdigest()
-        enqueue(store,notification_key,text)
+        enqueue(store,notification_key,text,public_filing={k:payload.get(k) for k in ('source','entity','url','form','symbols','published_at')} if payload.get('source')=='SEC_EDGAR' else None)
     return created
 
 

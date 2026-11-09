@@ -23,3 +23,9 @@ Existing cloud inbox is the sole Telegram input owner and notification outbox is
 
 ## Migration Plan
 Offline verification in linked worktree, secret scan, Git merge into designated workspace, quick smoke, approved cloud code deployment with identity manifests and finite-scope reconciliation. Rollback disables only the new producer, retains outbox and cursor evidence, and never restarts trading.
+
+## 2026-11-09 deehub route correction
+
+Reviewed group title transition der → deehub retains exact native group, bot and owner identity. MARKET_SESSION only becomes public when checked-in calendar reconstruction matches occurrence/phase/version/expiry; group rendering ignores producer prose. Calendar-review and unrecognized events remain private. Inbox acknowledgements explicitly mean durable receipt/queue, with current Mac model dependency disclosed. Cloud API migration and source-linked public research explanations remain future work; do not infer authorization or implementation from these goals.
+
+New SEC_EDGAR filing notifications may publish bounded validated accession/SEC URL/form/symbol/time with three fixed Chinese points: occurrence, document meaning, and unparsed financial/causality gaps. Arbitrary headline/model prose and broker/provider-only records remain private. No prior notices are replayed. This is metadata explanation, not filing-body financial analysis.

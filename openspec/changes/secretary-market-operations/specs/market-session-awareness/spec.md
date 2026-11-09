@@ -31,3 +31,14 @@ Calendar observations SHALL NOT start or stop APIs, clear maintenance or paused 
 #### Scenario: Closed market and failed API
 - **WHEN** a scheduled closure coincides with an API fault
 - **THEN** the calendar message describes only the schedule and the independent API fault remains visible.
+
+### Requirement: Public fixed-template calendar routing
+The system SHALL route only calendar events whose occurrence, phase, source version and expiry match the checked-in calendar to the verified deehub group through the existing notification owner. Public rendering SHALL reconstruct fixed schedule text and SHALL NOT publish arbitrary payload prose. Unknown/unrecognized event types, private research, risk, account and authentication information SHALL remain owner-private.
+
+#### Scenario: Producer prose contains private information
+- **WHEN** a valid calendar occurrence includes arbitrary private prose in its payload
+- **THEN** the group receives only the reconstructed fixed calendar text and no private prose.
+
+#### Scenario: Calendar identity mismatch
+- **WHEN** the calendar version or occurrence does not match reconstruction
+- **THEN** the event is not eligible for public group routing.

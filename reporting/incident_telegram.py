@@ -26,7 +26,7 @@ def validate_config(config):
             or config.get('bot_username')!='deehub_paper_reports_bot'
             or type(config.get('bot_id')) is not int or config['bot_id']<=0
             or type(config.get('chat_id')) is not int or config['chat_id']>=0
-            or config.get('expected_group_title')!='der'
+            or config.get('expected_group_title') not in ('der','deehub')
             or type(config.get('expected_member_count')) is not int
             or config['expected_member_count']!=2+len(extra) or config.get('target_verified') is not True
             or type(config.get('owner_user_id')) is not int or config['owner_user_id']<=0
@@ -171,6 +171,8 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 store.finish(item['id'],'TELEGRAM_ACCEPTED')
                 return 'TELEGRAM_ACCEPTED'
     except BaseException as exc:
+        # Exception text may contain credential URLs or private payloads.
+        logging.getLogger(__name__).warning('notification outcome: id=%s started=%s exception_type=%s',item['id'],started,type(exc).__name__)
         if started:
             store.delivery_finished(item['id'],'UNKNOWN');coordinator.finish_operation(operation,'UNKNOWN');store.finish(item['id'],'UNKNOWN')
             result='UNKNOWN'

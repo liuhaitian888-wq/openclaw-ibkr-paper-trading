@@ -86,3 +86,15 @@ class MarketClockTests(unittest.TestCase):
                 rows=c.execute("SELECT payload FROM notification_outbox WHERE id>3").fetchall()
             self.assertEqual(len(rows),2)
             self.assertTrue(all('观察有间断' not in json.loads(r[0])['reason'] for r in rows))
+
+    def test_public_calendar_rebuilt_without_private_payload(self):
+        config=dict(audience_mode='shared_group',chat_id=-10,owner_user_id=22,owner_private_chat_id=22,owner_private_verified=True)
+        now=at('2026-11-09T14:00:00+00:00')
+        state=snapshot('NASDAQ',now);state['observed']=now.timestamp()
+        item=dict(id=1,kind='MARKET_SESSION',incident_key='market-session:'+state['occurrence'],payload=dict(state,reason='PRIVATE ACCOUNT USD 123'))
+        result=render(item,config,now.timestamp())
+        self.assertEqual(result['chat_id'],-10)
+        self.assertNotIn('PRIVATE',result['text'])
+        self.assertIn('纳斯达克',result['text'])
+        item['payload']['source_version']='forged'
+        self.assertEqual(render(item,config,now.timestamp())['chat_id'],22)
