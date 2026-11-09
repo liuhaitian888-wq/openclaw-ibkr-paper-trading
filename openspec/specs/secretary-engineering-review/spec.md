@@ -89,6 +89,31 @@ The system SHALL preserve the exact report PNG and manifest bytes selected at en
 - **WHEN** Telegram rejects a send but the root cause remains unverified
 - **THEN** the original evidence remains retained and no automatic retry occurs solely because connectivity returned.
 
+### Requirement: Owner-selected independent ChatGPT OAuth
+The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
+
+#### Scenario: Fresh cloud device authorization
+- **WHEN** the owner completes the official device-code flow for the cloud login
+- **THEN** credentials persist only in the private cloud OAuth home and the official CLI owns token refresh; model availability still requires a completed inference.
+
+#### Scenario: API-key cache or missing OAuth
+- **WHEN** the cloud credential is absent, insecure or not ChatGPT OAuth
+- **THEN** the provider refuses before claiming work and does not switch to API-key authentication.
+
+#### Scenario: Uncertain OAuth model turn
+- **WHEN** the cloud Codex inference fails without a completed acknowledged turn
+- **THEN** the attempt is retained for reconciliation and is not automatically replayed, while trading gates remain unchanged.
+
+### Requirement: Cloud OAuth startup notice reconciliation
+The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that Code Mode is unavailable because its host is disabled, only when a public structured result and native turn-completion usage are present. It SHALL retain the notice in usage metadata, reject all other error/native tool events, and preserve earlier UNKNOWN receipts without replay.
+
+#### Scenario: Disabled Code Mode does not mask successful inference
+- **WHEN** the exact disabled-host notice precedes turn start and the cloud OAuth turn completes with valid public JSON and usage
+- **THEN** the adapter records CODE_MODE_DISABLED and accepts that completed inference without enabling native tools
+
+#### Scenario: Actual errors remain blocking
+- **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
+- **THEN** the attempt remains unacknowledged and is not automatically replayed
 
 ## Evidence boundary
 
@@ -97,3 +122,11 @@ This specification records expected behavior, not production acceptance. Source 
 ### Cloud API implementation stage
 
 Source98cd05a adds the bounded provider, credential input and dormant systemd units. Official model/low support is documented; account credentials and a native model response are still required. The deployed owner remains mac_bridge and the new model service is disabled until acceptance. This stage does not upgrade the evidence boundary above into a claim of cloud dialogue readiness.
+
+### Owner OAuth correction
+
+OAuth is the selected route; API-key instructions above describe superseded preparation. Cloud login, actualgpt-6.1-sol/low access and Mac-disabled native private reply remain required before acceptance.
+
+### Owner-private status menu
+
+The existing secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls. They SHALL read existing real runtime observations through the shared health resolver, show observation time and freshness, and fail UNKNOWN for unavailable evidence. Old HEALTHY records SHALL NOT imply current availability. Provider configuration and cloud host snapshots SHALL be distinguished from successful model calls and live Telegram reachability. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.

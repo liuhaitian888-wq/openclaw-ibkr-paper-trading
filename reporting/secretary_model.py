@@ -7,18 +7,29 @@ import signal
 import subprocess
 import tempfile
 
+CODE_MODE_DISABLED_NOTICE='Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`.'
+
 DISABLED=('shell_tool','unified_exec','multi_agent','plugins','hooks','in_app_browser','image_generation','view_image','in_app_chat','skill_search','tool_suggest','sleep_tool')
 
 
-def analyze(prompt, *, codex, codex_home, empty_dir, model='gpt-6.1-sol', timeout=120):
+def analyze(prompt, *, codex, codex_home, empty_dir, model='gpt-6.1-sol', timeout=120, force_chatgpt=False):
     if model!='gpt-6.1-sol' or not 1<=timeout<=120 or len(prompt)>60_000:
         raise ValueError('Bounded approved model request required')
     cmd=[codex,'-a','never','exec','--ignore-user-config','--ignore-rules','--ephemeral','--skip-git-repo-check',
          '-C',str(empty_dir),'--sandbox','read-only','-m',model,'-c','web_search="disabled"',
          '-c','model_reasoning_effort="low"','-c','developer_instructions="Return only the requested JSON. Do not call any native tools, including update_plan. Tool requests are JSON data for the host, never native function calls."','--json']
+    if force_chatgpt:
+        cmd.extend(['-c','forced_login_method="chatgpt"','-c','cli_auth_credentials_store="file"',
+            '-c','model_provider="secretary_oauth"',
+            '-c','model_providers.secretary_oauth.name="ChatGPT OAuth"',
+            '-c','model_providers.secretary_oauth.requires_openai_auth=true',
+            '-c','model_providers.secretary_oauth.wire_api="responses"',
+            '-c','model_providers.secretary_oauth.request_max_retries=0','-c','model_providers.secretary_oauth.stream_max_retries=0'])
+        for feature in ('apps','browser_use','browser_use_external','browser_use_full_cdp_access','computer_use','code_mode_host','tool_call_mcp_elicitation','auth_elicitation','skill_mcp_dependency_install','workspace_dependencies','daemon_auto_start','unbounded_connection_retries'):
+            cmd.extend(['--disable',feature])
     for feature in DISABLED:cmd.extend(['--disable',feature])
     cmd.append('-')
-    env={k:v for k,v in os.environ.items() if k not in ('OPENAI_API_KEY','CODEX_API_KEY')}
+    env={k:v for k,v in os.environ.items() if k not in ('OPENAI_API_KEY','CODEX_API_KEY') and not (force_chatgpt and k=='CODEX_ACCESS_TOKEN')}
     env['CODEX_HOME']=str(codex_home)
     with tempfile.TemporaryFile(mode='w+b') as out, tempfile.TemporaryFile(mode='w+b') as err:
         p=subprocess.Popen(cmd,stdin=subprocess.PIPE,stdout=out,stderr=err,env=env,start_new_session=True)
@@ -29,19 +40,23 @@ def analyze(prompt, *, codex, codex_home, empty_dir, model='gpt-6.1-sol', timeou
             except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
             raise
         if out.tell()>1_000_000:raise RuntimeError('Inference output exceeds budget; reconcile UNKNOWN')
-        out.seek(0);messages=[];usage=None;errors=[];unexpected=[]
+        out.seek(0);messages=[];usage=None;errors=[];unexpected=[];turn_started=False;notices=[]
         for line in out:
             try:event=json.loads(line)
             except ValueError:continue
             item=event.get('item',{})
+            if event.get('type')=='turn.started':turn_started=True
             if event.get('type')=='item.completed':
                 if item.get('type')=='agent_message':messages.append(item.get('text',''))
+                elif (force_chatgpt and not turn_started and item.get('type')=='error'
+                      and item.get('message')==CODE_MODE_DISABLED_NOTICE):notices.append('CODE_MODE_DISABLED')
                 elif item.get('type') not in ('reasoning',):unexpected.append(str(item.get('type')))
             if event.get('type') in ('error','turn.failed'):
                 errors.append(str(redact(event.get('message',event.get('error',{}))))[:300])
             if event.get('type')=='turn.completed':usage=event.get('usage')
         if unexpected:raise RuntimeError('Unexpected native event types: '+','.join(unexpected))
-        if p.returncode or not messages or usage is None:raise RuntimeError('Inference unacknowledged: '+str(errors)[:400])
+        if p.returncode or errors or not messages or usage is None:raise RuntimeError('Inference unacknowledged: '+str(errors)[:400])
+    if notices:usage={**usage,'startup_notices':notices}
     text=messages[-1].strip()
     if text.startswith('```'):text='\n'.join(text.splitlines()[1:-1])
     result=json.loads(text)

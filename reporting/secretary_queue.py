@@ -34,7 +34,7 @@ def accept_update(archive, update, config, *, armed_at):
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/members','/member_set','/hours','/weekly','/codex','/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/api','/cloud','/market','/members','/member_set','/hours','/weekly','/codex','/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
             'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
     with closing(archive.connect()) as c,c:
@@ -150,7 +150,7 @@ def checkpoint(archive,run,data):
 
 def acknowledgement(model_owner):
     base='已收到并入库，等待处理；这不是模型已开始执行的确认。'
-    if model_owner=='cloud_api':return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
+    if model_owner in ('cloud_api','cloud_oauth'):return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
     return base+'当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。'
 
 
