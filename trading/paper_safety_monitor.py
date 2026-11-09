@@ -70,7 +70,7 @@ class PaperSafetyMonitor:
                           reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
         self._publish()
 
-    def _incident(self, key, reason, *, resolved=False, symbol=None, quantity=None, protection=None):
+    def _incident(self, key, reason, *, resolved=False, symbol=None, quantity=None, protection=None, recovery_batch=None):
         signature = json.dumps([reason,resolved,symbol,quantity,protection],sort_keys=True)
         if self.state['incident_signatures'].get(key)==signature:
             return
@@ -81,9 +81,12 @@ class PaperSafetyMonitor:
                        user_action='Review broker protection/session; replacement orders require explicit approval',
                        recovery_condition='Exact Paper identity, complete reconciliation, protection and fresh data/bars')
         sequence=self.state['incident_sequences'].get(key,0)+1
-        self.state['incident_sequences'][key]=sequence
         identity = hashlib.sha256(json.dumps([self.state['epoch'], key, sequence, payload], sort_keys=True).encode()).hexdigest()
+        if recovery_batch is not None and resolved:
+            recovery_batch.append((identity, 'paper-safety:' + key, payload, key, sequence, signature))
+            return
         self.incidents.ingest(identity, 'paper-safety:' + key, payload, resolved=resolved)
+        self.state['incident_sequences'][key]=sequence
         self.state['incident_signatures'][key] = signature
 
     def admit_connection(self, gateway_generation, *, api_listening=None):
@@ -568,11 +571,12 @@ class PaperSafetyMonitor:
             and not self.state.get('sync_new_execution', False)
             and all(q==self.state.get('last_positions',{}).get(sym)
                     for sym,q in self.state['positions'].items()))
+        recovery_batch=[]
         for symbol, item in snapshot['protection'].items():
             if routine_pending and item['status']=='PROTECTION_UNKNOWN':
                 continue
             self._incident('protection:' + symbol, item['status'], resolved=item['status']=='PROTECTED',
-                           symbol=symbol, quantity=item['quantity'], protection=item['status'])
+                           symbol=symbol, quantity=item['quantity'], protection=item['status'], recovery_batch=recovery_batch)
         # A fully reconciled flat position with no active order has no remaining
         # protection exposure. Do not leave its old incident open forever after
         # an exit, and never infer this from an incomplete/dirty snapshot.
@@ -582,14 +586,20 @@ class PaperSafetyMonitor:
                 symbol=key.split(':',1)[1]
                 if is_fx_pair(symbol,self.state['contracts'].get(symbol,{})):
                     self._incident(key,'Complete broker identity classifies this as an FX pair position, not stock-stop exposure; actual cash risk remains separate',
-                                   resolved=True,symbol=symbol,quantity=self.state['positions'].get(symbol,0),protection='NOT_APPLICABLE_FX_PAIR')
+                                   resolved=True,symbol=symbol,quantity=self.state['positions'].get(symbol,0),protection='NOT_APPLICABLE_FX_PAIR',recovery_batch=recovery_batch)
                     continue
                 if number(self.state['positions'].get(symbol,0))!=0:continue
                 if any(o.get('symbol')==symbol and not o.get('completed')
                        and o.get('status') not in ('Filled','Cancelled','ApiCancelled','Inactive')
                        for o in self.state['orders'].values()):continue
                 self._incident(key,'Complete broker reconciliation confirms no position or open order',
-                               resolved=True,symbol=symbol,quantity=0,protection='NO_EXPOSURE')
+                               resolved=True,symbol=symbol,quantity=0,protection='NO_EXPOSURE',recovery_batch=recovery_batch)
+        if recovery_batch:
+            from reporting.risk_recovery import ingest_recoveries
+            ingest_recoveries(self.incidents,recovery_batch)
+            for _,_,_,key,sequence,signature in recovery_batch:
+                self.state['incident_sequences'][key]=sequence
+                self.state['incident_signatures'][key]=signature
         if self.state['connected'] and self.state.get('sync_started') is not None and self.clock()-self.state['sync_started']>30 and not snapshot['reconciliation_complete']:
             self._incident('reconciliation', 'Broker reconciliation incomplete or failed')
         now=self.clock();bucket=int(now//60)

@@ -51,7 +51,8 @@ def display(value):
 
 def batch_name(item):
     key=item['incident_key']
-    if key.startswith('paper-safety:protection:'):name=key.rsplit(':',1)[1]+'保护状态'
+    if key.startswith('paper-safety:protection-recovery-batch:'):name='本轮保护恢复汇总'
+    elif key.startswith('paper-safety:protection:'):name=key.rsplit(':',1)[1]+'保护状态'
     elif key=='gateway-hang':name='Gateway卡死恢复'
     elif key=='paper-safety:connection':name='API连接'
     elif key=='paper-safety:upstream':name='券商上游连接'
