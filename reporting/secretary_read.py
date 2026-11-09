@@ -58,6 +58,9 @@ def query(root, database, sql, parameters=(), *, limit=100, budget=.1):
 def tool(root, request):
     if not isinstance(request,dict):raise ValueError('Structured tool request required')
     name=request.get('name')
+    if name=='notification_evidence':
+        from .notification_reconciliation import inspect
+        return inspect(root,request['notification_id'])
     if name=='search_records':
         from .secretary_search import search_records
         return search_records(root,request)

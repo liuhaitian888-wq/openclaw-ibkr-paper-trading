@@ -86,17 +86,17 @@ def audience(item, config):
     # Owner-authorized automatic updates share one group; interactive replies
     # and action requests retain the verified secretary destination.
     if config.get('automatic_updates_to_group') is True:
-        p=item['payload']
-        interactive=(p.get('requires_response') is True or p.get('phase')=='OPERATOR'
-                     or item['kind']=='SECRETARY_REPLY' and p.get('message_role') in ('ACK','CHAT','CONTROL','AUTH'))
-        return 'owner' if interactive else 'group'
+        from .notification_access import decision
+        return decision(item,config)['audience']
     if config.get('audience_mode')=='shared_group':
         return 'group' if (item['kind'] in ('REPORT_BUNDLE','REPORT_SUPPLEMENT') or public_calendar(item) is not None or public_filing(item) is not None or item['incident_key'] in GROUP_KEYS and category(item)=='ops') else 'owner'
     return 'group'
 
 
 def recipient(item, config):
-    if audience(item,config)=='group':return config['chat_id']
+    target=audience(item,config)
+    if target=='hold':raise PermissionError('Account report audience decision pending')
+    if target=='group':return config['chat_id']
     ident=config.get('owner_private_chat_id')
     if (type(ident) is not int or ident!=config['owner_user_id']
             or config.get('owner_private_verified') is not True):
@@ -181,6 +181,24 @@ def mark_read(store,ident):
 def render(item,config,at):
     """Return exact plain/HTML views. Automatic updates may include owner-authorized research and task results."""
     cat=category(item);icon,label,_=CATEGORIES[cat];p=item['payload'];kind=item['kind']
+    if config.get('automatic_updates_to_group') is True:
+        from .notification_access import decision
+        route=decision(item,config)
+        if route['audience']=='group' and route['public_view']:
+            mode=route['public_view']
+            if mode=='calendar':text=public_calendar(item)
+            elif mode=='filing':text=public_filing(item)
+            elif mode=='risk_status':
+                counts=p['public_recovery_counts']
+                text='风险监测恢复摘要｜恢复 '+str(counts['recovered'])+' 项；仍待核验 '+str(counts['unresolved'])+' 项。\n仅状态计数；账户细节在本人私聊，交易权限不变。事件 #'+str(item['id'])
+            else:
+                titles={'ops_status':'服务状态已恢复' if kind=='RECOVERY' else '服务状态更新',
+                        'activity_status':'研究或任务进度已更新', 'engineering_status':'工程周报已归档',
+                        'report_status':'日报生成或投递状态已更新'}
+                text=titles[mode]+'｜事件 #'+str(item['id'])+'。'
+                if mode=='report_status':text+='仅状态提示，未在群内分享账户数据或附件。'
+                else:text+='详细证据按授权保留，私人内容仅发本人秘书私聊。'
+            return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
     recovered=kind=='RECOVERY';status='已恢复' if recovered else '重要' if p.get('severity')=='RED' else '提醒' if p.get('severity')=='YELLOW' else '更新'
     if audience(item,config)=='group' and config.get('audience_mode')=='shared_group' and cat=='ops' and item['incident_key'] in GROUP_KEYS and config.get('automatic_updates_to_group') is not True:
         title=('🟩' if recovered else '🟥')+' #OPS '+status+'｜'+GROUP_KEYS[item['incident_key']]

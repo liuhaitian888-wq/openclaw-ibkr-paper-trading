@@ -51,6 +51,8 @@ def main():
     manifest = dict(created_at=stamp, items=items, journals=journals, cross_database_atomic=False,
                     restore_requires_maintenance_and_broker_reconciliation=True,
                     production_state_published=(root/'production.json').is_file())
+    from reporting.notification_artifacts import backup as backup_report_artifacts
+    manifest['financial_artifacts']=backup_report_artifacts(root,target)
     with (target/'backup.json').open('w') as handle:
         json.dump(manifest, handle, indent=2)
     print(json.dumps(manifest))

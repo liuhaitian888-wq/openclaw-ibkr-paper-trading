@@ -78,11 +78,20 @@ async def run_worker():
             if telegram:
                 from telegram import Bot
                 owned_bot=await clients.enter_async_context(Bot(token=cfg['bot_token']))
-            report_audit_at=0
+            report_audit_at=0;recovery_audit_at=0
             while not stopped.is_set() and armed.is_file():
                 if ((root/'runtime/FEISHU_ALERTS_ARMED').exists() if (smtp or telegram) else smtp_armed.exists()):
                     raise RuntimeError('Concurrent SMTP arming is not permitted')
                 try:
+                    if telegram and time.monotonic()-recovery_audit_at>=10:
+                        from reporting.notification_reconciliation import recover
+                        try:
+                            review=await recover(store,coordinator,cfg,owned_bot,root/'reports/financial')
+                            coordinator.observe('NOTIFICATION_RECONCILIATION','HEALTHY',freshness='FRESH',enabled=True,
+                                reason='Bounded delivery evidence checked; unresolved outcomes never replay',**review)
+                        except Exception as exc:
+                            coordinator.observe('NOTIFICATION_RECONCILIATION','DEGRADED',freshness='FRESH',enabled=True,reason=type(exc).__name__)
+                        recovery_audit_at=time.monotonic()
                     enqueue_authentication_notice(store, datetime.now(timezone.utc))
                     if (runtime/'FINANCIAL_REPORTS_ARMED').is_file():
                         expected = json.loads((Path.home()/'.config/openclaw/paper-observer.json').read_text())['expected_account']

@@ -14,9 +14,9 @@
 
 - UNKNOWN or non-idempotent outcomes require reconciliation and must never be automatically replayed.
 - Labels never grant account/control authority; existing owner-native private identity remains required.
-- Account-bearing report destination is pending the owner's visibility research decision; no silent destination change.
+- Owner explicitly selected full account reports in deehub, visible to all members; record account_report_policy=shared_group. Other private account/security/control content remains private.
 - Cloud model/provider acceptance belongs to its existing task; this plan must work with durable model-unavailable state.
-- No runtime implementation in the current research/documentation pass.
+- 2026-11-10 continuation explicitly authorizes linked-worktree runtime implementation and controlled deployment.
 
 ## Review Focus
 
@@ -67,3 +67,10 @@
 - [ ] Compare SDK compatibility, 15-second ephemeral callback boundary, receiver_user identity, ID reuse, expiry and offline loss; test using fake transport first.
 - [ ] Keep bot a regular member during research; any future required administrator rights need a concrete minimal proposal. No native tag/permission changes in this pass.
 - [ ] Keep persistent account reports, controls and safety notices in verified private delivery; optional ephemeral views remain auxiliary until independently accepted.
+
+## Authorized continuation implementation mapping
+
+- notification_access.py owns deterministic sensitivity-first destination decisions and append-only per-member tags/public-data capabilities. Owner-private /members and /member_set remain outside the model surface; native Telegram tag changes and ephemeral delivery remain deferred (no administrator rights). Unclassified model prose is private, with an independently queued fixed public activity card. SEC/calendar public text is reconstructed from validated metadata.
+- notification_artifacts.py freezes PNG and JSON manifests at enqueue into content-addressed, exclusive-published/fsynced mode0400 artifacts. Mutable builder previews remain distinct and historical missing bytes are not reconstructed as original.
+- notification_reconciliation.py owns append-only attempts/stages/reviews, one retry budget per original, bounded 10-second existing sender recovery passes and separately deduplicated private notices. notification_evidence is a read-only secretary tool; model assessment cannot create a retry. Native typed SEND rejection or recorded pre-wire failure are the only automated proven-unsent classes. Fresh target/expiry/artifact/envelope are checked again; stale historical1094 cannot retry.
+- Complete wrapper, secret scan, OpenSpec checks, reviewed Git integration and native readback/receipts are separate gates. No synthetic sends, group-control activation, broker operations or second service owner.

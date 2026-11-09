@@ -35,32 +35,39 @@
 - [ ] Cut over and verify new owner-native private reply with Mac bridge disabled; update profile only after acceptance.
 
 
+
 ## 2026-11-10 notification/access research and recovery design
 - [x] Record actual preparation-vs-dispatch time, UNKNOWN evidence limits and group/private responsibilities in the project outline.
 - [x] Audit official tags/ephemeral APIs and GitHub source examples with native read-only capability probe; preserve no-tag/no-permission-change boundary.
-- [ ] Resolve account-bearing daily report sharing decision and implement sensitivity-first classification with regression coverage.
-- [ ] Implement append-only per-attempt reviews, bounded secretary recovery assessment and deterministic retry eligibility, without UNKNOWN reset.
+- [x] Resolve account-bearing daily report sharing decision and implement sensitivity-first classification with regression coverage.
+- [x] Implement append-only per-attempt reviews, bounded secretary recovery assessment and deterministic retry eligibility, without UNKNOWN reset.
 - [ ] Implement authorized same-message resend explanation and private result notice through the existing sender; accept real future native receipts.
 - [ ] Optional member registry/native labels/ephemeral UI after actual role and compatibility decisions; no group-control expansion.
+
+- [x] Implement owner-private application member registry with independent public-data capabilities, immutable enqueue/backup and native ACK-before-projection recovery tests.
+- [ ] Deploy combined notification/risk/menu/OAuth source, verify actual future report and natural recovery receipts; do not manufacture a resend or native tag test.
+
 ## OAuth correction (owner-selected)
 
 - [x] Verify official CLI artifact and prepare fresh cloud-only OAuth login, without token copy or API key.
 - [x] Implement OAuth provider, receipt/uncertainty boundaries, credential health and exclusive model ownership; complete offline/spec/secret checks.
-- [ ] User finishes cloud OAuth consent; verify actualgpt-6.1-sol/low access.
-- [ ] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled.
+- [x] Independent cloud OAuth consent completed; native model catalog and acknowledged inference verify gpt-6.1-sol/low.
+- [x] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled (update600875499, notification1304/message247; human-visible reply confirmed).
 
 The earlier API-key entry/access tasks are superseded by the owner OAuth choice, retained unchecked as historical work rather than completion claims.
 
 
 - [x] Add deterministic API/cloud/market status views with observation freshness and missing-evidence behavior.
+- [ ] Verify isolated offline suite, secret scan, native menu readback and owner click separately.
+
 - [x] Verify isolated offline suite (1158 PASS), secret scan and native owner-private menu set/get readback.
 - [ ] Observe owner phone click/visual acceptance separately.
 
 ## Owner Python/IBKR and database access clarification — 2026-11-10
-- [ ] Register bounded model-selected Python queries for account, positions, cash, orders, executions and entitled market data through the existing broker owner.
-- [ ] Verify read-only coverage of every registered business database, freshness, limits and unavailable-source behavior.
+- [x] Register bounded model-selected Python queries for account, positions, cash, orders, executions and entitled market data through the existing broker owner.
+- [x] Verify read-only coverage of every registered business database, freshness, limits and unavailable-source behavior.
 - [ ] Verify fresh Telegram → model → live Python broker tool → native Telegram result and record stage latency before optimizing.
-- [ ] Reconcile fresh cloud OAuth/model acceptance separately; service/process liveness does not complete the cutover task.
+- [x] Reconcile fresh cloud OAuth/model acceptance separately: completed model receipt, archived SUCCEEDED result and native private message247; live Python broker-tool acceptance remains unchecked above.
 
 - [ ] Implement authorized Telegram development/operations routing to a verified Codex Cloud executor, with scoped tasks, execution receipts and Telegram progress/results.
 - [ ] Inventory every database and operational path; explicitly verify supported read/write/deploy operations before claiming complete coverage.

@@ -36,11 +36,11 @@ The secretary SHALL distinguish durable receipt from confirmed model execution a
 - **THEN** the acknowledgement describes receipt and pending processing without promising an executing analysis or guaranteed response time.
 
 ### Requirement: Owner-authorized automatic update routing
-The system SHALL deliver noninteractive automatic notifications, delegated task progress and completion, research reports, market intelligence and weekly engineering reviews to deehub when automatic_updates_to_group is approved. Interactive CHAT/ACK/CONTROL/AUTH replies and explicit requires_response requests SHALL use the verified secretary interaction destination. Credentials SHALL remain redacted. Existing uncertain sends SHALL NOT be replayed or copied.
+The system SHALL deliver classified public automatic updates and research/task progress to deehub. Private account, security, immediate-control and interactive content SHALL use verified owner private delivery. The owner-approved full account-report group policy SHALL be explicit and separate. Unclassified model prose SHALL remain private with a fixed public status card. Existing uncertain sends SHALL NOT be replayed or copied.
 
 #### Scenario: Research and task updates
 - **WHEN** a new automatic research result or task progress notification is ready
-- **THEN** it is delivered to deehub with its substantive result, without requiring fixed SEC metadata.
+- **THEN** the classified public result or fixed public progress card is delivered to deehub, while private or unclassified details use verified owner private delivery; a status card is not represented as a full research report.
 
 #### Scenario: Immediate response required
 - **WHEN** a message is an interactive reply, authentication request or explicitly requires a response
@@ -60,6 +60,34 @@ The system SHALL use a dedicated private credential for gpt-6.1-sol with low rea
 #### Scenario: Mac-independent acceptance
 - **WHEN** a fresh owner-private instruction is processed with the Mac bridge disabled
 - **THEN** acceptance requires a cloud model response receipt, archived result and native private Telegram delivery receipt, rather than service liveness or an ACK.
+
+### Requirement: Evidence-based notification recovery and private-data boundaries
+The system SHALL classify private account/security/immediate-gate content before public delivery and retain append-only occurrence/attempt evidence. Secretary assessment SHALL NOT authorize replay from missing receipts or network recovery alone. Display tags SHALL NOT grant data/control access; account report sharing requires an explicit recipient policy.
+
+#### Scenario: Lost receipt after a possible send
+- **WHEN** a notification is UNKNOWN and no native acceptance or definitive rejection is proven
+- **THEN** its evidence and uncertainty survive restart, a bounded private review may explain the gap, and the original send is not automatically replayed.
+
+#### Scenario: Confirmed unsent public report after recovery
+- **WHEN** trusted evidence proves an occurrence was not sent, dependencies recover and the report remains valid
+- **THEN** the existing sender may create one authorized linked retry with a short public explanation and separately recorded owner-private result notice.
+
+#### Scenario: Display label versus authorized reader
+- **WHEN** a group member changes a tag or a private report is requested through an ordinary group message
+- **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
+
+Implementation boundary: the Nov10 continuation implements classification, immutable enqueue artifacts, append-only attempts/reviews and a bounded single-owner supervisor. The owner explicitly selected full account reports in deehub for all members. Native labels/ephemeral UI and full source-body public research acceptance remain pending. Source, offline and deployment/native receipts are separately recorded; this specification is not deployment acceptance.
+
+### Requirement: Immutable notification artifact identity
+The system SHALL preserve the exact report PNG and manifest bytes selected at enqueue, record every delivery attempt separately, and retain historical provenance when mutable previews change. Changed or missing historical bytes SHALL NOT be relabeled as the original artifact.
+
+#### Scenario: Builder updates a queued report preview
+- **WHEN** the report builder replaces a date-based PNG after enqueue
+- **THEN** the queued send reads its frozen content-addressed artifact and historical hashes remain unchanged.
+
+#### Scenario: Definitive rejection without proven root recovery
+- **WHEN** Telegram rejects a send but the root cause remains unverified
+- **THEN** the original evidence remains retained and no automatic retry occurs solely because connectivity returned.
 
 ### Requirement: Owner-selected independent ChatGPT OAuth
 The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
@@ -87,23 +115,6 @@ The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that C
 - **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
 - **THEN** the attempt remains unacknowledged and is not automatically replayed
 
-### Requirement: Evidence-based notification recovery and private-data boundaries
-The system SHALL classify private account/security/immediate-gate content before public delivery and retain append-only occurrence/attempt evidence. Secretary assessment SHALL NOT authorize replay from missing receipts or network recovery alone. Display tags SHALL NOT grant data/control access; account report sharing requires an explicit recipient policy.
-
-#### Scenario: Lost receipt after a possible send
-- **WHEN** a notification is UNKNOWN and no native acceptance or definitive rejection is proven
-- **THEN** its evidence and uncertainty survive restart, a bounded private review may explain the gap, and the original send is not automatically replayed.
-
-#### Scenario: Confirmed unsent public report after recovery
-- **WHEN** trusted evidence proves an occurrence was not sent, dependencies recover and the report remains valid
-- **THEN** the existing sender may create one authorized linked retry with a short public explanation and separately recorded owner-private result notice.
-
-#### Scenario: Display label versus authorized reader
-- **WHEN** a group member changes a tag or a private report is requested through an ordinary group message
-- **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
-
-Implementation boundary: this requirement is planned in the active change. Current source3694676 does not implement complete sensitivity classification, per-attempt reconciliation supervision or ephemeral UI. Existing account report recipients are unchanged pending owner decision; this specification is not deployment acceptance.
-
 ### Requirement: Owner-private status menu
 
 The secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls using existing shared health evidence with observation time and freshness. Missing evidence SHALL be UNKNOWN. Configuration and stale HEALTHY records SHALL NOT prove current connectivity. Menu reads SHALL NOT call models or brokers, restart services or alter gates.
@@ -111,7 +122,6 @@ The secretary SHALL expose /api, /cloud and /market as deterministic owner-priva
 #### Scenario: Existing status evidence is missing or old
 - **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
 - **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
-
 
 ### Requirement: Telegram development and operations orchestration
 The secretary SHALL route verified owner development and operations requests to authorized Python operations and a verified Codex Cloud consumer, with task identity, scope, execution receipts and result delivery. Arbitrary database paths, deployment permission and unrestricted shell access SHALL NOT follow from model output alone.
@@ -137,6 +147,7 @@ The secretary SHALL invoke registered Python tools through the existing broker o
 
 Implementation boundary (2026-11-10): owner-confirmed target, not implemented or deployed by this documentation update. The existing model tool dispatcher exposes registered database queries but no direct live broker tool. Exact latency target and fresh cloud OAuth/model response acceptance remain UNKNOWN.
 
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
@@ -151,3 +162,8 @@ OAuth is the selected route; API-key instructions above describe superseded prep
 
 
 
+
+### Independent OAuth verified stage — 2026-11-09T23:40:14Z
+The preceding API and OAuth preparation paragraphs are historical snapshots. Current cloud source71fa3e6 uses independent Gmail ChatGPT OAuth, gpt-6.1-sol/low, with Mac bridge stopped. Fresh owner private update600875499 completed a native model turn in7.833s, archived SUCCEEDED and delivered through existing notification1304 with private message247/serverdate23:40:14Z. Human confirmed seeing actual text. Evidence: cloud engineering/secretary-oauth-20261109/cloud-private-acceptance.json. This verifies the current cloud dialogue loop for that request, not future uptime, live broker model tools, Codex Cloud task execution or all pending tasks in this active change. Earlier UNKNOWN states remain preserved.
+
+Notification continuation: candidate61619c0/8c63c5a retains explicit full group account-report approval, immutable artifacts and append-only reviews. New combined deployment/native report acceptance is recorded separately.

@@ -41,6 +41,8 @@ class IncidentStore:
                     notification_id INTEGER PRIMARY KEY, first_at REAL NOT NULL,
                     attempts INTEGER NOT NULL, not_before REAL NOT NULL);
             ''')
+        from .notification_reconciliation import initialize
+        initialize(self)
 
     def connect(self):
         return sqlite3.connect(self.path, timeout=2)

@@ -98,6 +98,19 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
                        image_keys=[report['image_key'] for report in selected.values() if 'image_key' in report],
                        png_artifacts=[dict(path=r['image_path'], sha256=r['image_sha256']) for r in selected.values() if transport in ('smtp','telegram')],
                        report_artifacts=[str(Path(directory)/day.isoformat()/(k+'.html')) for k in selected])
+        if transport=='telegram':
+            from .notification_artifacts import freeze
+            payload['png_artifacts']=[freeze(directory,r['image_path'],r['image_sha256']) for r in selected.values()]
+            snapshots=[]
+            for k,r in selected.items():
+                source=Path(directory)/day.isoformat()/(k+'.json')
+                data=source.read_bytes()
+                if json.loads(data)!=r:raise ValueError('Report manifest changed before immutable snapshot')
+                snapshots.append(freeze(directory,source,hashlib.sha256(data).hexdigest()))
+            payload['report_manifests']=snapshots
+        payload['data_classification']='private_account' if selected else 'public_status'
+        if selected:
+            payload['expires_at']=min(datetime.fromisoformat(r['source_snapshot_at']).timestamp()+600 for r in selected.values())
         c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) "
                   "VALUES (?,1,?,?,'PENDING')", (key,kind,json.dumps(payload,ensure_ascii=False)))
     return kind
