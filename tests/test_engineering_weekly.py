@@ -36,3 +36,20 @@ class EngineeringWeeklyTests(unittest.TestCase):
             self.assertNotEqual(preview['evidence'],final['evidence'])
             self.assertIn('实际待验证问题',final['prompt'])
             self.assertIn('原生研究结果仍需核验',final['prompt'])
+
+    def test_long_evidence_keeps_complete_copyable_prompt_and_full_archive(self):
+        with tempfile.TemporaryDirectory() as d:
+            now=datetime.fromisoformat('2026-11-15T17:00:00+00:00')
+            archive=SecretaryArchive(Path(d)/'a.sqlite3',clock=now.timestamp)
+            for i in range(16):
+                archive.append('evidence:'+str(i)+':'+'x'*100,'der-secretary',origin='MODEL',kind='ENGINEERING_PROPOSAL',payload={'title':'🔍'*100})
+            key,data=packet(archive,now,persist=True)
+            self.assertLessEqual(len(data['reason'].encode('utf-16-le'))//2,3000)
+            self.assertTrue(data['reason'].endswith('未证明Codex已接受任务、自动部署或完成。'))
+            self.assertIn(key,data['reason']);self.assertGreater(data['delivery_evidence_omitted'],0)
+            self.assertEqual(len(data['evidence']),16)
+            self.assertGreater(len(data['prompt']),len(data['reason']))
+            with closing(archive.connect()) as c:
+                import json
+                saved=json.loads(c.execute("SELECT payload FROM secretary_events WHERE occurrence=?",(key,)).fetchone()[0])
+                self.assertEqual(saved['prompt'],data['prompt']);self.assertEqual(len(saved['evidence']),16)

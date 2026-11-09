@@ -1,3 +1,5 @@
+> 最新候选状态：完整离线1106项/75.553s/OK；尚未云端部署。原生旧仓补保护五笔已完成、PFE保留，独立验收见SCOPED_PROTECTION_20261109.md。新增交易、持续现金生产者、股票价值日、部分成交/重启与正式T0仍未收口。以下阶段记录保留各自时点，不代表所有候选已启用。
+
 # 持续准入工程进度
 
 ## 事务预留（linked worktree，尚未部署）
@@ -47,3 +49,19 @@ ACK绑定须符合本次原生回调的account/contract/client/permId/父子订�
 API health日预算字段已改为与事务准入同一投影：分别显示actual buy/sell、未成交承诺和准入预算；无法核实时entry_budget_used/null，而非报告零。旧paper_notional_for_date仅保留历史请求报表兼容用途。此轮完整离线1091项/76.088秒/OK。
 
 更正家族现被明确识别：同一TWS末段数字变化或单独出现非初始版本，均不当作独立新增成交；保留原始execId并返回待核验。现金核销同样拒绝更正家族，即使错误相加的数量碰巧符合原生filled也不释放。完整经济更正/撤销解析仍待后续验证，没有选择最新版后抹除原始事实。全套1094项/78.973s/OK。
+
+## 结算事实与现金缓存延迟
+
+原生accountUpdateMulti(ledgerAndNLV=False)于2026-11-09T20:44Z完整回读，AccountReady=true，USD的SettledCashByDate为`20261109:-69788.66;20261112:2019.42306`。这是券商实际日期，不是泛化T+1/T+2推算。日期后的值是累计余额，不能相加，也不能把BASE净额当作实有EUR或USD。证券成交价值日及任何匹配换汇结算的可用性仍未核实；没有宣称股票可以仅因普通CashBalance转正而放行。
+
+新增纯结算解析、字段/日期/单位/账户/ready/end/时间顺序校验。资金策略入口现须有新鲜原生结算receipt；未完成价值日匹配验证时，只按当前与已知未来USD累计余额的保守容量准入。普通正余额、未来入账或EUR净额不能填补未核验USD。readiness新增独立SETTLED_USD_EVIDENCE，不以普通现金PASS冒充结算PASS。现有云端CashBook生产者尚未接入这个新receipt，因此此候选保持未部署，正式入口不能启用。
+
+更严格的现金claim核销：只在更新后实际USD余额等于原有明确USD基线加全部新原生成交现金变化、减实际费用版本差额时释放/转移。较晚RPC结束本身不是现金已扣款的证明。两个并发已成交请求不能复用同一次扣款证明；缺费用、未识别FX/外部资金流、经济更正或不明差额均保留claim，避免重复花钱。baseline已有外部交易的完整经济账本与持续资金owner仍是独立P0，不以此局部核验代替总账验收。
+
+[IBKR结算字段](https://www.interactivebrokers.com/docs/tws-api/doc/accounts/updates)、[DTC2026结算通知23036-25](https://www.dtcc.com/-/media/Files/pdf/2025/10/15/23036-25.pdf)、[IBKR货币结算假日](https://www.interactivebrokers.com/en/education/currency-settlement-holidays.php)用于研究。DTC通知搜索索引可读取，直接PDF请求本次404；不能把无法访问的附件当作现场验收。股票交易所开市、美元结算假日与API运行必须区分。
+
+当前全套1104项/80.196s/OK，含缓存延迟、并发扣款共用、费用更正后现金差额；资源FD5、恢复FD4/线程1→1。秘密扫描/Git整合另记。
+
+## 周报交接修复
+
+完整周报和16条证据仍归档；发送文案以3000 UTF-16单位为界，选择完整证据行，保留任务要求、完整归档key和未被Codex接收/部署的边界。省略数量明确可见，不在Telegram传输层截断提示尾部。此修复已包含在1104项隔离验证中，尚未部署。

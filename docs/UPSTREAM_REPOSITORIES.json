@@ -358,7 +358,15 @@
       "archived": false,
       "default_branch": "master",
       "upstream_pushed_at": "2026-11-01T02:46:46Z",
-      "metadata_status": "GITHUB_API_VERIFIED"
+      "metadata_status": "GITHUB_API_VERIFIED",
+      "package_license_verification": {
+        "checked_on": "2026-11-09",
+        "package": "python-telegram-bot",
+        "version": "22.8",
+        "license_expression": "LGPL-3.0-only",
+        "source": "https://pypi.org/project/python-telegram-bot/22.8/",
+        "note": "Package publisher metadata; historical GitHub aggregate license_spdx is preserved separately, not the package license decision."
+      }
     },
     {
       "repository": "virattt/ai-hedge-fund",

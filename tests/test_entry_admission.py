@@ -18,7 +18,12 @@ class EntryAdmissionTests(unittest.TestCase):
         (self.runtime/'FUNDING_POLICY_REQUIRED').touch()
         (self.runtime/'funding-policy.json').write_text(json.dumps({'approved':True,'environment':'PAPER','account':'DUQ503649','mode':'CASH_ONLY_NO_NEW_BORROWING','allow_new_currency_debit':False,'fee_reserve_usd':5}))
         now=time.time()
-        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','observed_at':datetime.fromtimestamp(now,timezone.utc).isoformat(),'currencies':{'USD':{'amount':str(cash),'currency':'USD'}}}))
+        stamp=datetime.fromtimestamp(now,timezone.utc).isoformat()
+        receipt={'source':'NATIVE_ACCOUNT_UPDATE_MULTI','account':'DUQ503649','request_id':1,'complete':True,'started_at':stamp,'finished_at':stamp,'values':[
+            {'key':'AccountReady','value':'true','currency':'','account':'DUQ503649'},
+            {'key':'SettledCashByDate','value':'20260101:'+str(cash),'currency':'USD','account':'DUQ503649'},
+            {'key':'SettledCashByDate','value':'20260101:10000','currency':'EUR','account':'DUQ503649'}]}
+        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','observed_at':stamp,'cash_read_started_at':stamp,'cash_read_finished_at':stamp,'settlement_receipt':receipt,'currencies':{'USD':{'amount':str(cash),'currency':'USD'}}}))
         with closing(sqlite3.connect(self.runtime/'recovery.sqlite3')) as c,c:
             c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)')
             c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':now,'epoch':'verified-epoch','orders':{}}),))
@@ -157,7 +162,7 @@ class EntryAdmissionTests(unittest.TestCase):
         context=self.cash_proof(parent,at)
         with closing(self.audit._connect()) as c,c:
             reconcile_cash_claims(c,context,stamp(4))
-            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('BROKER_ACCOUNTED_FEE_HELD','5'))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('ACKNOWLEDGED_UNRECONCILED','105'))
         self.audit.record_execution_fee(execution['exec_id'],'USD',1,stamp(1.5),'commissionAndFeesReport')
         with closing(self.audit._connect()) as c,c:
             reconcile_cash_claims(c,context,stamp(4))
@@ -196,3 +201,45 @@ class EntryAdmissionTests(unittest.TestCase):
                 self.audit._upsert_execution(c,execution,stamp(.5))
             reconcile_cash_claims(c,self.cash_proof(parent,at),stamp(4))
             self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('ACKNOWLEDGED_UNRECONCILED','105'))
+
+    def test_later_account_rpc_with_old_cash_balance_does_not_release_filled_cash(self):
+        from trading.entry_admission import reconcile_cash_claims
+        p,parent,at=self.bound_cash();stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        execution=dict(exec_id='lagged-ledger',account='DUQ503649',perm_id=parent['perm_id'],order_id=11,order_ref=p.idempotency_key,symbol='BAC',side='BOT',shares=1,price=100,time=stamp(.5),con_id=9029,sec_type='STK',currency='USD')
+        with closing(self.audit._connect()) as c,c:self.audit._upsert_execution(c,execution,stamp(.5))
+        self.audit.record_execution_fee(execution['exec_id'],'USD',1,stamp(1.5),'commissionAndFeesReport')
+        context=self.cash_proof(parent,at);context['cashbook']['currencies']['USD']['amount']='1000'
+        with closing(self.audit._connect()) as c,c:
+            reconcile_cash_claims(c,context,stamp(4))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('ACKNOWLEDGED_UNRECONCILED','105'))
+            context['cashbook']['currencies']['USD']['amount']='899'
+            reconcile_cash_claims(c,context,stamp(4))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('RELEASED_TO_BROKER_CASHBOOK','0'))
+
+    def test_one_cash_debit_cannot_release_two_concurrent_filled_claims(self):
+        from trading.entry_admission import account_cash_delta_verified
+        at=time.time();stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        evidence={'ledger_cash_usd':'1000','cash_read_started_at':stamp(0),'baseline_fee_usd':'0'}
+        for i in (1,2):
+            execution=dict(exec_id='cohort-'+str(i),account='DUQ503649',perm_id=i,order_id=i,order_ref='cohort-'+str(i),symbol='BAC',side='BOT',shares=1,price=100,time=stamp(1),con_id=9029,sec_type='STK',currency='USD')
+            with closing(self.audit._connect()) as c,c:self.audit._upsert_execution(c,execution,stamp(1))
+            self.audit.record_execution_fee(execution['exec_id'],'USD',1,stamp(2),'commissionAndFeesReport')
+        book={'cash_read_started_at':stamp(3),'currencies':{'USD':{'currency':'USD','amount':'899'}}}
+        with closing(self.audit._connect()) as c:
+            self.assertFalse(account_cash_delta_verified(c,evidence,book))
+            book['currencies']['USD']['amount']='798'
+            self.assertTrue(account_cash_delta_verified(c,evidence,book))
+
+    def test_fee_revision_after_baseline_requires_its_cash_delta(self):
+        from trading.entry_admission import account_cash_delta_verified
+        at=time.time();stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        execution=dict(exec_id='old-fee',account='DUQ503649',perm_id=1,order_id=1,order_ref='old-fee',symbol='BAC',side='BOT',shares=1,price=100,time=stamp(-3),con_id=9029,sec_type='STK',currency='USD')
+        with closing(self.audit._connect()) as c,c:self.audit._upsert_execution(c,execution,stamp(-3))
+        self.audit.record_execution_fee('old-fee','USD',1,stamp(-2),'commissionAndFeesReport')
+        evidence={'ledger_cash_usd':'899','cash_read_started_at':stamp(0),'baseline_fee_usd':'1'}
+        self.audit.record_execution_fee('old-fee','USD',2,stamp(1),'commissionAndFeesReport')
+        book={'cash_read_started_at':stamp(2),'currencies':{'USD':{'currency':'USD','amount':'899'}}}
+        with closing(self.audit._connect()) as c:
+            self.assertFalse(account_cash_delta_verified(c,evidence,book))
+            book['currencies']['USD']['amount']='898'
+            self.assertTrue(account_cash_delta_verified(c,evidence,book))

@@ -37,3 +37,5 @@ Nov8按需群搜索参考：
 - [Telethon当前维护源](https://codeberg.org/Lonami/Telethon)，可选adapter，未登录验收。
 - [Telethon旧GitHub](https://github.com/LonamiWebs/Telethon)，已归档并声明迁移。
 - [TDLib](https://github.com/tdlib/td)，官方库参考，未安装集成。
+
+Nov9包许可证补核：实际使用的python-telegram-bot22.8，发布者[包元数据](https://pypi.org/project/python-telegram-bot/22.8/)声明LGPL-3.0-only；[官方pyproject](https://github.com/python-telegram-bot/python-telegram-bot/blob/master/pyproject.toml)一致。上表GPL-3.0是Nov7 GitHub聚合许可证字段旧快照，不能据此把整个22.8包当成GPL或忽略LGPL义务。机器清单新增package_license_verification，保留原始历史字段，未替换包或改变运行权限。其他包、嵌入文件、NOTICE与分发形式仍须分别审查。

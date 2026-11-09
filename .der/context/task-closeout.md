@@ -68,3 +68,11 @@ Nasdaq官方计划2026-12-06启用夜盘，当前阶段规则保守核验至12-0
 隔离工作区continuous-paper-admission：a3b7dae原子意图/资金预留与不可重放transport-start；0e2d5a8精确原生绑定/费用版本/有序现金核销；e0186bb原生双向成交投影。后续原子日准入以实际当日成交加未成交承诺，测试1090项/75.674s/OK、OpenSpec5项strict PASS。新代码尚未替代云端9f66cd8监测部署；不能宣称旧仓已保护、USD已结算、部分成交/重启现场已通过或策略全自动已启用。源码保护与本机smoke、云端部署、原生结果分别记录。
 
 共享ORDER_SUBMISSION新增AUDIT依赖；若之后云端部署，必须语义审查health依赖变更并重绑有限保护commit，不能声称8个依赖全部逐字节不变。当前只读服务核对paper-safety/inbox/notifications/Gateway均active，GatewayPID1450345未变；通用smoke无资源样本，不能把DEGRADED空样本当泄漏证据。图表回顾：事件/费用证据与事务内部实现变化，既有维护/宽筛拓扑未改，旧untracked图仍保留。
+
+## 原生保护收口与资金候选（Nov9 21:10Z后）
+
+发现Gateway已退回Paper登录界面，API端口监听不等于账户可用。按当前P0授权与原有有限恢复政策，持久占用一天一次预算后仅重启同一个Gateway服务；新MainPID2406467/Java2406514。独立Paper回读、native身份/四项end和watchdog RECOVERED已通过，未清空PAUSED/MAINTENANCE或重放未知订单。随后行情10197解除，原有限保护scope于20:46—20:51Z完成全部五笔CONFIRMED；六只股票完整覆盖、原PFE保留，21:06附近独立native_age3.009s，五次通知均Telegram接受。scope额度5/5用完、原expiry保留，完成的timer已disabled/inactive，GTC止损未撤。P0任务2.2已勾选。
+
+结算原生新增证据USD Nov9 -69788.66/Nov12累计2019.42306，不能把普通2019.4231余额视为已结算。新候选增加纯结算解析/新鲜字段门禁、全部新成交与费用版本现金差额核销、长周报完整交接，1106项/75.553s/OK；仍未云端部署，无全自动放行。P0:单owner持续现金/结算采集、股票价值日及总账基线、专属执行owner/原生部分成交/重启、inherited归属与T0。
+
+两项deliveryUNKNOWN分别outbox953、日报1094，均不重放；当前九项order操作CONFIRMED，没有STARTED/UNKNOWN order。日报未知不能隐去或当成未知订单。实际NYSE/Nasdaq核心开收盘与ETFplus阶段均Telegram接受；周报自然触发未观察，AppServer仍仅initialize ACK。其他四项目只核对清单/HEAD与依赖声明，旧脏工作和token未提交源码保留；详见SESSION_WORK_AND_UPSTREAM_20261109.md。新变化未改变注册的维护/宽筛拓扑，不伪造重绘或媒体验收。

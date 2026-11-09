@@ -55,3 +55,21 @@ class PaperReadinessTests(unittest.TestCase):
             self.assertIn('非现金余额',message(d,holdings_only=True))
             self.assertEqual(next(x for x in d['checks'] if x['gate']=='USD_CASH_AVAILABLE')['state'],'BLOCKED')
             self.assertFalse(d['automatic_trading_ready']);self.assertTrue((r/'PAUSED').exists())
+
+    def test_positive_cash_without_native_settlement_cannot_pass_funding_readiness(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            r=self.root(tmp,self.state())
+            (r/'runtime/currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','observed_at':'1970-01-01T00:01:40+00:00','currencies':{'USD':{'amount':'2019.4231','currency':'USD'}}}))
+            d=collect(r,now=101);checks={x['gate']:x for x in d['checks']}
+            self.assertEqual(checks['USD_CASH_AVAILABLE']['state'],'PASS')
+            self.assertEqual(checks['SETTLED_USD_EVIDENCE']['state'],'BLOCKED')
+            self.assertFalse(d['automatic_trading_ready'])
+
+    def test_settlement_receipt_does_not_hide_missing_actual_usd_cash(self):
+        from tests.test_settlement_book import SettlementBookTests
+        with tempfile.TemporaryDirectory() as tmp:
+            r=self.root(tmp,self.state());receipt=SettlementBookTests().receipt()
+            receipt['values'][1]['value']='20261109:2019.42306'
+            (r/'runtime/currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','observed_at':'2026-11-09T20:42:01+00:00','currencies':{},'settlement_receipt':receipt}))
+            d=collect(r,now=1794256922);checks={x['gate']:x for x in d['checks']}
+            self.assertEqual(checks['SETTLED_USD_EVIDENCE']['state'],'BLOCKED')

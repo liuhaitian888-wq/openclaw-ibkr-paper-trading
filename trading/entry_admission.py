@@ -51,9 +51,14 @@ def reserve_cash(connection,root,proposal,created_at):
     if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='execution_fee_facts'").fetchone():
         latest=connection.execute("SELECT max(updated_at) FROM execution_fee_facts WHERE account='DUQ503649'").fetchone()[0]
         if latest:
-            try:ordered=aware_stamp(context['cashbook'].get('cash_read_started_at'))>=aware_stamp(latest)
-            except (ValueError,TypeError):ordered=False
+            try:ordered=min(aware_stamp(context['cashbook'].get('cash_read_started_at')),aware_stamp(context['cashbook']['settlement_receipt']['started_at']))>=aware_stamp(latest)
+            except (ValueError,TypeError,KeyError):ordered=False
             if not ordered:raise PermissionError('Cash ledger read predates a known fee revision or lacks its start marker')
+    latest_execution=connection.execute("SELECT max(first_seen_at) FROM executions WHERE account='DUQ503649'").fetchone()[0]
+    if latest_execution:
+        try:ordered=min(aware_stamp(context['cashbook'].get('cash_read_started_at')),aware_stamp(context['cashbook']['settlement_receipt']['started_at']))>=aware_stamp(latest_execution)
+        except (ValueError,TypeError,KeyError):ordered=False
+        if not ordered:raise PermissionError('Cash and settlement reads must follow the latest canonical execution receipt')
     if not context['broker_epoch']:raise PermissionError('Cash reservation requires a broker reconciliation epoch')
     # All external currency/unsupported orders still consume uncertainty even if additive caps are blank.
     for order in context['broker_state'].get('orders',{}).values():
@@ -75,6 +80,7 @@ def reserve_cash(connection,root,proposal,created_at):
     # Until an exact native binding is reconciled, keeping a claim can be conservative.
     # Do not deduplicate by a look-alike orderRef or drop a claim merely on ACK/FAILED.
     evidence={k:v for k,v in context.items() if k not in ('broker_state','cashbook')}
+    evidence['baseline_fee_usd']=str(sum((decimal(row[0]) for row in connection.execute("SELECT amount FROM execution_fee_facts WHERE account='DUQ503649' AND currency='USD'")),Decimal(0)))
     evidence['snapshot_sha256']=hashlib.sha256(json.dumps(context['broker_state'],sort_keys=True).encode()).hexdigest()
     evidence['cashbook_sha256']=hashlib.sha256(json.dumps(context['cashbook'],sort_keys=True).encode()).hexdigest()
     connection.execute("INSERT INTO entry_cash_claims VALUES(?,?,'RESERVED',?,?,?,?,?,?)",(proposal.idempotency_key,'DUQ503649',str(cost),context['fee_reserve_usd'],created_at,context['cash_observed_at'],context['broker_epoch'],json.dumps(evidence,sort_keys=True)))
@@ -149,8 +155,8 @@ def reconcile_cash_claims(connection,context,at):
         if 'USD' not in currencies or book.get('base_currency') not in currencies:return
         if not state.get('reconciled_at') or started.timestamp()<state['reconciled_at']:return
     except (KeyError,ValueError,TypeError,ArithmeticError):return
-    rows=connection.execute("SELECT c.identity,c.state,c.reserved_usd,c.fee_usd,b.bound_at,b.binding FROM entry_cash_claims c JOIN entry_native_bindings b ON c.identity=b.identity WHERE c.state IN ('ACKNOWLEDGED_UNRECONCILED','TRANSFERRED_TO_BROKER_ORDER','BROKER_ACCOUNTED_FEE_HELD')").fetchall()
-    for identity,claim_state,prior_amount,fee,bound_at,raw in rows:
+    rows=connection.execute("SELECT c.identity,c.state,c.reserved_usd,c.fee_usd,b.bound_at,b.binding,c.evidence FROM entry_cash_claims c JOIN entry_native_bindings b ON c.identity=b.identity WHERE c.state IN ('ACKNOWLEDGED_UNRECONCILED','TRANSFERRED_TO_BROKER_ORDER','BROKER_ACCOUNTED_FEE_HELD')").fetchall()
+    for identity,claim_state,prior_amount,fee,bound_at,raw,raw_evidence in rows:
         binding=json.loads(raw);parent=binding['parent'];perm=parent['perm_id']
         if state['reconciled_at']<aware_stamp(bound_at):continue
         matches=[o for o in state.get('orders',{}).values() if o.get('perm_id')==perm and o.get('account')==parent['account']]
@@ -177,6 +183,7 @@ def reconcile_cash_claims(connection,context,at):
             from .execution_identity import correction_markers
             if correction_markers(executions):continue
             if sum((decimal(e['shares']) for e in executions),Decimal(0))!=filled:continue
+            if not account_cash_delta_verified(connection,json.loads(raw_evidence),book):continue
             if not terminal:
                 # Exact active parent is already reserved by cash_guard's broker-order calculation.
                 amount=Decimal(0);new_state='TRANSFERRED_TO_BROKER_ORDER'
@@ -197,3 +204,46 @@ def reconcile_cash_claims(connection,context,at):
                 proof={'identity':identity,'native_perm_id':perm,'state':new_state,'reserved_usd':str(amount),'cash_read_started_at':book['cash_read_started_at'],'broker_epoch':state['epoch'],'cashbook':book,'source':'EXACT_NATIVE_ACCOUNTING_RECONCILIATION','mutation_authorized':False}
                 connection.execute('INSERT INTO order_events(idempotency_key,occurred_at,event_type,status,details) VALUES(?,?,?,?,?)',(identity,at,'CASH_CLAIM_RECONCILED',new_state,json.dumps(proof,sort_keys=True)))
         except (ValueError,TypeError,KeyError,ArithmeticError):continue
+
+
+def account_cash_delta_verified(connection,evidence,book):
+    """A later RPC end is not proof the account cache reflects known executions.
+
+    Require its USD balance to match baseline plus all newly received canonical
+    stock cash flows and actual fee revisions. Unexplained cash movements, FX,
+    missing fees and execution corrections retain claims for reconciliation.
+    """
+    try:
+        baseline=decimal(evidence['ledger_cash_usd'])
+        cutoff=aware_stamp(evidence['cash_read_started_at'])
+        end=aware_stamp(book['cash_read_started_at'])
+        if end<cutoff:return False
+        executions=[]
+        for raw,received in connection.execute("SELECT raw_json,first_seen_at FROM executions WHERE account='DUQ503649'"):
+            seen=aware_stamp(received)
+            if seen<=cutoff:continue
+            if seen>end:return False
+            execution=json.loads(raw)
+            if (execution.get('account')!='DUQ503649' or execution.get('sec_type')!='STK'
+                or execution.get('currency')!='USD' or type(execution.get('con_id')) is not int or execution['con_id']<=0):return False
+            executions.append(execution)
+        from .execution_identity import correction_markers
+        if correction_markers(executions):return False
+        delta=Decimal(0)
+        for execution in executions:
+            shares=decimal(execution['shares']);price=decimal(execution['price'])
+            if shares<=0 or price<=0:return False
+            if execution.get('side') in ('BOT','BUY'):delta-=shares*price
+            elif execution.get('side') in ('SLD','SELL'):delta+=shares*price
+            else:return False
+            fee=connection.execute('SELECT account,updated_at FROM execution_fee_facts WHERE exec_id=?',(execution['exec_id'],)).fetchone()
+            if not fee or fee[0]!='DUQ503649' or aware_stamp(fee[1])>end:return False
+        fee_total=Decimal(0)
+        for amount,currency,updated in connection.execute("SELECT amount,currency,updated_at FROM execution_fee_facts WHERE account='DUQ503649'"):
+            if aware_stamp(updated)>end:return False
+            if currency=='USD':fee_total+=decimal(amount)
+        expected=baseline+delta-(fee_total-decimal(evidence['baseline_fee_usd']))
+        if book['currencies']['USD'].get('currency')!='USD':return False
+        actual=decimal(book['currencies']['USD']['amount'])
+        return actual==expected
+    except (KeyError,TypeError,ValueError,ArithmeticError):return False

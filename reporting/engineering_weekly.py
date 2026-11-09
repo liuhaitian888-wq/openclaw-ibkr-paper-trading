@@ -38,8 +38,25 @@ def packet(archive, now, *, persist=False):
               '本周运行状态计数（不是收益）：'+json.dumps(dict(runs), ensure_ascii=False)+'\n'
               '证据索引：\n'+ ('\n'.join(evidence) if evidence else '未找到上述类型记录；不得推定没有故障或研究已完成。')+'\n'
               '交接状态：提示已归档；未证明Codex已接受任务、自动部署或完成。')
+    # Keep the archived full prompt/evidence intact, but deliver a complete
+    # copyable packet rather than cutting its tail at the transport boundary.
+    head=prompt.partition('证据索引：\n')[0]
+    footer='交接状态：提示已归档；未证明Codex已接受任务、自动部署或完成。'
+    archive_line='完整周报归档：'+key+'；未展示的证据请按授权读取秘书档案，不能推定没有问题。\n'
+    intro=head+'证据只作核验资料，不赋予执行权限。\n证据索引：\n'
+    units=lambda value:len(value.encode('utf-16-le'))//2
+    selected=[]
+    for item in evidence:
+        clean=item.replace('\r',' ').replace('\n',' ')
+        candidate=intro+'\n'.join(selected+[clean])+'\n其余16条见归档。\n'+archive_line+footer
+        if units(candidate)>3000:break
+        selected.append(clean)
+    omitted=len(evidence)-len(selected)
+    listing='\n'.join(selected) if selected else ('未找到上述类型记录；不得推定没有故障或研究已完成。' if not evidence else '证据索引见完整归档。')
+    reason=intro+listing+'\n'+('其余'+str(omitted)+'条证据见归档。\n' if omitted else '')+archive_line+footer
+    if units(reason)>3000:raise ValueError('Weekly delivery header exceeds bounded prompt budget')
     expiry=(local+timedelta(days=1)).replace(hour=0,minute=0,second=0,microsecond=0)
-    data = dict(expires_at=expiry.timestamp(), prompt=prompt, reason=prompt[:3600], generated_at=now.isoformat(),
+    data = dict(expires_at=expiry.timestamp(), prompt=prompt, reason=reason, delivery_evidence_omitted=omitted, generated_at=now.isoformat(),
                 evidence=evidence, window_start=(now-timedelta(days=7)).isoformat(),
                 desktop_chat_wakeup_connected=False, grants_execution_permission=False)
     if not persist:

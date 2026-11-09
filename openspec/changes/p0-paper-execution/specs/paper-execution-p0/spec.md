@@ -72,3 +72,14 @@ The system SHALL count canonical native stock buys and sells by actual occurrenc
 #### Scenario: Failed label follows transport start
 - **WHEN** an already started intent is later labeled FAILED without no-send or native terminal proof
 - **THEN** its unresolved commitment remains reserved
+
+### Requirement: Explicit settlement capacity and cash accounting
+The system SHALL distinguish native trade-date cash from per-currency cumulative settlement schedules and SHALL NOT infer current usable USD from future credits or a BASE projection. Until stock value-date matching is verified, new entry capacity SHALL be conservatively bounded by current and known scheduled USD balances. Claim release SHALL require the observed USD cash delta to agree with all newly known native stock flows and actual fee revisions, not merely a later RPC end marker.
+
+#### Scenario: Ordinary USD cash is positive while settlement is negative
+- **WHEN** native CashBalance is positive but current SettledCashByDate remains negative
+- **THEN** that ordinary balance does not independently authorize a no-new-borrowing entry
+
+#### Scenario: Two filled intents share one lagging ledger observation
+- **WHEN** a later account RPC reflects only one of two known filled intents
+- **THEN** neither may reuse that one debit as proof that the whole newly known cash-flow cohort was accounted for

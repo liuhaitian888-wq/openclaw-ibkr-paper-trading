@@ -99,6 +99,20 @@ def collect(root, *, now=None):
         cash_ready=(currency.get('source')=='BROKER_API' and currency.get('account')==ACCOUNT and currency['currencies']['USD'].get('currency')=='USD') and usd.is_finite() and usd>0 and cash_at.tzinfo is not None and 0<=now-cash_at.timestamp()<=10
     except (KeyError,ValueError,TypeError,ArithmeticError):cash_ready=False
     check('USD_CASH_AVAILABLE',cash_ready,'RUNTIME',{'observed_USD':currency.get('currencies',{}).get('USD'),'observed_at':currency.get('observed_at'),'requirement':'Fresh positive USD cash, all buy reservations and explicit fee reserve must be checked by actual executor. EUR available funds are not USD cash.'})
+    settlement_detail={'requirement':'Trade-date CashBalance is not settled funding; exact currency schedules and verified stock value-date matching are independent evidence.'}
+    try:
+        from trading.settlement_book import settlement_book
+        from zoneinfo import ZoneInfo
+        receipt=currency['settlement_receipt']
+        settled=settlement_book(receipt,account=ACCOUNT,base_currency=currency['base_currency'],
+            as_of_day=datetime.fromtimestamp(now,ZoneInfo('America/New_York')).date().isoformat())
+        end=datetime.fromisoformat(receipt['finished_at'])
+        usd_settled=settled['currencies']['USD'];amount=usd_settled['as_of_amount']
+        future=[Decimal(value) for day,value in usd_settled['dated_cumulative_amounts'].items() if day>=settled['as_of_day']]
+        settled_ready=(cash_ready and amount is not None and min([Decimal(amount)]+future)>0 and 0<=now-end.timestamp()<=10 and end<=cash_at)
+        settlement_detail.update(as_of_day=settled['as_of_day'],USD=usd_settled,stock_value_date_verified=False)
+    except (KeyError,ValueError,TypeError,ArithmeticError,PermissionError):settled_ready=False
+    check('SETTLED_USD_EVIDENCE',settled_ready,'RUNTIME',settlement_detail)
     check('PORTFOLIO_RISK',safety.get('risk_allowed') is True and safety.get('risk_isolatable') is True,'APPROVAL_AND_ENGINEERING','Fresh marks, external holdings/open buys, fee/FX/funding and scoped limits must be checked by the actual executor')
     check('NUMERIC_DOCUMENT',controls is not None,'RUNTIME','Valid additive control document does not imply complete portfolio risk verification')
     check('LIMITS_CONFIRMED',bool(controls and controls['revision']>0),'APPROVAL','Owner-set additive caps; blank means no additional cap, executable hard limits and cash/protection gates remain mandatory')

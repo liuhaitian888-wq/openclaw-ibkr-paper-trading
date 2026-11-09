@@ -7,7 +7,7 @@
 
 ## 2. Actual acceptance and remaining P0
 - [x] 2.1 Native cash-funded conversion FILLED, exact execution/fee/cash reconciliation and independent client readback; no scoped active order or unknown operation.
-- [ ] 2.2 Nov9 regular-session native protective acknowledgements and complete coverage of five inherited holdings.
+- [x] 2.2 Nov9 regular-session native protective acknowledgements and complete coverage of five inherited holdings.
 - [ ] 2.3 Atomic continuous entry budget admission, actual signal-to-executor integration and partial-entry-fill/restart acceptance.
 - [ ] 2.4 Fresh USD funding, full portfolio marks, canonical ownership and final exact strategy deployment release.
 - [ ] 2.5 Actual T0 start event with fresh NAV/cash/FX/fees; inherited holdings remain visible in risk.
@@ -23,3 +23,9 @@
 - [ ] 4.3 Wire the existing dedicated execution owner to admitted signals without adding mutation to the read-only monitor; verify sizing, fees, gate revalidation and joint lifecycle before any native release.
 
 - [ ] 4.4 Combine native daily buy/sell turnover with remaining commitments and verify partial fills, cross-day activity, unknown facts, corrections and protective-exit independence.
+
+## 5. Settlement and account-cache continuation
+- [x] 5.1 Read native per-currency settlement dates without trading, parse cumulative amounts and distinguish ordinary cash, actual currency units and BASE projections in isolated tests.
+- [ ] 5.2 Wire one bounded read-only cash/settlement producer into the approved lifecycle with exact request/end ownership and fresh execution/fee ordering.
+- [ ] 5.3 Verify stock value-date/funding semantics and full account cash baselines; never infer no-new-borrowing from a positive trade-date balance.
+- [ ] 5.4 Native partial-fill/restart/account-cache acceptance and exact formal release remain required.
