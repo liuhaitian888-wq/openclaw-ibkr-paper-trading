@@ -6,13 +6,25 @@ Preserve per-symbol protection evidence while grouping newly resolved incidents 
 
 ## Requirements
 
+### Requirement: Atomic protection recovery digest
+
 A complete broker observation MUST create at most one protection recovery digest for newly resolved symbol incidents. Initial healthy observations without an open incident and repeated identical observations MUST NOT generate a recovery message.
+
+#### Scenario: Evidence survives digest creation
+
+- **WHEN** a recovery digest is created
+- **THEN** retain its member identities and uncertainty with these constraints
 
 Original events, incident generations and symbol RECOVERY records MUST remain queryable. Individual recoveries MUST become SUPPRESSED atomically with digest creation, before any sender can claim them. SUPPRESSED MUST NOT imply Telegram acceptance. The digest MUST reference member event and notification identities, distinguish protected symbols from closed no-exposure faults, and state remaining unresolved protection count/symbols. It MUST NOT grant trading permission.
 
 New/ongoing risk alerts MUST retain existing escalation and reminder handling. Existing STARTED/UNKNOWN attempts and receipts MUST remain intact; a digest MUST NOT be claimed while an earlier member occurrence notification is unresolved. No historical queued recovery rewrite or replay is authorized.
 
 The existing notification worker remains the sole delivery owner. Account detail uses the current privacy decision; a public fixed summary must be rebuilt from validated bounded fields rather than arbitrary account payload prose.
+
+#### Scenario: Newly resolved symbols share one digest
+
+- **WHEN** a complete observation resolves several symbol incidents
+- **THEN** their retained evidence is suppressed atomically and one bounded digest is queued without replaying earlier uncertain sends
 
 ## Acceptance examples
 
