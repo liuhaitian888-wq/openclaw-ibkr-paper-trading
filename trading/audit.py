@@ -114,6 +114,9 @@ class AuditLog:
                     )
                     """
                 )
+                connection.execute('CREATE INDEX IF NOT EXISTS execution_account_perm ON executions(account,perm_id)')
+                from .execution_fees import initialize as initialize_fees
+                initialize_fees(connection)
                 self._ensure_column(
                     connection,
                     "broker_orders",
@@ -210,6 +213,12 @@ class AuditLog:
                     details,
                 )
 
+    def record_execution_fee(self,exec_id,currency,amount,at,source):
+        from .execution_fees import record
+        with closing(self._connect()) as connection,connection:
+            connection.execute('BEGIN IMMEDIATE')
+            return record(connection,exec_id,currency,amount,at,source)
+
     def has_uncertain_submission(self) -> bool:
         with closing(self._connect()) as connection:
             if connection.execute("SELECT 1 FROM order_requests WHERE mode NOT LIKE 'LEGACY%' AND status IN ('STARTED','UNKNOWN','PAPER_PENDING_CONFIRMATION','PAPER_LIMIT_PENDING_CONFIRMATION') LIMIT 1").fetchone():return True
@@ -241,16 +250,26 @@ class AuditLog:
         idempotency_key: str,
         order_ids: List[int],
         statuses: Dict[int, str],
-    ) -> None:
+        *,broker_order_evidence=None,expected_client_id=None,
+    ):
         now = datetime.now(timezone.utc).isoformat()
         with closing(self._connect()) as connection:
             with connection:
+                connection.execute('BEGIN IMMEDIATE')
+                from .entry_admission import bind_submission
+                bound=bind_submission(connection,idempotency_key,order_ids,broker_order_evidence,expected_client_id,now)
+                if bound is False:
+                    connection.execute("UPDATE order_requests SET status='UNKNOWN',details='Native submission identity incomplete; reconcile exact callback' WHERE idempotency_key=?",(idempotency_key,))
+                    self._insert_event(connection,idempotency_key,now,'NATIVE_IDENTITY_INCOMPLETE','UNKNOWN','No mutation authority inferred')
+                    return False
                 for order_id in order_ids:
                     payload = {
                         "order_id": int(order_id),
                         "order_ref": idempotency_key,
                         "status": statuses.get(order_id, ""),
                     }
+                    full=(broker_order_evidence or {}).get(order_id,(broker_order_evidence or {}).get(str(order_id)))
+                    if full:payload.update(full)
                     self._upsert_broker_order(connection, payload, now, external=False)
                     self._insert_event(
                         connection,
@@ -260,6 +279,7 @@ class AuditLog:
                         payload["status"],
                         json.dumps(payload, sort_keys=True),
                     )
+                return bound
 
     def reconcile(
         self,
@@ -516,6 +536,8 @@ class AuditLog:
                 seen_at, json.dumps(execution, sort_keys=True),
             ),
         )
+        from .execution_fees import bind_pending
+        bind_pending(connection,str(execution.get("exec_id","")),seen_at)
 
     @staticmethod
     def _require_same_identity(connection, table, key, value, incoming):

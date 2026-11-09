@@ -104,6 +104,9 @@ async def fetch_paper_cashbook(ib, account):
     from base-denominated net cash or available funds. Caller owns the client.
     """
     import asyncio
+    from datetime import datetime,timezone
+    read_started=datetime.now(timezone.utc).isoformat()
+    ledger_evidence=[]
     if ib.managedAccounts() != [account]:
         raise PermissionError('Exact account required before monetary request')
     await asyncio.wait_for(ib.accountSummaryAsync(account),8)
@@ -111,10 +114,12 @@ async def fetch_paper_cashbook(ib, account):
     async def ledger(currency):
         request_id=ib.client.getReqId()
         future=ib.wrapper.startReq(request_id)
+        started=datetime.now(timezone.utc).isoformat()
         try:
             ib.client.reqAccountSummary(request_id,'All','$LEDGER:'+currency)
             await asyncio.wait_for(future,8)
             requested.append(currency)
+            ledger_evidence.append(dict(currency=currency,request_id=request_id,started_at=started,ended_at=datetime.now(timezone.utc).isoformat()))
         finally:
             if ib.isConnected():ib.client.cancelAccountSummary(request_id)
     await ledger('USD')
@@ -126,5 +131,6 @@ async def fetch_paper_cashbook(ib, account):
     book=cashbook(list(ib.wrapper.acctSummary.values()),account)
     if 'USD' not in book['currencies'] or base not in book['currencies']:
         raise PermissionError('Broker USD and base cash rows required; missing is not zero')
-    book.update(requested_currencies=requested,currency_coverage='USD_AND_BASE_VERIFIED')
+    book.update(requested_currencies=requested,currency_coverage='USD_AND_BASE_VERIFIED',
+                cash_read_started_at=read_started,cash_read_finished_at=datetime.now(timezone.utc).isoformat(),ledger_evidence=ledger_evidence)
     return book

@@ -96,7 +96,7 @@ def collect(root, *, now=None):
     try:
         from decimal import Decimal
         usd=Decimal(currency['currencies']['USD']['amount']);cash_at=datetime.fromisoformat(currency['observed_at'])
-        cash_ready=usd.is_finite() and usd>0 and cash_at.tzinfo is not None and 0<=now-cash_at.timestamp()<=10
+        cash_ready=(currency.get('source')=='BROKER_API' and currency.get('account')==ACCOUNT and currency['currencies']['USD'].get('currency')=='USD') and usd.is_finite() and usd>0 and cash_at.tzinfo is not None and 0<=now-cash_at.timestamp()<=10
     except (KeyError,ValueError,TypeError,ArithmeticError):cash_ready=False
     check('USD_CASH_AVAILABLE',cash_ready,'RUNTIME',{'observed_USD':currency.get('currencies',{}).get('USD'),'observed_at':currency.get('observed_at'),'requirement':'Fresh positive USD cash, all buy reservations and explicit fee reserve must be checked by actual executor. EUR available funds are not USD cash.'})
     check('PORTFOLIO_RISK',safety.get('risk_allowed') is True and safety.get('risk_isolatable') is True,'APPROVAL_AND_ENGINEERING','Fresh marks, external holdings/open buys, fee/FX/funding and scoped limits must be checked by the actual executor')

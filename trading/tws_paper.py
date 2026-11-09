@@ -43,6 +43,7 @@ class OrderConfirmation:
     parent_transmit: Optional[bool] = None
     child_transmit: Optional[bool] = None
     child_rejected_parent_cancel_requested: bool = False
+    broker_order_evidence: Dict[int, Dict[str, Any]] = field(default_factory=dict)
 
     @property
     def acknowledged_ids(self) -> Tuple[int, ...]:
@@ -783,6 +784,7 @@ class TwsPaperBroker:
             acknowledged_order_ids=tuple(sorted(client.acknowledged_order_ids)),
             statuses=dict(client.order_statuses),
             open_order_states=dict(client.open_order_states),
+            broker_order_evidence={key:dict(getattr(client,'broker_orders',{})[key]) for key in order_ids if key in getattr(client,'broker_orders',{})},
             messages=tuple(client.errors),
             timings={} if timings is None else dict(timings),
             raw_limit_price=raw_limit_price,

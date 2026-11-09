@@ -210,7 +210,7 @@ class TradingService:
             source,
             daily_cap=self.settings.max_daily_notional_value,
             timezone_name=self.settings.daily_notional_timezone,
-            admission_check=self._entry_reservation_check(proposal,payload,transmit),
+            admission_check=self._entry_reservation_check(proposal,payload,transmit,linked=True),
         ):
             raise attach_workflow_step(
                 ValueError("Duplicate idempotency_key"),
@@ -254,11 +254,16 @@ class TradingService:
             status,
             self._audit_details(confirmation, transmit=transmit, bracket=True),
         )
-        self._audit.record_submission(
+        native_binding = self._audit.record_submission(
             proposal.idempotency_key,
             list(confirmation.order_ids),
             confirmation.statuses,
+            broker_order_evidence=confirmation.broker_order_evidence,
+            expected_client_id=self.settings.tws_client_id,
         )
+        if native_binding is False:
+            status = "PAPER_PENDING_CONFIRMATION"
+            self._audit.update(proposal.idempotency_key,status,"Native callback identity incomplete; exact reconciliation required")
         timings["service_audit_update_ms"] = self._elapsed_ms(audit_update_started)
         parent_id, stop_id = confirmation.order_ids
         return self._with_total_timing(
@@ -270,14 +275,15 @@ class TradingService:
                 "submitted_at": self._utc_now(),
                 "idempotency_key": proposal.idempotency_key,
                 "tws_order_ref": proposal.idempotency_key,
-                "confirmation_status": self._confirmation_status(confirmation),
+                "confirmation_status": "UNVERIFIED_NATIVE_IDENTITY" if native_binding is False else self._confirmation_status(confirmation),
+                "native_identity_verified": native_binding,
                 "preflight": {
                     "lock_state": self._lock_state(),
                     "tws": preflight,
                 },
                 "parent_order_id": parent_id,
                 "stop_order_id": stop_id,
-                "pending_confirmation": confirmation.pending_confirmation,
+                "pending_confirmation": confirmation.pending_confirmation or native_binding is False,
                 "acknowledged_order_ids": list(confirmation.acknowledged_ids),
                 "tws_statuses": confirmation.statuses,
                 "tws_open_order_states": confirmation.open_order_states,
@@ -331,7 +337,7 @@ class TradingService:
             source,
             daily_cap=self.settings.max_daily_notional_value,
             timezone_name=self.settings.daily_notional_timezone,
-            admission_check=self._entry_reservation_check(proposal,payload,transmit),
+            admission_check=self._entry_reservation_check(proposal,payload,transmit,linked=False),
         ):
             raise attach_workflow_step(
                 ValueError("Duplicate idempotency_key"),
@@ -375,11 +381,16 @@ class TradingService:
             status,
             self._audit_details(confirmation, transmit=transmit, bracket=False),
         )
-        self._audit.record_submission(
+        native_binding = self._audit.record_submission(
             proposal.idempotency_key,
             list(confirmation.order_ids),
             confirmation.statuses,
+            broker_order_evidence=confirmation.broker_order_evidence,
+            expected_client_id=self.settings.tws_client_id,
         )
+        if native_binding is False:
+            status = "PAPER_LIMIT_PENDING_CONFIRMATION"
+            self._audit.update(proposal.idempotency_key,status,"Native callback identity incomplete; exact reconciliation required")
         timings["service_audit_update_ms"] = self._elapsed_ms(audit_update_started)
         (order_id,) = confirmation.order_ids
         return self._with_total_timing(
@@ -391,13 +402,14 @@ class TradingService:
                 "submitted_at": self._utc_now(),
                 "idempotency_key": proposal.idempotency_key,
                 "tws_order_ref": proposal.idempotency_key,
-                "confirmation_status": self._confirmation_status(confirmation),
+                "confirmation_status": "UNVERIFIED_NATIVE_IDENTITY" if native_binding is False else self._confirmation_status(confirmation),
+                "native_identity_verified": native_binding,
                 "preflight": {
                     "lock_state": self._lock_state(),
                     "tws": preflight,
                 },
                 "order_id": order_id,
-                "pending_confirmation": confirmation.pending_confirmation,
+                "pending_confirmation": confirmation.pending_confirmation or native_binding is False,
                 "acknowledged_order_ids": list(confirmation.acknowledged_ids),
                 "tws_statuses": confirmation.statuses,
                 "tws_open_order_states": confirmation.open_order_states,
@@ -541,14 +553,17 @@ class TradingService:
         ):
             raise PermissionError("Invalid trade session token")
 
-    def _entry_reservation_check(self,proposal,payload,transmit):
+    def _entry_reservation_check(self,proposal,payload,transmit,*,linked):
         from trading.production_paths import STATE_ROOT
         from trading.entry_admission import reserve_cash
         def check(connection,created_at):
             self._require_submission_allowed(payload,transmit)
             decision=self._validate_risk(proposal)
             if not decision.approved:raise PermissionError('Entry risk changed before reservation commit: '+decision.reason)
-            if transmit:reserve_cash(connection,STATE_ROOT,proposal,created_at)
+            if transmit:
+                strict=(STATE_ROOT/'runtime/FUNDING_POLICY_REQUIRED').exists() or (STATE_ROOT/'runtime/funding-policy.json').exists()
+                if strict and not linked:raise PermissionError('Linked native protective entry required; raw limit-only entry is not authorized by the funded strategy path')
+                reserve_cash(connection,STATE_ROOT,proposal,created_at)
         return check
 
     def _require_daily_notional_available(self, proposal: TradeProposal) -> None:

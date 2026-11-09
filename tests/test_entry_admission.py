@@ -18,7 +18,7 @@ class EntryAdmissionTests(unittest.TestCase):
         (self.runtime/'FUNDING_POLICY_REQUIRED').touch()
         (self.runtime/'funding-policy.json').write_text(json.dumps({'approved':True,'environment':'PAPER','account':'DUQ503649','mode':'CASH_ONLY_NO_NEW_BORROWING','allow_new_currency_debit':False,'fee_reserve_usd':5}))
         now=time.time()
-        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','observed_at':datetime.fromtimestamp(now,timezone.utc).isoformat(),'currencies':{'USD':{'amount':str(cash)}}}))
+        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','observed_at':datetime.fromtimestamp(now,timezone.utc).isoformat(),'currencies':{'USD':{'amount':str(cash),'currency':'USD'}}}))
         with closing(sqlite3.connect(self.runtime/'recovery.sqlite3')) as c,c:
             c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)')
             c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':now,'epoch':'verified-epoch','orders':{}}),))
@@ -112,3 +112,77 @@ class EntryAdmissionTests(unittest.TestCase):
         with patch.object(service,'_require_submission_allowed'),patch.object(service,'_validate_risk',side_effect=[RiskDecision(True,'APPROVED','initial'),RiskDecision(False,'REJECTED','OMAX reduced')]),patch.object(service,'_tws_status',return_value={'ready_for_orders':True}),patch('trading.service.TwsPaperBroker') as broker:
             with self.assertRaisesRegex(PermissionError,'OMAX reduced'):service.submit_limit(payload,transmit=True)
         broker.assert_not_called();self.assertIsNone(service._audit.get('risk-revoked'))
+
+    def native_parent(self,key='bound',**changes):
+        return {'order_id':11,'perm_id':9911,'parent_id':0,'client_id':22,'order_ref':key,'account':'DUQ503649',
+                'symbol':'BAC','side':'BUY','con_id':9029,'currency':'USD','sec_type':'STK','order_type':'LMT','quantity':1,
+                'limit_price':100,'aux_price':0,'tif':'DAY','remaining':1,'filled':0,'status':'Submitted','transmit':True,**changes}
+
+    def test_native_binding_keeps_exact_identity_and_status_updates_do_not_change_it(self):
+        self.funding();p=self.proposal('bound');self.reserve(p,cash=True);self.audit.mark_submission_started('bound');self.audit.update('bound','PAPER_LIMIT_SUBMITTED','native ACK')
+        parent=self.native_parent()
+        self.assertTrue(self.audit.record_submission('bound',[11],{11:'Submitted'},broker_order_evidence={11:parent},expected_client_id=22))
+        self.assertTrue(self.audit.record_submission('bound',[11],{11:'Filled'},broker_order_evidence={11:{**parent,'remaining':0,'filled':1,'status':'Filled'}},expected_client_id=22))
+        with closing(self.audit._connect()) as c:
+            binding=json.loads(c.execute('SELECT binding FROM entry_native_bindings').fetchone()[0])
+        self.assertEqual(binding['parent']['perm_id'],9911);self.assertFalse(binding['mutation_authorized'])
+
+    def test_forged_order_reference_without_native_scope_never_binds_claim(self):
+        self.funding();p=self.proposal('forged');self.reserve(p,cash=True);self.audit.mark_submission_started('forged');self.audit.update('forged','PAPER_LIMIT_SUBMITTED','ACK')
+        bad=self.native_parent('forged',client_id=0)
+        self.assertFalse(self.audit.record_submission('forged',[11],{11:'Submitted'},broker_order_evidence={11:bad},expected_client_id=22))
+        self.assertTrue(self.audit.has_uncertain_submission())
+        with closing(self.audit._connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM entry_native_bindings').fetchone()[0],0)
+            self.assertEqual(c.execute('SELECT state FROM entry_cash_claims').fetchone()[0],'UNKNOWN')
+            self.assertEqual(c.execute('SELECT count(*) FROM broker_orders').fetchone()[0],0)
+
+    def cash_proof(self,parent,at,*,filled=1,remaining=0,status='Filled'):
+        stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        return {'broker_state':{'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','completed_orders','executions'],'last_server_reply':at+.9,'epoch':'new-reconciled-epoch','reconciled_at':at+1,'orders':{'native':{**parent,'filled':filled,'remaining':remaining,'status':status,'completed':status in ('Filled','Cancelled')}}},
+                'cashbook':{'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','currency_coverage':'USD_AND_BASE_VERIFIED','requested_currencies':['USD','EUR'],
+                    'cash_read_started_at':stamp(2),'cash_read_finished_at':stamp(3),'observed_at':stamp(3),'currencies':{'USD':{'amount':'899','currency':'USD'},'EUR':{'amount':'10000','currency':'EUR'}}}}
+
+    def bound_cash(self):
+        self.funding();p=self.proposal('accounting-bound');self.reserve(p,cash=True);self.audit.mark_submission_started(p.idempotency_key);self.audit.update(p.idempotency_key,'PAPER_LIMIT_SUBMITTED','native ACK')
+        parent=self.native_parent(p.idempotency_key)
+        self.audit.record_submission(p.idempotency_key,[11],{11:'Submitted'},broker_order_evidence={11:parent},expected_client_id=22)
+        return p,parent,time.time()
+
+    def test_cash_transfer_waits_for_exact_native_fill_and_actual_fee(self):
+        from trading.entry_admission import reconcile_cash_claims
+        p,parent,at=self.bound_cash();stamp=lambda offset:datetime.fromtimestamp(at+offset,timezone.utc).isoformat()
+        execution=dict(exec_id='fill-accounting',account='DUQ503649',perm_id=parent['perm_id'],order_id=11,order_ref=p.idempotency_key,symbol='BAC',side='BOT',shares=1,price=100,time=stamp(.5),con_id=9029,sec_type='STK',currency='USD')
+        with closing(self.audit._connect()) as c,c:self.audit._upsert_execution(c,execution,stamp(.5))
+        context=self.cash_proof(parent,at)
+        with closing(self.audit._connect()) as c,c:
+            reconcile_cash_claims(c,context,stamp(4))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('BROKER_ACCOUNTED_FEE_HELD','5'))
+        self.audit.record_execution_fee(execution['exec_id'],'USD',1,stamp(1.5),'commissionAndFeesReport')
+        with closing(self.audit._connect()) as c,c:
+            reconcile_cash_claims(c,context,stamp(4))
+            self.assertEqual(c.execute('SELECT state,reserved_usd FROM entry_cash_claims').fetchone()[:],('RELEASED_TO_BROKER_CASHBOOK','0'))
+
+    def test_orderref_match_without_exact_permid_and_stale_cash_cannot_release(self):
+        from trading.entry_admission import reconcile_cash_claims
+        p,parent,at=self.bound_cash();context=self.cash_proof(parent,at,filled=0,remaining=1,status='Submitted')
+        context['broker_state']['orders']['native']['perm_id']=9912
+        with closing(self.audit._connect()) as c,c:
+            reconcile_cash_claims(c,context,datetime.now(timezone.utc).isoformat())
+            self.assertEqual(c.execute('SELECT reserved_usd FROM entry_cash_claims').fetchone()[0],'105')
+        context['broker_state']['orders']['native']=parent
+        context['cashbook']['cash_read_started_at']=datetime.fromtimestamp(at-1,timezone.utc).isoformat()
+        with closing(self.audit._connect()) as c,c:
+            reconcile_cash_claims(c,context,datetime.now(timezone.utc).isoformat())
+            self.assertEqual(c.execute('SELECT reserved_usd FROM entry_cash_claims').fetchone()[0],'105')
+
+    def test_funded_strategy_cannot_bypass_linked_protection_through_limit_route(self):
+        from unittest.mock import patch
+        from tests.test_service import make_settings,valid_limit_payload
+        from trading.service import TradingService
+        self.funding()
+        service=TradingService(make_settings(str(self.root),trading_mode='PAPER',allow_paper_transmit=True,trade_session_token='session-ok',max_order_value=400))
+        payload=valid_limit_payload('no-unprotected-entry');payload['trade_session_token']='session-ok'
+        with patch('trading.production_paths.STATE_ROOT',self.root),patch.object(service,'_tws_status',return_value={'ready_for_orders':True}),patch('trading.service.TwsPaperBroker') as broker:
+            with self.assertRaisesRegex(PermissionError,'Linked native protective entry required'):service.submit_limit(payload,transmit=True)
+        broker.assert_not_called();self.assertIsNone(service._audit.get(payload['idempotency_key']))

@@ -138,6 +138,29 @@ class PaperSafetyClient(TwsPaperClient):
             self.executions[key]=evidence
             self.monitor.execution(evidence)
 
+    def commissionReport(self, report):
+        amount=getattr(report,'commission',None)
+        # Legacy decoder also maps an empty wire amount to zero; no presence proof is available.
+        if amount==0:amount=None
+        self.monitor.execution_fee(str(getattr(report,'execId','')),str(getattr(report,'currency','')),
+                                   amount,'commissionReport')
+
+    def commissionAndFeesReportProtoBuf(self, message):
+        # The SDK immediately emits a normalized callback, defaulting an absent fee to 0.
+        # Preserve presence so missing protobuf data cannot become an explicit zero fee.
+        self._fee_proto_presence=(str(getattr(message,'execId','')),all(message.HasField(k) for k in ('execId','currency','commissionAndFees')))
+
+    def commissionAndFeesReport(self, report):
+        presence=getattr(self,'_fee_proto_presence',None)
+        native_id=str(getattr(report,'execId',''));source='commissionAndFeesReport'
+        amount=getattr(report,'commissionAndFees',None)
+        if presence and presence[0]==native_id:
+            self._fee_proto_presence=None;source='commissionAndFeesReportProtoBuf'
+            if not presence[1]:amount=None
+        elif amount==0:
+            amount=None # A legacy normalized zero cannot prove that the native field was present.
+        self.monitor.execution_fee(native_id,str(getattr(report,'currency','')),amount,source)
+
     def position(self, account, contract, quantity, avgCost):
         self.monitor.position(contract.symbol, quantity, account,
                               con_id=getattr(contract,'conId',0),currency=getattr(contract,'currency',''),

@@ -25,6 +25,7 @@ def enforce(root,proposal,*,now=None):
         at=datetime.fromisoformat(book['observed_at'])
         if at.tzinfo is None or not 0<=now-at.timestamp()<=10:raise ValueError('Fresh currency cashbook <=10s required')
         if book.get('source')!='BROKER_API' or book.get('account')!='DUQ503649':raise ValueError('Exact broker funding identity required')
+        if book['currencies']['USD'].get('currency')!='USD':raise ValueError('Explicit USD cash unit required; never treat EUR or unitless funds as USD')
         cash=Decimal(book['currencies']['USD']['amount']);fee=Decimal(str(policy.get('fee_reserve_usd')))
         if not cash.is_finite() or not fee.is_finite() or fee<=0:raise ValueError('Explicit positive fee/FX reserve required; missing fees are not zero')
         # Reserve every active external BUY, not just local strategy intents. Unknown pricing blocks.
@@ -35,6 +36,10 @@ def enforce(root,proposal,*,now=None):
             state=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
         if not (state.get('identity') is True and state.get('connected') is True and state.get('dirty') is False and state.get('upstream_connected') is True
                 and set(state.get('ends',[]))=={'positions','orders','completed_orders','executions'} and 0<=now-state.get('last_server_reply',0)<=10):raise ValueError('Fresh complete broker reservations required')
+        changed=state.get('latest_cash_change_at',0)
+        if changed:
+            started=datetime.fromisoformat(book['cash_read_started_at'])
+            if started.tzinfo is None or started.timestamp()<changed:raise ValueError('Cash ledger read predates known execution/fee update')
         reserved=Decimal(0)
         for order in state.get('orders',{}).values():
             if order.get('completed') or order.get('status') in ('Filled','Cancelled','ApiCancelled','Inactive'):continue
@@ -43,10 +48,11 @@ def enforce(root,proposal,*,now=None):
             qty=Decimal(str(order['remaining']));price=Decimal(str(order['limit_price']))
             if not qty.is_finite() or not price.is_finite() or qty<0 or price<=0:raise ValueError('Invalid active buy reservation')
             reserved+=qty*price+fee
+        if type(proposal.quantity) is not int or proposal.quantity<=0:raise ValueError('Positive whole-share cash claim quantity required')
         cost=Decimal(proposal.quantity)*Decimal(str(proposal.limit_price))+fee
         if not cost.is_finite() or cost<=0 or cash-reserved<cost:raise ValueError('USD cash cannot cover entry, all active buys and fee reserve; no new borrowing allowed')
         return dict(cash_usd=str(cash),external_reserved_usd=str(reserved),cost_usd=str(cost),fee_reserve_usd=str(fee),
                     cash_observed_at=book['observed_at'],broker_epoch=state.get('epoch'),
-                    broker_reconciled_at=state.get('reconciled_at'),broker_state=state)
+                    broker_reconciled_at=state.get('reconciled_at'),broker_state=state,cashbook=book)
     except Exception as exc:
         raise PermissionError('Cash-only gate blocked: '+str(exc)) from exc

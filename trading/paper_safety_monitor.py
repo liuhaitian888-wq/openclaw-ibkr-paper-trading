@@ -63,7 +63,7 @@ class PaperSafetyMonitor:
                           incident_sequences=prior.get('incident_sequences', {}),
                           executions=prior.get('executions', {}), epoch=uuid.uuid4().hex,
                           connected=False, identity=False, upstream_connected=False, ends=[], dirty=True,
-                          last_server_reply=0,
+                          last_server_reply=0, latest_cash_change_at=prior.get('latest_cash_change_at',0),
                           needs_recovery_sync=True, resubscribe_required=False, pause_scopes=prior.get('pause_scopes'), history_evidence={}, history_request_started=prior.get('history_request_started',{}), pause_transition_sequence=max(prior.get('pause_transition_sequence',0),transition_seq),
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
                           subscription_lifecycle_version=1, quotes={}, bars={}, market_types={}, market_halts={}, market_errors={}, symbol_reset_at={}, legacy_collision=False,
@@ -257,6 +257,7 @@ class PaperSafetyMonitor:
             except Exception:
                 self.invalidate('AUDIT_EXECUTION_PERSISTENCE_FAILED')
                 raise
+            if old is None:self.state['latest_cash_change_at']=self.clock()
             self.state['executions'][key] = execution
             self._record('execution',execution)
             if old is None and set(self.state['ends']) == ENDS:
@@ -264,6 +265,22 @@ class PaperSafetyMonitor:
             elif old is None:
                 self.state['sync_new_execution'] = True
             self._publish()
+
+    def execution_fee(self,exec_id,currency,amount,source):
+        with self.lock:
+            now=self.clock();at=datetime.fromtimestamp(now,timezone.utc).isoformat()
+            try:changed=self.audit.record_execution_fee(exec_id,currency,amount,at,source)
+            except sqlite3.Error:
+                self.invalidate('AUDIT_FEE_PERSISTENCE_FAILED')
+                return False
+            except (ValueError,TypeError,ArithmeticError):
+                self._record('execution_fee_unavailable',dict(exec_id=str(exec_id)[:200],currency=str(currency)[:12],source=source))
+                return False
+            if changed:
+                self.state['latest_cash_change_at']=max(now,self.state.get('latest_cash_change_at',0))
+                self._record('execution_fee',dict(exec_id=exec_id,currency=currency,amount=str(amount),source=source))
+                self._publish()
+            return changed
 
     def position(self, symbol, quantity, account=ACCOUNT, *, con_id=0, currency='', sec_type=''):
         with self.lock:
