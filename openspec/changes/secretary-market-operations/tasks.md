@@ -42,3 +42,6 @@
 - [ ] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled.
 
 The earlier API-key entry/access tasks are superseded by the owner OAuth choice, retained unchecked as historical work rather than completion claims.
+
+- [x] Add deterministic API/cloud/market status views with observation freshness and missing-evidence behavior.
+- [ ] Verify isolated offline suite, secret scan, native menu readback and owner click separately.

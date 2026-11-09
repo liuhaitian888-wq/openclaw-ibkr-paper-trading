@@ -87,3 +87,7 @@ Source98cd05a adds the bounded provider, credential input and dormant systemd un
 ### Owner OAuth correction
 
 OAuth is the selected route; API-key instructions above describe superseded preparation. Cloud login, actualgpt-6.1-sol/low access and Mac-disabled native private reply remain required before acceptance.
+
+### Owner-private status menu
+
+The existing secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls. They SHALL read existing real runtime observations through the shared health resolver, show observation time and freshness, and fail UNKNOWN for unavailable evidence. Old HEALTHY records SHALL NOT imply current availability. Provider configuration and cloud host snapshots SHALL be distinguished from successful model calls and live Telegram reachability. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.
