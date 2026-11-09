@@ -23,3 +23,21 @@ The system SHALL distinguish archived engineering prompts from an accepted Codex
 #### Scenario: No connected consumer
 - **WHEN** an engineering packet is generated without a verified Codex consumer
 - **THEN** the owner receives a copyable prompt and the state SHALL NOT claim that Codex was woken or work completed.
+
+### Requirement: Honest message receipt
+The secretary SHALL distinguish durable receipt from confirmed model execution and SHALL disclose the current Mac bridge dependency while cloud API access is unavailable. An acknowledgement SHALL NOT claim analysis has started solely because a message was stored.
+
+#### Scenario: Model dependency unavailable
+- **WHEN** an owner instruction is stored without confirmed model execution
+- **THEN** the acknowledgement describes receipt and pending processing without promising an executing analysis or guaranteed response time.
+
+### Requirement: Bounded public filing explanations
+The system SHALL publish only validated public SEC filing metadata through a fixed explanation template to deehub. Arbitrary model research, account details and payload prose SHALL remain private. The explanation SHALL identify unparsed financial information and SHALL NOT claim that the filing body was analyzed.
+
+#### Scenario: Valid public filing with private prose
+- **WHEN** a validated SEC filing notification also contains arbitrary private prose
+- **THEN** the group receives only fixed metadata explanations, source and publication time without that prose.
+
+#### Scenario: Unapproved source or model research
+- **WHEN** a notification has an unapproved SEC URL or is a private model research result
+- **THEN** it remains owner-private and is not eligible for public group delivery.
