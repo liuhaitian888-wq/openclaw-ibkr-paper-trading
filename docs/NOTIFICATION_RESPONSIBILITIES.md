@@ -56,3 +56,5 @@
 只读复核（2026-11-10 00:22柏林）：云HEAD d390d77；群名deehub，描述SHA256 e0c2520c5a8ca760a78174439b88abbce41dd28e6eaf9924b18c1707c92aaa7f。11月8日告警980/message156（02:00:06），实际日报补报986/message159（02:20:53）已被Telegram接收。11月9日1094仍UNKNOWN/无回执；原PNG指纹已与当前可变文件不符。云掉线原因未证明。11月10日00:01:44准备不等于02:00发送，下一次实际投递待时刻到达后核验。原生metadata不识别修改客户端/具体操作者，沿用已有证据结论UNKNOWN。
 
 实施和验证日志保存在~/.local/state/openclaw/engineering/notification-recovery-20261110/。最终源码/离线/秘密扫描/云身份/真实投递状态分别在task-closeout与验收记录追加。
+
+部署复核补充：群简介新SHA f10aedbe12f0e4d8d2b4a4dfdab4ccf06da2ac9839a3d61f617e177fff5facf3已原生回读，保持原文，修改来源/客户端仍待核验。supervisor首轮误纳入8条旧预检耗尽历史，修正为仅审阅有新attempt的耗尽项，同轮未决私聊合并一条并逐事件关联；已发13条简报留痕，不删除或冒充测试。risk聚合1340（7/0）受旧STARTED1270–1272守卫阻断，暂无群摘要回执，不以代码或服务active冒充真实投递验收。
