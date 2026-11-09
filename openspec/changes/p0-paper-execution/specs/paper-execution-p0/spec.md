@@ -108,3 +108,30 @@ Approved continuous cash collection SHALL prevent the finite FX adapter from ove
 #### Scenario: Finite FX completes while continuous publication is approved
 - **WHEN** a finite exchange produces its independently reconciled cash receipt
 - **THEN** that receipt remains archived and the continuous cashbook file is left to its approved owner
+
+
+### Requirement: Evidence from the existing native base-health owner
+The system SHALL publish base account health only from fresh exact-account, connection, epoch and native receipt evidence. Account amounts SHALL retain explicit currency, and unavailable PnL or units SHALL NOT become synthetic zero or monetary permission.
+
+#### Scenario: Positive ordinary cash and negative settled cash
+- **WHEN** complete native account facts contain positive trade-date USD and a negative current settlement balance
+- **THEN** data availability may be healthy while no-new-borrowing entry remains independently blocked
+
+#### Scenario: Callback publication partially commits before a storage failure
+- **WHEN** persisted PnL exists but its native owner retains a publication failure latch
+- **THEN** that presence cannot promote account health or clear the failure
+
+### Requirement: Native transport ownership and local durability
+The system SHALL keep authenticated native transport evidence distinct from generic public network availability. Configured native ownership SHALL prevent generic recovery from allocating another broker client. Local storage health SHALL require an actual bounded commit and readback, not cached process liveness.
+
+#### Scenario: Public egress is unavailable but native broker evidence is verified
+- **WHEN** the approved native owner proves its exact account-ready receipt and current broker clock
+- **THEN** broker-specific data dependencies may use that native session leaf, while generic NETWORK remains unchanged and trading authority stays separate
+
+#### Scenario: Market or risk integration is incomplete
+- **WHEN** native ownership is enabled and generic recovery encounters unverified market or risk modules
+- **THEN** no generic broker probe is created and these modules remain unverified
+
+#### Scenario: Repeated parent loss while a child never recovered
+- **WHEN** a parent records distinct recovery and loss occurrences while its child remains in the same invalidated phase
+- **THEN** parent occurrences and latest child timestamps are retained without duplicating the unchanged child event payload

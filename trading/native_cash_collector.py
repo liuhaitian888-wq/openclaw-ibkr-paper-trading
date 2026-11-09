@@ -14,7 +14,7 @@ class CashbookFrameRejected(PermissionError):
 
 ACCOUNT='DUQ503649'
 KEEP={'CashBalance','ExchangeRate','AvailableFunds','TotalCashValue','NetLiquidation',
-      'AccountReady','AccountType','SettledCashByDate','SettledCashByDate-S'}
+      'AccountReady','AccountType','BuyingPower','SettledCashByDate','SettledCashByDate-S'}
 
 class NativeCashCollector:
     def __init__(self,client,*,account,connection_generation,admitted,publish,observe,

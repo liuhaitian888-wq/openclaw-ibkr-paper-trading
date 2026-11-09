@@ -44,7 +44,7 @@ class Health:
 
 # Shared module resolver. Existing delivery probes remain the leaf-observation API.
 MODULE_DEPENDENCIES = {
- 'NETWORK': (), 'DATABASE': (), 'LOCAL_STATE': ('DATABASE',),
+ 'NETWORK': (), 'NATIVE_BROKER_SESSION': (), 'DATABASE': (), 'LOCAL_STATE': ('DATABASE',),
  'AUDIT': ('DATABASE',), 'DIAGNOSTICS': (), 'REPORT_ARCHIVE': (),
  'IBKR_CONNECTION': ('NETWORK',), 'MARKET_DATA': ('IBKR_CONNECTION',),
  'NEWS': ('IBKR_CONNECTION',), 'ACCOUNT': ('IBKR_CONNECTION',), 'POSITIONS': ('ACCOUNT',),
@@ -74,7 +74,7 @@ MODULE_DEPENDENCIES = {
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'NOTIFICATION_RECONCILIATION','CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','CASH_CONVERSION','PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+LIVE_MODULES = {'NOTIFICATION_RECONCILIATION','NATIVE_BROKER_SESSION','CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','CASH_CONVERSION','PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
 
 
 def dependency_registry(observations):
@@ -86,11 +86,21 @@ def dependency_registry(observations):
     if observations.get('RISK_CONTROLS',{}).get('enabled') is True:registry['RISK']=(*registry['RISK'],'RISK_CONTROLS')
     if observations.get('CURRENCY_BOOK',{}).get('enabled') is True:registry['ORDER_SUBMISSION']=(*registry['ORDER_SUBMISSION'],'CURRENCY_BOOK')
     registry['DELIVERY']=('REPORT','DELIVERY_LEDGER',provider)
+    if observations.get('NATIVE_BROKER_SESSION',{}).get('enabled') is True:
+        registry['IBKR_CONNECTION']=('NATIVE_BROKER_SESSION',)
     if observations.get('SECRETARY_MODEL',{}).get('provider')=='openai_responses':
         registry['SECRETARY_MODEL']=('NETWORK','SECRETARY_API_CREDENTIAL')
     elif observations.get('SECRETARY_MODEL',{}).get('provider')=='codex_oauth':
         registry['SECRETARY_MODEL']=('NETWORK','SECRETARY_OAUTH')
     return registry
+
+
+def callback_owned_modules(observations):
+    """Reserve native integration modules; unimplemented ones remain unverified."""
+    owned={'CURRENCY_BOOK'} if observations.get('CURRENCY_BOOK',{}).get('enabled') is True else set()
+    if observations.get('NATIVE_BROKER_SESSION',{}).get('enabled') is True:
+        owned.update(('NATIVE_BROKER_SESSION','IBKR_CONNECTION','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','MARKET_DATA','RISK','PROTECTION','PAPER_SESSION'))
+    return frozenset(owned)
 
 
 def resolve_modules(observations, *, now=None, max_age=120):
@@ -107,7 +117,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
             except (KeyError,ValueError,TypeError):age=None
             limit = min(max_age,5) if name in ('PROTECTION','PAPER_SESSION') else max_age
-            if name=='CURRENCY_BOOK':limit=10
+            if name in ('CURRENCY_BOOK','NATIVE_BROKER_SESSION'):limit=10
             elif name in ('MARKET_CLOCK','ENGINEERING_WEEKLY'):limit=180
             elif name=='BROAD_SCREENING':limit=36*3600
             elif name=='BROKER_SCANNER':limit=3600
@@ -121,7 +131,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':(name not in ('NOTIFICATION_RECONCILIATION','CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','PROTECTION_REPAIR','CASH_CONVERSION','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('NOTIFICATION_RECONCILIATION','NATIVE_BROKER_SESSION','CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','PROTECTION_REPAIR','CASH_CONVERSION','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}
