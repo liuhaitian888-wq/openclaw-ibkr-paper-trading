@@ -22,3 +22,9 @@ Paper DUQ503649的已确认现金换汇保留了券商CASH EUR/USD位置-64414�
 ## 验证与部署
 
 完整隔离1063项/76.618s/OK；资源回归FD5及恢复FD4/线程1→1保持；gitleaks与5项OpenSpec strict通过。Git整合与原生结果待追加。生产部署前比较有限保护scope依赖，保持原权限、到期及提交预算；不重放已FILLED换汇。现有提醒/周报及第三方研究结果保持独立。
+
+实际云端源码9f66cd8，监测/Gateway/保护scope身份验证PASS，8个保护核心依赖逐字节一致，scope只换commit；原保护到期/数量/预算与已用完的换汇scope不变。仅优雅重启既有paper-safety和inbox，Gateway1450345不变。原生四项end完整、dirty=false、0.13秒级服务回复；六只股票/活动订单/成交经济字段部署前后相等。EUR/USD -64414单列、unsupported0、EUR缺股票保护误报RESOLVED，PFE仍受原保护，其他五只仍未取得原生保护回执。新回调仅补齐成交类型，不新造成交。
+
+独立只读客户端在同一准确Paper账户取得新的USD与EUR ledger end；部署身份与kernel owner验证后复读，USD2019.4231/EUR943040.605，两者无现金负债。券商记账参考USD→EUR0.8970107，2000USD≈1794.0214EUR，不是可执行bid/ask换汇报价；本次不更新持续准入cashbook或创建新的换汇操作。所有原始收据及部署前SQLite备份保存在engineering/typed-portfolio-20261109。
+
+当前无未知券商订单，旧delivery UNKNOWN1继续保留且不重放；股票全自动仍未放行，2.2—2.5未因本子任务验收而勾选。

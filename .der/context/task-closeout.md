@@ -56,3 +56,9 @@ Nasdaq官方计划2026-12-06启用夜盘，当前阶段规则保守核验至12-0
 受影响图表核对：现有工程维护分界图与宽筛来源/券商关系图拓扑不变；本次增加的是既有秘书通知路径的两个有界生产者，不改宽筛或维护流程。旧untracked交易图保留，没有伪造重绘/视觉验收。源码/离线验证/部署/真实回执分开追加。
 
 实际验收追加：02d264b；1054项/80.411s/OK、secret scan与OpenSpec5项strict PASS。云端源码和身份已整合，保护scope7个核心文件未改、health新增通知依赖经复核，scope只换commit，原保护授权不扩大。仅inbox和notification优雅重启；Gateway1450345、全局门禁哈希不变。22项私人菜单set/get一致，日历137/138/139及上线说明140已Telegram接受。真实周报预览2227字，首次周日定时未观察；App Server仍仅initialize ACK。旧delivery UNKNOWN1不重放、未新增未知券商订单。两次部署辅助脚本错误已纠正，失败与最终收据一并保留。完整股票自动化仍PARTIAL，不在此变更放行。
+
+## Typed portfolio P0 subtask — Nov9
+
+源码9f66cd8；1063项/76.618s/OK，secret scan及5项OpenSpec strict PASS。共享纯分类保留raw position，区分stock/FX pair/unsupported；未知资产继续fail-closed，活动FX订单不被股票gross计算忽略。execId只允许补缺少的合约证据，不改经济字段。原生完整四项readback证明6只股票、原挂单和成交经济字段不变，EUR/USD-64414仍可见，EUR缺股票止损误报已厘清，PFE旧保护未动。独立有部署身份与kernel owner的cashbook复读USD2019.4231/EUR943040.605。
+
+云端8个有限保护依赖逐字节一致，scope只换commit，Gateway1450345、全局gate hashes及换汇spent scope不变。仅重启既有read-only paper-safety与inbox，未发订单。原生验收不是完整canonical策略所有权或T0验收，P0任务2.2—2.5仍未收口。已告知Telegram，回执单独核验。图表：数据类型与证据字段补齐，不改变既有callback/维护/宽筛拓扑；旧untracked图保留。证据engineering/typed-portfolio-20261109。
