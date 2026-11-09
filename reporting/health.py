@@ -49,6 +49,7 @@ MODULE_DEPENDENCIES = {
  'IBKR_CONNECTION': ('NETWORK',), 'MARKET_DATA': ('IBKR_CONNECTION',),
  'NEWS': ('IBKR_CONNECTION',), 'ACCOUNT': ('IBKR_CONNECTION',), 'POSITIONS': ('ACCOUNT',),
  'ORDERS': ('ACCOUNT',), 'EXECUTIONS': ('ACCOUNT',),
+ 'CURRENCY_BOOK': ('ACCOUNT','EXECUTIONS','AUDIT'),
  'FINANCIAL_LEDGER': ('DATABASE',), 'EVENT_STORE': ('DATABASE',),
  'CANONICAL_STATE': ('DATABASE',),
  'RISK_CONTROLS': (),
@@ -72,7 +73,7 @@ MODULE_DEPENDENCIES = {
  'WATCHDOG': ('LOCAL_STATE',), 'MANIFEST': ('LOCAL_STATE',),
 }
 MODULE_STATES = {'HEALTHY','DEGRADED','OFFLINE','WAITING_DEPENDENCY','RECOVERING','PAUSED','FAILED'}
-LIVE_MODULES = {'MARKET_CLOCK','ENGINEERING_WEEKLY','CASH_CONVERSION','PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
+LIVE_MODULES = {'CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','CASH_CONVERSION','PROTECTION_REPAIR','SECRETARY_LIMITS','GATEWAY_RECOVERY','INTELLIGENCE_BROKER','INTELLIGENCE_PUBLIC','SECRETARY_MODEL','SECRETARY','SMTP','TELEGRAM','NEWS','NETWORK','IBKR_CONNECTION','MARKET_DATA','ACCOUNT','POSITIONS','ORDERS','EXECUTIONS','FEISHU','RISK','STRATEGY','ORDER_SUBMISSION','PROTECTION','PAPER_SESSION'}
 
 
 def dependency_registry(observations):
@@ -82,6 +83,7 @@ def dependency_registry(observations):
     provider={'telegram':'TELEGRAM','smtp':'SMTP','feishu':'FEISHU'}.get(transport)
     if provider is None:raise ValueError('Unknown primary delivery transport')
     if observations.get('RISK_CONTROLS',{}).get('enabled') is True:registry['RISK']=(*registry['RISK'],'RISK_CONTROLS')
+    if observations.get('CURRENCY_BOOK',{}).get('enabled') is True:registry['ORDER_SUBMISSION']=(*registry['ORDER_SUBMISSION'],'CURRENCY_BOOK')
     registry['DELIVERY']=('REPORT','DELIVERY_LEDGER',provider)
     return registry
 
@@ -100,7 +102,8 @@ def resolve_modules(observations, *, now=None, max_age=120):
             try:age=(now-datetime.fromisoformat(raw['observed_at'])).total_seconds()
             except (KeyError,ValueError,TypeError):age=None
             limit = min(max_age,5) if name in ('PROTECTION','PAPER_SESSION') else max_age
-            if name in ('MARKET_CLOCK','ENGINEERING_WEEKLY'):limit=180
+            if name=='CURRENCY_BOOK':limit=10
+            elif name in ('MARKET_CLOCK','ENGINEERING_WEEKLY'):limit=180
             elif name=='BROAD_SCREENING':limit=36*3600
             elif name=='BROKER_SCANNER':limit=3600
             if age is None or age<0 or age>limit:
@@ -113,7 +116,7 @@ def resolve_modules(observations, *, now=None, max_age=120):
             if name in LIVE_MODULES:freshness='STALE'
         if state=='HEALTHY' and name in LIVE_MODULES and freshness!='FRESH':
             state='DEGRADED';reason='Fresh data not established'
-        result[name]={**raw,'active':(name not in ('MARKET_CLOCK','ENGINEERING_WEEKLY','PROTECTION_REPAIR','CASH_CONVERSION','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
+        result[name]={**raw,'active':(name not in ('CURRENCY_BOOK','MARKET_CLOCK','ENGINEERING_WEEKLY','PROTECTION_REPAIR','CASH_CONVERSION','BROAD_SCREENING','BROKER_SCANNER') or raw.get('enabled') is True) and (not name.startswith('INTELLIGENCE_') or raw.get('enabled') is True) and (name not in ('TELEGRAM','SMTP','FEISHU') or name==primary) and (name!='RISK_CONTROLS' or observations.get('RISK_CONTROLS',{}).get('enabled') is True) and (not name.startswith('SECRETARY') or observations.get('SECRETARY',{}).get('enabled') is True) and (name!='GATEWAY_RECOVERY' or raw.get('enabled') is True),'state':state,'freshness':freshness,'reason':reason,
             'blocking_dependency':blocked,'last_success':raw.get('last_success'),
             'last_failure':raw.get('last_failure'),'next_retry':raw.get('next_retry'),
             'recovery_state':raw.get('recovery_state','IDLE'),'observed_at':raw.get('observed_at')}

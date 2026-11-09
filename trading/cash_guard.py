@@ -56,6 +56,10 @@ def enforce(root,proposal,*,now=None):
             state=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
         if not (state.get('identity') is True and state.get('connected') is True and state.get('dirty') is False and state.get('upstream_connected') is True
                 and set(state.get('ends',[]))=={'positions','orders','completed_orders','executions'} and 0<=now-state.get('last_server_reply',0)<=10):raise ValueError('Fresh complete broker reservations required')
+        if (not state.get('epoch') or book.get('broker_epoch')!=state['epoch']
+                or not book.get('connection_generation') or book['connection_generation']!=state.get('api_protocol',{}).get('connection')
+                or not state.get('reconciled_at') or cash_started.timestamp()<state['reconciled_at']):
+            raise ValueError('Cashbook must follow the current native epoch, connection and reconciliation')
         changed=state.get('latest_cash_change_at',0)
         if changed:
             started=datetime.fromisoformat(book['cash_read_started_at'])

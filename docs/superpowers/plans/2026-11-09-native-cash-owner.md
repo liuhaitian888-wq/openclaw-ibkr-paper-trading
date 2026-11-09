@@ -42,14 +42,14 @@
 
 ### Task 2: Existing owner integration and immutable publication
 
-**Files:** Modify `trading/paper_safety_client.py`, `ops/cloud/paper_safety_watch.py`, `trading/entry_admission.py`, `reporting/health.py`; extend collector tests and shared health tests.
+**Files:** Create `trading/native_cash_publication.py`; modify `trading/paper_safety_client.py`, `ops/cloud/paper_safety_watch.py`, `trading/entry_admission.py`, `reporting/health.py`; extend collector tests and shared health tests.
 
 **Interfaces:** Optional client constructor `cashbook_publisher=None` leaves legacy behavior disabled. SDK callbacks delegate only owned accountUpdateMulti requests. `poll_cashbook()` is called by the existing service loop; `close_cashbook()` precedes SDK disconnect. Approved opt-in is `runtime/monitoring-deployment.json.native_cashbook_observation_approved=true`, never a production.json or trading release change. `publish_native_cashbook(root, monitor, book)` checks complete current identity/generation and execution/fee ordering, fsyncs an atomic private file and records only compact health metadata, not every full snapshot in callback history.
 
-- [ ] Add tests: default no request; opt-in delegates exact ID; changed native state rejects publication; atomic write leaves old target intact on failure; per-request resources close; repeated polling retains bounded FD/thread counts.
-- [ ] Add opt-in CURRENCY_BOOK in shared dependency registry before ORDER_SUBMISSION; freshness10s; dynamic ORDER_SUBMISSION dependency only when enabled. Negative balances can be healthy data without becoming spend permission.
-- [ ] Retain full admitted baseline cashbook in its once-per-intent audit claim; repeated polls do not create unbounded full-snapshot archive rows.
-- [ ] Full isolated suite, secrets and OpenSpec strict validation; commit owner integration.
+- [x] Add tests: default no request; opt-in delegates exact ID; changed native state rejects publication; atomic write leaves old target intact on failure; per-request resources close; repeated polling retains bounded FD/thread counts.
+- [x] Add opt-in CURRENCY_BOOK in shared dependency registry before ORDER_SUBMISSION; freshness10s; dynamic ORDER_SUBMISSION dependency only when enabled. Negative balances can be healthy data without becoming spend permission.
+- [x] Retain full admitted baseline cashbook in its once-per-intent audit claim; repeated polls do not create unbounded full-snapshot archive rows.
+- [x] Full isolated1130/75.179s/OK; independent static review found no actionable regression; secrets/OpenSpec and owner integration commit recorded in Git.
 
 ### Task 3: Stop competing latest-book writers and verify native deployment
 
@@ -57,7 +57,7 @@
 
 **Interfaces:** Completed finite FX retains result/native receipt as before; when continuous cashbook owner is approved, it does not overwrite `runtime/currency-book.latest.json`. Existing legacy behavior remains when opt-in is absent.
 
-- [ ] Pin the finite/continuous writer separation in an offline test; full suite/secrets must pass.
+- [x] Pin finite/continuous writer separation and private legacy file ownership; included in1130 isolated tests.
 - [ ] Commit and Git-integrate into main; quick smoke only, preserve unrelated files. Before any cloud integration, review additive schema changes on an isolated backup, exact identity files and unchanged order/permission boundaries.
 - [ ] Native opt-in only after verified code and source backup; use the same monitor owner, bounded shutdown and fresh exact Paper cash/settlement callback proof. Do not restart a healthy Gateway or enable API/strategy.
 - [ ] Verify newest file/health timestamps, positive ordinary versus negative settled USD, no new order/FX operation, preserved six stops and spent scopes; archive receipts and update P0 tasks without claiming whole strategy READY.

@@ -80,6 +80,7 @@ def reserve_cash(connection,root,proposal,created_at):
     # Until an exact native binding is reconciled, keeping a claim can be conservative.
     # Do not deduplicate by a look-alike orderRef or drop a claim merely on ACK/FAILED.
     evidence={k:v for k,v in context.items() if k not in ('broker_state','cashbook')}
+    evidence['baseline_cashbook']=context['cashbook']
     evidence['baseline_fee_usd']=str(sum((decimal(row[0]) for row in connection.execute("SELECT amount FROM execution_fee_facts WHERE account='DUQ503649' AND currency='USD'")),Decimal(0)))
     evidence['snapshot_sha256']=hashlib.sha256(json.dumps(context['broker_state'],sort_keys=True).encode()).hexdigest()
     evidence['cashbook_sha256']=hashlib.sha256(json.dumps(context['cashbook'],sort_keys=True).encode()).hexdigest()

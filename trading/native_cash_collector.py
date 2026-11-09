@@ -15,15 +15,22 @@ KEEP={'CashBalance','ExchangeRate','AvailableFunds','TotalCashValue','NetLiquida
 
 class NativeCashCollector:
     def __init__(self,client,*,account,connection_generation,admitted,publish,observe,
-                 clock=time.time,monotonic=time.monotonic):
+                 clock=time.time,monotonic=time.monotonic,allocate_request_id=None):
         if account!=ACCOUNT or not isinstance(connection_generation,str) or not connection_generation:
             raise PermissionError('Exact Paper account and connection generation required')
         self.client,self.account=client,account
         self.connection_generation=connection_generation
         self.admitted,self.publish,self.observe=admitted,publish,observe
         self.clock,self.monotonic=clock,monotonic
+        self.allocate_request_id=allocate_request_id
         self.lock=threading.RLock();self.pending=None;self.closed=False;self.poisoned=False
         self.sequence=0;self.last_attempt=None
+
+    def _observe(self,state,reason,**metadata):
+        try:self.observe(state,reason,**metadata)
+        except Exception:
+            # Let the owner loop close/reconnect; do not silently kill the SDK callback worker.
+            self.poisoned=True
 
     def _stamp(self):return datetime.fromtimestamp(self.clock(),timezone.utc).isoformat()
 
@@ -39,7 +46,7 @@ class NativeCashCollector:
             except Exception:
                 poison=True;reason='CASHBOOK_CANCEL_FAILED'
         self.poisoned=self.poisoned or poison
-        if reason:self.observe('DEGRADED',reason,enabled=True,grants_trading_permission=False)
+        if reason:self._observe('DEGRADED',reason,enabled=True,grants_trading_permission=False)
 
     def poll(self):
         with self.lock:
@@ -55,8 +62,8 @@ class NativeCashCollector:
             if not self.client.isConnected() or self.client.accounts!=[self.account] or not self.admitted():return
             started=self._stamp()
             self.sequence+=1
-            if self.sequence>=1000000:raise RuntimeError('Cash request namespace exhausted; reconnect required')
-            request=800000000+self.sequence
+            request=self.allocate_request_id() if self.allocate_request_id is not None else 800000000+self.sequence
+            if type(request) is not int or not 800000000<request<2147483648:raise RuntimeError('Invalid or exhausted cash request namespace')
             self.pending={'id':request,'started_at':started,'elapsed_start':elapsed,'values':{},'invalid':None,'bytes':0}
             self.last_attempt=elapsed
             try:self.client.reqAccountUpdatesMulti(request,self.account,'',False)
@@ -117,8 +124,8 @@ class NativeCashCollector:
             if self.poisoned:return
             try:self.publish(book)
             except Exception:
-                self.observe('DEGRADED','CASHBOOK_PUBLICATION_FAILED',enabled=True,grants_trading_permission=False);return
-            self.observe('HEALTHY','Complete native cash and settlement facts; no spending permission',
+                self._observe('DEGRADED','CASHBOOK_PUBLICATION_FAILED',enabled=True,grants_trading_permission=False);return
+            self._observe('HEALTHY','Complete native cash and settlement facts; no spending permission',
                 enabled=True,connection_generation=self.connection_generation,request_id=request,grants_trading_permission=False)
 
     def close(self):

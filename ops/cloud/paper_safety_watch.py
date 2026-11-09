@@ -164,12 +164,20 @@ def main():
                 'authoritative_state_verified':manifest.get('canonical_current_state_verified') is True,
                 'risk_isolatable':safety.get('risk_isolatable') is True,
                 'operator_paused':(root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists()})
+        monitoring=json.loads((root/'runtime/monitoring-deployment.json').read_text())
+        cashbook_publisher=None
+        if monitoring.get('native_cashbook_observation_approved') is True:
+            from trading.native_cash_publication import publish_native_cashbook
+            cashbook_publisher=lambda book:publish_native_cashbook(root,monitor,book)
+        else:
+            monitor.coordinator.observe('CURRENCY_BOOK','PAUSED',freshness='UNKNOWN',enabled=False,
+                reason='Continuous native cash observation not configured',grants_trading_permission=False)
         while not stopped.is_set():
             if not monitor.admit_connection(gateway_generation(),api_listening=api_listener_ready()):
                 monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
                 stopped.wait(30)
                 continue
-            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'))
+            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'),cashbook_publisher=cashbook_publisher)
             client.strategy_observer=observer
             worker=None
             try:
@@ -202,6 +210,7 @@ def main():
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
                     monitor.validate_connection(connected_since,connection_generation=client.connection_generation)
+                    client.poll_cashbook()
                     if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
                     if time.monotonic()-last_strategy>=5:
@@ -240,7 +249,8 @@ def main():
                 try:
                     if client.research_scanner is not None:client.research_scanner.close()
                 finally:
-                    _close_owned_client(client,worker)
+                    try:client.close_cashbook()
+                    finally:_close_owned_client(client,worker)
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0
 

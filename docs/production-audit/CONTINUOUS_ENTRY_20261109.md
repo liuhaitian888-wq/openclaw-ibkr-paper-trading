@@ -1,4 +1,4 @@
-> 最新候选状态：完整离线1106项/75.553s/OK；尚未云端部署。原生旧仓补保护五笔已完成、PFE保留，独立验收见SCOPED_PROTECTION_20261109.md。新增交易、持续现金生产者、股票价值日、部分成交/重启与正式T0仍未收口。以下阶段记录保留各自时点，不代表所有候选已启用。
+> 最新候选状态：完整离线1130项/75.179s/OK；尚未云端部署。原生旧仓补保护五笔已完成、PFE保留，独立验收见SCOPED_PROTECTION_20261109.md。新增交易、持续现金生产者、股票价值日、部分成交/重启与正式T0仍未收口。以下阶段记录保留各自时点，不代表所有候选已启用。
 
 # 持续准入工程进度
 
@@ -71,3 +71,11 @@ API health日预算字段已改为与事务准入同一投影：分别显示actu
 NativeCashCollector使用已有SDK client，不创建线程/进程；一次一个账户Multi请求、8秒单调时钟超时、最少5秒刷新，精确reqId/account/model及connection_generation，128行/90KB原始证据上界。完成、拒绝、超时和close只取消自己的账户订阅；发送/取消结果异常后须关闭原client再重连，不追加另一个请求。负结算余额作为有效事实保留，不授予资金权限。
 
 先运行的完整红灯验证1107项/82.324s、唯一ModuleNotFoundError；实现后1117项/75.759s/OK，包含200次请求/取消循环且无新线程、迟到/外部回调、身份变化、取消/发送异常及发布失败。此时尚未接入监测owner、尚未部署；计划见docs/superpowers/plans/2026-11-09-native-cash-owner.md。
+
+## 单owner接线与真实协议探针（候选未部署）
+
+PaperSafetyClient可选接收现金publisher；同一SDK实例重连后账户请求ID继续递增，旧回调不能借复用ID进入新会话。现有paper-safety循环调用poll/close，不增加线程或服务。只读批准字段位于monitoring-deployment.json，不改受保护的production.json。publisher核对native epoch/connection/最新完整对账及成交/费用时间，私有临时文件fsync后原子替换，失败部分保留且旧latest不被截断；准入claim保存一次完整基线book。CURRENCY_BOOK在共享resolver中按需依赖，10秒失鲜；负结算可为健康数据而不能成为买入权限。
+
+有限FX的独立native结果仍保存；配置持续writer后不覆盖latest。缓存发布失败不把已确认的FXFILLED冒充未知金融结果。全套1130项/75.179秒/OK，包含原子写入故障、30次文件/SQLite/线程资源闭环、SDK重连迟到回调以及新对账epoch拒绝旧现金请求。独立只读代码复核未见可执行回归；未重复测试或触及生产服务，该结论不等于完整金融验收。
+
+真实只读协议探针：源四文件指纹f17d1912eb2c86b7a41ef16f22b4de2ca3b018eec7f0816a1c971bd7a716adf9，2026-11-09约21:41Z，精确Paper账户、多币种现金及结算回调成功。USD2019.4231、EUR943040.605，普通现金与结算负值分别保留；线程1→1、client关闭、0订单请求。候选仅在私有工程探针中执行，没有写生产latest或promote共享health；真正生产owner回读仍待部署验收。

@@ -12,6 +12,24 @@ from trading.production_diagnostics import context
 from reporting.recovery import RecoveryCoordinator
 
 
+def publish_legacy_cashbook(root,book):
+ """Keep known FX outcome independent of a latest-file publication failure."""
+ path=root/'runtime/monitoring-deployment.json'
+ if path.exists():
+  try:
+   if path.is_symlink() or path.stat().st_size>100000:return 'SKIPPED_OWNER_UNVERIFIED'
+   owner=json.loads(path.read_text()).get('native_cashbook_observation_approved')
+   if owner is True:return 'CONTINUOUS_OWNER_CONFIGURED'
+   if owner is not None and owner is not False:return 'SKIPPED_OWNER_UNVERIFIED'
+  except (ValueError,OSError):return 'SKIPPED_OWNER_UNVERIFIED'
+ try:
+  temp=root/'runtime/currency-book.latest.fx.tmp'
+  with os.fdopen(os.open(temp,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600),'w') as f:json.dump(book,f);f.flush();os.fsync(f.fileno())
+  temp.chmod(0o600);temp.replace(root/'runtime/currency-book.latest.json')
+  return 'LEGACY_BOOK_PUBLISHED'
+ except (OSError,ValueError,TypeError):return 'PUBLICATION_FAILED_NATIVE_RECEIPT_RETAINED'
+
+
 class Broker(ReadbackBroker):
  async def connect(self):
   from ib_async import StartupFetchNONE
@@ -118,11 +136,8 @@ async def run(root):
    finish(root,ref,status,{'plan':candidate,'native':result})
    settled=True
    coordinator.finish_operation(operation,'CONFIRMED' if confirmed else 'UNKNOWN')
-   if confirmed:
-    temp=root/'runtime/currency-book.latest.fx.tmp'
-    with temp.open('x') as f:json.dump(result['cashbook'],f);f.flush();os.fsync(f.fileno())
-    temp.chmod(0o600);temp.replace(root/'runtime/currency-book.latest.json')
-   return {'state':status,'order_ref':ref,'plan':candidate,'native':result,'estimated_commission_eur':str(estimated),'grants_stock_entry_permission':False}
+   publication=publish_legacy_cashbook(root,result['cashbook']) if confirmed else 'NOT_CONFIRMED_NOT_PUBLISHED'
+   return {'state':status,'order_ref':ref,'plan':candidate,'native':result,'cashbook_publication':publication,'estimated_commission_eur':str(estimated),'grants_stock_entry_permission':False}
   except BaseException as exc:
    if not settled:
     try:finish(root,ref,'UNKNOWN',{'plan':candidate,'error_type':type(exc).__name__})

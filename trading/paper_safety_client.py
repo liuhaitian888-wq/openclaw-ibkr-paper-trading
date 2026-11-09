@@ -7,7 +7,7 @@ from trading.tws_paper import TwsPaperClient
 
 
 class PaperSafetyClient(TwsPaperClient):
-    def __init__(self, monitor, symbols, *, bar_wire_protocol='auto'):
+    def __init__(self, monitor, symbols, *, bar_wire_protocol='auto',cashbook_publisher=None):
         if bar_wire_protocol not in ('auto','legacy'):raise ValueError('Explicit supported bar protocol required')
         self.bar_wire_protocol=bar_wire_protocol
         super().__init__()
@@ -23,6 +23,10 @@ class PaperSafetyClient(TwsPaperClient):
         self.read_only_completed_orders_blocked = False
         self._history_gap_pending=set()
         self.research_scanner = None
+        self._cash_request_sequence=0
+        self.cashbook_publisher=cashbook_publisher
+        self.cashbook_collector=None
+        self._reset_cashbook_collector()
 
     def useProtoBuf(self,msgId):
         from ibapi.message import OUT
@@ -35,7 +39,41 @@ class PaperSafetyClient(TwsPaperClient):
             self.connection_generation=uuid.uuid4().hex
             self._initial_pending.clear()
             self.upstream_reported_lost=False
+            self._reset_cashbook_collector()
         return super().connect(*args,**kwargs)
+
+    def _next_cash_request_id(self):
+        # Keep request identity unique even when the same EWrapper reconnects.
+        self._cash_request_sequence+=1
+        return 800000000+self._cash_request_sequence
+
+    def _cashbook_admitted(self):
+        with self.monitor.lock:
+            return self.monitor._complete() and self.monitor.state.get('api_protocol',{}).get('connection')==self.connection_generation
+
+    def _observe_cashbook(self,state,reason,**metadata):
+        self.monitor.coordinator.observe('CURRENCY_BOOK',state,reason=reason,
+            freshness='FRESH' if state=='HEALTHY' else 'STALE',**metadata)
+
+    def _reset_cashbook_collector(self):
+        if self.cashbook_collector is not None:self.cashbook_collector.close()
+        if self.cashbook_publisher is None:return
+        from trading.native_cash_collector import NativeCashCollector
+        self.cashbook_collector=NativeCashCollector(self,account='DUQ503649',connection_generation=self.connection_generation,
+            admitted=self._cashbook_admitted,publish=self.cashbook_publisher,observe=self._observe_cashbook,clock=self.monitor.clock,allocate_request_id=self._next_cash_request_id)
+        self._observe_cashbook('DEGRADED','Awaiting complete owned native cash request',enabled=True,grants_trading_permission=False)
+
+    def poll_cashbook(self):
+        if self.cashbook_collector is not None:self.cashbook_collector.poll()
+
+    def close_cashbook(self):
+        if self.cashbook_collector is not None:self.cashbook_collector.close()
+
+    def accountUpdateMulti(self,reqId,account,modelCode,key,value,currency):
+        if self.cashbook_collector is not None:self.cashbook_collector.value(reqId,account,modelCode,key,value,currency)
+
+    def accountUpdateMultiEnd(self,reqId):
+        if self.cashbook_collector is not None:self.cashbook_collector.end(reqId)
 
     def nextValidId(self, orderId):
         super().nextValidId(orderId)

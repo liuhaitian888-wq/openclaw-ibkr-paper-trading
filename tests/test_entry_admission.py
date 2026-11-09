@@ -23,10 +23,10 @@ class EntryAdmissionTests(unittest.TestCase):
             {'key':'AccountReady','value':'true','currency':'','account':'DUQ503649'},
             {'key':'SettledCashByDate','value':'20260101:'+str(cash),'currency':'USD','account':'DUQ503649'},
             {'key':'SettledCashByDate','value':'20260101:10000','currency':'EUR','account':'DUQ503649'}]}
-        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','observed_at':stamp,'cash_read_started_at':stamp,'cash_read_finished_at':stamp,'settlement_receipt':receipt,'currencies':{'USD':{'amount':str(cash),'currency':'USD'}}}))
+        (self.runtime/'currency-book.latest.json').write_text(json.dumps({'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','broker_epoch':'verified-epoch','connection_generation':'cash-native-current','observed_at':stamp,'cash_read_started_at':stamp,'cash_read_finished_at':stamp,'settlement_receipt':receipt,'currencies':{'USD':{'amount':str(cash),'currency':'USD'}}}))
         with closing(sqlite3.connect(self.runtime/'recovery.sqlite3')) as c,c:
             c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)')
-            c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':now,'epoch':'verified-epoch','orders':{}}),))
+            c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':now,'epoch':'verified-epoch','api_protocol':{'connection':'cash-native-current'},'reconciled_at':now-1,'orders':{}}),))
 
     def proposal(self,key,price=100):return TradeProposal('BAC','BUY',1,price,price-1,key)
 

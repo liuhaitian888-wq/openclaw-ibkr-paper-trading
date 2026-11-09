@@ -76,3 +76,24 @@ class CashConversionTests(unittest.TestCase):
    status,payload=c.execute('SELECT status,payload FROM cash_conversion_attempts').fetchone()
    self.assertEqual(status,'UNKNOWN');self.assertEqual(json.loads(payload)['plan']['account'],ACCOUNT)
   self.assertEqual(RecoveryCoordinator(self.root/'runtime/recovery.sqlite3').uncertainties()[0][2],'UNKNOWN')
+
+ def test_approved_continuous_cash_owner_keeps_finite_fx_from_overwriting_latest(self):
+  from ops.cloud.cash_conversion import publish_legacy_cashbook
+  target=self.root/'runtime/currency-book.latest.json';target.write_text('continuous-native-facts')
+  (self.root/'runtime/monitoring-deployment.json').write_text(json.dumps({'native_cashbook_observation_approved':True}))
+  self.assertEqual(publish_legacy_cashbook(self.root,self.book()),'CONTINUOUS_OWNER_CONFIGURED')
+  self.assertEqual(target.read_text(),'continuous-native-facts')
+ def test_unknown_cash_owner_and_file_failure_do_not_reclassify_known_fx_outcome(self):
+  from ops.cloud.cash_conversion import publish_legacy_cashbook
+  (self.root/'runtime/monitoring-deployment.json').write_text('{')
+  self.assertEqual(publish_legacy_cashbook(self.root,self.book()),'SKIPPED_OWNER_UNVERIFIED')
+  (self.root/'runtime/monitoring-deployment.json').unlink()
+  (self.root/'runtime/currency-book.latest.fx.tmp').write_text('retained incomplete evidence')
+  self.assertEqual(publish_legacy_cashbook(self.root,self.book()),'PUBLICATION_FAILED_NATIVE_RECEIPT_RETAINED')
+  self.assertEqual((self.root/'runtime/currency-book.latest.fx.tmp').read_text(),'retained incomplete evidence')
+
+ def test_legacy_cash_file_is_private_and_uses_only_its_own_temporary(self):
+  from ops.cloud.cash_conversion import publish_legacy_cashbook
+  self.assertEqual(publish_legacy_cashbook(self.root,self.book()),'LEGACY_BOOK_PUBLISHED')
+  self.assertEqual((self.root/'runtime/currency-book.latest.json').stat().st_mode&0o077,0)
+  self.assertFalse((self.root/'runtime/currency-book.latest.fx.tmp').exists())

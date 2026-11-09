@@ -17,11 +17,11 @@ class CashGuardTests(unittest.TestCase):
                 {'key':'AccountReady','value':'true','currency':'','account':'DUQ503649'},
                 {'key':'SettledCashByDate','value':'19691231:'+str(cash if settled is None else settled)+('' if future_settled is None else ';19700102:'+str(future_settled)),'currency':'USD','account':'DUQ503649'},
                 {'key':'SettledCashByDate','value':'19691231:10000','currency':'EUR','account':'DUQ503649'}]}
-            book={'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','observed_at':stamp,'cash_read_started_at':stamp,'cash_read_finished_at':stamp,'currencies':{'USD':{'amount':str(cash),'currency':unit}}}
+            book={'source':'BROKER_API','account':'DUQ503649','base_currency':'EUR','broker_epoch':'ready','connection_generation':'cash-native-current','observed_at':stamp,'cash_read_started_at':stamp,'cash_read_finished_at':stamp,'currencies':{'USD':{'amount':str(cash),'currency':unit}}}
             if not missing_settlement:book['settlement_receipt']=receipt
             (r/'currency-book.latest.json').write_text(json.dumps(book))
             with closing(sqlite3.connect(r/'recovery.sqlite3')) as c,c:
-                c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)');c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':99,'orders':orders or {}}),))
+                c.execute('CREATE TABLE paper_safety_state(id INTEGER,payload TEXT)');c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps({'identity':True,'connected':True,'upstream_connected':True,'dirty':False,'ends':['positions','orders','executions','completed_orders'],'last_server_reply':99,'epoch':'ready','api_protocol':{'connection':'cash-native-current'},'reconciled_at':98,'orders':orders or {}}),))
             return enforce(root,TradeProposal('BAC','BUY',1,50,49),now=100)
     def test_own_usd_cash_must_cover_cost_and_all_external_buys(self):
         self.run_guard(52)
