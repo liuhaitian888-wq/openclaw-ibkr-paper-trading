@@ -20,3 +20,8 @@
 
 ## Impact
 reporting、通知生产者、定时运行配置、秘书研究提示、工程文档。没有 broker 写入权限扩张；不解除 PAUSED、MAINTENANCE 或未完成的 P0 验收。
+
+## Owner clarification — 2026-11-10
+Extend this existing secretary change with bounded model-selected Python broker queries and all registered business database read access. Minimize measured Telegram-to-result latency by reusing existing connection and delivery owners. This is a target clarification, not runtime acceptance or write permission. OAuth remains the selected model route; the API-key migration is historical preparation.
+
+Owner active-goal clarification: Telegram shall orchestrate the complete authorized development/operations paths through Python, IB Gateway/IBKR, Codex Cloud and all business databases. Codex Cloud is an execution branch, not a broker transport hop. Current verified executor connectivity, allowed operations and write/deployment scope remain UNKNOWN until implementation and receipts; this maintenance deploys none of them.
