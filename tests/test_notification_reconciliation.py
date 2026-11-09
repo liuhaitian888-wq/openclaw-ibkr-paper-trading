@@ -201,6 +201,20 @@ class ReconciliationTests(unittest.TestCase):
             self.assertEqual(c.execute('SELECT count(*) FROM notification_retry_authorizations').fetchone()[0],0)
         self.assertEqual(bot.sends,[])
 
+    def test_legacy_exhausted_preflights_are_not_replayed_as_new_private_warnings(self):
+        self.add(status='NOT_SENT_EXHAUSTED')
+        asyncio.run(recover(self.store,self.co,self.cfg,self.bot(),self.root))
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_reviews').fetchone()[0],0)
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_review_notices').fetchone()[0],0)
+
+    def test_one_review_pass_batches_multiple_unknown_notices_with_per_event_links(self):
+        for i in range(3):self.add(status='UNKNOWN',marker=i)
+        for _ in range(2):asyncio.run(recover(self.store,self.co,self.cfg,self.bot(),self.root))
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_review_notices').fetchone()[0],3)
+            self.assertEqual(c.execute('SELECT count(DISTINCT outbox_id) FROM notification_review_notices').fetchone()[0],1)
+
     def test_recovery_digest_public_card_has_counts_only(self):
         ident=self.add(recovery_digest_version=1,recovered_count=7,unresolved_count=1,recovery_members=[{'symbol':'PRIVATE_SYMBOL','notification_id':1}])
         with closing(self.store.connect()) as c,c:c.execute("UPDATE notification_outbox SET kind='RECOVERY',incident_key='paper-safety:protection-recovery-batch:fixture' WHERE id=?",(ident,))

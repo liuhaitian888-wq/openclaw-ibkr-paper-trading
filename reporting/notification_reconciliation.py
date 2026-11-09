@@ -195,6 +195,20 @@ def notice(store,original_id,notice_kind,text):
         c.execute('INSERT INTO notification_review_notices VALUES(?,?,?)',(original_id,notice_kind,cur.lastrowid))
 
 
+def notice_batch(store,originals,notice_kind):
+    """One concise private card per review pass; each original keeps a mapping."""
+    if not originals:return
+    with closing(store.connect()) as c,c:
+        c.execute('BEGIN IMMEDIATE')
+        pending=[ident for ident in originals if not c.execute('SELECT 1 FROM notification_review_notices WHERE notification_id=? AND notice_kind=?',(ident,notice_kind)).fetchone()]
+        if not pending:return
+        text='投递核对｜事件 '+', '.join('#'+str(x) for x in pending)+'：'+('仍缺可靠结果证据，保留UNKNOWN/STARTED，不自动重放。' if notice_kind=='unresolved' else '已证实未发送，但补发条件未满足；详见逐次证据，未重发。')
+        payload=dict(message_role='CONTROL',private_notice=True,reason=text,queued_at=store.clock(),original_notification_ids=pending)
+        cur=c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES(?,1,'SECRETARY_REPLY',?,'PENDING')",
+                      ('notification-review-batch:'+notice_kind+':'+fingerprint(pending),encode(payload)))
+        c.executemany('INSERT INTO notification_review_notices VALUES(?,?,?)',[(ident,notice_kind,cur.lastrowid) for ident in pending])
+
+
 def activity_status(store,item):
     """Safe public companion for a private task/research result, no copied prose."""
     digest=(item['kind']=='RECOVERY' and item['payload'].get('recovery_digest_version')==1)
@@ -220,8 +234,9 @@ async def recover(store,coordinator,config,bot,report_root,*,limit=10):
         after=json.loads(cursor[0]) if cursor else 0
         rows=c.execute("""SELECT n.id FROM notification_outbox n WHERE n.status IN ('UNKNOWN','STARTED','NOT_SENT_EXHAUSTED')
           AND coalesce(json_extract(n.payload,'$.private_notice'),0)!=1
+          AND (n.status!='NOT_SENT_EXHAUSTED' OR EXISTS(SELECT 1 FROM notification_attempts a WHERE a.notification_id=n.id))
           ORDER BY CASE WHEN n.id>? THEN 0 ELSE 1 END,n.id LIMIT ?""",(after,limit)).fetchall()
-    decisions=[]
+    decisions=[];unresolved=[];blocked=[]
     for ident, in rows:
         review=assess(store,ident);decisions.append(review['decision']);item=get_item(store,ident)
         if review['decision']=='ALREADY_ACCEPTED':
@@ -241,9 +256,10 @@ async def recover(store,coordinator,config,bot,report_root,*,limit=10):
                 retry=authorize_retry(store,review['review_id'],review['evidence_fingerprint'],{**config,'_report_root':str(report_root)},dependency_verified=True)
                 if retry:coordinator.finish_operation('notification:outbox:'+str(ident),'SAFE_TO_RETRY')
             except Exception as exc:
-                notice(store,ident,'blocked','投递 #'+str(ident)+' 已证实未发送，但补发条件未满足（'+type(exc).__name__+'）；未重发。')
+                blocked.append(ident)
         else:
-            notice(store,ident,'unresolved','投递 #'+str(ident)+' 结果待核验；缺少可靠回执，尚不能证明未发送，已保留证据且不会自动重放。')
+            unresolved.append(ident)
+    notice_batch(store,unresolved,'unresolved');notice_batch(store,blocked,'blocked')
     # Retry outcomes receive one private result notice, with its own outbox/ACK.
     with closing(store.connect()) as c:
         outcomes=c.execute("SELECT id,status,json_extract(payload,'$.retry_of') FROM notification_outbox WHERE json_extract(payload,'$.retry_of') IS NOT NULL AND status IN ('TELEGRAM_ACCEPTED','UNKNOWN','NOT_SENT_EXHAUSTED') ORDER BY id DESC LIMIT ?",(limit,)).fetchall()
