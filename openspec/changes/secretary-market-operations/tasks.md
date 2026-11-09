@@ -34,6 +34,14 @@
 - [ ] User securely enters API key; native account/model/low response verified.
 - [ ] Cut over and verify new owner-native private reply with Mac bridge disabled; update profile only after acceptance.
 
+
+## 2026-11-10 notification/access research and recovery design
+- [x] Record actual preparation-vs-dispatch time, UNKNOWN evidence limits and group/private responsibilities in the project outline.
+- [x] Audit official tags/ephemeral APIs and GitHub source examples with native read-only capability probe; preserve no-tag/no-permission-change boundary.
+- [ ] Resolve account-bearing daily report sharing decision and implement sensitivity-first classification with regression coverage.
+- [ ] Implement append-only per-attempt reviews, bounded secretary recovery assessment and deterministic retry eligibility, without UNKNOWN reset.
+- [ ] Implement authorized same-message resend explanation and private result notice through the existing sender; accept real future native receipts.
+- [ ] Optional member registry/native labels/ephemeral UI after actual role and compatibility decisions; no group-control expansion.
 ## OAuth correction (owner-selected)
 
 - [x] Verify official CLI artifact and prepare fresh cloud-only OAuth login, without token copy or API key.
@@ -42,3 +50,8 @@
 - [ ] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled.
 
 The earlier API-key entry/access tasks are superseded by the owner OAuth choice, retained unchecked as historical work rather than completion claims.
+
+
+- [x] Add deterministic API/cloud/market status views with observation freshness and missing-evidence behavior.
+- [x] Verify isolated offline suite (1158 PASS), secret scan and native owner-private menu set/get readback.
+- [ ] Observe owner phone click/visual acceptance separately.

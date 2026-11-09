@@ -82,3 +82,28 @@ The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that C
 #### Scenario: Actual errors remain blocking
 - **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
 - **THEN** the attempt remains unacknowledged and is not automatically replayed
+
+### Requirement: Evidence-based notification recovery and private-data boundaries
+The system SHALL classify private account/security/immediate-gate content before public delivery and retain append-only occurrence/attempt evidence. Secretary assessment SHALL NOT authorize replay from missing receipts or network recovery alone. Display tags SHALL NOT grant data/control access; account report sharing requires an explicit recipient policy.
+
+#### Scenario: Lost receipt after a possible send
+- **WHEN** a notification is UNKNOWN and no native acceptance or definitive rejection is proven
+- **THEN** its evidence and uncertainty survive restart, a bounded private review may explain the gap, and the original send is not automatically replayed.
+
+#### Scenario: Confirmed unsent public report after recovery
+- **WHEN** trusted evidence proves an occurrence was not sent, dependencies recover and the report remains valid
+- **THEN** the existing sender may create one authorized linked retry with a short public explanation and separately recorded owner-private result notice.
+
+#### Scenario: Display label versus authorized reader
+- **WHEN** a group member changes a tag or a private report is requested through an ordinary group message
+- **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
+
+Implementation boundary: this requirement is planned in the active change. Current source3694676 does not implement complete sensitivity classification, per-attempt reconciliation supervision or ephemeral UI. Existing account report recipients are unchanged pending owner decision; this specification is not deployment acceptance.
+
+### Requirement: Owner-private status menu
+
+The secretary SHALL expose /api, /cloud and /market only in owner private chat using existing health observations with time and freshness. Missing evidence SHALL show UNKNOWN; old HEALTHY records SHALL NOT prove current availability. Configuration/host snapshots SHALL remain distinct from model/Telegram acceptance. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.
+
+#### Scenario: Existing status evidence is missing or old
+- **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
+- **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.

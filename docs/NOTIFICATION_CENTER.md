@@ -81,3 +81,6 @@ Python/SQLite/Telegram/IBKR接口没有Hetzner API依赖，逻辑可在其他VPS
 
 ## 2026-11-09 owner correction
 With `automatic_updates_to_group=true`, all noninteractive automatic updates, task progress/completion and research reports go to deehub. Interactive replies and explicit action/response requests remain at the existing verified secretary destination. This supersedes the fixed-template-only private routing above. No old accepted or UNKNOWN message is copied/replayed. A separate secretary group, if intended, requires its exact native identity before changing the interactive destination.
+
+## 2026-11-10 responsibilities and member access design
+The new outline separates non-sensitive automatic group publications from personal account/security/authentication/immediate gate decisions in secretary private chat. Multi-member labels/access and evidence-driven recovery are researched/planned, not deployed. Existing report destinations remain unchanged while owner evaluates visibility. See [responsibility outline](NOTIFICATION_RESPONSIBILITIES.md), [upstream audit](TELEGRAM_ACCESS_RESEARCH_20261110.md) and [implementation plan](superpowers/plans/2026-11-10-notification-responsibilities.md). Tags do not grant permission to read ordinary group posts; ephemeral bot views are auxiliary and unverified here.
