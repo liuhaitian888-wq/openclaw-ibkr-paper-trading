@@ -1,6 +1,6 @@
 # 本轮工作与上游方法复查（持续更新）
 
-核验日期2026-11-09，记录至22:13UTC原生部署验收及随后通知回读。不是全部项目完成声明，也不是收益或法律合规认证。源码、离线验证、云端部署、原生券商结果分别列出。
+核验日期2026-11-09，记录至22:49UTC合并部署原生验收。不是全部项目完成声明，也不是收益或法律合规认证。源码、离线验证、云端部署、原生券商结果分别列出。
 
 ## 已确认的实际成果
 
@@ -24,7 +24,7 @@
 |---|---|---|
 |看der独立kander-cross-display|HEAD055c42e；本日独立OpenSpec维护上下文|README确认BetterDisplay虚拟屏、Sunshine服务端、Moonlight客户端；控制层不冒充自研编码器。Package.swift没有外部SwiftPM包声明；未重跑媒体验收。|
 |看der后续OpenWorkspace|HEADaceaf93；Nov8含快捷键队列与断连回收提交，Nov9维护上下文|同样复用外部媒体栈；SwiftTesting6.1.3与SwiftSyntax601.0.1来自清单/锁文件，是测试工具链证据。ibflex/ib_async/Canary/healthchecks等review目录是参考材料，不等于嵌入了这些交易后端。|
-|买der|现金owner由217ac90部署，随后云端含并行deehub修复5df418d；保护、通知、Gateway和只读资金结果分别核对|官方IBSDK1051.1/protobuf5.29.5，既有ib_async2.1.0；QuantConnect IBAutomater已固定源适配；Telegram库/通知现有owner。资金/准入代码已部署，只读现金owner获准运行；正式交易仍暂停。|
+|买der|当前云端c93ff60，保留deehub及秘书API准备的并行源码；保护、通知、Gateway和只读资金结果分别核对|官方IBSDK1051.1/protobuf5.29.5，既有ib_async2.1.0；QuantConnect IBAutomater已固定源适配；Telegram库/通知现有owner。资金/准入代码已部署，只读现金owner获准运行；正式交易仍暂停。|
 |刷der|HEAD5181c50，本轮只读清单核对，未碰既有脏工作|package声明Zod、Electron、OpenClaw、TypeScript、tsx；版本范围不等于已安装锁定版本。wx-cli-readonly目录是本地适配/研究线索，不据此宣称连接器已部署或写消息已获许可。|
 |der token|Git仍无首次提交；未暂存其整个源目录|pyproject声明PyYAML6.x，定位本地只读token可观测；本次没有读取原始Codex会话或生产SQLite。未宣称完成源码基线或运行验收。|
 
@@ -56,3 +56,5 @@
 22:13Z部署验收补充：只读现金原生回执约1.1秒新且epoch/connection/reconciliation匹配；CURRENCY_BOOK依赖仍WAITING_DEPENDENCY。paper-safety四次资源样本FD5–6、线程4、RSS约41MB，秘书FD9/线程2；短样本不等于长期无泄漏。工程通知outbox1202 TELEGRAM_ACCEPTED，手机显示未验证。
 
 并行变更核对：云端已通过另一条经核验的Git部署前进到5df418d（deehub身份/公共路由）；本轮保留该源码及相关配置，未回退217ac90。故障锁及通知/订单不确定性分域是后续隔离候选，未据此启用新交易。
+
+最新补充：c93ff60已原生验收，1147项完整隔离测试通过；文件故障锁、通知/交易不确定性分域、精确原生时间已上线。六仓保护和金融计数不变，Gateway未重启；账户基础健康/结算价值日/执行闭环未通过，仍暂停。秘书API仅为准备状态，实际密钥及模型接通验收另有阻塞，不能称全天候模型已运行。
