@@ -4,7 +4,15 @@
 
 官方无头登录：https://learn.chatgpt.com/docs/auth 。在Hetzner使用官方Codex CLI的device-code登录，由用户在手机/电脑浏览器完成账户认证和授权，凭据只在云端生成/刷新。无需选择API组织、创建API Key或复制Mac auth.json。浏览器授权码/token不得放聊天、Git或日志摘要。若账户未允许设备代码登录，用户在ChatGPT安全设置/工作区权限中确认允许；不由模型擅自扩大账户权限。必要时官方localhost SSH callback方案可另行配置，不复制现有Mac会话。
 
-## 已准备入口
+## 当前实测状态（2026-11-10 Europe/Berlin）
+
+Hetzner已完成独立Gmail ChatGPT OAuth登录，无需用户再创建API Key或执行下方历史device-code命令。此次采用官方localhost回调；临时cloudops127.0.0.1:1455许可已还原并核验，隧道已关闭。Mac OAuth文件未复制。云端原生目录明确支持gpt-6.1-sol/low，模型调用返回公共JSON及turn.completed用量。
+
+运行源码71fa3e6；唯一云端模型单位ibkr-secretary-oauth.service已启用，model_owner=cloud_oauth、reasoning_effort=low且设置迁移时间边界。Mac dev.openclaw.secretary-bridge已bootout。现有inbox/notification仍为Telegram接收/投递owner，交易门禁未动。新owner原生私聊“在吗”已验收：instruction update600875499，runSUCCEEDED；模型7.833秒，11831输入/27输出token；notification1304/message247于2026-11-09T23:40:14Z取得TELEGRAM_ACCEPTED。用户确认正文已看到。Mac桥接保持停止。此结果证明当前云端独立回复闭环，不等于无限额度/未来永不失效或尚未实现的跨设备与开发执行器能力。
+
+首探测UNKNOWN保留。根因是CLI在执行前发出精确CodeMode禁用提示，随后正常完成，但适配器原先拒绝所有error item。71fa3e6仅兼容该精确pre-turn提示并将其留在usage，不启用CodeMode；其他错误/工具事件/无完成回执仍拒绝。
+
+## 安装及历史准备入口
 
 官方npm包@openai/codex@0.167.0-linux-x64，安装/opt/openclaw/tools/codex/0.167.0/codex，root拥有不可由ibkr修改，包SHA512与registry一致；provenance.json保留URL、完整性和binaryhash。只提取归档中的普通codex文件，不执行安装脚本。初始云端Codex不存在；本轮新增独立CLI，不重启Gateway或交易owner。
 

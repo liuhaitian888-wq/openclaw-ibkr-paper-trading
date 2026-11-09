@@ -115,6 +115,39 @@ The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that C
 - **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
 - **THEN** the attempt remains unacknowledged and is not automatically replayed
 
+### Requirement: Owner-private status menu
+
+The secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls using existing shared health evidence with observation time and freshness. Missing evidence SHALL be UNKNOWN. Configuration and stale HEALTHY records SHALL NOT prove current connectivity. Menu reads SHALL NOT call models or brokers, restart services or alter gates.
+
+#### Scenario: Existing status evidence is missing or old
+- **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
+- **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
+
+### Requirement: Telegram development and operations orchestration
+The secretary SHALL route verified owner development and operations requests to authorized Python operations and a verified Codex Cloud consumer, with task identity, scope, execution receipts and result delivery. Arbitrary database paths, deployment permission and unrestricted shell access SHALL NOT follow from model output alone.
+
+#### Scenario: Development request from Telegram
+- **WHEN** the owner requests a code change or an operational task
+- **THEN** the secretary records the scope, dispatches only to an authorized verified executor and reports actual progress and verification evidence; an archived proposal alone does not mean Codex Cloud accepted the task.
+
+### Requirement: Secretary Python broker and database access
+The secretary SHALL invoke registered Python tools through the existing broker owner and expose all registered business databases with bounded read-only queries and source timestamps. Cached evidence SHALL NOT imply a fresh broker query. Model OAuth, broker authentication and write authorization SHALL remain separate.
+
+#### Scenario: Owner asks for current broker facts
+- **WHEN** a verified owner asks for current positions or cash
+- **THEN** a registered Python tool queries through the existing broker connection owner, reports source time and incomplete or unavailable results honestly, and creates no competing Gateway or trading permission.
+
+#### Scenario: Cross-database analysis
+- **WHEN** the owner requests analysis across business databases
+- **THEN** registered read-only tools expose each registered business database with bounded results and distinguish unavailable databases and stale snapshots from complete current coverage.
+
+#### Scenario: End-to-end latency acceptance
+- **WHEN** a fresh Telegram request exercises a model-selected Python broker tool
+- **THEN** acceptance records receive, model, tool, archive and native delivery timing and verifies the broker result without claiming an unmeasured speed guarantee.
+
+Implementation boundary (2026-11-10): owner-confirmed target, not implemented or deployed by this documentation update. The existing model tool dispatcher exposes registered database queries but no direct live broker tool. Exact latency target and fresh cloud OAuth/model response acceptance remain UNKNOWN.
+
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
@@ -127,6 +160,10 @@ Source98cd05a adds the bounded provider, credential input and dormant systemd un
 
 OAuth is the selected route; API-key instructions above describe superseded preparation. Cloud login, actualgpt-6.1-sol/low access and Mac-disabled native private reply remain required before acceptance.
 
-### Owner-private status menu
 
-The existing secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls. They SHALL read existing real runtime observations through the shared health resolver, show observation time and freshness, and fail UNKNOWN for unavailable evidence. Old HEALTHY records SHALL NOT imply current availability. Provider configuration and cloud host snapshots SHALL be distinguished from successful model calls and live Telegram reachability. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.
+
+
+### Independent OAuth verified stage — 2026-11-09T23:40:14Z
+The preceding API and OAuth preparation paragraphs are historical snapshots. Current cloud source71fa3e6 uses independent Gmail ChatGPT OAuth, gpt-6.1-sol/low, with Mac bridge stopped. Fresh owner private update600875499 completed a native model turn in7.833s, archived SUCCEEDED and delivered through existing notification1304 with private message247/serverdate23:40:14Z. Human confirmed seeing actual text. Evidence: cloud engineering/secretary-oauth-20261109/cloud-private-acceptance.json. This verifies the current cloud dialogue loop for that request, not future uptime, live broker model tools, Codex Cloud task execution or all pending tasks in this active change. Earlier UNKNOWN states remain preserved.
+
+Notification continuation: candidate61619c0/8c63c5a retains explicit full group account-report approval, immutable artifacts and append-only reviews. New combined deployment/native report acceptance is recorded separately.

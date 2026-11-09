@@ -111,6 +111,12 @@ class IncidentStore:
                 WHERE n.status='PENDING' AND NOT EXISTS (
                     SELECT 1 FROM notification_preflight p WHERE p.notification_id=n.id AND p.not_before>?)
                 AND NOT EXISTS (
+                    SELECT 1 FROM json_each(n.payload,'$.recovery_members') member
+                    JOIN notification_outbox source ON source.id=json_extract(member.value,'$.notification_id')
+                    JOIN notification_outbox unresolved ON unresolved.incident_key=source.incident_key
+                      AND unresolved.id<source.id
+                    WHERE unresolved.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED'))
+                AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
                     AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 1""", (self.clock(),)).fetchone()
