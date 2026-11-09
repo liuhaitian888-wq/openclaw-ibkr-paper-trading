@@ -166,7 +166,7 @@ class ReconciliationTests(unittest.TestCase):
 
             self.assertEqual(
                 [event["event_type"] for event in record["events"]],
-                ["REQUEST_RESERVED", "REQUEST_STATUS_CHANGED", "BROKER_ORDER_LINKED"],
+                ["REQUEST_RESERVED", "TRANSPORT_STARTED", "REQUEST_STATUS_CHANGED", "BROKER_ORDER_LINKED"],
             )
 
 

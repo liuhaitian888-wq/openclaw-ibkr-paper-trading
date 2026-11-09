@@ -134,7 +134,8 @@ class AuditLog:
         if column not in columns:
             connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
-    def reserve(self, proposal: TradeProposal, mode: str, source: str) -> bool:
+    def reserve(self, proposal: TradeProposal, mode: str, source: str, *, daily_cap=None,
+                timezone_name="Europe/Berlin", admission_check=None) -> bool:
         payload = json.dumps(
             {
                 "symbol": proposal.symbol,
@@ -149,7 +150,13 @@ class AuditLog:
         try:
             with closing(self._connect()) as connection:
                 with connection:
+                    connection.execute('BEGIN IMMEDIATE')
+                    if connection.execute('SELECT 1 FROM order_requests WHERE idempotency_key=?',(proposal.idempotency_key,)).fetchone():
+                        return False
                     created_at = datetime.now(timezone.utc).isoformat()
+                    if mode.startswith('PAPER') and mode!='PAPER_CASH_CONVERSION' and daily_cap is not None:
+                        from .entry_admission import enforce_daily_budget
+                        enforce_daily_budget(connection,proposal,daily_cap,timezone_name,created_at)
                     connection.execute(
                         """
                         INSERT INTO order_requests
@@ -165,6 +172,8 @@ class AuditLog:
                             "",
                         ),
                     )
+                    if admission_check is not None:
+                        admission_check(connection,created_at)
                     self._insert_event(
                         connection,
                         proposal.idempotency_key,
@@ -188,6 +197,10 @@ class AuditLog:
                     """,
                     (status, details, idempotency_key),
                 )
+                if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entry_cash_claims'").fetchone():
+                    claim_state={'UNKNOWN':'UNKNOWN','PAPER_PENDING_CONFIRMATION':'UNKNOWN','PAPER_LIMIT_PENDING_CONFIRMATION':'UNKNOWN','STARTED':'STARTED','PAPER_SUBMITTED':'ACKNOWLEDGED_UNRECONCILED','PAPER_LIMIT_SUBMITTED':'ACKNOWLEDGED_UNRECONCILED'}.get(status)
+                    if claim_state:
+                        connection.execute("UPDATE entry_cash_claims SET state=? WHERE identity=? AND state NOT IN ('RELEASED_TO_BROKER_CASHBOOK','RELEASED_NOT_SENT')",(claim_state,idempotency_key))
                 self._insert_event(
                     connection,
                     idempotency_key,
@@ -196,6 +209,32 @@ class AuditLog:
                     status,
                     details,
                 )
+
+    def has_uncertain_submission(self) -> bool:
+        with closing(self._connect()) as connection:
+            if connection.execute("SELECT 1 FROM order_requests WHERE mode NOT LIKE 'LEGACY%' AND status IN ('STARTED','UNKNOWN','PAPER_PENDING_CONFIRMATION','PAPER_LIMIT_PENDING_CONFIRMATION') LIMIT 1").fetchone():return True
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entry_cash_claims'").fetchone():
+                return bool(connection.execute("SELECT 1 FROM entry_cash_claims WHERE state IN ('STARTED','UNKNOWN') LIMIT 1").fetchone())
+            return False
+
+    def mark_submission_started(self, identity: str) -> bool:
+        """Serialize the opaque broker transport; an unsent loser releases only its own claim."""
+        with closing(self._connect()) as connection,connection:
+            connection.execute('BEGIN IMMEDIATE')
+            row=connection.execute('SELECT status FROM order_requests WHERE idempotency_key=?',(identity,)).fetchone()
+            if not row or row['status']!='RESERVED':raise PermissionError('Only the exact reserved intent may start')
+            if connection.execute("SELECT 1 FROM order_events WHERE idempotency_key=? AND event_type='TRANSPORT_STARTED' LIMIT 1",(identity,)).fetchone():raise PermissionError('This occurrence already entered transport; no replay after status changes')
+            busy=connection.execute("SELECT 1 FROM order_requests WHERE idempotency_key!=? AND mode NOT LIKE 'LEGACY%' AND status IN ('STARTED','UNKNOWN','PAPER_PENDING_CONFIRMATION','PAPER_LIMIT_PENDING_CONFIRMATION') LIMIT 1",(identity,)).fetchone()
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entry_cash_claims'").fetchone():
+                busy=busy or connection.execute("SELECT 1 FROM entry_cash_claims WHERE identity!=? AND state IN ('STARTED','UNKNOWN') LIMIT 1",(identity,)).fetchone()
+            at=datetime.now(timezone.utc).isoformat()
+            status='REJECTED_NOT_SENT' if busy else 'STARTED'
+            detail='Another exact broker submission is unresolved; this intent never entered transport' if busy else 'Durable transport latch before opaque broker call'
+            connection.execute('UPDATE order_requests SET status=?,details=? WHERE idempotency_key=?',(status,detail,identity))
+            if connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entry_cash_claims'").fetchone():
+                connection.execute("UPDATE entry_cash_claims SET state=? WHERE identity=? AND state='RESERVED'",('RELEASED_NOT_SENT' if busy else 'STARTED',identity))
+            self._insert_event(connection,identity,at,'TRANSPORT_REJECTED_NOT_SENT' if busy else 'TRANSPORT_STARTED',status,detail)
+            return not busy
 
     def record_submission(
         self,
@@ -569,7 +608,7 @@ class AuditLog:
                 _notional(record)
                 for record in self.list_for_date(day, timezone_name)
                 if str(record["mode"]).startswith("PAPER")
-                and record["status"] != "FAILED"
+                and record["status"] not in ("FAILED", "REJECTED_NOT_SENT")
                 and record["mode"] != "PAPER_CASH_CONVERSION"
             ),
             6,

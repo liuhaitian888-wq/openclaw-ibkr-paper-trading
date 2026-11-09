@@ -16,3 +16,8 @@
 - [x] 3.1 Preserve typed broker facts and classify FX-pair positions separately; verify negative virtual FX, genuine stock shorts, malformed/unsupported instruments and retained raw state.
 - [x] 3.2 Wire protection/readiness/security-gross projections and typed execution provenance; verify legacy enrichment conflicts and external FX orders still fail closed.
 - [x] 3.3 Complete isolated suite and secret scan, Git integration and native stock/FX/cash readback; verify unchanged broker orders, gates and remaining P0 status.
+
+## 4. Continuous admission continuation
+- [ ] 4.1 Make intent plus daily/cash admission atomic across concurrent API callers; verify competing requests and crash/UNKNOWN persistence in offline tests.
+- [ ] 4.2 Preserve exact native order identity in acknowledgement/audit and reconcile cash claims only with fresh exact broker/cash proof; verify conflicts/partial fill/restart and no orderRef-only ownership.
+- [ ] 4.3 Wire the existing dedicated execution owner to admitted signals without adding mutation to the read-only monitor; verify sizing, fees, gate revalidation and joint lifecycle before any native release.

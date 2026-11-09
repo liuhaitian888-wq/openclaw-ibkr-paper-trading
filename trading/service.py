@@ -203,12 +203,14 @@ class TradingService:
                 PermissionError(f"TWS is not ready for orders: {preflight['error']}"),
                 "service_tws_preflight",
             )
-        self._require_daily_notional_available(proposal)
         audit_reserve_started = time.perf_counter()
         if not self._audit.reserve(
             proposal,
             "PAPER_TRANSMIT" if transmit else "TWS_STAGE",
             source,
+            daily_cap=self.settings.max_daily_notional_value,
+            timezone_name=self.settings.daily_notional_timezone,
+            admission_check=self._entry_reservation_check(proposal,payload,transmit),
         ):
             raise attach_workflow_step(
                 ValueError("Duplicate idempotency_key"),
@@ -216,6 +218,9 @@ class TradingService:
             )
         timings["service_audit_reserve_ms"] = self._elapsed_ms(audit_reserve_started)
 
+        if not self._audit.mark_submission_started(proposal.idempotency_key):
+            return self._with_total_timing(dict(status="REJECTED",approved=False,workflow_step="service_transport_admission",
+                reason="Another broker submission requires reconciliation; this intent was not sent"),timings,total_started)
         broker = TwsPaperBroker(
             self.settings.tws_host,
             self.settings.tws_port,
@@ -319,12 +324,14 @@ class TradingService:
                 PermissionError(f"TWS is not ready for orders: {preflight['error']}"),
                 "service_tws_preflight",
             )
-        self._require_daily_notional_available(proposal)
         audit_reserve_started = time.perf_counter()
         if not self._audit.reserve(
             proposal,
             "PAPER_LIMIT_TRANSMIT" if transmit else "LIMIT_STAGE",
             source,
+            daily_cap=self.settings.max_daily_notional_value,
+            timezone_name=self.settings.daily_notional_timezone,
+            admission_check=self._entry_reservation_check(proposal,payload,transmit),
         ):
             raise attach_workflow_step(
                 ValueError("Duplicate idempotency_key"),
@@ -332,6 +339,9 @@ class TradingService:
             )
         timings["service_audit_reserve_ms"] = self._elapsed_ms(audit_reserve_started)
 
+        if not self._audit.mark_submission_started(proposal.idempotency_key):
+            return self._with_total_timing(dict(status="REJECTED",approved=False,workflow_step="service_transport_admission",
+                reason="Another broker submission requires reconciliation; this intent was not sent"),timings,total_started)
         broker = TwsPaperBroker(
             self.settings.tws_host,
             self.settings.tws_port,
@@ -504,6 +514,8 @@ class TradingService:
         if CODE_ROOT == PRODUCTION_WORKSPACE:
             from trading.production_guard import require_module_gate
             require_module_gate("ORDER_SUBMISSION_ALLOWED", duplicate_or_unknown=self._audit.get(str(payload.get("idempotency_key", ""))) is not None)
+        if self._audit.has_uncertain_submission():
+            raise PermissionError('An existing broker submission is started/unknown; reconcile before new transport')
         if self._audit.has_unresolved_external_orders():
             raise PermissionError(
                 "Trading is blocked by an unreconciled external TWS order"
@@ -528,6 +540,16 @@ class TradingService:
             self.settings.trade_session_token,
         ):
             raise PermissionError("Invalid trade session token")
+
+    def _entry_reservation_check(self,proposal,payload,transmit):
+        from trading.production_paths import STATE_ROOT
+        from trading.entry_admission import reserve_cash
+        def check(connection,created_at):
+            self._require_submission_allowed(payload,transmit)
+            decision=self._validate_risk(proposal)
+            if not decision.approved:raise PermissionError('Entry risk changed before reservation commit: '+decision.reason)
+            if transmit:reserve_cash(connection,STATE_ROOT,proposal,created_at)
+        return check
 
     def _require_daily_notional_available(self, proposal: TradeProposal) -> None:
         cap = self.settings.max_daily_notional_value

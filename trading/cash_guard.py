@@ -45,5 +45,8 @@ def enforce(root,proposal,*,now=None):
             reserved+=qty*price+fee
         cost=Decimal(proposal.quantity)*Decimal(str(proposal.limit_price))+fee
         if not cost.is_finite() or cost<=0 or cash-reserved<cost:raise ValueError('USD cash cannot cover entry, all active buys and fee reserve; no new borrowing allowed')
+        return dict(cash_usd=str(cash),external_reserved_usd=str(reserved),cost_usd=str(cost),fee_reserve_usd=str(fee),
+                    cash_observed_at=book['observed_at'],broker_epoch=state.get('epoch'),
+                    broker_reconciled_at=state.get('reconciled_at'),broker_state=state)
     except Exception as exc:
         raise PermissionError('Cash-only gate blocked: '+str(exc)) from exc

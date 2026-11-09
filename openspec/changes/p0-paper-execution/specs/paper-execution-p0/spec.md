@@ -35,3 +35,18 @@ The system SHALL retain raw broker exposure while separating verified stock hold
 #### Scenario: Legacy execution gains instrument evidence
 - **WHEN** an exact existing execId is read back with previously missing contract metadata
 - **THEN** only missing contract fields may be enriched; changed economics or known identity conflicts remain blocked
+
+### Requirement: Transactional entry resource claims
+The system SHALL atomically reserve entry intent and applicable monetary budgets before an opaque broker transport, revalidate current gates, and persist a transport-start occurrence that cannot be replayed by relabeling statuses. Unknown outcomes SHALL retain claims until exact reconciliation; only a proven unsent intent may release its own unspent claim without broker proof.
+
+#### Scenario: Two callers race for the same funding
+- **WHEN** simultaneous callers attempt to spend funds or daily capacity already reserved by the other intent
+- **THEN** at most the funded admitted intents commit and rejected transactions leave no phantom reservation
+
+#### Scenario: Operator revokes a gate during preflight
+- **WHEN** the gate or risk limit changes before reservation commit
+- **THEN** the current admission is rejected and no broker transport is entered
+
+#### Scenario: Status label changes after transport start
+- **WHEN** a previously started occurrence is relabeled RESERVED or FAILED
+- **THEN** its durable occurrence history still prevents replay and unresolved monetary claims remain held
