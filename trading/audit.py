@@ -620,6 +620,20 @@ class AuditLog:
             ).fetchall()
         return [self._row_to_record(row) for row in rows]
 
+    def daily_entry_budget_report(self, day: str, timezone_name: str) -> Dict[str, Any]:
+        from .daily_turnover import admission_usage, native_turnover
+        with closing(self._connect()) as connection, connection:
+            connection.execute('BEGIN')
+            try:
+                result=admission_usage(connection,day,timezone_name)
+                result['admission_reconciled']=True
+                return result
+            except PermissionError as exc:
+                result=native_turnover(connection,day,timezone_name)
+                result.update(admission_reconciled=False,entry_budget_used=None,
+                              outstanding_commitments=None,admission_error=str(exc))
+                return result
+
     def paper_notional_for_date(
         self,
         day: str,

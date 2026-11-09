@@ -39,3 +39,9 @@ ACK绑定须符合本次原生回调的account/contract/client/permId/父子订�
 原子准入现改为读取当天原生成交双向金额，并加上仍可能执行的承诺；已绑定父单以精确all-time execId数量扣减剩余承诺，未成交余额跨日保留，只有完成native/cash终结核验的claim可以清除未成交预算。无精确绑定的当日ACK继续视为承诺；TRANSPORT_STARTED后的FAILED标签不能抹除。此函数仅用于entry admission，不接管保护退出。
 
 完整离线1090项/75.674s/OK，OpenSpec5项strict PASS。真实费用/结算/部分成交/重启与执行owner集成尚未验收；原生更正/撤销语义和所有边界仍需独立核实。旧API health的daily_notional_used历史请求口径尚待统一，不能用该旧显示字段代替新事务准入。未部署此候选。
+
+### 原生成交更正审阅
+
+[IBKR官方execution details](https://www.interactivebrokers.com/docs/tws-api/doc/order-management/execution-details)明确：部分成交各有execId；更正通过最后一个点之后数字变化的execId额外发送。因此不能把所有不同execId无条件相加，也不能删除原始行。本文候选需识别更正家族并保留未核验状态；完整经济版本投影/撤销与费用归属不能只凭字符串选最新后宣称完成。IB Gateway原生执行查询默认仅当日，跨日历史依赖本地已持久化证据，不能把新快照没有旧成交当作撤销。
+
+API health日预算字段已改为与事务准入同一投影：分别显示actual buy/sell、未成交承诺和准入预算；无法核实时entry_budget_used/null，而非报告零。旧paper_notional_for_date仅保留历史请求报表兼容用途。此轮完整离线1091项/76.088秒/OK。

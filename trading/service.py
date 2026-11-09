@@ -30,6 +30,7 @@ class TradingService:
     def health(self) -> Dict[str, Any]:
         recent_orders = self._audit.list_recent(5)
         tws_status = self._tws_status()
+        daily_budget = self._daily_budget_report()
         return {
             "status": "ok",
             "lock_state": self._lock_state(),
@@ -47,7 +48,8 @@ class TradingService:
                 "max_risk_per_order": self.settings.max_risk_per_order,
                 "max_daily_notional_value": self.settings.max_daily_notional_value,
                 "daily_notional_timezone": self.settings.daily_notional_timezone,
-                "daily_notional_used": self._daily_notional_used(),
+                "daily_notional_used": (float(daily_budget["entry_budget_used"]) if daily_budget and daily_budget["admission_reconciled"] else (0.0 if daily_budget is None else None)),
+                "daily_budget": daily_budget,
             },
             "audit": {
                 "database": str(self.settings.audit_db),
@@ -582,14 +584,18 @@ class TradingService:
                 "service_daily_notional",
             )
 
-    def _daily_notional_used(self) -> float:
+    def _daily_budget_report(self):
         if self.settings.max_daily_notional_value is None:
-            return 0.0
-        day = datetime.now(ZoneInfo(self.settings.daily_notional_timezone)).date().isoformat()
-        return self._audit.paper_notional_for_date(
-            day,
-            self.settings.daily_notional_timezone,
-        )
+            return None
+        day=datetime.now(ZoneInfo(self.settings.daily_notional_timezone)).date().isoformat()
+        return self._audit.daily_entry_budget_report(day,self.settings.daily_notional_timezone)
+
+    def _daily_notional_used(self) -> float:
+        report=self._daily_budget_report()
+        if report is None:return 0.0
+        if not report['admission_reconciled']:
+            raise PermissionError('Daily budget requires native reconciliation')
+        return float(report['entry_budget_used'])
 
     @staticmethod
     def _estimated_risk(proposal: TradeProposal) -> float:

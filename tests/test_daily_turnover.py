@@ -82,3 +82,10 @@ class NativeTurnoverTests(unittest.TestCase):
         with closing(self.audit._connect()) as c:
             day=datetime.now(timezone.utc).date().isoformat()
             self.assertEqual(admission_usage(c,day,'UTC')['outstanding_commitments'],'80')
+
+    def test_health_budget_never_presents_unverified_turnover_as_zero(self):
+        self.add('missing-time',time='')
+        report=self.audit.daily_entry_budget_report('2026-11-09','America/New_York')
+        self.assertFalse(report['admission_reconciled'])
+        self.assertIsNone(report['entry_budget_used'])
+        self.assertEqual(report['unresolved'][0]['exec_id'],'missing-time')
