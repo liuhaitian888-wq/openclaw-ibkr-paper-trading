@@ -39,3 +39,7 @@ ssh -t -i ~/.ssh/ibkr_paper_hetzner_20261022 -o UserKnownHostsFile=~/.ssh/known_
 Hetzner源码98cd05a，monitoring manifest匹配；隐藏输入helper root:root555及SHA256回读匹配，systemd单位语法验证通过。模型服务disabled/inactive，model_owner仍mac_bridge，未创建API_ARM。源码完整隔离离线1142项/84.658s通过；合并Mac并行fc8b088后的d47524a为1144项/42.905s通过，不将其额外broker修复顺带部署到云端。秘密扫描和5项当前规格/活动变更严格校验通过。真实key/model访问及Mac停止后的私人回复仍未验收。
 
 电脑控制工具拒绝自动打开Terminal（安全限制），用户需手动运行上述SSH命令；不绕过限制、不把密钥交给聊天。填好只回复“已填写”，随后工程侧运行一次受控probe并核验原生结果，再切换owner，不以此文档或服务存活代替成功。
+
+## 路线纠正：OAuth（2026-11-09）
+
+用户明确要求ChatGPT OAuth。以上API Key路径不启用、不再要求用户申请或输入Key；保留为历史准备记录。当前授权接入路线及验收见SECRETARY_CLOUD_OAUTH.md：Hetzner独立device-code登录，不复制Mac会话，不自动回退API Key。

@@ -69,11 +69,11 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
             tick_login(archive,root)
         if policy.get('model_owner','mac_bridge')!=caller:
             result['job']=None;return result
-        if result['controls'] and caller!='cloud_api':return result
+        if result['controls'] and caller not in ('cloud_api','cloud_oauth'):return result
         if (root/'runtime/SECRETARY_MODEL_DRAIN').exists():
             result['job']=None;return result
         autonomous(archive,now=time.time())
-        result['job']=claim(archive,model=policy['model'],now=time.time(),resume_after=policy.get('model_owner_since',0) if caller=='cloud_api' else 0)
+        result['job']=claim(archive,model=policy['model'],now=time.time(),resume_after=policy.get('model_owner_since',0) if caller in ('cloud_api','cloud_oauth') else 0)
         if result['job'] and result['job']['payload'].get('autonomous'):progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
     if action=='checkpoint':

@@ -27,3 +27,22 @@ class SecretaryModelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp);binary=self.fixture(root,'import time\ntime.sleep(30)')
             with self.assertRaises(subprocess.TimeoutExpired):analyze('fixture',codex=binary,codex_home=root,empty_dir=root,timeout=1)
+    def test_cloud_oauth_forces_auth_and_disables_tools_and_provider_retries(self):
+        import os
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp)
+            body='''import os,sys,json
+assert 'forced_login_method="chatgpt"' in sys.argv
+assert 'model_provider="secretary_oauth"' in sys.argv
+assert 'model_providers.secretary_oauth.request_max_retries=0' in sys.argv
+assert 'model_providers.secretary_oauth.stream_max_retries=0' in sys.argv
+assert 'apps' in sys.argv and 'computer_use' in sys.argv
+assert not any(k in os.environ for k in ('OPENAI_API_KEY','CODEX_API_KEY','CODEX_ACCESS_TOKEN'))
+print(json.dumps({'type':'item.completed','item':{'type':'agent_message','text':json.dumps({'summary':'oauth fixture','tools':[]})}}))
+print(json.dumps({'type':'turn.completed','usage':{'input_tokens':1,'output_tokens':1}}))
+'''
+            binary=self.fixture(root,body)
+            with patch.dict(os.environ,{'OPENAI_API_KEY':'fixture','CODEX_API_KEY':'fixture','CODEX_ACCESS_TOKEN':'fixture'}):
+                result,usage=analyze('fixture JSON',codex=binary,codex_home=root,empty_dir=root,force_chatgpt=True)
+            self.assertEqual(result['summary'],'oauth fixture')

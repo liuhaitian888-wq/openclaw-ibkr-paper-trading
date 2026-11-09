@@ -56,3 +56,18 @@ The system SHALL use a dedicated private credential for gpt-6.1-sol with low rea
 #### Scenario: Mac-independent acceptance
 - **WHEN** a fresh owner-private instruction is processed with the Mac bridge disabled
 - **THEN** acceptance requires a cloud model response receipt, archived result and native private Telegram delivery receipt, rather than service liveness or an ACK.
+
+### Requirement: Owner-selected independent ChatGPT OAuth
+The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
+
+#### Scenario: Fresh cloud device authorization
+- **WHEN** the owner completes the official device-code flow for the cloud login
+- **THEN** credentials persist only in the private cloud OAuth home and the official CLI owns token refresh; model availability still requires a completed inference.
+
+#### Scenario: API-key cache or missing OAuth
+- **WHEN** the cloud credential is absent, insecure or not ChatGPT OAuth
+- **THEN** the provider refuses before claiming work and does not switch to API-key authentication.
+
+#### Scenario: Uncertain OAuth model turn
+- **WHEN** the cloud Codex inference fails without a completed acknowledged turn
+- **THEN** the attempt is retained for reconciliation and is not automatically replayed, while trading gates remain unchanged.

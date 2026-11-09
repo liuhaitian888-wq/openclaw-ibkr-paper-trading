@@ -58,7 +58,7 @@ def execute(job,settings,*,invoke=None,inference=None,cloud_only=False):
         if not requests or turn==2:
             result['tools_unexecuted']=requests if turn==2 else []
             result['model']=job['model'];result['usage']=usage
-            result['source']='OpenAI Responses cloud API; public output only' if cloud_only else 'Codex OAuth inference, public final output only'
+            result['source']=settings.get('source_label','OpenAI Responses cloud API; public output only') if cloud_only else 'Codex OAuth inference, public final output only'
             result['execution_policy']='readonly-research-v1';result['turns']=turn+1
             return call({'action':'finish','run':job['run'],'state':'SUCCEEDED','result':result})
         for request in requests:

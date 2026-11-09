@@ -17,24 +17,24 @@ from scripts.run_secretary_bridge import execute
 import hashlib
 
 
-def policy(root):
+def policy(root,owner='cloud_api'):
     value=json.loads((root/'runtime/secretary-policy.json').read_text())
     if (value.get('approved') is not True or value.get('grants_trading_permission') is not False
-            or value.get('model_owner')!='cloud_api' or value.get('model')!='gpt-6.1-sol'
+            or value.get('model_owner')!=owner or value.get('model')!='gpt-6.1-sol'
             or value.get('reasoning_effort')!='low' or type(value.get('model_owner_since')) not in (int,float)
             or value['model_owner_since']<=0):raise PermissionError('Approved cloud model owner policy required')
     return value
 
 
-def run_once(root,config,key_path):
-    current=policy(root)
-    credential(key_path)  # Refuse before reserving a run if the local credential is absent/invalid.
-    RecoveryCoordinator(root/'runtime/recovery.sqlite3').observe('SECRETARY_API_CREDENTIAL','HEALTHY',freshness='FRESH',
-        enabled=True,reason='Private systemd credential readable; API account/model access independently verified')
+def run_once(root,config,key_path,*,owner='cloud_api',provider='openai_responses',auth_check=credential,inference_backend=analyze):
+    current=policy(root,owner)
+    auth_check(key_path)  # Refuse before reserving a run if the local credential is absent/invalid.
+    RecoveryCoordinator(root/'runtime/recovery.sqlite3').observe('SECRETARY_OAUTH' if owner=='cloud_oauth' else 'SECRETARY_API_CREDENTIAL','HEALTHY',freshness='FRESH',
+        enabled=True,reason='Private provider credential available; model access independently verified')
     def invoke(request):
         # Shared kernel RPC lock also serializes with the retained Mac bridge.
         with redirect_stdout(sys.stderr),monitoring_service('secretary-rpc',root):
-            return dispatch(root,request,config,current,caller='cloud_api')
+            return dispatch(root,request,config,current,caller=owner)
     job=invoke({'action':'poll'}).get('job')
     if job is None:return 'IDLE'
     def inference(prompt,**kwargs):
@@ -43,18 +43,18 @@ def run_once(root,config,key_path):
         with closing(archive.connect()) as c:
             turns=c.execute("SELECT count(*) FROM secretary_events WHERE parent=? AND kind='MODEL_STARTED' AND occurrence LIKE ?",(job['instruction'],job['run']+':model_started:%')).fetchone()[0]
         identity=hashlib.sha256((job['run']+':'+str(turns)).encode()).hexdigest()
-        return analyze(prompt,key_path=key_path,receipt_path=root/'runtime/secretary-api-receipts'/(identity+'.json'),**kwargs)
+        return inference_backend(prompt,key_path=key_path,receipt_path=root/'runtime'/('secretary-oauth-receipts' if owner=='cloud_oauth' else 'secretary-api-receipts')/(identity+'.json'),**kwargs)
     try:
-        result=execute(job,{'codex':None,'codex_home':None,'empty_dir':None},invoke=invoke,inference=inference,cloud_only=True)
+        result=execute(job,{'codex':None,'codex_home':None,'empty_dir':None,'source_label':'Hetzner ChatGPT OAuth via official Codex CLI' if owner=='cloud_oauth' else 'OpenAI Responses cloud API; public output only'},invoke=invoke,inference=inference,cloud_only=True)
         state=result['state']
         RecoveryCoordinator(root/'runtime/recovery.sqlite3').observe('SECRETARY_MODEL','HEALTHY',freshness='FRESH',enabled=True,
-            provider='openai_responses',model='gpt-6.1-sol',reasoning_effort='low',reason='Acknowledged cloud inference; reply delivery independently verified')
+            provider=provider,model='gpt-6.1-sol',reasoning_effort='low',reason='Acknowledged cloud inference; reply delivery independently verified')
         return state
     except BaseException as exc:
         try:invoke({'action':'finish','run':job['run'],'state':'UNKNOWN'})
         except Exception:pass  # Durable STARTED survives and cannot be automatically replayed.
         RecoveryCoordinator(root/'runtime/recovery.sqlite3').observe('SECRETARY_MODEL','DEGRADED',freshness='UNKNOWN',enabled=True,
-            provider='openai_responses',reason='Cloud inference/archive outcome requires reconciliation',error_type=type(exc).__name__)
+            provider=provider,reason='Cloud inference/archive outcome requires reconciliation',error_type=type(exc).__name__)
         if isinstance(exc,(KeyboardInterrupt,SystemExit)):raise
         return 'UNKNOWN'
 
@@ -68,7 +68,7 @@ def main():
     key_path=Path(os.environ['CREDENTIALS_DIRECTORY'])/'openai_api_key'
     stopped=threading.Event()
     for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,lambda *_:stopped.set())
-    with monitoring_service('secretary-cloud-api',root):
+    with monitoring_service('secretary-cloud-model',root):
         while not stopped.is_set():
             try:state=run_once(root,config,key_path)
             except Exception as exc:

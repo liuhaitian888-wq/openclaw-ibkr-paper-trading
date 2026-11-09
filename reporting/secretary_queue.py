@@ -150,7 +150,7 @@ def checkpoint(archive,run,data):
 
 def acknowledgement(model_owner):
     base='已收到并入库，等待处理；这不是模型已开始执行的确认。'
-    if model_owner=='cloud_api':return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
+    if model_owner in ('cloud_api','cloud_oauth'):return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
     return base+'当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。'
 
 

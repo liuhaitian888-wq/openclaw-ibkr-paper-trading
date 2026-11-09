@@ -33,3 +33,12 @@
 - [x] Complete offline/secret/spec checks; Git integration recorded separately after execution.
 - [ ] User securely enters API key; native account/model/low response verified.
 - [ ] Cut over and verify new owner-native private reply with Mac bridge disabled; update profile only after acceptance.
+
+## OAuth correction (owner-selected)
+
+- [x] Verify official CLI artifact and prepare fresh cloud-only OAuth login, without token copy or API key.
+- [x] Implement OAuth provider, receipt/uncertainty boundaries, credential health and exclusive model ownership; complete offline/spec/secret checks.
+- [ ] User finishes cloud OAuth consent; verify actualgpt-6.1-sol/low access.
+- [ ] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled.
+
+The earlier API-key entry/access tasks are superseded by the owner OAuth choice, retained unchecked as historical work rather than completion claims.
