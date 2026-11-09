@@ -76,6 +76,17 @@ The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider throu
 - **WHEN** the cloud Codex inference fails without a completed acknowledged turn
 - **THEN** the attempt is retained for reconciliation and is not automatically replayed, while trading gates remain unchanged.
 
+### Requirement: Cloud OAuth startup notice reconciliation
+The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that Code Mode is unavailable because its host is disabled, only when a public structured result and native turn-completion usage are present. It SHALL retain the notice in usage metadata, reject all other error/native tool events, and preserve earlier UNKNOWN receipts without replay.
+
+#### Scenario: Disabled Code Mode does not mask successful inference
+- **WHEN** the exact disabled-host notice precedes turn start and the cloud OAuth turn completes with valid public JSON and usage
+- **THEN** the adapter records CODE_MODE_DISABLED and accepts that completed inference without enabling native tools
+
+#### Scenario: Actual errors remain blocking
+- **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
+- **THEN** the attempt remains unacknowledged and is not automatically replayed
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
@@ -91,3 +102,4 @@ OAuth is the selected route; API-key instructions above describe superseded prep
 ### Owner-private status menu
 
 The existing secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls. They SHALL read existing real runtime observations through the shared health resolver, show observation time and freshness, and fail UNKNOWN for unavailable evidence. Old HEALTHY records SHALL NOT imply current availability. Provider configuration and cloud host snapshots SHALL be distinguished from successful model calls and live Telegram reachability. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.
+

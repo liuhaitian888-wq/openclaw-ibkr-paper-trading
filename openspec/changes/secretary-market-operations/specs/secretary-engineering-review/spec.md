@@ -71,3 +71,14 @@ The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider throu
 #### Scenario: Uncertain OAuth model turn
 - **WHEN** the cloud Codex inference fails without a completed acknowledged turn
 - **THEN** the attempt is retained for reconciliation and is not automatically replayed, while trading gates remain unchanged.
+
+### Requirement: Cloud OAuth startup notice reconciliation
+The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that Code Mode is unavailable because its host is disabled, only when a public structured result and native turn-completion usage are present. It SHALL retain the notice in usage metadata, reject all other error/native tool events, and preserve earlier UNKNOWN receipts without replay.
+
+#### Scenario: Disabled Code Mode does not mask successful inference
+- **WHEN** the exact disabled-host notice precedes turn start and the cloud OAuth turn completes with valid public JSON and usage
+- **THEN** the adapter records CODE_MODE_DISABLED and accepts that completed inference without enabling native tools
+
+#### Scenario: Actual errors remain blocking
+- **WHEN** another error, a post-start error, native tool execution, or missing turn completion occurs
+- **THEN** the attempt remains unacknowledged and is not automatically replayed
