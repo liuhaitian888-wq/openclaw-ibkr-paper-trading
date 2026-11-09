@@ -62,7 +62,7 @@ class PaperSafetyClient(TwsPaperClient):
         from trading.native_cash_collector import NativeCashCollector
         self.cashbook_collector=NativeCashCollector(self,account='DUQ503649',connection_generation=self.connection_generation,
             admitted=self._cashbook_admitted,publish=self.cashbook_publisher,observe=self._observe_cashbook,clock=self.monitor.clock,allocate_request_id=self._next_cash_request_id,publication_state=self.monitor.cashbook_publication_state)
-        self._observe_cashbook('DEGRADED','Awaiting complete owned native cash request',enabled=True,grants_trading_permission=False)
+        self._observe_cashbook('DEGRADED','CASHBOOK_PUBLICATION_RECOVERY_REQUIRED' if self.monitor.cashbook_publication_state.get('blocked') else 'Awaiting complete owned native cash request',enabled=True,grants_trading_permission=False)
 
     def poll_cashbook(self):
         if self.cashbook_collector is not None:self.cashbook_collector.poll()

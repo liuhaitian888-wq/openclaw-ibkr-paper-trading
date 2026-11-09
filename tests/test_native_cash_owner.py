@@ -55,6 +55,10 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.assertEqual(self.target.read_bytes(),before)
         partials=list(self.target.parent.glob('.cashbook-*.tmp'));self.assertEqual(len(partials),1)
         self.assertEqual(partials[0].stat().st_mode&0o077,0)
+        # Even a whole-process restart cannot multiply retained disk evidence.
+        with self.assertRaises(OSError):
+            publish_native_cashbook(self.root,self.monitor,json.loads(partials[0].read_text()))
+        self.assertEqual(len(list(self.target.parent.glob('.cashbook-*.tmp'))),1)
         calls=len(self.calls)
         for _ in range(200):
             self.now+=5;self.client.poll_cashbook()

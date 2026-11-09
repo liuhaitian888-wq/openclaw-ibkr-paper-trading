@@ -39,6 +39,12 @@ def publish_native_cashbook(root,monitor,book):
             if prior.get('source')=='BROKER_API' and prior.get('account')==ACCOUNT and aware_stamp(prior['observed_at'])>end:
                 raise CashbookFrameRejected('A later cash observation already exists; no stale overwrite')
         target.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+        # Persist the circuit across whole-service restarts without writing a
+        # second diagnostic file to an already failing filesystem. Operator
+        # reconciliation of the original partial is required before recovery.
+        with os.scandir(target.parent) as entries:
+            if any(e.name.startswith('.cashbook-') and e.name.endswith('.tmp') for e in entries):
+                raise OSError('Retained cashbook partial requires explicit local persistence recovery')
         # A failed partial is private and retained for diagnosis; never truncate latest.
         with tempfile.NamedTemporaryFile(mode='w',dir=target.parent,prefix='.cashbook-',suffix='.tmp',delete=False) as f:
             temporary=Path(f.name);f.write(payload);f.flush();os.fsync(f.fileno())
