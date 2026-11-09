@@ -29,7 +29,7 @@
 
 - [x] Implement fixed-origin Responses gpt-6.1-sol/low transport, no retries, durable public receipts and sanitized failures.
 - [x] Implement cloud claim ownership, legacy checkpoint boundary and single systemd model owner.
-- [ ] Prepare hidden root credential entry and dormant deployment; preserve existing Mac bridge until cutover.
+- [x] Prepare hidden root credential entry and dormant deployment; preserve existing Mac bridge until cutover.
 - [x] Complete offline/secret/spec checks; Git integration recorded separately after execution.
 - [ ] User securely enters API key; native account/model/low response verified.
 - [ ] Cut over and verify new owner-native private reply with Mac bridge disabled; update profile only after acceptance.
