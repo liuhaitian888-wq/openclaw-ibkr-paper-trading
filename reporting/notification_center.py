@@ -10,6 +10,8 @@ CATEGORIES = {
  'ops': ('🛠', '运维', '主机、API连接、上游中断、依赖恢复'),
  'risk': ('🟥', '账户风险', '保护覆盖、敞口、对账、订单拒绝'),
  'auth': ('🔐', '认证', '登录到期、二次认证、认证回读'),
+ 'calendar': ('🕒', '交易时段', '交易所日历、开闭市与休市原因'),
+ 'engineering': ('🧩', '工程周报', '秘书证据、未收口问题与Codex提示'),
  'report': ('📊', '日报', '日报、缺报、投递回执'),
  'chat': ('💬', '秘书对话', '普通问答与讨论'),
  'task': ('🛠', '委托任务', '明确委托的具体工作'),
@@ -26,6 +28,8 @@ def category(item):
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
     if kind=='SECRETARY_REPLY':
         return {'ACK':'chat','CHAT':'chat','TASK':'task','RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
+    if kind=='MARKET_SESSION':return 'calendar'
+    if kind=='ENGINEERING_WEEKLY':return 'engineering'
     if kind.startswith('REPORT_'):return 'report'
     if kind.startswith('AUTH_') or p.get('scope')=='GATEWAY_AUTHENTICATION':return 'auth'
     if p.get('source')=='IBKR_FYI':return 'fyi'
@@ -70,6 +74,13 @@ def get_item(store, ident):
 
 def critical(item):
     return item['payload'].get('severity')=='RED' or category(item) in ('risk','auth','control') or item['kind']=='RECOVERY'
+
+
+def stale_schedule(item, now):
+    if item['kind'] not in ('MARKET_SESSION','ENGINEERING_WEEKLY'):
+        return False
+    expiry=item['payload'].get('expires_at')
+    return expiry is not None and (type(expiry) not in (int,float) or not __import__('math').isfinite(expiry) or now>=expiry)
 
 
 def enabled(store,item):
@@ -134,6 +145,8 @@ def render(item,config,at):
         summary=(display(reason).splitlines() or ['状态已更新'])[0][:150]
         detail=notification_text(item,at,max_length=3300)
     if kind in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):detail=detail[:520]
+    if kind in ('MARKET_SESSION','ENGINEERING_WEEKLY'):
+        return {'text':str(p.get('reason','')),'html':html.escape(str(p.get('reason',''))),'category':cat,'audience':audience(item,config),'chat_id':recipient(item,config)}
     if kind=='SECRETARY_REPLY' and p.get('message_role') in ('ACK','CHAT','CONTROL') and audience(item,config)=='owner':
         return {'text':str(p.get('reason','')),'html':html.escape(str(p.get('reason',''))),'category':cat,'audience':'owner','chat_id':recipient(item,config)}
     top=title+'\n'+summary+'\n事件 #'+str(item['id'])+' · /event '+str(item['id'])

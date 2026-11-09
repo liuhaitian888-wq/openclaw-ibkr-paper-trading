@@ -44,3 +44,13 @@ Remaining: five inherited protective stop acknowledgements after real regular-se
 Registered diagram inputs inspected: engineering maintenance boundary unchanged by this P0 path; broad-screening diagram changes belong to its separately evidenced task and are preserved. No untracked diagram deletion or fake regeneration.
 
 Final live identity reconciliation: a concurrent approved cloud deployment advanced HEAD to e7e5661 and correctly blocked the older protection scope. All8 protection core/dependency files were byte-identical by Git diff; only scope.commit was rebound, with original expiry/quantities/authority/budget preserved and a backup. Gateway deployment validation passed without restart. Real scoped run returned WAIT_SESSION/0 orders; global unknown operations0. Telegram protective handoff message127 and actual funding result message136 both TELEGRAM_ACCEPTED. Evidence: local protection-identity-reconciliation.json and cloud engineering/p0-execution-20261109/protection/identity-reconciliation.json. Latest combined worktree1042 tests/41.757s/OK; secrets PASS;4 current OpenSpec items strict PASS; five-project refresh completed. Full stock automation remains NOT_READY/PARTIAL.
+
+## 秘书主动运营与交易时段（2026-11-09，进行中）
+
+用户授权持续推进，无需重复审批普通工程参数。新OpenSpec `secretary-market-operations`独立于仍未完成的`p0-paper-execution`。EQQQ仅绑定原生合约18706552/BVME.ETF，未把其他连接账户持仓混入Paper。新通知通过既有cloud inbox/outbox；周日18:00柏林生成可复制Codex prompt，原生自动化der-2周日18:10复盘，尚未观察定时运行。`/hours`、`/weekly`、`/codex`及22项私人菜单已实现，待云端回执后更新状态。
+
+Nasdaq官方计划2026-12-06启用夜盘，当前阶段规则保守核验至12-05，其他2026年历至12-31；14天前提醒并进入周报。不得声称未知未来时段已启用。市场日历不是停牌、API故障、行情资格或交易许可。App Server stdio initialize实际ACK，无turn创建/付费推理；Telegram任意消息自动注入桌面会话仍未接通，copyable prompt为当前诚实交接方式。
+
+风控分类与第三方方法/适用合规边界记录在docs/RISK_CONTROL_REVIEW.md；本轮查阅LEAN、Nautilus、exchange_calendars与官方交易所/法规，不声称引入整套引擎、全部控制已实现或取得合规认证。极端环境多标的大规模交易、门禁放宽保持后续讨论。
+
+受影响图表核对：现有工程维护分界图与宽筛来源/券商关系图拓扑不变；本次增加的是既有秘书通知路径的两个有界生产者，不改宽筛或维护流程。旧untracked交易图保留，没有伪造重绘/视觉验收。源码/离线验证/部署/真实回执分开追加。

@@ -34,7 +34,7 @@ def accept_update(archive, update, config, *, armed_at):
              and isinstance(m.get('text'),str) and 0<len(m['text'])<=4000
              and type(m.get('date')) is int and m['date']>=armed_at and type(m.get('message_id')) is int)
     if allowed:
-        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
+        archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/hours','/weekly','/codex','/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
             'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
     with closing(archive.connect()) as c,c:
@@ -63,7 +63,7 @@ def autonomous(archive, *, now):
     standing_focus={'text':json.loads(focus[0])['text'],'source_instruction':focus[1]} if focus else None
     slot=int(now//21600)
     return archive.append('autonomous:'+str(slot),CONVERSATION,origin='SYSTEM',kind='AUTONOMOUS_INSTRUCTION',parent=AUTHORITY,payload={
-        'text':'自主研究本轮：先查档案避免重复。自行选择可证伪课题，读取数据库证据，运行已登记测试，报告实际结果、局限和下一步。无连续数据或费用版本时不得捏造策略收益。',
+        'text':'自主研究本轮：先查档案避免重复。以价值投资理念自主选择质量、估值、安全边际、组合集中度、流动性、保护单/移动止损校准、多标的危机历史回测等可证伪课题；主动发现系统与数据问题并通过engineering_proposal提交证据。读取数据库证据，运行已登记测试，报告实际结果、局限和下一步。无连续point-in-time数据、费用版本或样本外时不得捏造策略收益，不得虚构几百年个股/ETF历史。现有均线候选只是执行管道验收，不等于价值投资策略验证。大规模极端行情交易与放宽门禁属于后续讨论。',
         'standing_focus':standing_focus,'slot':slot,'strategy_version':'research-policy-v1','cost_assumptions':'INCOMPLETE; no zero-fee default',
         'data_applicability':'Must establish point-in-time data and out-of-sample split before performance claims'})
 

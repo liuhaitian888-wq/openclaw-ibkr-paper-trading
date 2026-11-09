@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "verified_on": "2026-11-09",
+  "valid_from": "2026-01-01",
+  "valid_through": "2026-12-31",
+  "purpose": "Awareness only; not broker execution permission, real-time halt feed or API health",
+  "sources": {
+    "us_holidays": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule",
+    "nyse_phases": "https://www.nyse.com/trade/hours-calendars",
+    "nasdaq_phases": "https://www.nasdaqtrader.com/content/technicalsupport/specifications/TradingProducts/fixactspec.pdf",
+    "milan_holidays": "https://www.borsaitaliana.it/borsaitaliana/calendario-e-orari-di-negoziazione/tradingcalendar-2026.en.pdf",
+    "milan_phases": "https://www.borsaitaliana.it/etc-etn/perintermediari/negoziazionietipologiadordini/negoziazioneetipologiadordini.en.htm",
+    "nasdaq_planned_change": "https://www.nasdaqtrader.com/TraderNews.aspx?id=ETA2026-56"
+  },
+  "calendars": {
+    "US": {
+      "holidays": {
+        "2026-01-01": "元旦",
+        "2026-01-19": "马丁·路德·金纪念日",
+        "2026-02-16": "总统日",
+        "2026-04-03": "耶稣受难日",
+        "2026-05-25": "阵亡将士纪念日",
+        "2026-06-19": "六月节",
+        "2026-07-03": "独立日补休",
+        "2026-09-07": "劳动节",
+        "2026-11-26": "感恩节",
+        "2026-12-25": "圣诞节"
+      },
+      "early_closes": {
+        "2026-11-27": "13:00",
+        "2026-12-24": "13:00"
+      }
+    },
+    "MILAN": {
+      "holidays": {
+        "2026-01-01": "元旦",
+        "2026-04-03": "耶稣受难日",
+        "2026-04-06": "复活节星期一",
+        "2026-05-01": "劳动节",
+        "2026-12-24": "圣诞前夕",
+        "2026-12-25": "圣诞节",
+        "2026-12-31": "除夕"
+      },
+      "early_closes": {}
+    }
+  },
+  "profiles": {
+    "NASDAQ": {
+      "label": "纳斯达克",
+      "timezone": "America/New_York",
+      "calendar": "US",
+      "phases": [
+        [
+          "04:00",
+          "PRE",
+          "盘前交易"
+        ],
+        [
+          "09:30",
+          "CORE",
+          "常规交易开市"
+        ],
+        [
+          "16:00",
+          "POST",
+          "常规收市，盘后交易"
+        ],
+        [
+          "20:00",
+          "CLOSED",
+          "盘后结束，闭市"
+        ]
+      ],
+      "early_phases": [
+        [
+          "04:00",
+          "PRE",
+          "盘前交易"
+        ],
+        [
+          "09:30",
+          "CORE",
+          "常规交易开市"
+        ],
+        [
+          "13:00",
+          "POST",
+          "提前收市，盘后交易"
+        ],
+        [
+          "17:00",
+          "CLOSED",
+          "提前盘后结束，闭市"
+        ]
+      ],
+      "valid_through": "2026-12-05",
+      "review_reason": "Nasdaq计划2026-12-06启用23/5夜盘；需核验实际启用、假日跨日与券商资格"
+    },
+    "NYSE": {
+      "label": "纽交所主市场（Tape A）",
+      "timezone": "America/New_York",
+      "calendar": "US",
+      "phases": [
+        [
+          "06:30",
+          "PREORDER",
+          "开盘前委托排队（不撮合）"
+        ],
+        [
+          "09:30",
+          "CORE",
+          "常规交易开市"
+        ],
+        [
+          "16:00",
+          "CLOSED",
+          "常规收市"
+        ]
+      ],
+      "early_phases": [
+        [
+          "06:30",
+          "PREORDER",
+          "开盘前委托排队（不撮合）"
+        ],
+        [
+          "09:30",
+          "CORE",
+          "常规交易开市"
+        ],
+        [
+          "13:00",
+          "CLOSED",
+          "提前收市"
+        ]
+      ]
+    },
+    "ETFPLUS": {
+      "label": "米兰 ETFplus · EQQQ",
+      "timezone": "Europe/Rome",
+      "calendar": "MILAN",
+      "contract_id": 18706552,
+      "broker_exchange": "BVME.ETF",
+      "phases": [
+        [
+          "07:30",
+          "OPEN_AUCTION",
+          "开盘集合竞价"
+        ],
+        [
+          "09:04",
+          "OPEN_UNCROSS",
+          "开盘竞价随机结束窗口（最多30秒）"
+        ],
+        [
+          "09:04:30",
+          "CORE",
+          "连续交易"
+        ],
+        [
+          "17:30",
+          "CLOSE_AUCTION",
+          "连续交易收市，收盘集合竞价"
+        ],
+        [
+          "17:35",
+          "CLOSE_UNCROSS",
+          "收盘竞价随机结束窗口（最多30秒）"
+        ],
+        [
+          "17:35:30",
+          "CLOSED",
+          "收盘竞价结束，闭市"
+        ]
+      ]
+    }
+  }
+}

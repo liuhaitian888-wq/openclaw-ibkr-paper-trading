@@ -107,7 +107,9 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
         bot_factory=Bot
     started=False
     try:
-        from .notification_center import enabled,render,prior_card
+        from .notification_center import enabled,render,prior_card,stale_schedule
+        if stale_schedule(item,clock()):
+            store.suppress(item['id']);return 'SUPPRESSED'
         if config.get('notification_format')=='compact-v1' and not enabled(store,item):
             store.suppress(item['id']);return 'SUPPRESSED'
         documents=report_bytes(item,report_root)

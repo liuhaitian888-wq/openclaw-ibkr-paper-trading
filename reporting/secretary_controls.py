@@ -47,7 +47,23 @@ def process_controls(archive,root,config,policy=None):
         try:
             if '@' in raw and raw.split('@',1)[1]!=config['bot_username']:raise ValueError('Command addressed to another bot')
             if command in ('/start','/help') and len(parts)==1:
-                summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n/marketdata 行情订阅 · /universe 总名单 · /eligible 合格名单\n直接发文字即可交给秘书；不需要 /secretary。'
+                summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n/hours 交易时段 · /weekly 工程周报prompt · /codex [需求] 工程交接\n/marketdata 行情订阅 · /universe 总名单 · /eligible 合格名单\n直接发文字即可交给秘书；不需要 /secretary。'
+            elif command=='/hours' and len(parts)==1:
+                from .market_clock import load_calendar,snapshot
+                from datetime import datetime,timezone
+                data=load_calendar();now=datetime.now(timezone.utc)
+                summary='\n\n'.join(snapshot(venue,now,data)['reason'] for venue in data['profiles'])+'\n规则核验：'+'；'.join(venue+'至'+min(data['valid_through'],profile.get('valid_through',data['valid_through'])) for venue,profile in data['profiles'].items())
+            elif command in ('/weekly','/codex'):
+                from .engineering_weekly import packet
+                from datetime import datetime,timezone
+                if command=='/weekly' and len(parts)!=1:raise ValueError('用法：/weekly')
+                if command=='/codex' and len(parts)==2:
+                    request=parts[1].strip()
+                    if not 1<=len(request)<=3000:raise ValueError('工程需求长度1到3000字')
+                    archive.append(instruction+':engineering-handoff',CONVERSATION,origin='TOOL',kind='ENGINEERING_HANDOFF',parent=instruction,payload={'request':request,'native_owner_instruction':instruction,'state':'ARCHIVED_NOT_ACCEPTED','automatic_deployment':False})
+                    summary='已归档工程需求；尚未证明Codex接收或执行。可复制给Codex：\n请在买der按AGENTS.md核实并处理以下需求，保留交易与维护门禁：\n'+request
+                else:
+                    _,review=packet(archive,datetime.now(timezone.utc));summary=review['reason']
             elif command in ('/inbox','/event','/read','/notify','/preview'):
                 from .notification_center import inbox,get_item,mark_read,settings,set_preference,preview
                 args=parts[1].split() if len(parts)==2 else []
@@ -251,6 +267,7 @@ def finish_search(archive,root,request):
 def menu_commands():
     return [('ready','交易门禁：是否允许交易 / 为何暂停'),('gate','风控限额：查看 / 整组编辑'),
             ('holdings','持仓：最新只读回读'),('report','日报：查看投递回执'),
+            ('hours','交易时段：开闭市与休市原因'),('weekly','秘书周报：可复制Codex提示'),('codex','工程交接：归档需求与可复制提示'),
             ('screen','价量与基本面：宽范围研究筛选'),('scan','IBKR扫描：既有Paper只读连接'),('compare','单股对照：外部与券商回读'),('data_status','数据来源、覆盖与维护状态'),('screen_refresh','立即排队刷新免费筛选数据'),('marketdata','行情订阅：登记表与抽查'),('universe','ABC证券总名单：查看与筛选'),('eligible','合格名单：含已晋级股票'),('market_check','行情抽查：仅已有证据'),('inbox','通知：私人收件箱'),('search','群历史：按关键词检索'),
             ('login','认证：查看连接与登录状态'),('help','秘书帮助：私聊使用说明'),
             ('notify','通知分类与配置'),('preview','通知预览：按编号查看')]

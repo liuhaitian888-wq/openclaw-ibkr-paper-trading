@@ -66,3 +66,22 @@ class SecretaryControlTests(unittest.TestCase):
                 read.assert_called_once_with(root)
                 with closing(a.connect()) as c:self.assertEqual(c.execute('SELECT model FROM secretary_runs').fetchone()[0],'PYTHON_CONTROL')
                 self.assertFalse((root/'production.json').exists())
+
+    def test_market_weekly_and_codex_controls_no_shell_or_model(self):
+        from reporting.secretary_controls import menu_commands
+        self.assertTrue({'hours','weekly','codex'}.issubset({x[0] for x in menu_commands()}))
+        from unittest.mock import patch
+        for i,command in enumerate(('/hours','/weekly','/codex 修复有证据的工程问题')):
+            with self.subTest(command=command),tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp);a=SecretaryArchive(root/'agent.sqlite3')
+                a.append('owner','der-secretary',origin='USER',kind='CONTROL_INSTRUCTION',payload={'text':command})
+                with patch('reporting.secretary_controls.subprocess.run') as run:
+                    process_controls(a,root,{'bot_username':'fixture'})
+                run.assert_not_called()
+                with closing(a.connect()) as c:
+                    self.assertEqual(c.execute('SELECT model,state FROM secretary_runs').fetchone(),('PYTHON_CONTROL','SUCCEEDED'))
+                    if command.startswith('/codex'):
+                        row=c.execute("SELECT origin,parent,payload FROM secretary_events WHERE kind='ENGINEERING_HANDOFF'").fetchone()
+                        self.assertEqual(row[:2],('TOOL','owner'))
+                        self.assertEqual(json.loads(row[2])['state'],'ARCHIVED_NOT_ACCEPTED')
+                self.assertFalse((root/'production.json').exists())

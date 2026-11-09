@@ -63,6 +63,8 @@ def batch_name(item):
 def notification_text(item,started,*,max_length=4000):
     if max_length<256:raise ValueError('Notification budget must retain identity and timing')
     data=item['payload'];kind=item['kind']
+    if kind in ('MARKET_SESSION','ENGINEERING_WEEKLY'):
+        return str(data.get('reason',''))[:max_length]
     if kind=='SECRETARY_REPLY':
         role=data.get('message_role','RESEARCH')
         if role=='CHAT':return ('买 der｜💬 秘书\n\n'+display(data.get('reason','')))[:max_length]
