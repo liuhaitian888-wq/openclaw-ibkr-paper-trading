@@ -35,7 +35,9 @@ async def poll(archive, root, config, armed_at, *, owned_bot=None, proof=None):
             if verify and proof is not None:proof['at']=time.monotonic()
             updates=await bot.get_updates(offset=cursor(archive),limit=20,timeout=5,allowed_updates=['message'],read_timeout=10,connect_timeout=5)
             accepted=sum(accept_update(archive,json.loads(u.to_json()),config,armed_at=armed_at) for u in updates)
-            reconcile_acknowledgements(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
+            policy_path=root/'runtime/secretary-policy.json'
+            model_owner=json.loads(policy_path.read_text()).get('model_owner','mac_bridge') if policy_path.exists() else 'mac_bridge'
+            reconcile_acknowledgements(archive,IncidentStore(root/'runtime/recovery.sqlite3'),model_owner=model_owner)
     return {'received':len(updates),'accepted':accepted}
 
 
@@ -46,7 +48,7 @@ def active_run(archive,run):
     return row[0]
 
 
-def dispatch(root,request,config,policy):
+def dispatch(root,request,config,policy,*,caller='mac_bridge'):
     archive=SecretaryArchive(root/'agent_secretary.sqlite3');initialize(archive)
     action=request.get('action')
     if action in ('model_started','model_finished'):
@@ -65,11 +67,13 @@ def dispatch(root,request,config,policy):
             result=asyncio.run(poll(archive,root,config,policy['armed_at']))
             result['controls']=process_controls(archive,root,config,policy)
             tick_login(archive,root)
-        if result['controls']:return result
+        if policy.get('model_owner','mac_bridge')!=caller:
+            result['job']=None;return result
+        if result['controls'] and caller!='cloud_api':return result
         if (root/'runtime/SECRETARY_MODEL_DRAIN').exists():
             result['job']=None;return result
         autonomous(archive,now=time.time())
-        result['job']=claim(archive,model=policy['model'],now=time.time())
+        result['job']=claim(archive,model=policy['model'],now=time.time(),resume_after=policy.get('model_owner_since',0) if caller=='cloud_api' else 0)
         if result['job'] and result['job']['payload'].get('autonomous'):progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
     if action=='checkpoint':
@@ -151,6 +155,8 @@ def main():
     config=json.loads(config_path.read_text())
     with redirect_stdout(sys.stderr):
         with monitoring_service('secretary-rpc',root):
+            # Re-read ownership inside the shared lock to avoid stale Mac claims at cutover.
+            policy=json.loads(policy_path.read_text())
             result=dispatch(root,request,config,policy)
             coordinator=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
             if (root/'runtime/RISK_CONTROLS_REQUIRED').exists():

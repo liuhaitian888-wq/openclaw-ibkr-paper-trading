@@ -46,6 +46,21 @@ The system SHALL publish only validated public SEC filing metadata through a fix
 - **WHEN** a notification has an unapproved SEC URL or is a private model research result
 - **THEN** it remains owner-private and is not eligible for public group delivery.
 
+### Requirement: Cloud model ownership and credential boundary
+The system SHALL use a dedicated private credential for gpt-6.1-sol with low reasoning on Hetzner when cloud ownership is activated. It SHALL retain the existing inbox, delivery and tool permission boundaries, deny Mac claims after cutover, and never automatically replay uncertain model attempts or pre-cutover checkpoints.
+
+#### Scenario: Missing cloud credential
+- **WHEN** the dedicated credential is absent, public-readable or invalid
+- **THEN** the cloud model owner refuses before claiming a task and does not report a successful API connection.
+
+#### Scenario: Unacknowledged inference
+- **WHEN** a model request times out or lacks a valid native completed response
+- **THEN** its attempt remains UNKNOWN with sanitized diagnostics and cannot be automatically replayed.
+
+#### Scenario: Mac-independent acceptance
+- **WHEN** a fresh owner-private instruction is processed with the Mac bridge disabled
+- **THEN** acceptance requires a cloud model response receipt, archived result and native private Telegram delivery receipt, rather than service liveness or an ACK.
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.

@@ -37,17 +37,19 @@ def rpc(request):
     return json.loads(p.stdout)
 
 
-def execute(job,settings):
+def execute(job,settings,*,invoke=None,inference=None,cloud_only=False):
+    call=invoke or rpc
+    infer=inference or analyze
     transcript=[{'instruction':job['payload'],'recent_conversation':job.get('conversation_context',[]),'owner_preferences':job.get('owner_preferences',[]),'mode_preference':preference(job['payload']),'source':'authorized cloud archive'}];usage=[];step=0
     saved=job.get('checkpoint',{})
     transcript=saved.get('transcript',transcript);usage=saved.get('usage',usage);step=saved.get('step',step)
     for turn in range(saved.get('turn',0),3):
         prompt=SYSTEM+'\n'+CONVERSATION_POLICY+'\n'+json.dumps({'turn':turn+1,'last_turn':turn==2,'evidence':transcript},ensure_ascii=False)
         if len(prompt)>60_000:raise RuntimeError('Context budget reached; requires reconciliation')
-        rpc({'action':'model_started','run':job['run'],'turn':turn+1})
+        call({'action':'model_started','run':job['run'],'turn':turn+1})
         inference_at=time.monotonic()
-        result,used=analyze(prompt,codex=settings['codex'],codex_home=settings['codex_home'],empty_dir=settings['empty_dir'],model=job['model'])
-        rpc({'action':'model_finished','run':job['run'],'turn':turn+1,'duration_seconds':round(time.monotonic()-inference_at,3)})
+        result,used=infer(prompt,codex=settings['codex'],codex_home=settings['codex_home'],empty_dir=settings['empty_dir'],model=job['model'])
+        call({'action':'model_finished','run':job['run'],'turn':turn+1,'duration_seconds':round(time.monotonic()-inference_at,3)})
         usage.append(used)
         mode=response_mode(job['payload'],result)
         result['response_mode']=mode
@@ -56,33 +58,37 @@ def execute(job,settings):
         if not requests or turn==2:
             result['tools_unexecuted']=requests if turn==2 else []
             result['model']=job['model'];result['usage']=usage
-            result['source']='Codex OAuth inference, public final output only'
+            result['source']='OpenAI Responses cloud API; public output only' if cloud_only else 'Codex OAuth inference, public final output only'
             result['execution_policy']='readonly-research-v1';result['turns']=turn+1
-            return rpc({'action':'finish','run':job['run'],'state':'SUCCEEDED','result':result})
+            return call({'action':'finish','run':job['run'],'state':'SUCCEEDED','result':result})
         for request in requests:
             if mode=='CHAT' and request.get('name') in ('research_universe','engineering_proposal'):
                 transcript.append({'request':request,'result':{'state':'REFUSED','reason':'Conversation cannot create research or engineering work'}})
                 continue
             step+=1
+            if cloud_only and (request.get('name')=='telegram_search' or request.get('source')=='local_snapshot'):
+                evidence={'state':'DEVICE_DEPENDENCY_UNAVAILABLE','reason':'Cloud model does not use a Mac session or local-only snapshot'}
+                transcript.append({'request':request,'result':evidence})
+                continue
             if request.get('name')=='telegram_search':
                 from reporting.telegram_search import search
                 import asyncio
-                target=rpc({'action':'telegram_search_target','run':job['run']})
+                target=call({'action':'telegram_search_target','run':job['run']})
                 args={k:request[k] for k in ('query','limit','before_id') if k in request}
                 evidence=asyncio.run(search(Path.home()/'.config/openclaw/telegram-search.json',args,target))
                 record={**args,'name':'telegram_search','source':'telegram_live'}
-                rpc({'action':'record_local_tool','run':job['run'],'step':step,'response_mode':mode,'request':record,'result':evidence})
+                call({'action':'record_local_tool','run':job['run'],'step':step,'response_mode':mode,'request':record,'result':evidence})
             elif request.get('source')=='local_snapshot':
                 if settings.get('snapshot_root'):
                     evidence=local_read_tool(Path(settings['snapshot_root']),request)
                     evidence['snapshot_provenance']=settings.get('snapshot_provenance')
                 else:evidence={'state':'LOCAL_SNAPSHOT_UNAVAILABLE'}
-                rpc({'action':'record_local_tool','run':job['run'],'step':step,'response_mode':mode,'request':request,'result':evidence})
-            else:evidence=rpc({'action':'tool','run':job['run'],'step':step,'response_mode':mode,'request':request})
+                call({'action':'record_local_tool','run':job['run'],'step':step,'response_mode':mode,'request':request,'result':evidence})
+            else:evidence=call({'action':'tool','run':job['run'],'step':step,'response_mode':mode,'request':request})
             # Exact tool evidence remains in cloud archive; cap only model context.
             packed=json.dumps(evidence,ensure_ascii=False)
             transcript.append({'request':request,'result':evidence if len(packed)<=12_000 else {'truncated_for_model':True,'preview':packed[:12_000]}})
-        rpc({'action':'checkpoint','run':job['run'],'checkpoint':dict(turn=turn+1,step=step,transcript=transcript,usage=usage)})
+        call({'action':'checkpoint','run':job['run'],'checkpoint':dict(turn=turn+1,step=step,transcript=transcript,usage=usage)})
         return {'state':'YIELDED','run':job['run']}
     raise RuntimeError('Bounded turns exhausted')
 

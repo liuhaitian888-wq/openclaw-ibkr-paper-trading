@@ -68,13 +68,13 @@ def autonomous(archive, *, now):
         'data_applicability':'Must establish point-in-time data and out-of-sample split before performance claims'})
 
 
-def claim(archive, *, model, now):
+def claim(archive, *, model, now, resume_after=0):
     initialize(archive)
     with closing(archive.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         pending=c.execute("SELECT 1 FROM secretary_events e WHERE e.kind='CHAT_INSTRUCTION' AND NOT EXISTS (SELECT 1 FROM secretary_runs r WHERE r.instruction=e.occurrence) LIMIT 1").fetchone()
         budget_available=c.execute("SELECT count(*) FROM secretary_runs WHERE model='gpt-6.1-sol' AND started_at>=?",(int(now//86400)*86400,)).fetchone()[0]<24
-        resumed=c.execute("SELECT k.run,k.payload,r.instruction,e.payload,e.kind FROM secretary_checkpoints k JOIN secretary_runs r ON r.occurrence=k.run JOIN secretary_events e ON e.occurrence=r.instruction WHERE k.state='READY' AND r.state='STARTED' ORDER BY CASE e.origin WHEN 'USER' THEN 0 ELSE 1 END,e.rowid LIMIT 1").fetchone()
+        resumed=c.execute("SELECT k.run,k.payload,r.instruction,e.payload,e.kind FROM secretary_checkpoints k JOIN secretary_runs r ON r.occurrence=k.run JOIN secretary_events e ON e.occurrence=r.instruction WHERE k.state='READY' AND r.state='STARTED' AND r.started_at>=? ORDER BY CASE e.origin WHEN 'USER' THEN 0 ELSE 1 END,e.rowid LIMIT 1",(resume_after,)).fetchone()
         if resumed and (not pending or not budget_available):
             c.execute("UPDATE secretary_checkpoints SET state='ACTIVE' WHERE run=?",(resumed[0],))
             data=json.loads(resumed[3]);data['autonomous']=resumed[4]=='AUTONOMOUS_INSTRUCTION'
@@ -148,12 +148,18 @@ def checkpoint(archive,run,data):
         c.execute("INSERT INTO secretary_checkpoints VALUES (?,'READY',?) ON CONFLICT(run) DO UPDATE SET state='READY',payload=excluded.payload",(run,encoded))
 
 
-def reconcile_acknowledgements(archive,store):
+def acknowledgement(model_owner):
+    base='已收到并入库，等待处理；这不是模型已开始执行的确认。'
+    if model_owner=='cloud_api':return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
+    return base+'当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。'
+
+
+def reconcile_acknowledgements(archive,store,*,model_owner='mac_bridge'):
     with closing(archive.connect()) as c:
         rows=c.execute("SELECT e.occurrence,e.recorded_at FROM secretary_events e JOIN secretary_received v ON v.instruction=e.occurrence LEFT JOIN secretary_ack_checkpoint a ON a.instruction=e.occurrence WHERE a.instruction IS NULL AND e.kind='CHAT_INSTRUCTION' AND e.origin='USER' AND e.occurrence LIKE 'telegram:%' ORDER BY e.rowid LIMIT 100").fetchall()
     with closing(store.connect()) as c,c:
         for occurrence,saved in rows:
-            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason='已收到并入库，等待处理；这不是模型已开始执行的确认。当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。',delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
+            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason=acknowledgement(model_owner),delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
     # Commit outbox first; crash before this checkpoint is repaired by INSERT OR IGNORE.
     with closing(archive.connect()) as c,c:
         c.executemany('INSERT OR IGNORE INTO secretary_ack_checkpoint VALUES (?)',[(x[0],) for x in rows])

@@ -64,7 +64,7 @@ MODULE_DEPENDENCIES = {
  'TELEGRAM': ('NETWORK',), 'SMTP': ('NETWORK',), 'FEISHU': ('NETWORK',), 'DELIVERY_LEDGER': (),
  'DELIVERY': ('REPORT','DELIVERY_LEDGER','FEISHU'),
  'INTELLIGENCE_PUBLIC': ('NETWORK',), 'INTELLIGENCE_BROKER': ('NEWS',),
- 'SECRETARY_ARCHIVE': (),
+ 'SECRETARY_ARCHIVE': (), 'SECRETARY_API_CREDENTIAL': (),
  'MARKET_CLOCK': ('LOCAL_STATE',), 'ENGINEERING_WEEKLY': ('SECRETARY_ARCHIVE','LOCAL_STATE'),
  'BROAD_SCREENING': ('NETWORK','SECRETARY_ARCHIVE'), 'BROKER_SCANNER': ('IBKR_CONNECTION','SECRETARY_ARCHIVE'), 'SECRETARY_MODEL': ('NETWORK',),
  'SECRETARY_LIMITS': ('SECRETARY_ARCHIVE',),
@@ -85,6 +85,8 @@ def dependency_registry(observations):
     if observations.get('RISK_CONTROLS',{}).get('enabled') is True:registry['RISK']=(*registry['RISK'],'RISK_CONTROLS')
     if observations.get('CURRENCY_BOOK',{}).get('enabled') is True:registry['ORDER_SUBMISSION']=(*registry['ORDER_SUBMISSION'],'CURRENCY_BOOK')
     registry['DELIVERY']=('REPORT','DELIVERY_LEDGER',provider)
+    if observations.get('SECRETARY_MODEL',{}).get('provider')=='openai_responses':
+        registry['SECRETARY_MODEL']=('NETWORK','SECRETARY_API_CREDENTIAL')
     return registry
 
 
