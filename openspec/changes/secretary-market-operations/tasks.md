@@ -20,7 +20,7 @@
 
 - [x] Pin reviewed rename titles and regenerate public calendar templates with privacy regression coverage.
 - [x] Replace misleading inference ACK and reject missing native chat type.
-- [ ] Native group rename/config/readback and deployed owner reload acceptance.
+- [x] Native group rename/config/readback and deployed owner reload acceptance.
 - [ ] Cloud supported model API credential/adapter and real owner conversation acceptance.
 - [ ] Source-linked plain-language public research/report summaries and real acceptance.
 - [ ] Reconcile Nov9 UNKNOWN report from native evidence; never replay on missing local receipt.
