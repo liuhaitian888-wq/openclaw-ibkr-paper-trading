@@ -177,7 +177,7 @@ def main():
                 monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
                 stopped.wait(30)
                 continue
-            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'),cashbook_publisher=cashbook_publisher)
+            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'),cashbook_publisher=cashbook_publisher,native_pnl_observation=monitoring.get('native_account_health_observation_approved') is True)
             client.strategy_observer=observer
             worker=None
             try:
@@ -242,6 +242,7 @@ def main():
                         client.reconcile()
                         last_sync=time.monotonic()
                     client.poll_cashbook()
+                    client.poll_pnl()
             except Exception as exc:
                 monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
@@ -250,7 +251,9 @@ def main():
                     if client.research_scanner is not None:client.research_scanner.close()
                 finally:
                     try:client.close_cashbook()
-                    finally:_close_owned_client(client,worker)
+                    finally:
+                        try:client.close_pnl()
+                        finally:_close_owned_client(client,worker)
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0
 

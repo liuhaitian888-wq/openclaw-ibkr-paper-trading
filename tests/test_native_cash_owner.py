@@ -58,9 +58,60 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.now+=1;self.client.currentTime(int(self.now))
         self.assertEqual(self.monitor.state['last_server_reply'],before)
         self.assertNotIn('native_server_clock',self.monitor.state)
+    def enable_pnl(self):
+        client=PaperSafetyClient(self.monitor,['PFE'],native_pnl_observation=True)
+        client.accounts=[ACCOUNT];client.isConnected=lambda:True
+        client.reqPnL=lambda *args:self.calls.append(('pnl-request',*args))
+        client.cancelPnL=lambda request:self.calls.append(('pnl-cancel',request))
+        self.monitor.state['api_protocol']={'connection':client.connection_generation}
+        client.pnl_collector.monotonic=lambda:self.now
+        return client
+    def test_optin_pnl_uses_existing_client_and_persists_exact_native_epoch(self):
+        client=self.enable_pnl();client.poll_pnl();request=self.calls[-1][1]
+        self.now+=.25;client.pnl(request,0,-12.5,2)
+        receipt=self.monitor.state['native_pnl']
+        self.assertEqual(receipt['broker_epoch'],self.monitor.state['epoch'])
+        self.assertEqual(receipt['connection_generation'],client.connection_generation)
+        self.assertEqual(receipt['daily'],0);self.assertFalse(receipt['grants_trading_permission'])
+        self.assertEqual(self.calls[-1],('pnl-cancel',request))
+        with closing(self.monitor.coordinator.connect()) as c:
+            persisted=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
+        self.assertEqual(persisted['native_pnl'],receipt)
+    def test_new_reconciliation_rejects_old_pnl_frame_without_closing_actor(self):
+        client=self.enable_pnl();client.poll_pnl();request=self.calls[-1][1]
+        self.now+=.25;self.monitor.state['reconciled_at']=self.now
+        client.pnl(request,1,2,3)
+        self.assertNotIn('native_pnl',self.monitor.state)
+        self.assertFalse(client.pnl_collector.closed)
+        self.now+=30;client.currentTime(int(self.now));client.poll_pnl();client.pnl(self.calls[-1][1],1,2,3)
+        self.assertIn('native_pnl',self.monitor.state)
+    def test_pnl_epoch_change_at_same_clock_cannot_adopt_old_request(self):
+        client=self.enable_pnl();client.poll_pnl();request=self.calls[-1][1]
+        self.monitor.state['epoch']='new-reconciliation-at-same-clock'
+        client.pnl(request,1,2,3)
+        self.assertNotIn('native_pnl',self.monitor.state)
+        self.assertEqual(self.calls[-1],('pnl-cancel',request))
+    def test_pnl_storage_failure_latch_survives_replacement_sdk_client(self):
+        client=self.enable_pnl();client.poll_pnl();request=self.calls[-1][1]
+        with patch.object(self.monitor,'_publish',side_effect=OSError('fixture storage unavailable')):
+            client.pnl(request,1,2,3)
+        self.assertTrue(self.monitor.pnl_publication_state['blocked'])
+        self.assertNotIn('native_pnl',self.monitor.state)
+        replacement=PaperSafetyClient(self.monitor,['PFE'],native_pnl_observation=True)
+        self.assertIsNone(replacement.pnl_collector)
+        self.assertFalse(client.pnl_collector.poisoned)
+    def test_cash_and_pnl_share_unique_request_allocator(self):
+        self.client.native_pnl_observation=True;self.client._reset_pnl_collector()
+        self.client.reqPnL=lambda *args:self.calls.append(('pnl-request',*args))
+        self.client.cancelPnL=lambda request:self.calls.append(('pnl-cancel',request))
+        cash=self.request();self.client.poll_pnl();pnl=self.calls[-1][1]
+        self.assertNotEqual(cash,pnl)
+        self.client.close_cashbook();self.client.close_pnl()
+        self.assertIn(('cancel',cash),self.calls);self.assertIn(('pnl-cancel',pnl),self.calls)
     def test_default_client_has_no_cash_request_or_additional_worker(self):
         client=PaperSafetyClient(self.monitor,['PFE']);self.assertIsNone(client.cashbook_collector)
         client.poll_cashbook();client.close_cashbook()
+        self.assertIsNone(client.pnl_collector);client.poll_pnl();client.close_pnl()
     def test_native_state_change_preserves_previous_file_and_never_publishes_partial(self):
         self.complete();before=self.target.read_bytes();self.now+=5
         request=self.request();self.feed(request);self.monitor.state['dirty']=True
