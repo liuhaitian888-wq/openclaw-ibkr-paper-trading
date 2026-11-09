@@ -210,7 +210,6 @@ def main():
                         dirty=monitor.state['dirty']
                         complete=set(monitor.state['ends'])==ENDS
                     monitor.validate_connection(connected_since,connection_generation=client.connection_generation)
-                    client.poll_cashbook()
                     if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
                         raise RuntimeError('Incomplete readback; reconnect before another snapshot')
                     if time.monotonic()-last_strategy>=5:
@@ -242,6 +241,7 @@ def main():
                     if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
                         client.reconcile()
                         last_sync=time.monotonic()
+                    client.poll_cashbook()
             except Exception as exc:
                 monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)

@@ -55,6 +55,17 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.assertEqual(self.target.read_bytes(),before)
         partials=list(self.target.parent.glob('.cashbook-*.tmp'));self.assertEqual(len(partials),1)
         self.assertEqual(partials[0].stat().st_mode&0o077,0)
+        calls=len(self.calls)
+        for _ in range(200):
+            self.now+=5;self.client.poll_cashbook()
+        self.assertEqual(len(self.calls),calls)
+        self.assertFalse(self.client.cashbook_collector.poisoned)
+        self.assertEqual(len(list(self.target.parent.glob('.cashbook-*.tmp'))),1)
+        replacement=PaperSafetyClient(self.monitor,['PFE'],cashbook_publisher=lambda book:publish_native_cashbook(self.root,self.monitor,book))
+        replacement.accounts=[ACCOUNT];replacement.isConnected=lambda:True
+        replacement.reqAccountUpdatesMulti=lambda *args:self.fail('Fault latch lost across replacement client')
+        replacement.poll_cashbook()
+        self.assertTrue(replacement.cashbook_collector.publication_state['blocked'])
         self.assertEqual(self.monitor.coordinator.observations()['CURRENCY_BOOK']['state'],'DEGRADED')
     def test_generation_change_ignores_closed_previous_owner_callbacks(self):
         old=self.client.cashbook_collector;request=self.request();self.feed(request)
@@ -89,6 +100,8 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.client.accountUpdateMultiEnd(request)
         self.assertFalse(self.target.exists())
         self.assertEqual(self.monitor.coordinator.observations()['CURRENCY_BOOK']['state'],'DEGRADED')
+        self.assertFalse(self.monitor.cashbook_publication_state.get('blocked',False))
+        self.now=float(int(self.now)+6);self.complete();self.assertTrue(self.target.exists())
 
 class CashbookDependencyTests(unittest.TestCase):
     def test_dependency_is_optin_and_stale_cash_blocks_order_module_only_after_enabling(self):

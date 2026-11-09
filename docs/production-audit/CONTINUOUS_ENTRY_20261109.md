@@ -2,6 +2,8 @@
 
 # 持续准入工程进度
 
+当前状态（2026-11-09T22:13:57Z现场验收）：本文后续“未部署”段落是此前阶段记录。上述准入/费用/日成交/结算代码和周报修复已随217ac9070b46d4115fd674bdc241335436234856通过Git部署；只读现金owner已正式配置。最新原生book约1.1秒新、会话/对账批次匹配，六仓六保护保留、金融操作计数不变。CURRENCY_BOOK原始HEALTHY但依赖解析WAITING_DEPENDENCY，ACCOUNT/EXECUTIONS/AUDIT实时证据仍待接线，不是全自动READY。Gateway升级期间未重启；交易PAUSED/MAINTENANCE保留。私有部署备份、schema双环境影子验证、原生回执和资源样本见canonical engineering/native-cash-release-20261109T214705Z；原日报1094及通知953的UNKNOWN保留，不重发。
+
 ## 事务预留（linked worktree，尚未部署）
 
 既有流程先检查现金/日限额，再单独写order_requests，存在并发复用资金的窗口。现将日预算检查、精确意图写入、资金claim及最后一次门禁/风险复核放进同一SQLite BEGIN IMMEDIATE事务；拒绝则回滚，不留下幽灵意图。进入券商调用前以独立持久TRANSPORT_STARTED事件抢占单owner通道，已经开始/未知的发生事件不能通过状态改名重放。
