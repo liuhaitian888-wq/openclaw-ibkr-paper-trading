@@ -23,3 +23,5 @@
 - 完整开发运维写操作（服务启停、配置修改、数据库迁移/写入、审核后发布）需要逐项注册、恢复策略和验收；当前只读检查与云端任务适配器不等于“所有运维任务”。
 - 当前 Codex Cloud 环境的正式可编程消费者、任务进度与完成回传，以及对应原生任务验收。
 - 新的 Telegram → 模型实际选择工具 → IBKR → 私聊结果及各阶段延迟验收。
+
+IBKR 官方 account_summary 文档明确 `$LEDGER:ALL` 返回 account=All 的各币种汇总。工具只在 managedAccounts 精确为唯一 Paper 账户时接纳 CashBalance/TotalCashBalance/ExchangeRate，并保留原生 account=All 及汇总范围标签；其他账户仍拒绝，不把汇总伪装为精确账户字段。来源：https://interactivebrokers.github.io/tws-api/account_summary.html 。首次工程原生 snapshot 查询因该汇总标签被拒绝，保留 UNAVAILABLE；修正使用新查询身份验收，不重放原请求。

@@ -40,12 +40,18 @@ class SecretaryBrokerOwner:
         with self.lock:
             p=self.pending
             if not p or request_id!=p['request_id'] or not p.get('summary_sent'):return False
-            if account!=ACCOUNT:p['invalid']='SUMMARY_ACCOUNT_MISMATCH';return True
+            if account=='All':
+                # IBKR documents $LEDGER:ALL as all-managed-account aggregates.
+                # Admit only cash ledger fields, with their native aggregate identity,
+                # and only while exactly our one Paper account is managed.
+                if self.client.accounts!=[ACCOUNT]:p['invalid']='SUMMARY_ACCOUNT_MISMATCH';return True
+                if tag not in ('CashBalance','TotalCashBalance','ExchangeRate'):return True
+            elif account!=ACCOUNT:p['invalid']='SUMMARY_ACCOUNT_MISMATCH';return True
             if (not all(isinstance(x,str) for x in (tag,value,currency)) or len(tag)>100 or len(value)>200 or len(currency)>8):
                 p['invalid']='INVALID_SUMMARY_FIELD';return True
-            if len(p['summary'])>=128 and (tag,currency) not in p['summary']:
+            if len(p['summary'])>=128 and (account,tag,currency) not in p['summary']:
                 p['invalid']='SUMMARY_LIMIT';return True
-            p['summary'][(tag,currency)]={'tag':tag,'value':value,'currency':currency}
+            p['summary'][(account,tag,currency)]={'account':account,'tag':tag,'value':value,'currency':currency,'scope':'ALL_MANAGED_ACCOUNTS_SINGLE_ACCOUNT_VERIFIED' if account=='All' else 'EXACT_ACCOUNT'}
             return True
 
     def summary_end(self,request_id):

@@ -30,7 +30,7 @@
       "inputs": {
         "docs/diagrams/secretary-tools.architecture.json": "3a9bdf9c14db5210e9b65df1fee32a17781f749637bdf82c0e5494fe65c8b51b",
         "reporting/secretary_broker.py": "8a69b16a440100374a4474c11f152e619730a5039a2dc11c0b3c4b55e38e50ae",
-        "trading/secretary_broker_owner.py": "828884cf8651b39d8f282ca8fba585fed1366ce3d9faa878c085984a2d1d2289",
+        "trading/secretary_broker_owner.py": "3f4e84f49baf797fe96ef11aaf373a9630bf8bae1c8a895fbaff6286cda7543b",
         "reporting/secretary_operations.py": "a545233912cf13f07c501acaf17ac837a7b4807dc8983348cbcc3574cc3363eb",
         "ops/cloud/secretary_rpc.py": "37a4ac6b7d05566d6485692c0f860242c3a0b920a84b94765829bfa4087179fb",
         "ops/cloud/paper_safety_watch.py": "6eb6a18c62f325e12a04a9b2cc6bcc93ee2e26f6b169cd340a8f27b0fc15dfe2",

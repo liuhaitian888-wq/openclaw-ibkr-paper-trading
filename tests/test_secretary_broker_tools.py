@@ -50,6 +50,20 @@ class BrokerToolsTests(unittest.TestCase):
         self.assertEqual(result(self.archive,q['id'])['state'],'STARTED')
         self.owner.summary_end(n);self.owner.poll()
         self.assertEqual(result(self.archive,q['id'])['state'],'SUCCEEDED');self.assertIn(('cancel',n),self.calls)
+    def test_documented_all_ledger_retains_native_identity_only_for_single_managed_account(self):
+        q=self.queue('cash');self.owner.poll();n=self.owner.pending['request_id']
+        self.owner.summary(n,ACCOUNT,'AccountType','INDIVIDUAL','')
+        self.owner.summary(n,'All','CashBalance','12.00','EUR')
+        self.owner.summary(n,'All','NetLiquidation','999','USD')
+        self.owner.summary_end(n);self.complete()
+        rows=result(self.archive,q['id'])['result']['data']['account_summary']
+        aggregate=[x for x in rows if x['account']=='All']
+        self.assertEqual(len(aggregate),1);self.assertEqual(aggregate[0]['scope'],'ALL_MANAGED_ACCOUNTS_SINGLE_ACCOUNT_VERIFIED')
+        self.assertEqual(aggregate[0]['tag'],'CashBalance')
+        q=self.queue('cash',step=2);self.owner.poll();n=self.owner.pending['request_id']
+        self.client.accounts=[ACCOUNT,'OTHER'];self.owner.summary(n,'All','CashBalance','12','EUR');self.owner.poll()
+        self.assertEqual(result(self.archive,q['id'])['state'],'UNAVAILABLE')
+
     def test_cross_account_and_timeout_cancel_only_owned_request(self):
         q=self.queue('account');self.owner.poll();n=self.owner.pending['request_id']
         self.owner.summary(n,'OTHER','NetLiquidation','100','USD');self.owner.poll()
