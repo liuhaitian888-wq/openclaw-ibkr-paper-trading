@@ -56,3 +56,20 @@ The system SHALL use a dedicated private credential for gpt-6.1-sol with low rea
 #### Scenario: Mac-independent acceptance
 - **WHEN** a fresh owner-private instruction is processed with the Mac bridge disabled
 - **THEN** acceptance requires a cloud model response receipt, archived result and native private Telegram delivery receipt, rather than service liveness or an ACK.
+
+### Requirement: Evidence-based notification recovery and private-data boundaries
+The system SHALL classify private account/security/immediate-gate content before public delivery and retain append-only occurrence/attempt evidence. Secretary assessment SHALL NOT authorize replay from missing receipts or network recovery alone. Display tags SHALL NOT grant data/control access; account report sharing requires an explicit recipient policy.
+
+#### Scenario: Lost receipt after a possible send
+- **WHEN** a notification is UNKNOWN and no native acceptance or definitive rejection is proven
+- **THEN** its evidence and uncertainty survive restart, a bounded private review may explain the gap, and the original send is not automatically replayed.
+
+#### Scenario: Confirmed unsent public report after recovery
+- **WHEN** trusted evidence proves an occurrence was not sent, dependencies recover and the report remains valid
+- **THEN** the existing sender may create one authorized linked retry with a short public explanation and separately recorded owner-private result notice.
+
+#### Scenario: Display label versus authorized reader
+- **WHEN** a group member changes a tag or a private report is requested through an ordinary group message
+- **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
+
+Implementation boundary: this requirement is planned in the active change. Current source3694676 does not implement complete sensitivity classification, per-attempt reconciliation supervision or ephemeral UI. Existing account report recipients are unchanged pending owner decision; this specification is not deployment acceptance.
