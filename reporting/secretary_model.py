@@ -7,6 +7,8 @@ import signal
 import subprocess
 import tempfile
 
+CODE_MODE_DISABLED_NOTICE='Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`.'
+
 DISABLED=('shell_tool','unified_exec','multi_agent','plugins','hooks','in_app_browser','image_generation','view_image','in_app_chat','skill_search','tool_suggest','sleep_tool')
 
 
@@ -38,19 +40,23 @@ def analyze(prompt, *, codex, codex_home, empty_dir, model='gpt-6.1-sol', timeou
             except subprocess.TimeoutExpired:os.killpg(p.pid,signal.SIGKILL);p.wait(timeout=5)
             raise
         if out.tell()>1_000_000:raise RuntimeError('Inference output exceeds budget; reconcile UNKNOWN')
-        out.seek(0);messages=[];usage=None;errors=[];unexpected=[]
+        out.seek(0);messages=[];usage=None;errors=[];unexpected=[];turn_started=False;notices=[]
         for line in out:
             try:event=json.loads(line)
             except ValueError:continue
             item=event.get('item',{})
+            if event.get('type')=='turn.started':turn_started=True
             if event.get('type')=='item.completed':
                 if item.get('type')=='agent_message':messages.append(item.get('text',''))
+                elif (force_chatgpt and not turn_started and item.get('type')=='error'
+                      and item.get('message')==CODE_MODE_DISABLED_NOTICE):notices.append('CODE_MODE_DISABLED')
                 elif item.get('type') not in ('reasoning',):unexpected.append(str(item.get('type')))
             if event.get('type') in ('error','turn.failed'):
                 errors.append(str(redact(event.get('message',event.get('error',{}))))[:300])
             if event.get('type')=='turn.completed':usage=event.get('usage')
         if unexpected:raise RuntimeError('Unexpected native event types: '+','.join(unexpected))
-        if p.returncode or not messages or usage is None:raise RuntimeError('Inference unacknowledged: '+str(errors)[:400])
+        if p.returncode or errors or not messages or usage is None:raise RuntimeError('Inference unacknowledged: '+str(errors)[:400])
+    if notices:usage={**usage,'startup_notices':notices}
     text=messages[-1].strip()
     if text.startswith('```'):text='\n'.join(text.splitlines()[1:-1])
     result=json.loads(text)
