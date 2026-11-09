@@ -37,7 +37,10 @@
 ## 2026-11-10 notification/access research and recovery design
 - [x] Record actual preparation-vs-dispatch time, UNKNOWN evidence limits and group/private responsibilities in the project outline.
 - [x] Audit official tags/ephemeral APIs and GitHub source examples with native read-only capability probe; preserve no-tag/no-permission-change boundary.
-- [ ] Resolve account-bearing daily report sharing decision and implement sensitivity-first classification with regression coverage.
-- [ ] Implement append-only per-attempt reviews, bounded secretary recovery assessment and deterministic retry eligibility, without UNKNOWN reset.
+- [x] Resolve account-bearing daily report sharing decision and implement sensitivity-first classification with regression coverage.
+- [x] Implement append-only per-attempt reviews, bounded secretary recovery assessment and deterministic retry eligibility, without UNKNOWN reset.
 - [ ] Implement authorized same-message resend explanation and private result notice through the existing sender; accept real future native receipts.
 - [ ] Optional member registry/native labels/ephemeral UI after actual role and compatibility decisions; no group-control expansion.
+
+- [x] Implement owner-private application member registry with independent public-data capabilities, immutable enqueue/backup and native ACK-before-projection recovery tests.
+- [ ] Deploy combined notification/risk/menu/OAuth source, verify actual future report and natural recovery receipts; do not manufacture a resend or native tag test.

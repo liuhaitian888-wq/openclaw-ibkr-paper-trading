@@ -161,11 +161,15 @@ class AutomaticRoutingTests(unittest.TestCase):
   cfg=dict(CFG,automatic_updates_to_group=True)
   for role in ('TASK','RESEARCH','PROGRESS','INTELLIGENCE'):
    item=dict(id=1,incident_key='secretary:new',kind='SECRETARY_REPLY',payload=dict(message_role=role,reason='实际研究及任务结果'))
+   self.assertEqual(recipient(item,cfg),cfg['owner_user_id'])
+   item['payload']['fixed_public_status']=True
    self.assertEqual(recipient(item,cfg),cfg['chat_id'])
-   self.assertIn('实际研究及任务结果',render(item,cfg,1000)['text'])
-  for kind,key in (('ALERT','gateway-hang'),('ENGINEERING_WEEKLY','weekly'),('MARKET_SESSION','calendar-review'),('REPORT_MISSING','report:missing'),('AUTH_SESSION_EVENT','gateway:verified')):
+   self.assertNotIn('实际研究及任务结果',render(item,cfg,1000)['text'])
+  for kind,key in (('ALERT','gateway-hang'),('ENGINEERING_WEEKLY','weekly'),('REPORT_MISSING','report:missing')):
    item=dict(id=2,generation=1,incident_key=key,kind=kind,payload=dict(reason='自动更新'))
    self.assertEqual(render(item,cfg,1000)['chat_id'],cfg['chat_id'])
+  item=dict(id=3,generation=1,incident_key='gateway:verified',kind='AUTH_SESSION_EVENT',payload=dict(reason='自动认证更新'))
+  self.assertEqual(recipient(item,cfg),cfg['owner_user_id'])
  def test_interactive_messages_and_explicit_action_requests_stay_private(self):
   cfg=dict(CFG,automatic_updates_to_group=True)
   for role in ('ACK','CHAT','CONTROL','AUTH'):

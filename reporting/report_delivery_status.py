@@ -26,6 +26,7 @@ def evidence(c,row):
         'daily_report_server_accepted':bool(confirmed and 'DAILY' in data.get('included_reports',[])),
         'scheduled_at':data.get('scheduled_at'),'queued_at':data.get('queued_at'),'included_reports':data.get('included_reports',[]),
         'missing_reports':data.get('missing_reports',[]),'snapshot_current':data.get('snapshot_current'),
+        'retry_of':data.get('retry_of'),'reconciliation_review':data.get('reconciliation_review'),
         'receipt':receipt,'phone_notification_verified':False,'automatic_replay_allowed':False}
 
 
@@ -56,7 +57,7 @@ def display(store,now):
     lines=['日报发送状态｜'+day.isoformat(),'计划：'+planned.strftime('%H:%M 北京时间')+' / '+planned.astimezone(BERLIN).strftime('%H:%M 柏林时间')]
     key='financial-reports:'+day.isoformat()
     with closing(store.connect()) as c:
-        rows=c.execute("SELECT id,incident_key,kind,status,payload FROM notification_outbox WHERE (incident_key=? OR kind='REPORT_SUPPLEMENT') AND kind IN ('REPORT_BUNDLE','REPORT_SUPPLEMENT') ORDER BY id DESC LIMIT 40",(key,)).fetchall()
+        rows=c.execute("SELECT id,incident_key,kind,status,payload FROM notification_outbox WHERE (incident_key=? OR kind='REPORT_SUPPLEMENT' OR json_extract(payload,'$.retry_of') IN (SELECT id FROM notification_outbox WHERE incident_key=?)) AND kind IN ('REPORT_BUNDLE','REPORT_SUPPLEMENT') ORDER BY id DESC LIMIT 40",(key,key)).fetchall()
         selected=[]
         for row in rows:
             item=evidence(c,row);queued=item.get('queued_at')

@@ -10,6 +10,8 @@ import time
 
 
 def validate_config(config):
+    if config.get('account_report_policy') not in (None,'shared_group','private','hold'):
+        raise PermissionError('Explicit account report recipient policy required')
     if config.get('audience_mode') not in (None,'shared_group'):
         raise PermissionError('Explicit audience mode required')
     if config.get('audience_mode')=='shared_group':
@@ -74,6 +76,17 @@ def report_bytes(item,root):
         if not data.startswith(b'\x89PNG\r\n\x1a\n') or hashlib.sha256(data).hexdigest()!=artifact['sha256']:
             raise ValueError('Report content differs from manifest')
         result.append((path.name,data))
+    manifests=item['payload'].get('report_manifests',[])
+    if manifests and len(manifests)!=len(artifacts):raise ValueError('Frozen manifest/PNG count differs')
+    for manifest,artifact in zip(manifests,artifacts):
+        path=Path(manifest['path']).resolve();path.relative_to(Path(root).resolve())
+        if path.suffix!='.json' or not 0<path.stat().st_size<=10*1024*1024:raise ValueError('Bounded frozen manifest required')
+        data=path.read_bytes()
+        if hashlib.sha256(data).hexdigest()!=manifest['sha256']:raise ValueError('Frozen report manifest changed')
+        import json
+        report=json.loads(data)
+        if report.get('image_sha256')!=artifact['sha256'] or report.get('environment')!='PAPER' or report.get('source_validated') is not True:
+            raise ValueError('Frozen manifest does not bind the selected PNG')
     return result
 
 
@@ -106,12 +119,22 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
         from telegram import Bot
         bot_factory=Bot
     started=False
+    attempt=None;action=None
+    from .notification_reconciliation import begin_attempt,event,fingerprint
     try:
+        attempt=begin_attempt(store,item)
         from .notification_center import enabled,render,prior_card,stale_schedule
         if stale_schedule(item,clock()):
+            event(store,attempt,'SUPPRESSED',{'reason':'expired_schedule'})
             store.suppress(item['id']);return 'SUPPRESSED'
         if config.get('notification_format')=='compact-v1' and not enabled(store,item):
+            event(store,attempt,'SUPPRESSED',{'reason':'owner_preference'})
             store.suppress(item['id']);return 'SUPPRESSED'
+        from .notification_center import recipient
+        target=recipient(item,config)
+        if item['payload'].get('retry_of') is not None or item['payload'].get('expires_at') is not None:
+            expiry=item['payload'].get('expires_at')
+            if type(expiry) not in (int,float) or not __import__('math').isfinite(expiry) or clock()>=expiry:raise PermissionError('Notification content expired')
         documents=report_bytes(item,report_root)
         async with asyncio.timeout(25):
             async with (nullcontext(owned_bot) if owned_bot is not None else bot_factory(token=config['bot_token'])) as bot:
@@ -130,9 +153,16 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 compact=config.get('notification_format')=='compact-v1'
                 if compact:
                     caption=render(item,config,sending_at)['html']
+                if item['payload'].get('retry_explanation'):
+                    import html
+                    prefix=item['payload']['retry_explanation']
+                    caption=(html.escape(prefix) if compact else prefix)+'\n'+caption
                 if config['bot_token'] in caption:
                     raise PermissionError('Credential detected in notification; refuse before wire')
                 previous=prior_card(store,item,chat.id) if compact and not documents else None
+                # Reconciled retries are a new linked SEND, never an edit of an old card.
+                if item['payload'].get('retry_of') is not None:previous=None
+                action='EDIT' if previous else 'SEND'
                 formatting={'parse_mode':'HTML'} if compact else {}
                 if item['payload'].get('message_role')=='CONTROL' and item['payload'].get('web_app_url'):
                     from telegram import InlineKeyboardButton,InlineKeyboardMarkup,WebAppInfo
@@ -142,8 +172,15 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                         [InlineKeyboardButton('编辑全部限额',web_app=WebAppInfo(url=url))],
                         [InlineKeyboardButton('门禁与风控的区别',web_app=WebAppInfo(url=url+'#help'))]])
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
+                    event(store,attempt,'BLOCKED',{'reason':'existing_operation_identity'})
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'
                 started=True;store.delivery_started(item['id'],sending_at)
+                from .notification_access import decision
+                event(store,attempt,'WIRE_START',{'chat_id':chat.id,'action':action,'message_count':max(1,len(documents)),
+                    'caption':caption,'caption_sha256':hashlib.sha256(caption.encode()).hexdigest(),
+                    'artifacts':[{'name':name,'sha256':hashlib.sha256(data).hexdigest()} for name,data in documents],
+                    'recipient_decision':decision(item,config) if config.get('automatic_updates_to_group') is True else {'policy_version':'legacy-authorized'},
+                    'previous_message_id':previous})
                 if previous:
                     messages=[await bot.edit_message_text(chat_id=chat.id,message_id=previous,text=caption,**formatting,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 elif not documents:
@@ -160,19 +197,34 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 if len(messages)!=max(1,len(documents)) or any(m.chat.id!=chat.id or m.message_id<=0 for m in messages):
                     raise RuntimeError('Native message acknowledgement missing')
                 receipt=dict(transport='telegram',chat_id=chat.id,message_ids=[m.message_id for m in messages],
-                             server_dates=[m.date.astimezone(timezone.utc).isoformat() for m in messages])
+                             server_dates=[(getattr(m,'edit_date',None) or m.date).astimezone(timezone.utc).isoformat() for m in messages])
                 if compact:
                     receipt.update(card_format='compact-v1',delivery_action='EDIT' if previous else 'SEND',
                         entity_types=[[e.type for e in (getattr(m,'entities',None) or getattr(m,'caption_entities',None) or [])] for m in messages])
+                event(store,attempt,'ACCEPTED',{'receipt':receipt})
                 store.delivery_receipt(item['id'],receipt)
                 store.delivery_finished(item['id'],'TELEGRAM_ACCEPTED',ack_at=clock())
                 coordinator.observe('TELEGRAM','HEALTHY',freshness='FRESH',reason='Native report message acknowledgement verified',receipt=receipt)
                 coordinator.finish_operation(operation,'SENT_ACCEPTED')
+                if config.get('automatic_updates_to_group') is True:
+                    from .notification_reconciliation import activity_status
+                    activity_status(store,item)
                 store.finish(item['id'],'TELEGRAM_ACCEPTED')
                 return 'TELEGRAM_ACCEPTED'
     except BaseException as exc:
         # Exception text may contain credential URLs or private payloads.
         logging.getLogger(__name__).warning('notification outcome: id=%s started=%s exception_type=%s',item['id'],started,type(exc).__name__)
+        rejected=False;retry_after_until=None
+        if started and action=='SEND':
+            from telegram.error import BadRequest,Forbidden,RetryAfter
+            rejected=isinstance(exc,(BadRequest,Forbidden,RetryAfter))
+            if isinstance(exc,RetryAfter):
+                delay=exc.retry_after
+                if hasattr(delay,'total_seconds'):delay=delay.total_seconds()
+                if type(delay) in (int,float) and 0<=delay<=86400:retry_after_until=clock()+delay
+        if attempt is not None:
+            event(store,attempt,'REJECTED' if rejected else 'UNKNOWN' if started else 'PREFLIGHT_FAILED',
+                  {'error_class':type(exc).__name__,'wire_started':started,'telegram_explicit_rejection':rejected,'retry_after_until':retry_after_until})
         if started:
             store.delivery_finished(item['id'],'UNKNOWN');coordinator.finish_operation(operation,'UNKNOWN');store.finish(item['id'],'UNKNOWN')
             result='UNKNOWN'

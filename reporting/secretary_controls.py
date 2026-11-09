@@ -64,6 +64,20 @@ def process_controls(archive,root,config,policy=None):
                     summary='已归档工程需求；尚未证明Codex接收或执行。可复制给Codex：\n请在买der按AGENTS.md核实并处理以下需求，保留交易与维护门禁：\n'+request
                 else:
                     _,review=packet(archive,datetime.now(timezone.utc));summary=review['reason']
+            elif command in ('/members','/member_set'):
+                from .notification_access import initialize,record_member,member
+                initialize(store)
+                if command=='/member_set' and len(parts)==2:
+                    data=json.loads(parts[1])
+                    if set(data)-{'user_id','tags','capabilities','revoked'}:raise ValueError('Unknown member fields')
+                    record_member(store,config,chat_id=config['chat_id'],user_id=data['user_id'],tags=data.get('tags',[]),
+                        capabilities=data.get('capabilities',[]),approved_by=config['owner_user_id'],source=instruction,revoked=data.get('revoked',False))
+                    summary='已追加应用内成员标签/独立公开数据授权；未修改Telegram标签或权限，不开放群控制。\n'+json.dumps(member(store,config['chat_id'],data['user_id']),ensure_ascii=False)
+                elif command=='/members' and len(parts)==1:
+                    with closing(store.connect()) as c:
+                        users=[x[0] for x in c.execute('SELECT DISTINCT user_id FROM notification_membership WHERE chat_id=? ORDER BY user_id LIMIT 50',(config['chat_id'],))]
+                    summary='应用内成员记录（非Telegram原生标签）：\n'+json.dumps({str(uid):member(store,config['chat_id'],uid) for uid in users},ensure_ascii=False)+'\n未登记默认访客/无能力；标签不隐藏普通群帖，不授予账户或控制权。'
+                else:raise ValueError('/members 或 /member_set {"user_id":123,"tags":["访客"],"capabilities":[]}；能力仅public_research/public_progress')
             elif command in ('/inbox','/event','/read','/notify','/preview'):
                 from .notification_center import inbox,get_item,mark_read,settings,set_preference,preview
                 args=parts[1].split() if len(parts)==2 else []
