@@ -73,3 +73,11 @@ The system SHALL classify private account/security/immediate-gate content before
 - **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
 
 Implementation boundary: this requirement is planned in the active change. Current source3694676 does not implement complete sensitivity classification, per-attempt reconciliation supervision or ephemeral UI. Existing account report recipients are unchanged pending owner decision; this specification is not deployment acceptance.
+
+### Requirement: Owner-private status menu
+
+The existing secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls. They SHALL read existing real runtime observations through the shared health resolver, show observation time and freshness, and fail UNKNOWN for unavailable evidence. Old HEALTHY records SHALL NOT imply current availability. Provider configuration and cloud host snapshots SHALL be distinguished from successful model calls and live Telegram reachability. Menu reads SHALL NOT create broker sessions, call models, restart services or alter trading gates.
+
+#### Scenario: Existing status evidence is missing or old
+- **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
+- **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
