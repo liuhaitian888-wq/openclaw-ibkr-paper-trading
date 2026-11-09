@@ -83,8 +83,13 @@ def public_calendar(item):
 
 
 def audience(item, config):
-    # Only fixed generic templates can enter a shared group. Never infer public
-    # safety from a producer-provided audience/category field.
+    # Owner-authorized automatic updates share one group; interactive replies
+    # and action requests retain the verified secretary destination.
+    if config.get('automatic_updates_to_group') is True:
+        p=item['payload']
+        interactive=(p.get('requires_response') is True or p.get('phase')=='OPERATOR'
+                     or item['kind']=='SECRETARY_REPLY' and p.get('message_role') in ('ACK','CHAT','CONTROL','AUTH'))
+        return 'owner' if interactive else 'group'
     if config.get('audience_mode')=='shared_group':
         return 'group' if (item['kind'] in ('REPORT_BUNDLE','REPORT_SUPPLEMENT') or public_calendar(item) is not None or public_filing(item) is not None or item['incident_key'] in GROUP_KEYS and category(item)=='ops') else 'owner'
     return 'group'
@@ -174,10 +179,10 @@ def mark_read(store,ident):
 
 
 def render(item,config,at):
-    """Return exact plain/HTML views. Group text is never derived from payload."""
+    """Return exact plain/HTML views. Automatic updates may include owner-authorized research and task results."""
     cat=category(item);icon,label,_=CATEGORIES[cat];p=item['payload'];kind=item['kind']
     recovered=kind=='RECOVERY';status='已恢复' if recovered else '重要' if p.get('severity')=='RED' else '提醒' if p.get('severity')=='YELLOW' else '更新'
-    if audience(item,config)=='group' and config.get('audience_mode')=='shared_group' and cat=='ops':
+    if audience(item,config)=='group' and config.get('audience_mode')=='shared_group' and cat=='ops' and item['incident_key'] in GROUP_KEYS and config.get('automatic_updates_to_group') is not True:
         title=('🟩' if recovered else '🟥')+' #OPS '+status+'｜'+GROUP_KEYS[item['incident_key']]
         summary='连接与完整回读已核验；交易门禁独立。' if recovered else '监测尚未取得完整可用证据，正在跟踪。'
         detail='此群仅显示运维摘要；账户和诊断详情仅限owner私聊。'
@@ -188,10 +193,10 @@ def render(item,config,at):
         summary=(display(reason).splitlines() or ['状态已更新'])[0][:150]
         detail=notification_text(item,at,max_length=3300)
     if kind in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):detail=detail[:520]
-    if public_filing(item) is not None and audience(item,config)=='group':
+    if public_filing(item) is not None and audience(item,config)=='group' and config.get('automatic_updates_to_group') is not True:
         text=public_filing(item)
         return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
-    if kind=='MARKET_SESSION' and audience(item,config)=='group':
+    if kind=='MARKET_SESSION' and audience(item,config)=='group' and public_calendar(item) is not None:
         text=public_calendar(item)
         if text is None:raise PermissionError('Fixed public calendar template required')
         return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
@@ -206,7 +211,7 @@ def render(item,config,at):
 
 def preview(store,config,ident):
     item=get_item(store,ident);view=render(item,config,store.clock())
-    return '仅预览，不执行投递\n发给：'+(('deehub群（公开日报）' if view['category']=='report' else 'deehub群（公共运维摘要）') if view['audience']=='group' else '仅你的机器人私聊')+'\n配置：'+('投递开启' if enabled(store,item) else '已静音；保留收件箱')+'\n将发内容（详情折叠）：\n'+view['text'][:2700]
+    return '仅预览，不执行投递\n发给：'+(('deehub群（公开日报）' if view['category']=='report' else 'deehub群（自动消息）') if view['audience']=='group' else '仅你的机器人私聊')+'\n配置：'+('投递开启' if enabled(store,item) else '已静音；保留收件箱')+'\n将发内容（详情折叠）：\n'+view['text'][:2700]
 
 
 def prior_card(store,item,chat_id):

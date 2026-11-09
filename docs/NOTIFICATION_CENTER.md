@@ -78,3 +78,6 @@ Python/SQLite/Telegram/IBKR接口没有Hetzner API依赖，逻辑可在其他VPS
 - [Apprise](https://github.com/caronc/apprise)：替换通知通道的边界参考，不复制源码。
 
 验证记录：测试、秘密扫描及部署摘要见本轮ENGINEERING记录。不得以通知成功代替broker恢复，也不重复故障演练。
+
+## 2026-11-09 owner correction
+With `automatic_updates_to_group=true`, all noninteractive automatic updates, task progress/completion and research reports go to deehub. Interactive replies and explicit action/response requests remain at the existing verified secretary destination. This supersedes the fixed-template-only private routing above. No old accepted or UNKNOWN message is copied/replayed. A separate secretary group, if intended, requires its exact native identity before changing the interactive destination.

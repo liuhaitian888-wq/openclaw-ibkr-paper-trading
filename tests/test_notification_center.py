@@ -155,3 +155,23 @@ class PublicFilingTests(unittest.TestCase):
   self.assertEqual(recipient(item,CFG),CFG['owner_user_id'])
   item['payload']['message_role']='RESEARCH'
   self.assertEqual(recipient(item,CFG),CFG['owner_user_id'])
+
+class AutomaticRoutingTests(unittest.TestCase):
+ def test_automatic_updates_and_research_go_to_group(self):
+  cfg=dict(CFG,automatic_updates_to_group=True)
+  for role in ('TASK','RESEARCH','PROGRESS','INTELLIGENCE'):
+   item=dict(id=1,incident_key='secretary:new',kind='SECRETARY_REPLY',payload=dict(message_role=role,reason='实际研究及任务结果'))
+   self.assertEqual(recipient(item,cfg),cfg['chat_id'])
+   self.assertIn('实际研究及任务结果',render(item,cfg,1000)['text'])
+  for kind,key in (('ALERT','gateway-hang'),('ENGINEERING_WEEKLY','weekly'),('MARKET_SESSION','calendar-review'),('REPORT_MISSING','report:missing'),('AUTH_SESSION_EVENT','gateway:verified')):
+   item=dict(id=2,generation=1,incident_key=key,kind=kind,payload=dict(reason='自动更新'))
+   self.assertEqual(render(item,cfg,1000)['chat_id'],cfg['chat_id'])
+ def test_interactive_messages_and_explicit_action_requests_stay_private(self):
+  cfg=dict(CFG,automatic_updates_to_group=True)
+  for role in ('ACK','CHAT','CONTROL','AUTH'):
+   item=dict(id=1,incident_key='secretary:new',kind='SECRETARY_REPLY',payload=dict(message_role=role,reason='需要回复'))
+   self.assertEqual(recipient(item,cfg),cfg['owner_user_id'])
+  item=dict(id=2,incident_key='task:decision',kind='SECRETARY_REPLY',payload=dict(message_role='TASK',requires_response=True))
+  self.assertEqual(recipient(item,cfg),cfg['owner_user_id'])
+  from reporting.incident_telegram import validate_config
+  with self.assertRaises(PermissionError):validate_config(dict(cfg,owner_private_verified=False))
