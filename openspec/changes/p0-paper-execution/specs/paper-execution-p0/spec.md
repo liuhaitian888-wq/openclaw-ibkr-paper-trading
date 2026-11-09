@@ -50,3 +50,25 @@ The system SHALL atomically reserve entry intent and applicable monetary budgets
 #### Scenario: Status label changes after transport start
 - **WHEN** a previously started occurrence is relabeled RESERVED or FAILED
 - **THEN** its durable occurrence history still prevents replay and unresolved monetary claims remain held
+
+### Requirement: Exact native accounting before claim release
+The system SHALL bind cash claims only to direct native account, contract, client, permId and parent-child evidence. Native fee absence SHALL remain unknown; explicit zero and fee corrections SHALL be distinguishable. Cash claim reconciliation SHALL require ordered fresh native execution, fee and currency cash evidence, and SHALL NOT grant order mutation authority.
+
+#### Scenario: Fee callback precedes an execution
+- **WHEN** an unbound fee is received before its execId's canonical account is known
+- **THEN** its fact is retained without cash-release permission and may bind only after exact execution evidence
+
+#### Scenario: Cash read predates a new fee correction
+- **WHEN** a fee revision is persisted after the cash refresh began
+- **THEN** fresh entry funding remains blocked until a later complete currency cash refresh
+
+### Requirement: Distinct actual turnover and live commitments
+The system SHALL count canonical native stock buys and sells by actual occurrence day and explicit timezone, separately retain live entry commitments, and combine them for entry budget without double counting filled quantity. Missing evidence SHALL NOT be treated as zero and the entry budget SHALL NOT block protective exits.
+
+#### Scenario: Partial entry remains active into the next day
+- **WHEN** some quantity has filled and the exact native parent still has unfilled quantity
+- **THEN** actual turnover belongs to its occurrence day and remaining commitment continues across days until verified terminal reconciliation
+
+#### Scenario: Failed label follows transport start
+- **WHEN** an already started intent is later labeled FAILED without no-send or native terminal proof
+- **THEN** its unresolved commitment remains reserved

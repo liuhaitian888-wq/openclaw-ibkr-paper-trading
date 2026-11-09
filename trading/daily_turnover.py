@@ -72,3 +72,51 @@ def native_turnover(connection,day,timezone_name,*,account='DUQ503649'):
             'gross_notional':str(buy+sell),'exec_ids':ids,'unresolved':unresolved,
             'complete':not unresolved,'source':'CANONICAL_NATIVE_EXECUTIONS',
             'grants_execution_permission':False}
+
+
+def admission_usage(connection,day,timezone_name):
+    """Actual turnover plus still-live commitments, within caller's transaction.
+
+    Native exits do not call this entry-only function. It reserves capacity for
+    outstanding buys; it never consumes an exit authorization or cancels an order.
+    """
+    facts=native_turnover(connection,day,timezone_name)
+    if not facts['complete']:raise PermissionError('Daily native turnover requires reconciliation: '+json.dumps(facts['unresolved']))
+    zone=ZoneInfo(timezone_name);date=datetime.fromisoformat(day).date()
+    start=datetime.combine(date,time(),zone).astimezone(timezone.utc)
+    end=datetime.combine(date+timedelta(days=1),time(),zone).astimezone(timezone.utc)
+    has_bindings=bool(connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='entry_native_bindings'").fetchone())
+    commitments=Decimal(0)
+    for identity,created,status,raw in connection.execute("SELECT idempotency_key,created_at,status,proposal_json FROM order_requests WHERE mode LIKE 'PAPER%' AND mode!='PAPER_CASH_CONVERSION'"):
+        binding=None
+        if has_bindings:
+            row=connection.execute('SELECT binding FROM entry_native_bindings WHERE identity=?',(identity,)).fetchone()
+            if row:binding=json.loads(row[0])
+        p=json.loads(raw)
+        if binding:
+            parent=binding['parent'];quantity=decimal(parent['quantity']);filled=Decimal(0)
+            for row in connection.execute('SELECT raw_json FROM executions WHERE account=? AND perm_id=?',(parent['account'],parent['perm_id'])):
+                execution=json.loads(row[0])
+                if any(execution.get(k)!=parent.get(k) for k in ('account','symbol','currency','sec_type','con_id','order_ref')) or execution.get('side') not in ('BUY','BOT'):
+                    raise PermissionError('Bound daily execution identity requires reconciliation')
+                shares=decimal(execution['shares'])
+                if shares<=0:raise PermissionError('Bound daily fill must be positive')
+                filled+=shares
+            if not 0<=filled<=quantity:raise PermissionError('Bound daily fills exceed intended quantity; reconcile corrections')
+            claim=connection.execute('SELECT state FROM entry_cash_claims WHERE identity=?',(identity,)).fetchone()
+            # These states require terminal native proof and a later cash read.
+            terminal=claim and claim[0] in ('RELEASED_TO_BROKER_CASHBOOK','BROKER_ACCOUNTED_FEE_HELD')
+            amount=Decimal(0) if terminal else (quantity-filled)*decimal(parent['limit_price'])
+        else:
+            instant=datetime.fromisoformat(created)
+            if instant.tzinfo is None:raise PermissionError('Daily request timestamp requires timezone')
+            if not start<=instant<end:continue
+            started=connection.execute("SELECT 1 FROM order_events WHERE idempotency_key=? AND event_type='TRANSPORT_STARTED' LIMIT 1",(identity,)).fetchone()
+            if status=='REJECTED_NOT_SENT' or (status=='FAILED' and not started):continue
+            # ACK without native binding is still an outstanding promise, never a fill.
+            amount=decimal(p['quantity'])*decimal(p['limit_price'])
+        if amount<0:raise PermissionError('Negative daily commitment is invalid')
+        commitments+=amount
+    facts['outstanding_commitments']=str(commitments)
+    facts['entry_budget_used']=str(decimal(facts['gross_notional'])+commitments)
+    return facts

@@ -14,3 +14,9 @@ Trading/risk/runtime/currency adapters, existing secretary archive/outbox, new b
 - Preserve raw broker positions while projecting typed security holdings, identified FX-pair position facts, and unsupported instruments separately.
 - Do not require a USD stock protective stop or USD stock quote for an identified currency-pair position; actual currency balances/funding remain independently verified.
 - Keep active FX orders and unsupported/ambiguous instruments fail-closed; no new financing, ownership adoption or entry release.
+
+## Continuous admission continuation
+- Atomically reserve intent, daily commitments and cash before broker transport, with durable transport-start and no replay after relabeling.
+- Bind exact native acknowledgement evidence, persist native fee revisions and release local cash claims only after ordered complete native accounting proof.
+- Project actual typed native buy/sell turnover separately from commitments; combine them only without double counting partial fills or dropping cross-day live commitments.
+- Keep continuous execution integration and native partial-fill/restart acceptance open; no deployment/release inferred from isolated tests.

@@ -62,3 +62,9 @@ Nasdaq官方计划2026-12-06启用夜盘，当前阶段规则保守核验至12-0
 源码9f66cd8；1063项/76.618s/OK，secret scan及5项OpenSpec strict PASS。共享纯分类保留raw position，区分stock/FX pair/unsupported；未知资产继续fail-closed，活动FX订单不被股票gross计算忽略。execId只允许补缺少的合约证据，不改经济字段。原生完整四项readback证明6只股票、原挂单和成交经济字段不变，EUR/USD-64414仍可见，EUR缺股票止损误报已厘清，PFE旧保护未动。独立有部署身份与kernel owner的cashbook复读USD2019.4231/EUR943040.605。
 
 云端8个有限保护依赖逐字节一致，scope只换commit，Gateway1450345、全局gate hashes及换汇spent scope不变。仅重启既有read-only paper-safety与inbox，未发订单。原生验收不是完整canonical策略所有权或T0验收，P0任务2.2—2.5仍未收口。已告知Telegram，回执单独核验。图表：数据类型与证据字段补齐，不改变既有callback/维护/宽筛拓扑；旧untracked图保留。证据engineering/typed-portfolio-20261109。
+
+## 持续准入工程候选（未云端部署）
+
+隔离工作区continuous-paper-admission：a3b7dae原子意图/资金预留与不可重放transport-start；0e2d5a8精确原生绑定/费用版本/有序现金核销；e0186bb原生双向成交投影。后续原子日准入以实际当日成交加未成交承诺，测试1090项/75.674s/OK、OpenSpec5项strict PASS。新代码尚未替代云端9f66cd8监测部署；不能宣称旧仓已保护、USD已结算、部分成交/重启现场已通过或策略全自动已启用。源码保护与本机smoke、云端部署、原生结果分别记录。
+
+共享ORDER_SUBMISSION新增AUDIT依赖；若之后云端部署，必须语义审查health依赖变更并重绑有限保护commit，不能声称8个依赖全部逐字节不变。当前只读服务核对paper-safety/inbox/notifications/Gateway均active，GatewayPID1450345未变；通用smoke无资源样本，不能把DEGRADED空样本当泄漏证据。图表回顾：事件/费用证据与事务内部实现变化，既有维护/宽筛拓扑未改，旧untracked图仍保留。

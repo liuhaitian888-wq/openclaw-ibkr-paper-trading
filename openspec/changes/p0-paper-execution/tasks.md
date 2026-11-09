@@ -18,6 +18,8 @@
 - [x] 3.3 Complete isolated suite and secret scan, Git integration and native stock/FX/cash readback; verify unchanged broker orders, gates and remaining P0 status.
 
 ## 4. Continuous admission continuation
-- [ ] 4.1 Make intent plus daily/cash admission atomic across concurrent API callers; verify competing requests and crash/UNKNOWN persistence in offline tests.
+- [x] 4.1 Make intent plus daily/cash admission atomic across concurrent API callers; verify competing requests and crash/UNKNOWN persistence in offline tests.
 - [ ] 4.2 Preserve exact native order identity in acknowledgement/audit and reconcile cash claims only with fresh exact broker/cash proof; verify conflicts/partial fill/restart and no orderRef-only ownership.
 - [ ] 4.3 Wire the existing dedicated execution owner to admitted signals without adding mutation to the read-only monitor; verify sizing, fees, gate revalidation and joint lifecycle before any native release.
+
+- [ ] 4.4 Combine native daily buy/sell turnover with remaining commitments and verify partial fills, cross-day activity, unknown facts, corrections and protective-exit independence.

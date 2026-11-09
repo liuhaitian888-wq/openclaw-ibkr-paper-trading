@@ -52,3 +52,33 @@ class NativeTurnoverTests(unittest.TestCase):
         self.add('historical',time='')
         self.assertTrue(self.project(day='2026-11-10')['complete'])
         self.assertFalse(self.project()['complete'])
+
+    def test_partial_fill_not_double_counted_and_live_commitment_crosses_day(self):
+        from trading.entry_admission import initialize_claims
+        from trading.daily_turnover import admission_usage
+        from trading.models import TradeProposal
+        p=TradeProposal(symbol='BAC',side='BUY',quantity=10,limit_price=40,stop_price=39,idempotency_key='bound')
+        self.audit.reserve(p,'PAPER_TRANSMIT','strategy')
+        parent=dict(account='DUQ503649',perm_id=1,symbol='BAC',currency='USD',sec_type='STK',con_id=123,order_ref='bound',quantity=10,limit_price=40)
+        self.add('partial',shares=2,order_ref='bound')
+        with closing(self.audit._connect()) as c,c:
+            initialize_claims(c)
+            c.execute("INSERT INTO entry_native_bindings VALUES(?,1,?,?)",('bound','2026-11-09T14:30:00+00:00',json.dumps({'parent':parent})))
+            c.execute("INSERT INTO entry_cash_claims VALUES(?,'DUQ503649','TRANSFERRED_TO_BROKER_ORDER','0','5',?,?,?,?)",('bound','now','now','epoch','{}'))
+            today=admission_usage(c,'2026-11-09','America/New_York')
+            tomorrow=admission_usage(c,'2026-11-10','America/New_York')
+            self.assertEqual(today['gross_notional'],'80');self.assertEqual(today['entry_budget_used'],'400')
+            self.assertEqual(tomorrow['entry_budget_used'],'320')
+            c.execute("UPDATE entry_cash_claims SET state='BROKER_ACCOUNTED_FEE_HELD'")
+            self.assertEqual(admission_usage(c,'2026-11-09','America/New_York')['entry_budget_used'],'80')
+            self.assertEqual(admission_usage(c,'2026-11-10','America/New_York')['entry_budget_used'],'0')
+
+    def test_failed_label_after_transport_does_not_erase_daily_commitment(self):
+        from trading.daily_turnover import admission_usage
+        from trading.models import TradeProposal
+        p=TradeProposal(symbol='BAC',side='BUY',quantity=2,limit_price=40,stop_price=39,idempotency_key='uncertain')
+        self.audit.reserve(p,'PAPER_TRANSMIT','strategy')
+        self.audit.mark_submission_started('uncertain');self.audit.update('uncertain','FAILED','not native no-send proof')
+        with closing(self.audit._connect()) as c:
+            day=datetime.now(timezone.utc).date().isoformat()
+            self.assertEqual(admission_usage(c,day,'UTC')['outstanding_commitments'],'80')

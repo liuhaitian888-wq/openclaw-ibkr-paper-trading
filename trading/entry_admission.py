@@ -23,13 +23,8 @@ def enforce_daily_budget(connection,proposal,cap,timezone_name,created_at):
     cap=decimal(cap)
     if cap<=0:raise PermissionError('Positive daily notional cap required')
     zone=ZoneInfo(timezone_name);at=datetime.fromisoformat(created_at);day=at.astimezone(zone).date()
-    start=datetime.combine(day,time(),zone).astimezone(timezone.utc).isoformat()
-    end=datetime.combine(day+timedelta(days=1),time(),zone).astimezone(timezone.utc).isoformat()
-    used=Decimal(0)
-    for raw, in connection.execute("SELECT proposal_json FROM order_requests WHERE created_at>=? AND created_at<? AND mode LIKE 'PAPER%' AND mode!='PAPER_CASH_CONVERSION' AND status NOT IN ('FAILED','REJECTED_NOT_SENT')",(start,end)):
-        p=json.loads(raw);amount=decimal(p['quantity'])*decimal(p['limit_price'])
-        if amount<0:raise PermissionError('Invalid historical daily notional')
-        used+=amount
+    from .daily_turnover import admission_usage
+    used=decimal(admission_usage(connection,day.isoformat(),timezone_name)['entry_budget_used'])
     proposed=decimal(proposal.quantity)*decimal(proposal.limit_price)
     if proposed<=0 or used+proposed>cap:
         raise PermissionError(f'Daily notional cap exceeded: used={used}, proposed={proposed}, cap={cap}, timezone={timezone_name}')
