@@ -46,8 +46,8 @@
 
 - [x] Verify official CLI artifact and prepare fresh cloud-only OAuth login, without token copy or API key.
 - [x] Implement OAuth provider, receipt/uncertainty boundaries, credential health and exclusive model ownership; complete offline/spec/secret checks.
-- [ ] User finishes cloud OAuth consent; verify actualgpt-6.1-sol/low access.
-- [ ] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled.
+- [x] Independent cloud OAuth consent completed; native model catalog and acknowledged inference verify gpt-6.1-sol/low.
+- [x] Deploy OAuth owner/cutover after validation and confirm native private reply with Mac bridge disabled (update600875499, notification1304/message247; human-visible reply confirmed).
 
 The earlier API-key entry/access tasks are superseded by the owner OAuth choice, retained unchecked as historical work rather than completion claims.
 
@@ -60,7 +60,7 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Register bounded model-selected Python queries for account, positions, cash, orders, executions and entitled market data through the existing broker owner.
 - [ ] Verify read-only coverage of every registered business database, freshness, limits and unavailable-source behavior.
 - [ ] Verify fresh Telegram → model → live Python broker tool → native Telegram result and record stage latency before optimizing.
-- [ ] Reconcile fresh cloud OAuth/model acceptance separately; service/process liveness does not complete the cutover task.
+- [x] Reconcile fresh cloud OAuth/model acceptance separately: completed model receipt, archived SUCCEEDED result and native private message247; live Python broker-tool acceptance remains unchecked above.
 
 - [ ] Implement authorized Telegram development/operations routing to a verified Codex Cloud executor, with scoped tasks, execution receipts and Telegram progress/results.
 - [ ] Inventory every database and operational path; explicitly verify supported read/write/deploy operations before claiming complete coverage.
