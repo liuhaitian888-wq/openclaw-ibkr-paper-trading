@@ -100,6 +100,17 @@ The builder SHALL return fixed failure codes, parsed source time, computable age
 - **WHEN** the saved source is stale, incomplete or belongs to a different account
 - **THEN** all applicable fixed reason codes and a deterministic observation fingerprint are returned, with no publication or relaxed account/environment/completeness or 600-second freshness checks; this does not retroactively prove the Nov8 failure predicate.
 
+### Requirement: Queued report source provenance
+New reports SHALL bind a private canonical-json-v1 observation sidecar to the manifest. Enqueue SHALL verify its hash, identity, completeness and source time and freeze it through the existing archive owner. Legacy sources SHALL be explicitly unavailable, never reconstructed. Mutable previews SHALL NOT alter queued evidence or create a permanent source copy on every builder cycle.
+
+#### Scenario: Observer changes after generation
+- **WHEN** the live observer file changes before a generated report is queued
+- **THEN** enqueue verifies the original sidecar against its manifest and freezes those original parsed observation bytes; it does not substitute the newer observer.
+
+#### Scenario: Source preview changes before enqueue
+- **WHEN** a declared source sidecar is missing, changed or has a different account, environment or time
+- **THEN** the report is rejected as unverified, preserving the existing missing-report and UNKNOWN boundaries.
+
 ### Requirement: Owner-selected independent ChatGPT OAuth
 The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
 
