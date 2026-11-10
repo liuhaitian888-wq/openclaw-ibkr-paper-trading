@@ -30,9 +30,12 @@ def initialize(store):
           id INTEGER PRIMARY KEY,scope_id TEXT NOT NULL,notification_id INTEGER NOT NULL,
           action TEXT NOT NULL,recorded_at REAL NOT NULL,evidence TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS notification_current_status(
-          scope_id TEXT PRIMARY KEY,notification_id INTEGER NOT NULL UNIQUE,payload TEXT NOT NULL,
+          scope_id TEXT NOT NULL,notification_id INTEGER PRIMARY KEY,payload TEXT NOT NULL,
           state_sha256 TEXT NOT NULL,observed_at REAL NOT NULL,expires_at REAL NOT NULL);
         ''')
+        keys={row[1]:row[5] for row in c.execute('PRAGMA table_info(notification_current_status)')}
+        if keys.get('scope_id')!=0 or keys.get('notification_id')!=1:
+            raise PermissionError('Current-version registry migration requires explicit review')
 
 
 def legacy_evidence(c,ident):
@@ -109,14 +112,45 @@ def proof(state,now):
     return sha(encoded({k:state.get(k) for k in ('epoch','positions','orders','contracts')}))
 
 
-def queue_current(store,scope_id):
+def _refresh_evidence(c,scope_id,previous):
+    """Every retained version must prove that no transport was reserved/entered."""
+    versions=c.execute('SELECT notification_id,payload,state_sha256 FROM notification_current_status WHERE scope_id=? ORDER BY notification_id',(scope_id,)).fetchall()
+    evidence=[]
+    for ident,payload,state_sha in versions:
+        row=c.execute('SELECT status,payload FROM notification_outbox WHERE id=?',(ident,)).fetchone()
+        allowed=('PENDING','NOT_SENT_EXHAUSTED') if ident==previous else ('SUPERSEDED',)
+        if not row or row[0] not in allowed or row[1]!=payload or any(json.loads(legacy_evidence(c,ident))[k] for k in ('delivery','receipt','operations')):
+            raise PermissionError('A current version may have entered transport or changed')
+        attempts=c.execute('SELECT id,envelope_sha256 FROM notification_attempts WHERE notification_id=? ORDER BY id',(ident,)).fetchall()
+        if not attempts:raise PermissionError('Positive terminal preflight evidence required')
+        events=[]
+        for aid,envelope in attempts:
+            stages=c.execute('SELECT id,stage,evidence FROM notification_attempt_events WHERE attempt_id=? ORDER BY id',(aid,)).fetchall()
+            if not stages or any(stage!='PREFLIGHT_FAILED' for _,stage,_ in stages):
+                raise PermissionError('Every attempt must terminate before wire')
+            for _,_,raw in stages:
+                detail=json.loads(raw)
+                if (detail.get('wire_started') is True or detail.get('transport_entered') is True
+                        or not (detail.get('wire_started') is False or detail.get('transport_entered') is False)):
+                    raise PermissionError('Positive zero-wire terminal evidence required')
+            events.append({'attempt_id':aid,'envelope_sha256':envelope,'events':stages})
+        evidence.append({'notification_id':ident,'payload':payload,'state_sha256':state_sha,'attempts':events})
+    return evidence
+
+
+def queue_current(store,scope_id,*,refresh_unsent_reason=None):
     """One real current-state report, not a replay or synthetic recovery event."""
     from .paper_readiness import inventory
+    if refresh_unsent_reason is not None and (not isinstance(refresh_unsent_reason,str) or not 1<=len(refresh_unsent_reason)<=500):
+        raise PermissionError('Explicit bounded operator refresh reason required')
     with closing(store.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         if not scope_valid(c,scope_id):raise PermissionError('Disposition no longer matches original evidence')
-        previous=c.execute('SELECT notification_id FROM notification_current_status WHERE scope_id=?',(scope_id,)).fetchone()
-        if previous:return previous[0]
+        versions=c.execute('SELECT notification_id FROM notification_current_status WHERE scope_id=? ORDER BY notification_id',(scope_id,)).fetchall()
+        previous=versions[-1][0] if versions else None
+        if previous is not None and refresh_unsent_reason is None:return previous
+        refresh=_refresh_evidence(c,scope_id,previous) if previous is not None else None
+        if previous is None and refresh_unsent_reason is not None:raise PermissionError('No previous current report to refresh')
         now=store.clock();raw=c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
         state=json.loads(raw[0]) if raw else {};state_sha=proof(state,now)
         if now-state['reconciled_at']>20:raise PermissionError('Wait for next naturally completed broker readback')
@@ -133,11 +167,16 @@ def queue_current(store,scope_id):
             recovered_count=recovered,unresolved_count=unresolved,archived_unknown_count=3,
             reason='本次新鲜完整回读的当前保护核验；旧三条结果未知已封存且未重发，不冒充旧恢复通知的回执。',
             grants_trading_permission=False)
-        cur=c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES(?,1,'CURRENT_RISK_STATUS',?,'PENDING')",('paper-safety:current-status:'+scope_id,encoded(payload)))
+        if previous is not None:
+            c.execute("UPDATE notification_outbox SET status='SUPERSEDED' WHERE id=?",(previous,))
+        cur=c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES(?,?,'CURRENT_RISK_STATUS',?,'PENDING')",('paper-safety:current-status:'+scope_id,len(versions)+1,encoded(payload)))
         ident=cur.lastrowid
         c.execute('INSERT INTO notification_current_status VALUES(?,?,?,?,?,?)',(scope_id,ident,encoded(payload),state_sha,now,now+30))
         c.execute('INSERT INTO notification_disposition_events(scope_id,notification_id,action,recorded_at,evidence) VALUES(?,?,?,?,?)',
             (scope_id,ident,'CURRENT_STATUS_FROM_FRESH_NATIVE_READBACK',now,encoded({'broker_epoch':state['epoch'],'state_sha256':state_sha,'holdings':rows,'historical_outcomes':'UNKNOWN_NOT_REPLAYED'})))
+        if refresh is not None:
+            c.execute('INSERT INTO notification_disposition_events(scope_id,notification_id,action,recorded_at,evidence) VALUES(?,?,?,?,?)',
+                (scope_id,ident,'CURRENT_STATUS_ZERO_WIRE_REFRESH',now,encoded({'operator_reason':refresh_unsent_reason,'previous_versions':refresh,'not_a_retry_of_uncertain_transport':True})))
     return ident
 
 
@@ -146,6 +185,7 @@ def claim_allowed(c,item):
     scope=item['payload'].get('current_risk_scope')
     row=c.execute('SELECT payload FROM notification_current_status WHERE scope_id=? AND notification_id=?',(scope,item['id'])).fetchone()
     if row is None or row[0]!=encoded(item['payload']) or not scope_valid(c,scope):return False
+    if c.execute('SELECT max(notification_id) FROM notification_current_status WHERE scope_id=?',(scope,)).fetchone()[0]!=item['id']:return False
     # Other uncertain protection occurrences remain barriers, even after this scope.
     return not c.execute("""SELECT 1 FROM notification_outbox n WHERE n.status IN ('STARTED','UNKNOWN')
       AND n.id!=? AND n.incident_key LIKE 'paper-safety:protection:%'

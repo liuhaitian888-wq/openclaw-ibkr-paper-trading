@@ -51,3 +51,7 @@ The system SHALL preserve the unknown delivery outcome of an explicitly scoped h
 
 ### Current deployment evidence — 2026-11-10
 Clouda46921b and loaded Paper producer657d64d were independently observed. Real batches1340/1370 each aggregate seven newly recovered symbols; original per-symbol recoveries remain SUPPRESSED evidence. Actual risk group delivery is NOT_VERIFIED: old STARTED1270–1272 lack trustworthy outcome evidence and block claiming the digest. Engineering event1371/group225 is not a risk receipt. Secretary persistent engineering status was independently read. See docs/production-audit/RISK_RECOVERY_20261110.md; future reconciliation and native acceptance remain separate.
+
+#### Scenario: Proven preflight failure permits explicit current-only refresh
+- **WHEN** every prior version has terminal PREFLIGHT_FAILED evidence and no operation, delivery, receipt or transport evidence, and an operator explicitly requests refresh with fresh complete broker proof
+- **THEN** retain all version registrations, payloads and attempts; supersede only the old unsent current projection and audit the new version in the same scope. The scope permits at most one transport attempt; STARTED, UNKNOWN and accepted outcomes are never refreshed or replayed. No automatic refresh loop is authorized.
