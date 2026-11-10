@@ -124,3 +124,6 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Broker repair/menu clarity follow-up
 - [x] Use explicit model/broker connection and service names; distinguish broker query admission expiry from missing broker response.
 - [ ] Integrate immutable menu patch with transaction engineer connection repair under notification engineer deployment ownership, then observe fresh Telegram menu receipts.
+
+- [x] Verify one real ownerTelegram/codex dbcheck→HetznerCodexAppServer native accept/complete→fixed four-DB report→existing private sender/native receipt (600875513,1834/413; noMac dependency).
+- [ ] Extend and independently verify scoped code-edit/test/operations tasks; this one-shot readonly success does not complete unrestricted development or HostedCloud acceptance.

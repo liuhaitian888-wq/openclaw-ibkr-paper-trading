@@ -252,3 +252,6 @@ Current deployment observation2026-11-10: cloud57452de7f8cf1fee0c27d737b9f38cb9d
 
 ### Team coordination observed boundary — 2026-11-10
 Eight existing Codex chats are grouped and role-named; collaboration handoffs and existing secretary SYSTEMmailbox rosterreadback succeeded. These are coordination evidence, not an automaticsecretary→Codexexecutionbridge or new businesspermissions. Preserve per-task scope, singledeploymentowner and uncertainoutcomes; actualCodexacceptance/completion/resultdelivery remain separatelyverifiedtasks.
+
+### Verified restricted Codex task — 2026-11-10
+Current deploymentc3443a25 completed fresh native ownerTelegramupdate600875513 through Hetzner officialCodexAppServer native thread/turn and read-only registeredDB diagnostics; archivedSUCCEEDED report hashd66e75e6b4c0dd1105390266c4e6236e42b836f704566a5faedf8b7e96414b5e and existingoutbox1834/private413 accepted02:17:31Z. Owner-session history independently contains resulttext. This supersedes earlier NOT_CONNECTED stage only for registered-db-diagnostic-v1, not arbitrary coding/deployment orHostedCloud. One-shot consumed; original UNKNOWNs preserved. Full evidence inSECRETARY_CODEX_NATIVE_ACCEPTANCE_20261110.md.
