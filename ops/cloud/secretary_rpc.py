@@ -79,6 +79,14 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
         result['job']=claim(archive,model=policy['model'],now=time.time(),resume_after=policy.get('model_owner_since',0) if caller in ('cloud_api','cloud_oauth') else 0)
         if result['job'] and result['job']['payload'].get('autonomous'):progress(IncidentStore(root/'runtime/recovery.sqlite3'),result['job']['run'],'CLAIMED','已领取任务，等待受限模型分析；将记录数据来源与测试结果。')
         return result
+    if action=='task_description':
+        instruction=active_run(archive,request['run'])
+        with closing(archive.connect()) as c:
+            row=c.execute('SELECT payload,kind FROM secretary_events WHERE occurrence=?',(instruction,)).fetchone()
+        payload=json.loads(row[0]);payload['autonomous']=row[1]=='AUTONOMOUS_INSTRUCTION'
+        result=dict(request['description']);result['response_mode']=response_mode(payload,result)
+        from reporting.secretary_presentation import record_description
+        return record_description(archive,IncidentStore(root/'runtime/recovery.sqlite3'),request['run'],instruction,payload,result,announce=request.get('announce') is True)
     if action=='checkpoint':
         active_run(archive,request['run']);checkpoint(archive,request['run'],request['checkpoint'])
         return {'state':'YIELDED'}

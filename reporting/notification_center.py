@@ -202,6 +202,10 @@ def render(item,config,at):
                 if mode=='report_status':text+='仅状态提示，未在群内分享账户数据或附件。'
                 else:text+='详细证据按授权保留，私人内容仅发本人秘书私聊。'
             return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
+    if kind=='SECRETARY_REPLY' and p.get('message_role') in ('TASK','RESEARCH','PROGRESS') and audience(item,config)=='owner':
+        from .secretary_presentation import compact_message
+        text=compact_message(item)
+        return {'text':text,'html':html.escape(text),'category':cat,'audience':'owner','chat_id':recipient(item,config)}
     recovered=kind=='RECOVERY';status='已恢复' if recovered else '重要' if p.get('severity')=='RED' else '提醒' if p.get('severity')=='YELLOW' else '更新'
     if audience(item,config)=='group' and config.get('audience_mode')=='shared_group' and cat=='ops' and item['incident_key'] in GROUP_KEYS and config.get('automatic_updates_to_group') is not True:
         title=('🟩' if recovered else '🟥')+' #OPS '+status+'｜'+GROUP_KEYS[item['incident_key']]
