@@ -84,4 +84,9 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Measured model/Python broker fast path
 - [x] Record finite sole-owner OAuth model → Python → broker/database → grounded model result,23.909s, without claiming Telegram acceptance or sending probe messages.
 - [x] Implement selected-section snapshots with one reconciliation, bounded validation, model routing and no unnecessary account-summary subscription.
-- [ ] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
+- [x] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
+
+## Mac-independent explicit authentication control
+- [x] Route fresh approved /login_assist starts to the existing cloud inbox; prevent cloud models from consuming unsupported transport controls and preserve Mac-only search ownership.
+- [x] Verify exact native command/identity, stopped-state recheck, bounded fixed-unit start, cutover/no-replay, distinct UNKNOWN outcome notice and unchanged auth/trading gates.
+- [ ] Install reviewed exact-unit start authorization and verify positive/negative native authorization queries without starting or restarting the healthy Gateway; record future inactive-Gateway/owner-message acceptance separately.
