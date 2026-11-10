@@ -26,7 +26,10 @@ async def run_worker():
             while not stopped.is_set():
                 try:
                     result=await poll(archive,root,config,policy['armed_at'],owned_bot=bot,proof=proof)
-                    process_controls(archive,root,config,policy);tick_login(archive,root)
+                    process_controls(archive,root,config,policy)
+                    from ops.cloud.secretary_control_executor import process_gateway_controls
+                    process_gateway_controls(archive,root,config,policy)
+                    tick_login(archive,root)
                     if time.monotonic()-last_observation>=60:
                         last_observation=time.monotonic()
                         print(json.dumps(observe(archive,root)),flush=True)

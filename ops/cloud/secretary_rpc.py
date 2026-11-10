@@ -62,7 +62,10 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
         reconcile_replies(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
         if policy.get('receiver_owner')=='cloud':
             from reporting.secretary_controls import pending_controls
-            result={'controls':pending_controls(archive)}
+            if caller=='mac_bridge':
+                kinds=('TELEGRAM_SEARCH_REQUESTED',) if policy.get('gateway_start_control_owner')=='cloud_inbox' else ('GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED')
+                result={'controls':pending_controls(archive,kinds=kinds,owner='mac_bridge')}
+            else:result={'controls':[]}  # Cloud model never consumes device/transport controls it cannot execute.
         else:
             result=asyncio.run(poll(archive,root,config,policy['armed_at']))
             result['controls']=process_controls(archive,root,config,policy)

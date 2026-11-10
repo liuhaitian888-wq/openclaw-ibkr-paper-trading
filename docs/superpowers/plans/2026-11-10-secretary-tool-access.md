@@ -25,3 +25,11 @@ Progress evidence: source91f7f64 deployed; native broker query1.226s successful 
 
 ## Measured optimization follow-up
 Files: reporting/secretary_broker.py validates optional snapshot sections; trading/secretary_broker_owner.py returns selected fields and opens summary only for account/cash; scripts/run_secretary_bridge.py guides combined questions toward one snapshot. Tests: tests/test_secretary_broker_tools.py covers one reconciliation, selected-data projection, no account subscription for positions/orders and malformed/duplicate section refusal. Native before/after probes use distinct identities, existing sole model lock and original-result preservation; no Telegram impersonation/delivery claim.
+
+## Mac-independent authentication control repair
+Evidence: cloud run_once ignores returned controls; pending_controls currently marks them dispatched. Existing /login_assist still relies on the stopped Mac bridge. Repair the existing deterministic path, independent of the developer executor choice:
+- reporting/secretary_controls.py: bounded control-kind/cutover filtering, immutable dispatch owner, known-no-action versus UNKNOWN completion, separate private outcome notice preserving the original uncertain run.
+- ops/cloud/secretary_control_executor.py: existing inbox user owns one bounded fixed-unit start; verify native owner command, fresh cutover, policy, exact service user and stopped state; record native attempt before transport. Never restart a normal Gateway or replay a previous dispatch.
+- ops/cloud/secretary_inbox.py and secretary_rpc.py: inbox handles only its approved Gateway starts; cloud model does not claim Mac-only controls. Preserve existing local search owner behavior.
+- ops/cloud/polkit/00-openclaw-paper-gateway.rules: same ibkr subject and same owned unit; allow fixed start as well as the existing restart verb, no other unit/stop/reload/global privilege.
+- tests/test_secretary_control_executor.py: command provenance, state changes, bounded argv, cutoff/owner isolation, failure uncertainty and no replay. Full suite/secret/spec before Git and deployment. Native authorization probes are read-only; no healthy-Gateway restart or artificial inactive drill.

@@ -1,8 +1,8 @@
 // Installed root-owned under /etc/polkit-1/rules.d. No scripts or imports.
-// ibkr already owns the target process; this grants only its fixed unit restart.
+// ibkr owns the target process: fixed login-assist start and watchdog restart only.
 polkit.addRule(function(action, subject) {
     if (subject.user === "ibkr" && action.id === "org.freedesktop.systemd1.manage-units") {
-        if (action.lookup("unit") === "ibkr-gateway.service" && action.lookup("verb") === "restart") {
+        if (action.lookup("unit") === "ibkr-gateway.service" && (action.lookup("verb") === "restart" || action.lookup("verb") === "start")) {
             return polkit.Result.YES;
         }
         return polkit.Result.NO;

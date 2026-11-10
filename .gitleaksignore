@@ -8,3 +8,7 @@
 .der/maintenance/diagram-dependencies.json:generic-api-key:37
 .der/maintenance/diagram-dependencies.json:generic-api-key:38
 .der/maintenance/diagram-dependencies.json:generic-api-key:39
+
+# Source SHA-256 receipts for the native inbox/control topology; recomputed from source.
+.der/maintenance/diagram-dependencies.json:generic-api-key:41
+.der/maintenance/diagram-dependencies.json:generic-api-key:42

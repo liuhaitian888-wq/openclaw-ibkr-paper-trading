@@ -229,12 +229,27 @@ def finish_start(archive,root,request):
     with closing(archive.connect()) as c:
         row=c.execute("SELECT instruction,state,model FROM secretary_runs WHERE occurrence=?",(run,)).fetchone()
     if row is None or row[1]!='STARTED' or row[2]!='PYTHON_CONTROL':raise ValueError('Reserved control operation required')
-    if request.get('accepted') is not True:
-        archive.finish_run(run,state='UNKNOWN');return {'state':'UNKNOWN'}
-    summary='启动请求已交给现有唯一systemd Gateway owner；认证尚待核验。请完成手机二次验证，取得正确Paper账户的新鲜完整回读后将通知；交易权限不变。'
-    event=run+':result';archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=row[0],payload={'summary':summary})
-    archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,summary,role='AUTH')
-    return {'state':'SUCCEEDED'}
+    if request.get('not_attempted_reason'):
+        from .errors import redact
+        reason=redact(str(request['not_attempted_reason']))[:250]
+        state='SUCCEEDED' if request.get('already_running') is True else 'FAILED'
+        summary='Gateway启动未执行：'+reason+'。认证仍按正确Paper账户的新鲜完整回读核验，交易权限不变。'
+    elif request.get('accepted') is True:
+        state='SUCCEEDED'
+        summary='启动请求已交给现有唯一systemd Gateway owner；认证尚待核验。请完成手机二次验证，取得正确Paper账户的新鲜完整回读后将通知；交易权限不变。'
+    else:
+        state='UNKNOWN'
+        summary='Gateway启动请求结果待核对；不会自动重复启动或重启。请核对现有Gateway及手机验证，交易权限不变。'
+    event=run+':result';archive.append(event,CONVERSATION,origin='TOOL',kind='CONTROL_RESULT',parent=row[0],payload={'summary':summary,'operation_state':state,'native_start_accepted':request.get('accepted') is True})
+    archive.finish_run(run,state=state,result_event=event)
+    notice=run
+    if state!='SUCCEEDED':
+        # Notice success is distinct from the original FAILED/UNKNOWN operation.
+        notice=run+':outcome-notice'
+        archive.reserve_run(notice,instruction=row[0],model='PYTHON_CONTROL_NOTICE')
+        archive.finish_run(notice,state='SUCCEEDED',result_event=event)
+    enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),notice,summary,role='AUTH')
+    return {'state':state}
 
 
 def tick_login(archive,root):
@@ -255,12 +270,20 @@ def tick_login(archive,root):
         archive.finish_run(run,state='SUCCEEDED',result_event=event);enqueue_reply(archive,IncidentStore(root/'runtime/recovery.sqlite3'),run,text,role='AUTH')
 
 
-def pending_controls(archive):
+def pending_controls(archive,*,kinds=('GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED'),after=0,owner=None,limit=5):
+    import math
+    allowed={'GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED'}
+    if (not isinstance(kinds,(tuple,list)) or not 1<=len(kinds)<=2 or any(not isinstance(x,str) or x not in allowed for x in kinds)
+            or type(after) not in (int,float) or not math.isfinite(after) or after<0
+            or owner not in (None,'cloud_inbox','mac_bridge') or type(limit) is not int or not 1<=limit<=5):
+        raise ValueError('Bounded registered control ownership required')
+    placeholders=','.join('?' for _ in kinds)
     with closing(archive.connect()) as c:
-        rows=c.execute("SELECT r.occurrence,r.instruction,e.kind,e.payload FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.model='PYTHON_CONTROL' AND r.state='STARTED' AND e.kind IN ('GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED') AND NOT EXISTS(SELECT 1 FROM secretary_events d WHERE d.occurrence=r.occurrence||':dispatch') LIMIT 5").fetchall()
+        rows=c.execute("SELECT r.occurrence,r.instruction,e.kind,e.payload FROM secretary_runs r JOIN secretary_events e ON e.occurrence=r.occurrence||':requested' WHERE r.model='PYTHON_CONTROL' AND r.state='STARTED' AND e.kind IN ("+placeholders+") AND e.recorded_at>=? AND NOT EXISTS(SELECT 1 FROM secretary_events d WHERE d.occurrence=r.occurrence||':dispatch') ORDER BY e.rowid LIMIT ?",(*kinds,after,limit)).fetchall()
     controls=[]
     for run,instruction,kind,payload in rows:
-        if archive.append(run+':dispatch',CONVERSATION,origin='SYSTEM',kind='CONTROL_DISPATCH_STARTED',parent=instruction,payload={'run':run}):
+        marker={'run':run,**({'owner':owner} if owner else {})}
+        if archive.append(run+':dispatch',CONVERSATION,origin='SYSTEM',kind='CONTROL_DISPATCH_STARTED',parent=instruction,payload=marker):
             data=json.loads(payload);controls.append({'kind':'TELEGRAM_SEARCH' if kind=='TELEGRAM_SEARCH_REQUESTED' else 'GATEWAY_START','run':run,'instruction':instruction,**{k:data[k] for k in ('request','target') if k in data}})
     return controls
 
