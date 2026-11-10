@@ -19,7 +19,7 @@
 
 ## 生成时间和发送时间
 
-现有`ibkr-financial-reports.timer`每30秒准备/更新报表产物；`reporting/report_schedule.py`按`09:00 Asia/Shanghai`入队。2026-11-09T23:01:44Z的PREPARED表示柏林11月10日00:01:44准备成功；不是01:44，也不是提前发送。冬令时对应柏林02:00，夏令时对应03:00，现行契约固定北京时间而非全年固定柏林02:00。若要全年固定GMT+1或Europe/Berlin02:00，属于另一次调度决策。
+现有`ibkr-financial-reports.timer`每30秒准备/更新报表产物；`reporting/report_schedule.py`按`09:00 Asia/Shanghai`入队。2026-11-09T23:01:44Z的PREPARED表示柏林11月10日00:01:44准备成功；不是01:44，也不是提前发送。冬令时对应柏林02:00，夏令时对应03:00，现行契约固定北京时间09:00，即UTC01:00、全年固定GMT+1的02:00；与用户指定02:00GMT+1一致，无需改调度。若要全年Europe/Berlin当地02:00，才属于另一次调度决策。
 
 ## 数据库留痕和秘书恢复判断
 

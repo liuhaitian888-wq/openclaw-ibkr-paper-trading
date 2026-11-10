@@ -107,7 +107,9 @@ class PaperAcceptanceTests(unittest.TestCase):
             async def connectAsync(self,*a,**k):pass
             def managedAccounts(self):return [ACCOUNT]
             async def qualifyContractsAsync(self,*a):return [NS(conId=1,symbol='NVDA',currency='USD')]
-            async def reqContractDetailsAsync(self,c):return [NS(minTick=.01,tradingHours=f'{d}:0000-{d}:2359',timeZoneId='UTC')]
+            async def reqContractDetailsAsync(self,c):
+                tomorrow=(now+timedelta(days=1)).strftime('%Y%m%d')
+                return [NS(minTick=.01,tradingHours=f'{d}:0000-{tomorrow}:0000',timeZoneId='UTC')]
             async def reqPositionsAsync(self):return []
             async def reqAllOpenOrdersAsync(self):return []
             async def accountSummaryAsync(self,a):return [NS(account=a,tag='CashBalance',currency='USD',value='1000'),NS(account=a,tag='AvailableFunds',currency='USD',value='1000')]

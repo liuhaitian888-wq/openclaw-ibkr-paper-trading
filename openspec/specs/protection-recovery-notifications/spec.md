@@ -36,3 +36,7 @@ The existing notification worker remains the sole delivery owner. Account detail
 ## Evidence boundary
 
 2026-11-10 local implementation and offline checks are separate from deployment and future real broker-recovery acceptance. Native deehub UI and read-only outbox confirmed consecutive #RISK recovery cards (1296–1302, seven symbols at one observation). No deliberate broker fault or test group message is required.
+
+
+### Current deployment evidence — 2026-11-10
+Clouda46921b and loaded Paper producer657d64d were independently observed. Real batches1340/1370 each aggregate seven newly recovered symbols; original per-symbol recoveries remain SUPPRESSED evidence. Actual risk group delivery is NOT_VERIFIED: old STARTED1270–1272 lack trustworthy outcome evidence and block claiming the digest. Engineering event1371/group225 is not a risk receipt. Secretary persistent engineering status was independently read. See docs/production-audit/RISK_RECOVERY_20261110.md; future reconciliation and native acceptance remain separate.
