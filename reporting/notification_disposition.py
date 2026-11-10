@@ -112,13 +112,13 @@ def proof(state,now):
     return sha(encoded({k:state.get(k) for k in ('epoch','positions','orders','contracts')}))
 
 
-def _refresh_evidence(c,scope_id,previous):
+def _refresh_evidence(c,scope_id,previous,*,prior_to=None):
     """Every retained version must prove that no transport was reserved/entered."""
-    versions=c.execute('SELECT notification_id,payload,state_sha256 FROM notification_current_status WHERE scope_id=? ORDER BY notification_id',(scope_id,)).fetchall()
+    versions=c.execute('SELECT notification_id,payload,state_sha256 FROM notification_current_status WHERE scope_id=? AND (? IS NULL OR notification_id<?) ORDER BY notification_id',(scope_id,prior_to,prior_to)).fetchall()
     evidence=[]
     for ident,payload,state_sha in versions:
         row=c.execute('SELECT status,payload FROM notification_outbox WHERE id=?',(ident,)).fetchone()
-        allowed=('PENDING','NOT_SENT_EXHAUSTED') if ident==previous else ('SUPERSEDED',)
+        allowed=('PENDING','NOT_SENT_EXHAUSTED') if prior_to is None and ident==previous else ('SUPERSEDED',)
         if not row or row[0] not in allowed or row[1]!=payload or any(json.loads(legacy_evidence(c,ident))[k] for k in ('delivery','receipt','operations')):
             raise PermissionError('A current version may have entered transport or changed')
         attempts=c.execute('SELECT id,envelope_sha256 FROM notification_attempts WHERE notification_id=? ORDER BY id',(ident,)).fetchall()
@@ -186,6 +186,14 @@ def claim_allowed(c,item):
     row=c.execute('SELECT payload FROM notification_current_status WHERE scope_id=? AND notification_id=?',(scope,item['id'])).fetchone()
     if row is None or row[0]!=encoded(item['payload']) or not scope_valid(c,scope):return False
     if c.execute('SELECT max(notification_id) FROM notification_current_status WHERE scope_id=?',(scope,)).fetchone()[0]!=item['id']:return False
+    try:prior=_refresh_evidence(c,scope,item['id'],prior_to=item['id'])
+    except (PermissionError,ValueError,TypeError):return False
+    if prior:
+        audit=c.execute("SELECT evidence FROM notification_disposition_events WHERE scope_id=? AND notification_id=? AND action='CURRENT_STATUS_ZERO_WIRE_REFRESH'",(scope,item['id'])).fetchall()
+        if len(audit)!=1:return False
+        try:
+            if encoded(json.loads(audit[0][0])['previous_versions'])!=encoded(prior):return False
+        except (KeyError,ValueError,TypeError):return False
     # Other uncertain protection occurrences remain barriers, even after this scope.
     return not c.execute("""SELECT 1 FROM notification_outbox n WHERE n.status IN ('STARTED','UNKNOWN')
       AND n.id!=? AND n.incident_key LIKE 'paper-safety:protection:%'
