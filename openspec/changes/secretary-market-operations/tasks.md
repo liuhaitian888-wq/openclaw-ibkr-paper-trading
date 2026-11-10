@@ -45,7 +45,8 @@
 - [ ] Optional member registry/native labels/ephemeral UI after actual role and compatibility decisions; no group-control expansion.
 
 - [x] Implement owner-private application member registry with independent public-data capabilities, immutable enqueue/backup and native ACK-before-projection recovery tests.
-- [ ] Deploy combined notification/risk/menu/OAuth source, verify actual future report and natural recovery receipts; do not manufacture a resend or native tag test.
+- [x] Deploy combined notification/risk/menu/OAuth source (a46921b), independently verify loaded owners and secretary persistent engineering status.
+- [ ] Verify actual future report and natural risk recovery receipts after lawful reconciliation; deployment/engineering-card acceptance does not complete this task. Do not manufacture a resend or native tag test.
 
 ## OAuth correction (owner-selected)
 
@@ -71,3 +72,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 
 - [ ] Implement authorized Telegram development/operations routing to a verified Codex Cloud executor, with scoped tasks, execution receipts and Telegram progress/results.
 - [ ] Inventory every database and operational path; explicitly verify supported read/write/deploy operations before claiming complete coverage.
+
+## One-shot risk closeout maintenance — 2026-11-10
+- [x] Recompute seven flagged dependency-receipt source hashes and confirm exact documented false positives.
+- [x] Run temporary secret snapshot with relative source paths so existing exact .gitleaksignore fingerprints apply; retain blocking for other findings.
+- [x] Verify final isolated suite1217/48.234s, strict specs8/8, real snapshot scan and blocking canary; record Git/five-project refresh receipts in task-closeout.

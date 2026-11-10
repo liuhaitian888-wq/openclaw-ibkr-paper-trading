@@ -79,8 +79,8 @@ def main():
                 continue
 
         result = run(
-            [gitleaks, "detect", "--source", str(scan_root), "--no-git", "--redact", "--verbose"],
-            repo,
+            [gitleaks, "detect", "--source", ".", "--no-git", "--redact", "--verbose"],
+            scan_root,
         )
 
     if result.returncode == 0:
