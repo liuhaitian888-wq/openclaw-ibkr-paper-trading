@@ -25,6 +25,7 @@ GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstre
 
 
 def category(item):
+    if item['kind']=='CURRENT_RISK_STATUS':return 'risk'
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
     if kind=='SECRETARY_REPLY':
         return {'ACK':'chat','CHAT':'chat','TASK':'task','RESEARCH':'research','PROGRESS':'research','INTELLIGENCE':'intel','CONTROL':'control','AUTH':'auth'}.get(role,'other')
@@ -191,6 +192,8 @@ def render(item,config,at):
             elif mode=='risk_status':
                 counts=p['public_recovery_counts']
                 text='风险监测恢复摘要｜恢复 '+str(counts['recovered'])+' 项；仍待核验 '+str(counts['unresolved'])+' 项。\n仅状态计数；账户细节在本人私聊，交易权限不变。事件 #'+str(item['id'])
+            elif mode=='current_risk_status':
+                text='当前保护核验汇总｜已核验 '+str(p['recovered_count'])+' 项；待核验/处理 '+str(p['unresolved_count'])+' 项。\n本次新鲜完整回读；旧三条投递结果未知，已按授权封存且未重发。详细证据留档，按需查询；交易权限不变。事件 #'+str(item['id'])
             else:
                 titles={'ops_status':'服务状态已恢复' if kind=='RECOVERY' else '服务状态更新',
                         'activity_status':'研究或任务进度已更新', 'engineering_status':'工程周报已归档',

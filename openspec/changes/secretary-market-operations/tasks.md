@@ -85,3 +85,9 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Record finite sole-owner OAuth model → Python → broker/database → grounded model result,23.909s, without claiming Telegram acceptance or sending probe messages.
 - [x] Implement selected-section snapshots with one reconciliation, bounded validation, model routing and no unnecessary account-summary subscription.
 - [ ] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
+
+## Exact legacy disposition continuation
+- [x] Implement append-only exact three-occurrence scope, unattempted aggregate retirement and fresh current-only group report with no retry/private mirror.
+- [x] Cover changed authorization/original/attempt evidence, unrelated UNKNOWN, stale/dirty/changed state, bound payload, orphan orders and retention with isolated tests.
+- [ ] Deploy reviewed source with exact manifests and current positive broker proof; accept actual current-summary group receipt/UI and secretary persistent handoff.
+- [ ] Broader automatic ALERT/upgrade/recovery group aggregation and stable recovery after root-cause repair remain a separate user planning scope.
