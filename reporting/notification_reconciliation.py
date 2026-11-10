@@ -146,6 +146,7 @@ def authorize_retry(store,review_id,evidence_fingerprint,config,*,dependency_ver
         if row is None or row[1]!='PROVEN_UNSENT' or row[2]!=evidence_fingerprint or dependency_verified is not True:
             raise PermissionError('Fresh exact proven-unsent review and native dependency proof required')
         ident=row[0];evidence,payload=_evidence(c,ident)
+        if evidence['kind']=='CURRENT_RISK_STATUS':return None
         if fingerprint(evidence)!=evidence_fingerprint or _classify(evidence)!='PROVEN_UNSENT':raise PermissionError('Evidence changed')
         if c.execute('SELECT 1 FROM notification_retry_authorizations WHERE notification_id=?',(ident,)).fetchone():return None
         if evidence['status'] not in ('UNKNOWN','NOT_SENT_EXHAUSTED'):return None
@@ -258,7 +259,7 @@ async def recover(store,coordinator,config,bot,report_root,*,limit=10):
             except Exception as exc:
                 blocked.append(ident)
         else:
-            unresolved.append(ident)
+            if item['kind']!='CURRENT_RISK_STATUS':unresolved.append(ident)
     notice_batch(store,unresolved,'unresolved');notice_batch(store,blocked,'blocked')
     # Retry outcomes receive one private result notice, with its own outbox/ACK.
     with closing(store.connect()) as c:

@@ -132,6 +132,8 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
             store.suppress(item['id']);return 'SUPPRESSED'
         from .notification_center import recipient
         target=recipient(item,config)
+        from .notification_disposition import validate_before_wire
+        validate_before_wire(store,item,clock())
         if item['payload'].get('retry_of') is not None or item['payload'].get('expires_at') is not None:
             expiry=item['payload'].get('expires_at')
             if type(expiry) not in (int,float) or not __import__('math').isfinite(expiry) or clock()>=expiry:raise PermissionError('Notification content expired')
@@ -171,6 +173,7 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     formatting['reply_markup']=InlineKeyboardMarkup([
                         [InlineKeyboardButton('编辑全部限额',web_app=WebAppInfo(url=url))],
                         [InlineKeyboardButton('门禁与风控的区别',web_app=WebAppInfo(url=url+'#help'))]])
+                validate_before_wire(store,item,clock())
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     event(store,attempt,'BLOCKED',{'reason':'existing_operation_identity'})
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'

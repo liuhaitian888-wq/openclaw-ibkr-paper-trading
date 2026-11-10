@@ -188,6 +188,25 @@ The cloud Python dispatcher SHALL accept work and notifications only as register
 - **WHEN** any other tool supplies source=notifications, or search_records supplies source=local_snapshot
 - **THEN** the dispatcher rejects the request without executing it.
 
+
+### Requirement: Recorded automatic notification target and provenance
+The project SHALL record the latest owner target separately from historical routing and deployed acceptance: all noninteractive automatic safe status belongs in deehub, with shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private detail mirror. Private source evidence SHALL remain queryable through verified owner interaction rather than being copied automatically. A planning record SHALL NOT imply runtime changes or new business permissions.
+
+#### Scenario: Fault flood despite recovery grouping
+- **WHEN** repeated protection-unknown alerts still use individual private delivery while recoveries are grouped
+- **THEN** record both routing and lifecycle gaps as unfinished implementation, retain raw occurrence/attempt evidence and do not claim that clearing old delivery blockers resolves the flood.
+
+#### Scenario: Automatic safe summary contains sensitive source evidence
+- **WHEN** automatic status is based on account, authentication or diagnostic evidence
+- **THEN** the target group summary uses validated safe fields, retains sensitive originals privately for on-demand interaction and creates no automatic private detail mirror.
+
+#### Scenario: Evidence received from another Codex engineering chat
+- **WHEN** another Codex chat reports observations through a cross-thread message following human collaboration authorization
+- **THEN** attribute the evidence to that engineering chat, distinguish it from independent verification and do not claim Telegram secretary-originated delivery or an accepted autonomous engineering consumer.
+
+Planning boundary2026-11-10: this target supersedes earlier automatic-private defaults as desired behavior only. Existing sensitivity-first routing, private supervisor notices and RECOVERY-only aggregation remain historical/current implementation until a separately evidenced change. No grouping interval or recurrence root cause is established by this specification update.
+
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
@@ -213,3 +232,5 @@ Nov8 actualsupplement986/native159 was re-fetched from Telegram; its230932-byteP
 
 Official hosted executor decision and uncertain submission (observed boundary):
 Owner selected the OpenAI official hosted Codex Cloud environment and approved one read-only acceptance chat on2026-11-10. This resolves the earlier executor-choice question. One create_thread submission returned no native task identity; outcome remains UNKNOWN, and absence from recent thread lists does not authorize replay. Current legacy CLI adapter is unarmed and is not verified compatible with the selected saved configuration. End-to-end dispatch and result delivery remain unaccepted.
+
+Current deployment observation2026-11-10: cloud57452de7f8cf1fee0c27d737b9f38cb9d39dafc7 includes ledger-domain dispatch fix and bounded redacted broker diagnostics. Native engineering work/notifications searches returned2rows each in0.015/0.018s, archived separate run, zero modelcalls/messages. Actual owner504 Telegram→model→Python→DBinventory→nativeprivate391 took50s by native timestamps; broker data failed (unclaimed READY). Existing monitor has persistentattempts4 under same API process generation and CONNECTION_BUDGET_OR_BACKOFF; no budget reset or Gateway restart. Local scanner/secretary constructors pass on private consistent SQLite copy with network disabled; preceding OperationalError root cause remainsUNKNOWN. Inactive-Gateway/login drill, successful fresh Telegram broker data, official hosted Cloud task acceptance, general dev/ops/database writes remain incomplete.
