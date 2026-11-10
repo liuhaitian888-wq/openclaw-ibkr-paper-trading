@@ -818,6 +818,9 @@ class TwsPaperBroker:
         transmit: bool,
         outside_rth: bool = False,
     ) -> Tuple[Order, Order]:
+        if (type(parent_id) is not int or type(stop_id) is not int
+                or not 0 < parent_id < stop_id <= 2147483647 or stop_id != parent_id + 1):
+            raise ValueError("Nonzero contiguous native bracket IDs within int32 required")
         closing_side = "SELL" if proposal.side == "BUY" else "BUY"
 
         parent = Order()

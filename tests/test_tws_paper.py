@@ -198,6 +198,22 @@ class TwsPaperBrokerTests(unittest.TestCase):
         self.assertEqual(fake.placed, [100, 101])
         self.assertEqual(fake.cancelled, [(100, "")])
 
+    def test_invalid_native_parent_identity_never_enters_either_opaque_order_call(self) -> None:
+        from unittest.mock import Mock
+        for next_id in (0, -1, True, 100.0, 2147483647):
+            ready=Event();ready.set();state={'connected':True}
+            client=SimpleNamespace(next_order_id=next_id,accounts=["DU12345"],
+                ready=ready,accounts_ready=ready,run_loop=lambda:None,
+                connect=Mock(),disconnect=Mock(side_effect=lambda:state.update(connected=False)),isConnected=lambda:state['connected'],
+                placeOrder=Mock(),cancelOrder=Mock())
+            broker=TwsPaperBroker("127.0.0.1",7497,22)
+            proposal=TradeProposal("AAPL","BUY",1,190.0,185.0,"invalid-native-id")
+            with patch("trading.tws_paper.TwsPaperClient",return_value=client),patch("trading.production_guard.require_connected_account"):
+                with self.assertRaisesRegex(ValueError,"Nonzero contiguous"):
+                    broker.submit_bracket.__wrapped__(broker,proposal,transmit=True)
+            client.placeOrder.assert_not_called();client.cancelOrder.assert_not_called()
+            client.disconnect.assert_called_once();self.assertFalse(client.isConnected())
+
     def test_outside_rth_is_configurable_for_both_bracket_legs(self) -> None:
         proposal = TradeProposal(
             "AAPL",
