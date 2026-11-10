@@ -9,16 +9,43 @@ from scripts.report_rendering import render_html, RENDER_VERSION
 from reporting.report_schedule import BJ, due_types
 
 
+def source_diagnostics(observation, expected_account, now):
+    """Fixed, non-sensitive predicates for the exact observation being evaluated."""
+    observed = stamp(observation.get('observed_at'))
+    valid_now = now.tzinfo is not None and now.utcoffset() is not None
+    age = (now-observed).total_seconds() if valid_now and observed is not None else None
+    reasons = []
+    if not valid_now:
+        reasons.append('CURRENT_TIME_INVALID')
+    if observed is None:
+        reasons.append('SOURCE_TIME_INVALID')
+    elif age is not None:
+        if age < 0:
+            reasons.append('SOURCE_IN_FUTURE')
+        elif age > 600:
+            reasons.append('SOURCE_STALE')
+    for failed, code in (
+        (observation.get('source') != 'REAL_IBKR', 'SOURCE_NOT_REAL_IBKR'),
+        (observation.get('complete') is not True, 'SOURCE_INCOMPLETE'),
+        (observation.get('environment') != 'PAPER', 'ENVIRONMENT_MISMATCH'),
+        (observation.get('account_id') != expected_account, 'ACCOUNT_MISMATCH'),
+    ):
+        if failed:
+            reasons.append(code)
+    canonical = json.dumps(observation, sort_keys=True, ensure_ascii=False, separators=(',', ':'))
+    return dict(reason_codes=reasons, source_snapshot_at=observed.isoformat() if observed else None,
+                age_seconds=age, snapshot_sha256=hashlib.sha256(canonical.encode()).hexdigest())
+
+
 def prepare_reports(root, expected_account, now, *, publish_image=None, transport="feishu"):
     if transport not in ("feishu", "smtp", "telegram"):
         raise ValueError("Unsupported report transport")
     root = Path(root)
     observation = read_json(root/'runtime/paper-observer.latest.json')
     observed = stamp(observation.get('observed_at'))
-    if (now.tzinfo is None or observed is None or not 0 <= (now-observed).total_seconds() <= 600
-            or observation.get('source') != 'REAL_IBKR' or observation.get('complete') is not True
-            or observation.get('environment') != 'PAPER' or observation.get('account_id') != expected_account):
-        return {'status': 'SOURCE_UNVERIFIED', 'prepared': []}
+    source_check = source_diagnostics(observation, expected_account, now)
+    if source_check['reason_codes']:
+        return {'status': 'SOURCE_UNVERIFIED', 'prepared': [], 'source_check': source_check}
     day = now.astimezone(BJ).date()
     directory = root/'reports/financial'/day.isoformat()
     directory.mkdir(parents=True, exist_ok=True)
