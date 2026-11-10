@@ -2,6 +2,7 @@ from contextlib import closing
 from copy import deepcopy
 from datetime import datetime, timezone, timedelta
 import json
+import sqlite3
 import unittest
 from trading.native_order_preparation import initialize_schema, record_preparation, get_preparation
 from trading.audit import AuditLog
@@ -93,3 +94,10 @@ class NativeOrderPreparationTests(unittest.TestCase):
             with self.assertRaises(PermissionError):record_preparation(c,'prepared',self.proof,self.at.isoformat())
         self.fixture.reserve(self.fixture.proposal('unfunded'))
         with self.assertRaises(PermissionError):self.prepare(identity='unfunded')
+
+    def test_schema_install_requires_owned_transaction_and_can_rollback(self):
+        with closing(sqlite3.connect(':memory:')) as c:
+            with self.assertRaises(PermissionError):initialize_schema(c)
+            self.assertEqual(c.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0],0)
+            c.execute('BEGIN IMMEDIATE');initialize_schema(c);c.rollback()
+            self.assertEqual(c.execute("SELECT count(*) FROM sqlite_master WHERE type='table'").fetchone()[0],0)

@@ -13,6 +13,8 @@ MAX_ID = 2147483647
 
 
 def initialize_schema(connection):
+    if not connection.in_transaction:
+        raise PermissionError('Caller-owned transaction required for additive native schema')
     connection.execute('''CREATE TABLE IF NOT EXISTS native_order_preparations(
         identity TEXT PRIMARY KEY, prepared_at TEXT NOT NULL,
         fingerprint TEXT NOT NULL, proof_json TEXT NOT NULL)''')
