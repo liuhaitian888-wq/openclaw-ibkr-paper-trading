@@ -49,8 +49,8 @@ def process_controls(archive,root,config,policy=None):
             if command in ('/start','/help') and len(parts)==1:
                 summary='私人秘书已连接。仅owner可调用；私人结果只发你的私聊。\n/inbox 通知收件箱 · /notify 分类与配置 · /preview 编号 预览\n/holdings 持仓 · /ready 门禁 · /gate 风控 · /report 日报回执\n/hours 交易时段 · /weekly 工程周报prompt · /codex [需求] 工程交接\n/api API状态 · /cloud 云端状态 · /market 行情状态\n/marketdata 行情订阅 · /universe 总名单 · /eligible 合格名单\n直接发文字即可交给秘书；不需要 /secretary。'
             elif command in ('/api','/cloud','/market') and len(parts)==1:
-                from .secretary_status import display
-                summary=display(root,command[1:])
+                from .secretary_live_status import cloud_check,queue_check
+                summary=cloud_check(archive) if command=='/cloud' else queue_check(archive,root,instruction,command[1:],policy)
             elif command=='/hours' and len(parts)==1:
                 from .market_clock import load_calendar,snapshot
                 from datetime import datetime,timezone
