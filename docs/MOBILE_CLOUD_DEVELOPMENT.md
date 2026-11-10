@@ -49,3 +49,8 @@ gitleaks detect --source . --no-git --redact
 生产工作区不执行普通开发 pull；只通过已审阅 Git 提交收回，并运行 quick smoke。没有任何自动部署或定时同步服务。
 
 参考：https://learn.chatgpt.com/docs/environments/cloud-environments
+
+
+## 已核验的有限冗余阶段（2026-11-10）
+
+Hetzner现有20261109T234709.896409Z备份的四库已只读复制到Mac私有目录，逐库SHA256与SQLite quick_check通过；今日日报1778冻结PNG/JSON与原生回执也已复制并校验。数据不进入Git，云端原件保留。这是一次旧备份的第二主机副本和隔离读回验收，不是实时同步、跨库原子快照或生产恢复许可。完整证据与后续门禁见[冗余验收](production-audit/REDUNDANCY_ACCEPTANCE_20261110.md)。手机/iPad副本、断点续传、持续异地备份、Passkey发布审批及全部设备丢失恢复仍未实现/未验收，不因文档更新启动或放宽任何生产权限。
