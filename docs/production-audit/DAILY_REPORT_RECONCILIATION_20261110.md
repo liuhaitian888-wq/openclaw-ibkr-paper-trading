@@ -37,3 +37,12 @@ Artifact follow-through: frozen outbox1778 PNG228469bytes/0400/SHA9fc1d572ce0e6a
 ## Checked private second copy
 
 Nov10 report1778 original PNG+JSON and native receipt were transferred read-only to the existing Mac private engineering archive, outside Git, with0600 permissions. Both tar-member SHA256 values and sizes match the original immutable queue identities above; archiveSHAecafd7c1090cf9d6e51bdb4e51a81e5034b98a61615494f16d8cafb70e110302, copyreceipt engineering/goal-reconcile-20261110/report1778-copy-receipt.json. No cloud deletion or live restore was performed. This verifies two copies of one delivered report, not cross-device live-state synchronization, full backup retention or recovery of all lost devices. Existing scheduled backup last success predates this report; its next run needs separate evidence.
+
+
+## First-wave diagnostic deployment independently checked — 02:17–02:18 UTC
+
+Production HEADc3443a25d8a01d96b462aab0d490c48b6a298378 is clean; monitoring/gateway deployment manifests both match exactly. financial_reports.py SHA25677cc1c4d5d73e5565a88f6be00fe1b6a3cfde23d887ad0147f44cd6ef12413af exactly matches reviewed diagnostic1218579. Actual live source check returned no failure codes, snapshot02:14:45.917643Z/age192.598s at audit. Existing periodic builder journal explicitly logs c3443a2/financial-report-builder and PREPARED DAILY; service ended successfully02:18:14Z. This verifies deployed diagnostic source and an actual natural builder invocation, not forced failure or a new scheduled send.
+
+PAUSED/MAINTENANCE exist; production/expired-scope hashes equal earlier retained baseline; GatewayPID2406467 unchanged. Existing notification/inbox/OAuth services active/NRestarts0. Natural report1778 remains TELEGRAM_ACCEPTED/message256/01:00:01Z. All five old953/1094UNKNOWN and1270–1272STARTED retain exact original payload hashes and no receipts. No report was generated manually, sent, retried or relabeled by this audit.
+
+Second-wave fullSOURCE sidecar/freeze (a522912/cloud22bac65) is absent from this production source, as expected from the held publication order. Its independent1342 integrated/1276 cloud-source test evidence is not deployment acceptance. Current first-wave builder success does not prove that future second-wave original-source artifacts were queued, backed up or sent. New natural schedule/source acceptance remains pending. Private evidence: engineering/goal-reconcile-20261110/goal-wavea-report-audit.json and goal-wavea-cloud-smoke.json.
