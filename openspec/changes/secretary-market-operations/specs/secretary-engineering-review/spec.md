@@ -174,3 +174,14 @@ Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa
 
 Official hosted executor decision and uncertain submission (observed boundary):
 Owner selected the OpenAI official hosted Codex Cloud environment and approved one read-only acceptance chat on2026-11-10. This resolves the earlier executor-choice question. One create_thread submission returned no native task identity; outcome remains UNKNOWN, and absence from recent thread lists does not authorize replay. Current legacy CLI adapter is unarmed and is not verified compatible with the selected saved configuration. End-to-end dispatch and result delivery remain unaccepted.
+
+### Requirement: Ledger domain is distinct from execution provenance
+The cloud Python dispatcher SHALL accept work and notifications only as registered search_records ledger domains, while retaining cloud-only execution provenance for all other tools. Local snapshot and Telegram live-source impersonation SHALL remain rejected.
+
+#### Scenario: Model searches existing notification receipts
+- **WHEN** a cloud owner run selects search_records with source=notifications or source=work
+- **THEN** the registered bounded read-only query executes, archives its result once, and does not claim complete Telegram history.
+
+#### Scenario: Ledger values do not widen other tools
+- **WHEN** any other tool supplies source=notifications, or search_records supplies source=local_snapshot
+- **THEN** the dispatcher rejects the request without executing it.

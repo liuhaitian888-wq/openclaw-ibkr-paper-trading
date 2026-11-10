@@ -177,6 +177,17 @@ Historical planning boundary (2026-11-10, before implementation): the owner-conf
 Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa5c918cc5813397 registered and deployed model-selected broker query/result tools on the existing Python broker connection owner, registered read-only service observations, absolute paths for all four business databases, and an unarmed official CLI Cloud-task adapter. Four native database queries and a native engineering broker snapshot succeeded; the latter returned6 positions/6 orders/3 API-window executions/6 account-summary fields in1.226s. Returned summary fields do not establish complete per-currency or settled-cash coverage. The first aggregate-account rejection remains retained as a separate failed query. Full source integration passed1218 isolated offline tests; those tests do not prove native Telegram delivery. The OAuth dialogue loop has its separate verified stage below. Telegram model-selected live broker/private result timing, all development/operations write paths and the intended Codex executor remain incomplete. Owner clarification is pending between the server-hosted OAuth Codex executor, official hosted Codex Cloud, or both; no substitute executor is declared accepted.
 
 
+### Requirement: Ledger domain is distinct from execution provenance
+The cloud Python dispatcher SHALL accept work and notifications only as registered search_records ledger domains, while retaining cloud-only execution provenance for all other tools. Local snapshot and Telegram live-source impersonation SHALL remain rejected.
+
+#### Scenario: Model searches existing notification receipts
+- **WHEN** a cloud owner run selects search_records with source=notifications or source=work
+- **THEN** the registered bounded read-only query executes, archives its result once, and does not claim complete Telegram history.
+
+#### Scenario: Ledger values do not widen other tools
+- **WHEN** any other tool supplies source=notifications, or search_records supplies source=local_snapshot
+- **THEN** the dispatcher rejects the request without executing it.
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.

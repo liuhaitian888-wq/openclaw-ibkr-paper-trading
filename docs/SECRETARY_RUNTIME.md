@@ -73,3 +73,5 @@ https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
 
 ## 云端原生认证协助接续（2026-11-10，源码阶段）
 旧章节的Mac SSH启动描述保留为历史。新的确定性Gateway启动控制由唯一云端inbox执行，受原有gateway_start_assistance_approved、gateway_start_control_owner=cloud_inbox和新切换时间约束，只处理切换后的真实owner /login_assist。再次核验精确身份与服务inactive/failed，仅提交一次固定systemd start；正常/正在转换的服务不重启。云端模型不再领取自己不能执行的控制；本机用户会话搜索仍是独立依赖。原操作UNKNOWN保留，单独通知已构造成功不等于启动成功。systemd接受与手机IB Key/完整新鲜Paper回读分别验收，不改变交易门禁。规则安装、部署及原生权限/未来停机登录验收以task-closeout实际记录为准。
+
+Cloud deterministic-control deployment observation (2026-11-10): tested cloud lineagec11f36eed86c518670bca037bdcd423a87d551f0 is installed. Root-owned exact-unit rule start/restart positive and stop/other-unit negative native authorization queries passed for ibkr with NoNewPrivileges; no Gateway action. Fresh cloud_inbox cutover is set; inbox2741969/OAuth2741970 active, Gateway2406467 unchanged, protected gate/scope hashes unchanged. Native inactive-Gateway /login_assist and full authenticated Paper recovery remain unverified.

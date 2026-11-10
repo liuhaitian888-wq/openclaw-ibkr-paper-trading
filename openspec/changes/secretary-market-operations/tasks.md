@@ -89,9 +89,14 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Mac-independent explicit authentication control
 - [x] Route fresh approved /login_assist starts to the existing cloud inbox; prevent cloud models from consuming unsupported transport controls and preserve Mac-only search ownership.
 - [x] Verify exact native command/identity, stopped-state recheck, bounded fixed-unit start, cutover/no-replay, distinct UNKNOWN outcome notice and unchanged auth/trading gates.
-- [ ] Install reviewed exact-unit start authorization and verify positive/negative native authorization queries without starting or restarting the healthy Gateway; record future inactive-Gateway/owner-message acceptance separately.
+- [x] Install reviewed exact-unit start authorization and verify positive/negative native authorization queries without starting or restarting the healthy Gateway.
+- [ ] Verify future inactive-Gateway native owner-message/login acceptance independently of rule/source deployment.
 
 ## Nov8/Nov9 native re-reconciliation — 2026-11-10
 - [x] Recheck current cloud source/manifests, other implementation receipts, native group history and existing deterministic reconciliation without a new sender.
 - [x] Recover Nov8 delivered PNG from native message159 and verify byte identity with original queued hash; distinguish alert156 from actual supplement159.
 - [ ] Resolve Nov9 original1094 with positive outcome evidence; currentUNRESOLVED remains a blocker, bounded empty history is not unsentproof.
+
+## Cloud ledger-search routing correction
+- [x] Identify real native owner503 UNKNOWN before tools: search_records ledger domain was rejected as host source; preserve receipt and no replay.
+- [ ] Validate and deploy bounded ledger-domain dispatch correction, retaining host provenance rejection for every other tool.
