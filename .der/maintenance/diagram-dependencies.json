@@ -26,19 +26,23 @@
     },
     {
       "path": "docs/diagrams/secretary-tools.html",
-      "output_sha256": "537dec9b41707ad50e6c610530ff6a015b7cd58652973b94e8c41786c0057117",
+      "output_sha256": "27381ff01e0ac71cd0b9f1b3e86760e341dbc3b312d7039b0364921d255bd838",
       "inputs": {
-        "docs/diagrams/secretary-tools.architecture.json": "3a9bdf9c14db5210e9b65df1fee32a17781f749637bdf82c0e5494fe65c8b51b",
+        "docs/diagrams/secretary-tools.architecture.json": "9d9d0257a1b1eb7f887ef50a918131bdc77ee90ad52c181fa1768923b3b6cd31",
         "reporting/secretary_broker.py": "23f4c7294646852bebe91cf6532a30a974de7514dc5996871d744314732b13a4",
         "trading/secretary_broker_owner.py": "bd1a1881b44f0fa8c4e87a23b76210967ede3532a5d2aa8845bb1ea848c1b0c2",
         "reporting/secretary_operations.py": "a545233912cf13f07c501acaf17ac837a7b4807dc8983348cbcc3574cc3363eb",
-        "ops/cloud/secretary_rpc.py": "37a4ac6b7d05566d6485692c0f860242c3a0b920a84b94765829bfa4087179fb",
-        "ops/cloud/paper_safety_watch.py": "6eb6a18c62f325e12a04a9b2cc6bcc93ee2e26f6b169cd340a8f27b0fc15dfe2",
+        "ops/cloud/secretary_rpc.py": "5ebf7ca3ee509621cf737c9563cd3427cd5a80afddd107bdf3a8212e9b6163b4",
+        "ops/cloud/paper_safety_watch.py": "9d0a82a1318b0fa0c00b0fb792096ef9b419d62e18b2983f188f005747b193b7",
         "reporting/secretary_read.py": "671fade85ead9087ffced4640ec57f7f284d7b2b1cdd2c8ccb7f8eca32fcdc90",
         "reporting/secretary_queue.py": "abe6f05152ba0f89618f8a1f7aabb7638988a725829f4708ca7b3b3ad959bac7",
-        "scripts/run_secretary_bridge.py": "51fd4da11be833c8b070e87e7c35ed524c751bfc1d6053cf43622547bca6a4cd"
+        "scripts/run_secretary_bridge.py": "51fd4da11be833c8b070e87e7c35ed524c751bfc1d6053cf43622547bca6a4cd",
+        "ops/cloud/secretary_control_executor.py": "01b2cbd96d678b2b0865657e53b87bac79a9a43e71a8f698c2928c918addef61",
+        "ops/cloud/secretary_inbox.py": "e93ad84d0ddcd86520a45e5343fcdc90453f9f47fab21d03ffda5dc100d0fe0e",
+        "reporting/secretary_controls.py": "1930d8cbd218cf666ea1a8b3c74904f266a59d90fe3ae3242610d9582d538c5d",
+        "ops/cloud/polkit/00-openclaw-paper-gateway.rules": "e1bd00f0dd565237566fad4adf82fe1d15e1c3ae7a34f4e67353ceb2ba452952"
       },
-      "semantic_review": "Source topology only; 9/9 artifact checks, browser checks PASS in light/dark, 1440x900 light image visually reviewed: readable, no overlap. Codex Cloud edge deliberately unverified; no deployment or native acceptance inferred. Selected snapshot field projection/model guidance reviewed: same queue/dispatcher/owned connection and data sources; no new topology or redraw. Native acceptance remains separately scoped."
+      "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate."
     }
   ]
 }

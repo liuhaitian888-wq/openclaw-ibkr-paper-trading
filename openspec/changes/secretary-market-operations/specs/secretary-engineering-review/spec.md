@@ -127,6 +127,21 @@ The secretary SHALL expose /api, /cloud and /market as deterministic owner-priva
 - **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
 - **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
 
+### Requirement: Cloud-native deterministic authentication assistance
+The verified cloud inbox SHALL own approved fresh Gateway-start controls independently of model inference and a Mac bridge. It SHALL recheck native owner provenance, cutover time and stopped-unit state, record the attempt before transport, and use only a bounded fixed-unit start. Normal Gateway processes SHALL NOT be restarted. Native startup acceptance SHALL NOT imply authentication or trading permission.
+
+#### Scenario: Explicit owner assistance for a stopped Gateway
+- **WHEN** a fresh native owner /login_assist request has the approved cloud control owner and the exact service is inactive or failed
+- **THEN** the inbox submits at most one bounded start to that existing systemd unit and awaits separate complete fresh Paper readback for authentication success.
+
+#### Scenario: Existing process or unknown startup outcome
+- **WHEN** the service is already running or a native start result is uncertain
+- **THEN** a running service receives no start/restart, and an uncertain original operation remains UNKNOWN with a separate private outcome notice and no automatic replay.
+
+#### Scenario: Control ownership cutover
+- **WHEN** the cloud inbox becomes the Gateway-start owner
+- **THEN** it does not adopt old controls before the cutover, cloud models do not consume unsupported transport controls, and Mac-only searches retain their distinct owner.
+
 ### Requirement: Telegram development and operations orchestration
 The secretary SHALL route verified owner development and operations requests to authorized Python operations and a verified Codex Cloud consumer, with task identity, scope, execution receipts and result delivery. Arbitrary database paths, deployment permission and unrestricted shell access SHALL NOT follow from model output alone.
 
