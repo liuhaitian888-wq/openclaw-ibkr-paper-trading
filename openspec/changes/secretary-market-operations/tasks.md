@@ -118,4 +118,5 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Owner correction: click-scoped live checks
 - [x] Implement bounded live cloud/model/broker checks through existing owners.
 - [x] Add nonce, timeout and non-replay regressions and update sequence diagram.
-- [ ] Record full offline/secret checks and real runtime acceptance after deployment.
+- [x] Record1273 full offline tests, secret scan, live model nonce receipt and native Telegram result acceptance after deployment.
+- [ ] Owner phone click after upgrade and fresh /market quote acceptance; broker query admission currently unavailable.
