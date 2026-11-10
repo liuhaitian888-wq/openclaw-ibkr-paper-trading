@@ -61,7 +61,7 @@ def work_status(archive,store,query=''):
         data=json.loads(saved) if saved else description(p)
         ref=reference(instruction)
         if needle and needle not in (ref+' '+data['task_title']+' '+data['task_brief']).lower():continue
-        status='等待处理' if not state else '正在处理' if state=='STARTED' and model_started else '已接下，等待分析' if state=='STARTED' else '结果待核对' if state=='UNKNOWN' else '未完成' if state=='FAILED' else '已回复'
+        status='等待处理' if not state else '正在处理' if state=='STARTED' and model_started else '已接下，等待分析' if state=='STARTED' else '结果待核对' if state=='UNKNOWN' else '未完成' if state=='FAILED' else '答复已生成'
         delivery=''
         if state=='SUCCEEDED':
             with closing(store.connect()) as c:
