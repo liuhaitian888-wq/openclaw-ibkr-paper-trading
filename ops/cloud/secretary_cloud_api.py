@@ -35,6 +35,8 @@ def run_once(root,config,key_path,*,owner='cloud_api',provider='openai_responses
         # Shared kernel RPC lock also serializes with the retained Mac bridge.
         with redirect_stdout(sys.stderr),monitoring_service('secretary-rpc',root):
             return dispatch(root,request,config,current,caller=owner)
+    from reporting.secretary_live_status import model_probe
+    if model_probe(SecretaryArchive(root/'agent_secretary.sqlite3'),root,key_path,inference_backend,owner=owner):return 'LIVE_STATUS_CHECKED'
     job=invoke({'action':'poll'}).get('job')
     if job is None:return 'IDLE'
     def inference(prompt,**kwargs):

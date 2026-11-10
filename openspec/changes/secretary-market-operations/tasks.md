@@ -114,3 +114,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Implement and offline-verify all automatic safe status routing to deehub, shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private mirror within a separately authorized implementation turn.
 - [ ] Establish the live recurrence root cause and verify callback/database lifecycle repair with fresh complete source evidence; do not infer protection-order loss from missing evidence.
 - [ ] Verify natural group delivery and absence of unwanted private mirrors with native receipts and user-visible messages; legacy disposition acceptance alone is insufficient.
+
+## Owner correction: click-scoped live checks
+- [x] Implement bounded live cloud/model/broker checks through existing owners.
+- [x] Add nonce, timeout and non-replay regressions and update sequence diagram.
+- [ ] Record full offline/secret checks and real runtime acceptance after deployment.

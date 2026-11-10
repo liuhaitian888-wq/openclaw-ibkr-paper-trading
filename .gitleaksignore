@@ -12,3 +12,8 @@
 # Source SHA-256 receipts for the native inbox/control topology; recomputed from source.
 .der/maintenance/diagram-dependencies.json:generic-api-key:41
 .der/maintenance/diagram-dependencies.json:generic-api-key:42
+
+# Exact false positives: live-status source SHA-256 receipts, recomputed against files.
+.der/maintenance/diagram-dependencies.json:generic-api-key:51
+.der/maintenance/diagram-dependencies.json:generic-api-key:52
+.der/maintenance/diagram-dependencies.json:generic-api-key:53
