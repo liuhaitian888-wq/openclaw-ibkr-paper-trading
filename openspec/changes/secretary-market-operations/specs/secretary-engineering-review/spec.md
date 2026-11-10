@@ -93,6 +93,13 @@ The system SHALL preserve the exact report PNG and manifest bytes selected at en
 - **WHEN** Telegram rejects a send but the root cause remains unverified
 - **THEN** the original evidence remains retained and no automatic retry occurs solely because connectivity returned.
 
+### Requirement: Safe report source diagnostics
+The builder SHALL return fixed failure codes, parsed source time, computable age and canonical observation SHA256 through its existing result. It SHALL preserve source gates and reject without publication. Diagnostics SHALL exclude raw account data and untrusted strings and SHALL NOT authorize UNKNOWN replay.
+
+#### Scenario: Several source predicates fail
+- **WHEN** the saved source is stale, incomplete or belongs to a different account
+- **THEN** all applicable fixed reason codes and a deterministic observation fingerprint are returned, with no publication or relaxed account/environment/completeness or 600-second freshness checks; this does not retroactively prove the Nov8 failure predicate.
+
 ### Requirement: Owner-selected independent ChatGPT OAuth
 The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
 

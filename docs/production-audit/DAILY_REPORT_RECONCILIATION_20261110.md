@@ -20,3 +20,15 @@ Existing deployed code freezes PNG+JSON content-addressed at enqueue; records at
 Nov9 exact send outcome remains blocked on positive original wire evidence/native receipt/typed rejection; no safe supplement inferred from absence. Nov8 upstream cause finer than unavailable retained fresh complete snapshot remainsUNKNOWN. Next natural scheduled report's immutable PNG/manifest, backup and native receipt need separate actual-event acceptance; no testgroup message or fault was manufactured. This investigation does not claim that new scheduled delivery has already passed.
 
 Evidence retained privately onMac/cloud engineering/daily-reconciliation-20261110: cloud-audit.json/audit.json, Telegram boundedhistory, originaldeliveredPNG and attachmenthashreceipt. ProductiongateSHA95ec6bce046991a5fa9f303425f5fa03051b263244cc88541828685d47a43eab unchanged.
+
+
+## Independent live goal audit — Nov10 01:26 UTC
+
+Read-only SSH audit observed cloud57452de7, clean tree and both monitoring/gateway manifests matching HEAD. Nov10 scheduled DAILY outbox1778 queued01:00:00.012694Z and TELEGRAM_ACCEPTED at01:00:01Z, deehub native message256, included DAILY/missing empty. This is actual natural schedule acceptance, independent of service survival. Historical1094/953 UNKNOWN and1270–1272 STARTED remain unchanged and without receipts. No historical resend or model probe was performed by this audit. Exact immutable byte/attempt checks follow separately.
+
+The same audit re-read OAuth cloud_oauth/gpt-6.1-sol/low, original owner private run600875499 SUCCEEDED with result event and outbox1304/private247 receipt. Mac launchctl found no dev.openclaw.secretary-bridge service. Native bot9276548850/username deehub_paper_reports_bot/name秘书, group-1004474790683/titledeehub and owner8676825301/creator matched expected configuration. Bot long/short descriptions still incorrectly claimed Mac dependence; this goal updated only those two fields to cloud OAuth reality, subscription/auth limits, paused trading and future development/Passkey gaps, then read them back exactly. No message/group metadata/username/permission was changed.
+
+Audit and metadata before/after receipts: /private/tmp/goal-readonly-audit.json and /private/tmp/goal-description-receipt.json on Mac; later retained engineering archive is the durable evidence location. Original Nov8/9 uncertainty is not resolved by Nov10 success. Future builder failures now have a scoped candidate for fixed source predicates and snapshot fingerprint; deployment acceptance is separate.
+
+
+Artifact follow-through: frozen outbox1778 PNG228469bytes/0400/SHA9fc1d572ce0e6a5f4ddde10a83e3302473659631c1f2153180643f4442df62be and JSON8418bytes/0400/SHA61ae11b8606789da01b5ed7cfb6f7326cea376d6f0704e41f87a52e4e3b0a5db match queued hashes. Attempt180 records WIRE_START exact destination/artifact/caption fingerprints then ACCEPTED with native256 at01:00:01Z. Natural scheduled delivery is accepted; phone display not independently observed. Source diagnostic commit698b44c/cloud-compatible1218579 passed1299/1268 isolated suites respectively; not yet represented as deployed.

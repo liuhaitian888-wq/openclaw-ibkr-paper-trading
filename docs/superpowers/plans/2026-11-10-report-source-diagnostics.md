@@ -24,7 +24,9 @@ Files: reporting/financial_reports.py; tests/test_financial_builder.py; existing
 
 Interface: source_diagnostics(observation, expected_account, now) returns reason_codes, source_snapshot_at, age_seconds and snapshot_sha256. prepare_reports retains existing status/prepared contract and adds source_check on rejection.
 
-- [ ] Add regression tests for each existing rejection predicate, combined failures, naive/future times, deterministic fingerprints and no report publication on failure; show initial failure.
-- [ ] Implement fixed reason codes with the same 600-second boundary; run prescribed complete isolated suite using existing .venv313.
+- [x] Add regression tests for each existing rejection predicate, combined failures, naive/future times, deterministic fingerprints and no report publication on failure; show initial failure.
+- [x] Implement fixed reason codes with the same 600-second boundary; run prescribed complete isolated suite using existing .venv313.
 - [ ] Update current/delta provenance requirement and evidence record, run strict specs and all-files gitleaks, commit/push task branch.
 - [ ] Re-read concurrent cloud HEAD/manifests, back up config/manifest and consistent state, integrate only reviewed code via Git, run production quick smoke; restart only builder if required (oneshot next invocation otherwise).
+
+Verification: main candidate1299/52.482s and exact cloud candidate1268/54.920s complete offline PASS; runtime698b44c/cloud1218579. Secret scansPASS; current/delta strictspec8/8PASS. Publication remains one unified team owner; no runtime deployment is claimed. No services need restarting for this oneshot builder import.
