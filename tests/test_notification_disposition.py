@@ -118,3 +118,86 @@ class DispositionTests(unittest.TestCase):
         self.archive();ident=queue_current(self.store,'owner-scope')
         with closing(self.store.connect()) as c,c:c.execute("UPDATE notification_disposition_scopes SET authorization='{}'")
         with self.assertRaises(PermissionError):validate_before_wire(self.store,get_item(self.store,ident),1000)
+
+    def test_state_invalidated_during_native_destination_check_never_enters_wire(self):
+        self.archive();ident=queue_current(self.store,'owner-scope')
+        from test_notification_center import CFG
+        cfg={**CFG,'automatic_updates_to_group':True}
+        bot=reconciliation_fixtures.ReconciliationTests.bot(self)
+        prior=bot.get_chat_administrators
+        async def invalidate(*args,**kwargs):
+            self.state['dirty']=True;self.save_state()
+            return await prior(*args,**kwargs)
+        bot.get_chat_administrators=invalidate
+        result=asyncio.run(send_one(self.store,self.co,cfg,report_root=self.root,bot_factory=lambda **k:bot,clock=lambda:self.now))
+        self.assertEqual(result,'PENDING');self.assertEqual(bot.sends,[])
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM operation_attempts').fetchone()[0],0)
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_delivery').fetchone()[0],0)
+            self.assertEqual(c.execute("SELECT count(*) FROM notification_attempt_events WHERE stage='PREFLIGHT_FAILED'").fetchone()[0],1)
+        self.assertEqual(get_item(self.store,ident)['status'],'PENDING')
+
+    def test_current_unknown_survives_recovery_without_retry_or_private_notice(self):
+        self.archive()
+        from test_notification_center import CFG
+        from reporting.notification_reconciliation import recover
+        cfg={**CFG,'automatic_updates_to_group':True}
+        bot=reconciliation_fixtures.ReconciliationTests.bot(self,fail=TimeoutError('ambiguous'))
+        # Existing legacy review notices have their own unchanged lifecycle.
+        asyncio.run(recover(self.store,self.co,cfg,bot,self.root))
+        with closing(self.store.connect()) as c:
+            baseline=c.execute("SELECT count(*) FROM notification_outbox WHERE kind='SECRETARY_REPLY'").fetchone()[0]
+        ident=queue_current(self.store,'owner-scope')
+        result=asyncio.run(send_one(self.store,self.co,cfg,report_root=self.root,bot_factory=lambda **k:bot,clock=lambda:self.now))
+        self.assertEqual(result,'UNKNOWN')
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Never replay uncertain transport')
+        asyncio.run(recover(self.store,self.co,cfg,bot,self.root))
+        self.assertEqual(get_item(self.store,ident)['status'],'UNKNOWN');self.assertEqual(len(bot.sends),1)
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_retry_authorizations').fetchone()[0],0)
+            self.assertEqual(c.execute("SELECT count(*) FROM notification_outbox WHERE kind='SECRETARY_REPLY'").fetchone()[0],baseline)
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_review_notices WHERE notification_id=?',(ident,)).fetchone()[0],0)
+
+    def test_explicit_zero_wire_refresh_retains_versions_and_one_wire_scope(self):
+        self.archive();old=queue_current(self.store,'owner-scope');original=get_item(self.store,old)['payload']
+        from test_notification_center import CFG
+        cfg={**CFG,'automatic_updates_to_group':True};bot=reconciliation_fixtures.ReconciliationTests.bot(self)
+        self.now=1031
+        self.assertEqual(asyncio.run(send_one(self.store,self.co,cfg,report_root=self.root,bot_factory=lambda **k:bot,clock=lambda:self.now)),'PENDING')
+        self.assertEqual(bot.sends,[])
+        self.assertEqual(queue_current(self.store,'owner-scope'),old)
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Stale source still denied')
+        self.state.update(last_server_reply=self.now,reconciled_at=self.now);self.save_state()
+        new=queue_current(self.store,'owner-scope',refresh_unsent_reason='Operator confirmed terminal preflight only; refresh actual source')
+        self.assertNotEqual(new,old);self.assertEqual(get_item(self.store,old)['status'],'SUPERSEDED')
+        self.assertEqual(get_item(self.store,old)['payload'],original)
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_current_status').fetchone()[0],2)
+            self.assertEqual(c.execute("SELECT count(*) FROM notification_disposition_events WHERE action='CURRENT_STATUS_ZERO_WIRE_REFRESH'").fetchone()[0],1)
+            self.assertEqual(c.execute('SELECT count(*) FROM notification_attempts WHERE notification_id=?',(old,)).fetchone()[0],1)
+        self.assertEqual(asyncio.run(send_one(self.store,self.co,cfg,report_root=self.root,bot_factory=lambda **k:bot,clock=lambda:self.now)),'TELEGRAM_ACCEPTED')
+        self.assertEqual(len(bot.sends),1)
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Accepted cannot refresh')
+        with self.assertRaises(PermissionError):validate_before_wire(self.store,get_item(self.store,old),self.now)
+
+    def test_refresh_requires_positive_terminal_evidence_and_no_reservation(self):
+        self.archive();ident=queue_current(self.store,'owner-scope')
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='No positive failed attempt')
+        item=self.store.claim()
+        self.assertEqual(item['id'],ident)
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Claim still in flight')
+        from reporting.notification_reconciliation import begin_attempt,event
+        aid=begin_attempt(self.store,item);event(self.store,aid,'PREFLIGHT_FAILED',{'wire_started':False})
+        self.store.defer_unsent(ident)
+        self.co.begin_operation('notification:outbox:'+str(ident),'delivery',{'outbox_id':ident})
+        with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Operation reservation blocks refresh')
+
+    def test_unpublished_old_registry_schema_is_not_silently_activated(self):
+        from reporting.notification_disposition import initialize
+        with closing(self.store.connect()) as c,c:
+            c.execute('DROP TABLE notification_current_status')
+            c.execute('CREATE TABLE notification_current_status(scope_id TEXT PRIMARY KEY,notification_id INTEGER UNIQUE,payload TEXT,state_sha256 TEXT,observed_at REAL,expires_at REAL)')
+            c.execute("INSERT INTO notification_current_status VALUES('old',1300,'original','hash',1,2)")
+        with self.assertRaises(PermissionError):initialize(self.store)
+        with closing(self.store.connect()) as c:
+            self.assertEqual(c.execute('SELECT payload FROM notification_current_status').fetchone()[0],'original')
