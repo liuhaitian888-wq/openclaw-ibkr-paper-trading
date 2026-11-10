@@ -260,7 +260,9 @@ def main():
             except Exception as exc:
                 if native_health is not None:native_health.invalidate('Owned SDK readback unavailable: '+type(exc).__name__)
                 monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
-                print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
+                from reporting.errors import redact
+                print(json.dumps({'state':'PAPER_SAFETY_BLOCKED','error_type':type(exc).__name__,
+                    'message':redact(str(exc)[:400])}),flush=True)
             finally:
                 try:
                     try:
