@@ -184,3 +184,6 @@ Notification continuation: candidate61619c0/8c63c5a retains explicit full group 
 
 ### Daily delivery evidence update — 2026-11-10
 Nov8 actualsupplement986/native159 was re-fetched from Telegram; its230932-bytePNG matches original queuedSHA256bcfb5407ebb6b2e3f2a5eb4c5ad80219333d779bf55f016ed9e447d3bc115dd3. Alert980/native156 is not thatreport. Nov9 original1094 stillUNKNOWN with no native receipt or positiveunsentevidence; existinginspect decisionUNRESOLVED. Its bounded emptyhistory must not authorize replay. Currentreadydaily evidence and deployedimmutable/preflight fixes do not prove the next scheduled delivery or retrospectively resolve1094. Detailedactualstate: docs/production-audit/DAILY_REPORT_RECONCILIATION_20261110.md.
+
+### Observed Nov10 daily report acceptance
+Actual scheduled outbox1778/attempt180 reached exactdeehub native message256 at2026-11-10T01:00:01Z. FrozenPNG andJSON validated; Telegram-downloaded228469-bytePNG matches frozenSHA2569fc1d572ce0e6a5f4ddde10a83e3302473659631c1f2153180643f4442df62be. This natural report acceptance does not complete risk recovery delivery, backup redundancy or Nov9UNKNOWN1094reconciliation, and does not prove missingPnL completeness/phonepopup. See DAILY_REPORT_RECONCILIATION_20261110.md for source/manifest timings and evidence.

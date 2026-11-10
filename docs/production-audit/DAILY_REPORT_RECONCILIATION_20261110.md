@@ -20,3 +20,11 @@ Existing deployed code freezes PNG+JSON content-addressed at enqueue; records at
 Nov9 exact send outcome remains blocked on positive original wire evidence/native receipt/typed rejection; no safe supplement inferred from absence. Nov8 upstream cause finer than unavailable retained fresh complete snapshot remainsUNKNOWN. Next natural scheduled report's immutable PNG/manifest, backup and native receipt need separate actual-event acceptance; no testgroup message or fault was manufactured. This investigation does not claim that new scheduled delivery has already passed.
 
 Evidence retained privately onMac/cloud engineering/daily-reconciliation-20261110: cloud-audit.json/audit.json, Telegram boundedhistory, originaldeliveredPNG and attachmenthashreceipt. ProductiongateSHA95ec6bce046991a5fa9f303425f5fa03051b263244cc88541828685d47a43eab unchanged.
+
+## Nov10 natural scheduled delivery VERIFIED
+
+Fresh read-only native verification at2026-11-10T01:14:53Z: cloudc11f36e, original builder journalc88188c. Frozen manifest generated00:59:31.390860Z from00:59:20.223212Z validatedDUQ503649/PAPERsource; reportdate2026-11-10/typeDAILY. Scheduled01:00:00Z (09:00Shanghai/02:00Berlin), queued01:00:00.012694Z, deliveryattempt01:00:00.845336Z, nativeaccepted01:00:01Z/ack01:00:01.544596Z. Outbox1778/attempt180 retained WIRE_START and ACCEPTED; exactgroup-1004474790683/message256/sender9276548850.
+
+FrozenPNG228469bytes/SHA2569fc1d572ce0e6a5f4ddde10a83e3302473659631c1f2153180643f4442df62be andmanifest8418bytes/SHA25661ae11b8606789da01b5ed7cfb6f7326cea376d6f0704e41f87a52e4e3b0a5db both rehashed valid/mode0400; manifestimagehash matchesPNG. NativeTelegrammessage256documentimage/png downloaded and matches exact frozenPNGhash. Link https://t.me/c/4474790683/256 . Privateevidence engineering/daily-reconciliation-20261110/nov10-native-acceptance.json. No test message, resend or service action.
+
+This verifies actualgeneration→freeze→queue→existingowner→nativegroupattachment, not merelyserviceuptime/documentation. Report still explicitlymissingdailyPnL/incompletehistory, tradingperiodNov6→Nov7exclusive; no claim complete financial performance or ownerphonepopup. Nov9original1094 remainsUNKNOWN/no receipt and zero retryauthorizations; untouched. Snapshotbackup redundancy was not tested in this probe.

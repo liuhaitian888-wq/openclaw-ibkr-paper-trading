@@ -90,3 +90,5 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Recheck current cloud source/manifests, other implementation receipts, native group history and existing deterministic reconciliation without a new sender.
 - [x] Recover Nov8 delivered PNG from native message159 and verify byte identity with original queued hash; distinguish alert156 from actual supplement159.
 - [ ] Resolve Nov9 original1094 with positive outcome evidence; currentUNRESOLVED remains a blocker, bounded empty history is not unsentproof.
+
+- [x] Verify Nov10 natural scheduled report1778 generation, immutablePNG/JSON, attempt180/nativegroup256 and byte-identical downloadedPNG; keep Nov9UNKNOWN unresolved, risk/backup acceptance separate.
