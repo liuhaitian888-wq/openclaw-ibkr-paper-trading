@@ -84,7 +84,13 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Measured model/Python broker fast path
 - [x] Record finite sole-owner OAuth model → Python → broker/database → grounded model result,23.909s, without claiming Telegram acceptance or sending probe messages.
 - [x] Implement selected-section snapshots with one reconciliation, bounded validation, model routing and no unnecessary account-summary subscription.
-- [ ] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
+- [x] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
+
+## Mac-independent explicit authentication control
+- [x] Route fresh approved /login_assist starts to the existing cloud inbox; prevent cloud models from consuming unsupported transport controls and preserve Mac-only search ownership.
+- [x] Verify exact native command/identity, stopped-state recheck, bounded fixed-unit start, cutover/no-replay, distinct UNKNOWN outcome notice and unchanged auth/trading gates.
+- [x] Install reviewed exact-unit start authorization and verify positive/negative native authorization queries without starting or restarting the healthy Gateway.
+- [ ] Verify future inactive-Gateway native owner-message/login acceptance independently of rule/source deployment.
 
 ## Nov8/Nov9 native re-reconciliation — 2026-11-10
 - [x] Recheck current cloud source/manifests, other implementation receipts, native group history and existing deterministic reconciliation without a new sender.
@@ -92,3 +98,21 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Resolve Nov9 original1094 with positive outcome evidence; currentUNRESOLVED remains a blocker, bounded empty history is not unsentproof.
 
 - [x] Verify Nov10 natural scheduled report1778 generation, immutablePNG/JSON, attempt180/nativegroup256 and byte-identical downloadedPNG; keep Nov9UNKNOWN unresolved, risk/backup acceptance separate.
+
+## Cloud ledger-search routing correction
+- [x] Identify real native owner503 UNKNOWN before tools: search_records ledger domain was rejected as host source; preserve receipt and no replay.
+- [x] Validate and deploy bounded ledger-domain dispatch correction, retaining host provenance rejection for every other tool; native engineering ledger probes passed without replaying original503.
+
+## Exact legacy disposition continuation
+- [x] Implement append-only exact three-occurrence scope, unattempted aggregate retirement and fresh current-only group report with no retry/private mirror.
+- [x] Cover changed authorization/original/attempt evidence, unrelated UNKNOWN, stale/dirty/changed state, bound payload, orphan orders and retention with isolated tests.
+- [ ] Deploy reviewed source with exact manifests and current positive broker proof; accept actual current-summary group receipt/UI and secretary persistent handoff.
+- [ ] Broader automatic ALERT/upgrade/recovery group aggregation and stable recovery after root-cause repair remain a separate user planning scope.
+
+
+## Automatic notification flood clarification — planning scope
+- [x] Record independently observed screenshot event/private receipt evidence and distinguish source churn, RECOVERY-only grouping and wrong automatic destination.
+- [x] Record the owner target and separate Codex-to-Codex collaboration from unverified autonomous secretary-to-Codex delivery.
+- [ ] Implement and offline-verify all automatic safe status routing to deehub, shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private mirror within a separately authorized implementation turn.
+- [ ] Establish the live recurrence root cause and verify callback/database lifecycle repair with fresh complete source evidence; do not infer protection-order loss from missing evidence.
+- [ ] Verify natural group delivery and absence of unwanted private mirrors with native receipts and user-visible messages; legacy disposition acceptance alone is insufficient.

@@ -68,3 +68,27 @@ class SearchTests(unittest.TestCase):
  def test_friend_cannot_queue_search(self):
   u={'update_id':1,'message':{'chat':{'id':42,'type':'private'},'from':{'id':43,'is_bot':False},'date':1000,'message_id':1,'text':'/search password'}}
   self.assertFalse(accept_update(self.a,u,self.cfg,armed_at=1000));self.assertEqual(pending_controls(self.a),[])
+
+
+class CloudLedgerSearchTests(unittest.TestCase):
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
+  self.archive=SecretaryArchive(self.root/'agent_secretary.sqlite3');initialize(self.archive)
+  self.archive.append('owner-search','der-secretary',origin='USER',kind='CHAT_INSTRUCTION',payload={'text':'risk'})
+  self.archive.reserve_run('owner-search:run',instruction='owner-search',model='gpt-6.1-sol')
+  IncidentStore(self.root/'runtime/recovery.sqlite3').ingest('risk-fixture','risk-fixture',{'reason':'risk fixture'})
+ def dispatch(self,req,step=1):
+  from ops.cloud.secretary_rpc import dispatch
+  return dispatch(self.root,{'action':'tool','run':'owner-search:run','step':step,'response_mode':'CHAT','request':req},{},{})
+ def test_registered_ledger_sources_reach_readonly_dispatch_and_keep_results(self):
+  for step,source in enumerate(('work','notifications'),1):
+   req={'name':'search_records','source':source,'query':'risk','limit':10,'before_id':9223372036854775807}
+   result=self.dispatch(req,step)
+   self.assertEqual(result['state'],'READ_ONLY_RESULT');self.assertEqual(result['source'],source)
+   self.assertTrue(result['rows']);self.assertFalse(result['telegram_history_searched'])
+   self.assertEqual(self.dispatch(req,step),result)
+  with closing(self.archive.connect()) as c:
+   self.assertEqual(c.execute("SELECT count(*) FROM secretary_events WHERE kind='READ_ONLY_EXPERIMENT'").fetchone()[0],2)
+ def test_other_tools_cannot_use_ledger_source_to_impersonate_origin(self):
+  for req in ({'name':'query','source':'notifications'}, {'name':'search_records','source':'local_snapshot'}, {'name':'search_records','source':'telegram_live'}):
+   with self.assertRaises(ValueError):self.dispatch(req)

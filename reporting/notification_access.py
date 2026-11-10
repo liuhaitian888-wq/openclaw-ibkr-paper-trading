@@ -31,6 +31,11 @@ def decision(item, config):
     p=item['payload']; kind=item['kind']; role=p.get('message_role'); key=item['incident_key']
     result={'policy_version':POLICY, 'audience':'owner', 'reason':'private_or_unclassified', 'public_view':None}
     def choose(audience, reason, view=None):return {**result, 'audience':audience, 'reason':reason, 'public_view':view}
+    if kind=='CURRENT_RISK_STATUS':
+        if (p.get('grants_trading_permission') is False and isinstance(p.get('current_risk_scope'),str)
+                and all(type(p.get(k)) is int and 0<=p[k]<=100 for k in ('recovered_count','unresolved_count'))):
+            return choose('group','bound_current_risk_fixed_summary','current_risk_status')
+        return choose('hold','invalid_current_risk_summary')
     if (p.get('requires_response') is True or p.get('phase')=='OPERATOR'
             or role in ('ACK','CHAT','CONTROL','AUTH') or kind.startswith('AUTH_')
             or p.get('scope')=='GATEWAY_AUTHENTICATION' or p.get('private_notice') is True):

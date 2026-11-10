@@ -25,3 +25,7 @@ reporting、通知生产者、定时运行配置、秘书研究提示、工程�
 Extend this existing secretary change with bounded model-selected Python broker queries and all registered business database read access. Minimize measured Telegram-to-result latency by reusing existing connection and delivery owners. This is a target clarification, not runtime acceptance or write permission. OAuth remains the selected model route; the API-key migration is historical preparation.
 
 Owner active-goal clarification: Telegram shall orchestrate the complete authorized development/operations paths through Python, IB Gateway/IBKR, Codex Cloud and all business databases. Codex Cloud is an execution branch, not a broker transport hop. Current verified executor connectivity, allowed operations and write/deployment scope remain UNKNOWN until implementation and receipts; this maintenance deploys none of them.
+
+
+## Automatic notification clarification — planning only, 2026-11-10
+The owner reiterated that all automatic messages belong in deehub and must be combined; secretary private chat is for interaction. Extend this existing change with a planned lifecycle policy covering ALERT, escalation and RECOVERY, shared-cause grouping, bounded reminders and stable recovery, without an automatic private detail mirror. Sensitive source evidence stays in the database and is retrieved through verified private interaction; fixed safe summaries are used in the group. This planning clarification does not implement or deploy the policy, resolve legacy uncertain delivery, or authorize service actions.

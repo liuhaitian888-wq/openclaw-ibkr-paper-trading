@@ -127,6 +127,21 @@ The secretary SHALL expose /api, /cloud and /market as deterministic owner-priva
 - **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
 - **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
 
+### Requirement: Cloud-native deterministic authentication assistance
+The verified cloud inbox SHALL own approved fresh Gateway-start controls independently of model inference and a Mac bridge. It SHALL recheck native owner provenance, cutover time and stopped-unit state, record the attempt before transport, and use only a bounded fixed-unit start. Normal Gateway processes SHALL NOT be restarted. Native startup acceptance SHALL NOT imply authentication or trading permission.
+
+#### Scenario: Explicit owner assistance for a stopped Gateway
+- **WHEN** a fresh native owner /login_assist request has the approved cloud control owner and the exact service is inactive or failed
+- **THEN** the inbox submits at most one bounded start to that existing systemd unit and awaits separate complete fresh Paper readback for authentication success.
+
+#### Scenario: Existing process or unknown startup outcome
+- **WHEN** the service is already running or a native start result is uncertain
+- **THEN** a running service receives no start/restart, and an uncertain original operation remains UNKNOWN with a separate private outcome notice and no automatic replay.
+
+#### Scenario: Control ownership cutover
+- **WHEN** the cloud inbox becomes the Gateway-start owner
+- **THEN** it does not adopt old controls before the cutover, cloud models do not consume unsupported transport controls, and Mac-only searches retain their distinct owner.
+
 ### Requirement: Telegram development and operations orchestration
 The secretary SHALL route verified owner development and operations requests to authorized Python operations and a verified Codex Cloud consumer, with task identity, scope, execution receipts and result delivery. Arbitrary database paths, deployment permission and unrestricted shell access SHALL NOT follow from model output alone.
 
@@ -156,3 +171,37 @@ The secretary SHALL invoke registered Python tools through the existing broker o
 Historical planning boundary (2026-11-10, before implementation): the owner-confirmed Python broker target was initially unimplemented. This paragraph is not the current runtime state.
 
 Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa5c918cc5813397 registered and deployed model-selected broker query/result tools on the existing Python broker connection owner, registered read-only service observations, absolute paths for all four business databases, and an unarmed official CLI Cloud-task adapter. Four native database queries and a native engineering broker snapshot succeeded; the latter returned6 positions/6 orders/3 API-window executions/6 account-summary fields in1.226s. Returned summary fields do not establish complete per-currency or settled-cash coverage. The first aggregate-account rejection remains retained as a separate failed query. Full source integration passed1218 isolated offline tests; those tests do not prove native Telegram delivery. The OAuth dialogue loop has its separate verified stage below. Telegram model-selected live broker/private result timing, all development/operations write paths and the intended Codex executor remain incomplete. Owner clarification is pending between the server-hosted OAuth Codex executor, official hosted Codex Cloud, or both; no substitute executor is declared accepted.
+
+Official hosted executor decision and uncertain submission (observed boundary):
+Owner selected the OpenAI official hosted Codex Cloud environment and approved one read-only acceptance chat on2026-11-10. This resolves the earlier executor-choice question. One create_thread submission returned no native task identity; outcome remains UNKNOWN, and absence from recent thread lists does not authorize replay. Current legacy CLI adapter is unarmed and is not verified compatible with the selected saved configuration. End-to-end dispatch and result delivery remain unaccepted.
+
+### Requirement: Ledger domain is distinct from execution provenance
+The cloud Python dispatcher SHALL accept work and notifications only as registered search_records ledger domains, while retaining cloud-only execution provenance for all other tools. Local snapshot and Telegram live-source impersonation SHALL remain rejected.
+
+#### Scenario: Model searches existing notification receipts
+- **WHEN** a cloud owner run selects search_records with source=notifications or source=work
+- **THEN** the registered bounded read-only query executes, archives its result once, and does not claim complete Telegram history.
+
+#### Scenario: Ledger values do not widen other tools
+- **WHEN** any other tool supplies source=notifications, or search_records supplies source=local_snapshot
+- **THEN** the dispatcher rejects the request without executing it.
+
+
+### Requirement: Recorded automatic notification target and provenance
+The project SHALL record the latest owner target separately from historical routing and deployed acceptance: all noninteractive automatic safe status belongs in deehub, with shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private detail mirror. Private source evidence SHALL remain queryable through verified owner interaction rather than being copied automatically. A planning record SHALL NOT imply runtime changes or new business permissions.
+
+#### Scenario: Fault flood despite recovery grouping
+- **WHEN** repeated protection-unknown alerts still use individual private delivery while recoveries are grouped
+- **THEN** record both routing and lifecycle gaps as unfinished implementation, retain raw occurrence/attempt evidence and do not claim that clearing old delivery blockers resolves the flood.
+
+#### Scenario: Automatic safe summary contains sensitive source evidence
+- **WHEN** automatic status is based on account, authentication or diagnostic evidence
+- **THEN** the target group summary uses validated safe fields, retains sensitive originals privately for on-demand interaction and creates no automatic private detail mirror.
+
+#### Scenario: Evidence received from another Codex engineering chat
+- **WHEN** another Codex chat reports observations through a cross-thread message following human collaboration authorization
+- **THEN** attribute the evidence to that engineering chat, distinguish it from independent verification and do not claim Telegram secretary-originated delivery or an accepted autonomous engineering consumer.
+
+Planning boundary2026-11-10: this target supersedes earlier automatic-private defaults as desired behavior only. Existing sensitivity-first routing, private supervisor notices and RECOVERY-only aggregation remain historical/current implementation until a separately evidenced change. No grouping interval or recurrence root cause is established by this specification update.
+
+Current deployment observation2026-11-10: cloud57452de7f8cf1fee0c27d737b9f38cb9d39dafc7 includes ledger-domain dispatch fix and bounded redacted broker diagnostics. Native engineering work/notifications searches returned2rows each in0.015/0.018s, archived separate run, zero modelcalls/messages. Actual owner504 Telegram→model→Python→DBinventory→nativeprivate391 took50s by native timestamps; broker data failed (unclaimed READY). Existing monitor has persistentattempts4 under same API process generation and CONNECTION_BUDGET_OR_BACKOFF; no budget reset or Gateway restart. Local scanner/secretary constructors pass on private consistent SQLite copy with network disabled; preceding OperationalError root cause remainsUNKNOWN. Inactive-Gateway/login drill, successful fresh Telegram broker data, official hosted Cloud task acceptance, general dev/ops/database writes remain incomplete.

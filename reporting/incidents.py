@@ -43,6 +43,8 @@ class IncidentStore:
             ''')
         from .notification_reconciliation import initialize
         initialize(self)
+        from .notification_disposition import initialize as initialize_dispositions
+        initialize_dispositions(self)
 
     def connect(self):
         return sqlite3.connect(self.path, timeout=2)
@@ -107,7 +109,7 @@ class IncidentStore:
         """Reserve before transport; STARTED survives restart without replay."""
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
-            row = c.execute("""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
+            rows = c.execute("""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
                 WHERE n.status='PENDING' AND NOT EXISTS (
                     SELECT 1 FROM notification_preflight p WHERE p.notification_id=n.id AND p.not_before>?)
                 AND NOT EXISTS (
@@ -119,7 +121,9 @@ class IncidentStore:
                 AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 1""", (self.clock(),)).fetchone()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN n.kind='CURRENT_RISK_STATUS' THEN -1 WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 100""", (self.clock(),)).fetchall()
+            from .notification_disposition import claim_allowed
+            row=next((r for r in rows if claim_allowed(c,dict(id=r[0],kind=r[1],payload=json.loads(r[2])))),None)
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))

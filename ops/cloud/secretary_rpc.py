@@ -62,7 +62,10 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
         reconcile_replies(archive,IncidentStore(root/'runtime/recovery.sqlite3'))
         if policy.get('receiver_owner')=='cloud':
             from reporting.secretary_controls import pending_controls
-            result={'controls':pending_controls(archive)}
+            if caller=='mac_bridge':
+                kinds=('TELEGRAM_SEARCH_REQUESTED',) if policy.get('gateway_start_control_owner')=='cloud_inbox' else ('GATEWAY_START_REQUESTED','TELEGRAM_SEARCH_REQUESTED')
+                result={'controls':pending_controls(archive,kinds=kinds,owner='mac_bridge')}
+            else:result={'controls':[]}  # Cloud model never consumes device/transport controls it cannot execute.
         else:
             result=asyncio.run(poll(archive,root,config,policy['armed_at']))
             result['controls']=process_controls(archive,root,config,policy)
@@ -105,7 +108,10 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
             return saved['result']
         if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal'):
             return {'state':'REFUSED','reason':'Conversation cannot create work'}
-        if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
+        # search_records.source selects a registered ledger, not an execution host.
+        # Other tools retain the cloud/local-snapshot provenance boundary.
+        ledger_source=req.get('name')=='search_records' and req.get('source','work') in ('work','notifications')
+        if not ledger_source and req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
         tool_started_at=time.time();tool_timer=time.monotonic()
         try:
             if req.get('name') in ('broker_query','broker_result'):

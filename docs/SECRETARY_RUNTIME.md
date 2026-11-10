@@ -70,3 +70,8 @@ https://www.ibkrguides.com/securelogin/sls/using-two-factor.htm
 工程协作共享箱：模型可调用engineering_proposal，保存标题、实际观察、改进建议和1–5项可复查证据；相同内容跨任务去重。它不执行shell、代码或部署。engineering_updates及Telegram `/engineering`读取提案与工程侧独立SYSTEM ENGINEERING_STATUS回执；工程侧Codex可直接读取共享秘书档案并写回检查/实现/验证结果，用户无需手动复制正文。现阶段没有自动唤醒当前桌面聊天；不能把已存提案说成已开工。ChatGPT网页聊天、Codex工程聊天和Telegram秘书会话不默认同步；独立ChatGPT接入同一共享接口需另配官方MCP，尚未接通。
 
 官方能力依据（2026-11-07实际读取）：https://developers.openai.com/codex/sdk （重定向官方learn.chatgpt.com/docs/codex-sdk），https://developers.openai.com/chatgpt 。当前使用已有CLI，不额外安装SDK，也不转移OAuth令牌。
+
+## 云端原生认证协助接续（2026-11-10，源码阶段）
+旧章节的Mac SSH启动描述保留为历史。新的确定性Gateway启动控制由唯一云端inbox执行，受原有gateway_start_assistance_approved、gateway_start_control_owner=cloud_inbox和新切换时间约束，只处理切换后的真实owner /login_assist。再次核验精确身份与服务inactive/failed，仅提交一次固定systemd start；正常/正在转换的服务不重启。云端模型不再领取自己不能执行的控制；本机用户会话搜索仍是独立依赖。原操作UNKNOWN保留，单独通知已构造成功不等于启动成功。systemd接受与手机IB Key/完整新鲜Paper回读分别验收，不改变交易门禁。规则安装、部署及原生权限/未来停机登录验收以task-closeout实际记录为准。
+
+Cloud deterministic-control deployment observation (2026-11-10): tested cloud lineagec11f36eed86c518670bca037bdcd423a87d551f0 is installed. Root-owned exact-unit rule start/restart positive and stop/other-unit negative native authorization queries passed for ibkr with NoNewPrivileges; no Gateway action. Fresh cloud_inbox cutover is set; inbox2741969/OAuth2741970 active, Gateway2406467 unchanged, protected gate/scope hashes unchanged. Native inactive-Gateway /login_assist and full authenticated Paper recovery remain unverified.
