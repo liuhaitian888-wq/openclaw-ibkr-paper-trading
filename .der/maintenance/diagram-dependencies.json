@@ -43,6 +43,17 @@
         "ops/cloud/polkit/00-openclaw-paper-gateway.rules": "e1bd00f0dd565237566fad4adf82fe1d15e1c3ae7a34f4e67353ceb2ba452952"
       },
       "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate."
+    },
+    {
+      "path": "docs/diagrams/secretary-live-status.html",
+      "output_sha256": "580266d21b7e2d4f7c9717754d3b1446d1d8672f04c8ab9890819eaf760c183a",
+      "inputs": {
+        "reporting/secretary_live_status.py": "2a80c22720fb8591151288986f1d3e77199caa00120c1dc416cea7279f87251d",
+        "ops/cloud/secretary_inbox.py": "baa431e2770b20ff95606807a8eea9ea0b5948a8e23e6b55e1fed7c1c348702b",
+        "ops/cloud/secretary_cloud_api.py": "44d6912aeafd0f533980ef3ec62d34d037e23830e747613bf7c95491700123a7",
+        "docs/diagrams/secretary-live-status.sequence.json": "644cab0c41832ae4e1e457165249f70cc17cf753b13c8733b05c6d066d4583d2"
+      },
+      "semantic_review": "New click-scoped checks reuse existing owners. Artifact showcase passed; browser receipt separate."
     }
   ]
 }

@@ -96,3 +96,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Cover changed authorization/original/attempt evidence, unrelated UNKNOWN, stale/dirty/changed state, bound payload, orphan orders and retention with isolated tests.
 - [ ] Deploy reviewed source with exact manifests and current positive broker proof; accept actual current-summary group receipt/UI and secretary persistent handoff.
 - [ ] Broader automatic ALERT/upgrade/recovery group aggregation and stable recovery after root-cause repair remain a separate user planning scope.
+
+## Owner correction: click-scoped live checks
+- [x] Implement bounded live cloud/model/broker checks through existing owners.
+- [x] Add nonce, timeout and non-replay regressions and update sequence diagram.
+- [ ] Record full offline/secret checks and real runtime acceptance after deployment.
