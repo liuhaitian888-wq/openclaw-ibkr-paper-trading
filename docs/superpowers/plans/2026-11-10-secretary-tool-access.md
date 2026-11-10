@@ -13,10 +13,12 @@
 - Unknown cloud submission and stale service evidence must survive restart honestly.
 
 ## Tasks
-- [ ] Implement reporting/secretary_broker.py queue plus trading/secretary_broker_owner.py, attach only to the existing paper_safety_watch owner; test real callback completion, mismatch, timeout, no replay and cleanup.
-- [ ] Extend ops/cloud/secretary_rpc.py and the model tool charter with live broker queries/results, explicit operations inspection, inventory and Codex Cloud task submit/status.
+- [x] Implement reporting/secretary_broker.py queue plus trading/secretary_broker_owner.py, attach only to the existing paper_safety_watch owner; test real callback completion, mismatch, timeout, no replay and cleanup.
+- [x] Extend ops/cloud/secretary_rpc.py and the model tool charter with live broker queries/results, explicit operations inspection, inventory and Codex Cloud task submit/status.
 - [ ] Implement reporting/secretary_operations.py with fixed service/operation registry and official Codex Cloud CLI adapter; native owner scope and durable uncertain submission evidence; test injection/refusal/receipts.
-- [ ] Verify all four actual cloud DBs and explicit full path/source metadata, retain bounded SQL query and cross-DB consistency limits.
+- [x] Verify all four actual cloud DBs and explicit full path/source metadata, retain bounded SQL query and cross-DB consistency limits.
 - [ ] Run supported full offline suite, strict specs, secrets; commit and Git integrate/deploy with current cloud lineage, update identity only after scope comparison.
 - [ ] Observe actual broker response, Codex Cloud native task and Telegram request/result timing; mark missing owner request acceptance unverified.
 - [ ] Update actual diagram and provenance with archify, closeout and independent five-project collector.
+
+Progress evidence: source91f7f64 deployed; native broker query1.226s successful and systemctl/database probes accepted. Official Cloud adapter environment compatibility is unverified; server-hosted versus official executor intent clarification pending. Native Telegram result/latency and dev/ops write paths remain required for full goal.
