@@ -126,6 +126,8 @@ def resolve_modules(observations, *, now=None, max_age=120):
                 if state=='HEALTHY':state='DEGRADED'
         blocked=[d for d in deps if result[d]['state']!='HEALTHY' or (d in LIVE_MODULES and result[d]['freshness']!='FRESH')]
         reason=raw.get('reason','No verified observation')
+        if name=='LOCAL_STATE' and raw.get('local_persistence_failure'):
+            state='FAILED';freshness='STALE';reason='Local snapshot persistence requires verified reconciliation'
         if blocked and state not in ('PAUSED','FAILED','OFFLINE'):
             state='WAITING_DEPENDENCY';reason='Dependency unavailable: '+', '.join(blocked)
             if name in LIVE_MODULES:freshness='STALE'

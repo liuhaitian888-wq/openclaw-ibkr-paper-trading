@@ -68,6 +68,8 @@ class PaperSafetyMonitor:
                           collision_since=prior.get('collision_since'), retry_at=0, retries=0,
                           subscription_lifecycle_version=1, quotes={}, bars={}, market_types={}, market_halts={}, market_errors={}, symbol_reset_at={}, legacy_collision=False,
                           reset_at=clock(), fault='STARTUP_RECONCILIATION_REQUIRED')
+        from trading.paper_persistence_circuit import PaperPersistenceCircuit
+        self.persistence_circuit=PaperPersistenceCircuit(self)
         self._publish()
 
     def _incident(self, key, reason, *, resolved=False, symbol=None, quantity=None, protection=None, recovery_batch=None):
@@ -92,6 +94,7 @@ class PaperSafetyMonitor:
     def admit_connection(self, gateway_generation, *, api_listening=None):
         """Same owner/state, bounded read-only connection attempts across restarts."""
         with self.lock:
+            if self.persistence_circuit.blocked:return False
             now=self.clock()
             budget=self.state['connection_recovery']
             if isinstance(api_listening,bool) and gateway_generation:
@@ -101,6 +104,7 @@ class PaperSafetyMonitor:
                 if previous is not api_listening:
                     budget.update(api_listening=api_listening,api_listener_generation=gateway_generation)
                     self._publish()
+                    if self.persistence_circuit.blocked:return False
             attempts=budget.get('attempts',0)
             if attempts>=4:
                 changed_process=bool(gateway_generation and gateway_generation!=budget.get('gateway_generation'))
@@ -118,9 +122,9 @@ class PaperSafetyMonitor:
             budget.update(attempts=attempts,gateway_generation=gateway_generation,
                           last_attempt=now,not_before=now+(30,60,120,300)[attempts-1])
             self._publish()  # Reserve durably before creating the socket.
-            return True
+            return not self.persistence_circuit.blocked
 
-    def validate_connection(self, connected_since, *, connection_generation=None):
+    def validate_connection(self, connected_since, *, connection_generation=None,preserve_attempt_history=False):
         """Only sustained independent account/end-marker proof closes the incident."""
         with self.lock:
             now=self.clock()
@@ -135,10 +139,16 @@ class PaperSafetyMonitor:
                 self._record('connection_dependency_restored',dict(connection=connection_generation,symbols=changed,
                     proof='Stable authenticated Paper connection and complete fresh broker reconciliation; no trading permission'))
                 self._publish()
-            if budget.get('attempts',0):
+            if preserve_attempt_history:
+                identity=budget.get('explicit_resume_identity')
+                if not identity:raise PermissionError('Exact explicit readonly resume required')
+                if budget.get('explicit_resume_validated_identity')!=identity:
+                    budget.update(explicit_resume_validated_identity=identity,explicit_resume_validated_at=now)
+                    self._publish()
+            elif budget.get('attempts',0):
                 budget.update(attempts=0,not_before=0,validated_at=now)
                 self._publish()
-            return True
+            return not self.persistence_circuit.blocked
 
     def begin(self, accounts, *, upstream_reported_lost=False):
         with self.lock:
@@ -257,6 +267,9 @@ class PaperSafetyMonitor:
             try:
                 with closing(self.audit._connect()) as c, c:
                     self.audit._upsert_execution(c, execution, datetime.fromtimestamp(self.clock(), timezone.utc).isoformat())
+            except sqlite3.Error as exc:
+                self.persistence_circuit.capture_callback(exc,'canonical_execution',(execution,),{})
+                return
             except Exception:
                 self.invalidate('AUDIT_EXECUTION_PERSISTENCE_FAILED')
                 raise
@@ -273,8 +286,8 @@ class PaperSafetyMonitor:
         with self.lock:
             now=self.clock();at=datetime.fromtimestamp(now,timezone.utc).isoformat()
             try:changed=self.audit.record_execution_fee(exec_id,currency,amount,at,source)
-            except sqlite3.Error:
-                self.invalidate('AUDIT_FEE_PERSISTENCE_FAILED')
+            except sqlite3.Error as exc:
+                self.persistence_circuit.capture_callback(exc,'canonical_fee',(exec_id,currency,amount,source),{})
                 return False
             except (ValueError,TypeError,ArithmeticError):
                 self._record('execution_fee_unavailable',dict(exec_id=str(exec_id)[:200],currency=str(currency)[:12],source=source))
@@ -542,16 +555,33 @@ class PaperSafetyMonitor:
     def _record(self, kind, payload):
         encoded=json.dumps(payload,sort_keys=True)
         identity=hashlib.sha256((self.state['epoch']+kind+encoded).encode()).hexdigest()
-        with closing(self.coordinator.connect()) as c, c:
-            c.execute('INSERT OR IGNORE INTO paper_callback_events VALUES (?,?,?,?)',
-                      (identity,kind,encoded,self.clock()))
+        if self.persistence_circuit.blocked:
+            self.persistence_circuit.defer_record(identity,kind,encoded,self.clock())
+            return
+        try:
+            with closing(self.coordinator.connect()) as c, c:
+                c.execute('INSERT OR IGNORE INTO paper_callback_events VALUES (?,?,?,?)',
+                          (identity,kind,encoded,self.clock()))
+        except sqlite3.Error as exc:
+            self.persistence_circuit.block(exc,'callback_record')
+            self.persistence_circuit.defer_record(identity,kind,encoded,self.clock())
 
     def _complete(self):
+        return not self.state.get('local_persistence_failure') and self._native_complete()
+
+    def _native_complete(self):
         return (self.state['connected'] and self.state['identity'] and self.state['upstream_connected']
                 and 0<=self.clock()-self.state['last_server_reply']<=10
                 and set(self.state['ends'])==ENDS and not self.state['dirty'])
 
     def _publish(self):
+        if self.persistence_circuit.blocked:return self.snapshot()
+        try:return self._publish_impl()
+        except sqlite3.Error as exc:
+            self.persistence_circuit.block(exc,'snapshot_publish')
+            return self.snapshot()
+
+    def _publish_impl(self):
         snapshot = self.snapshot()
         self.record_pause_transitions(snapshot['pause_scopes'])
         if snapshot['data_ready'] and self.state['collision_since'] is not None:

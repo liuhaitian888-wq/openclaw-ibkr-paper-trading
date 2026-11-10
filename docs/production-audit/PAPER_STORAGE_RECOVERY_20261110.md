@@ -1,0 +1,11 @@
+# Paper local storage recovery — 2026-11-10
+
+Confirmed failure: SDK decoder error callback → monitor.error → snapshot publication raised SQLite database-is-locked and terminated the receiver. Owner-loop SQLite errors could also trigger broker reconnect. This does not prove PnL was the sole root cause. Native account-health observation remains opted out; cash observation, financial pauses and Gateway remain unchanged.
+
+Candidate isolates local SQLite callback/snapshot faults, privately retains failed source evidence and deterministic callback rows, and holds funding with a durable marker plus LOCAL_STATE latch. Only known transient local snapshot failures may probe, request a new complete readback on the same SDK, commit and independently read back all records (including publication-tail rows), then archive the fault with directory fsync. Canonical/unknown evidence remains quarantined; no callback or financial operation is replayed.
+
+The shared negative gate is `reporting.local_persistence.has_local_persistence_fault(root, connection=None, *, marker_only=False)`. Notification queue/claim/wire checks must use it in addition to fresh epoch/hash/end/heartbeat proof. Absence of this fault is not readiness.
+
+The independent readonly resume scope lives at runtime/paper-readonly-resume-scope.json: exact deployed context/dual manifests/same actual Gateway, original attempts=4 and elapsed backoff, five-minute admission window, max_connections=1, PAPER account, grants_trading_permission=false. Preview does not claim; after local preparation, final validation and atomic STARTED precede the sole SDK connection. STARTED/UNKNOWN blocks new identity bypass. Confirmation requires sustained native readback and committed publication; original four attempts remain four. This is not a financial scope or Gateway restart authorization.
+
+Verification: isolated complete suite1303 tests/107.031s PASS; strict OpenSpec8/8. Independent review corrections included directory durability and publication-tail spill verification. Offline log retained at local state engineering/paper-storage-recovery-20261110/offline-suite.log. Production acceptance and the one-shot connection receipt are still pending; cloud changes belong to the team's single notification deployment owner.
