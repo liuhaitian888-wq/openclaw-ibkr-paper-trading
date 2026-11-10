@@ -68,3 +68,43 @@ class NativeContractQualifierTests(unittest.TestCase):
         self.client.reqContractDetails=failed;self.start()
         self.assertEqual(self.actor.phase,'FAILED')
         with self.assertRaises(PermissionError):self.start()
+
+    def test_supported_contract_cancel_is_owned_once(self):
+        self.client.serverVersion=lambda:215
+        self.client.cancelContractData=lambda rid:self.calls.append(('cancel-contract',(rid,)))
+        self.start();self.elapsed=8;self.actor.poll();self.actor.close()
+        self.assertEqual([x for x in self.calls if x[0]=='cancel-contract'],[('cancel-contract',(123,))])
+
+    def test_foreign_generation_cannot_cancel_peer_request(self):
+        self.client.serverVersion=lambda:215
+        self.client.cancelContractData=lambda rid:self.calls.append(('cancel-contract',(rid,)))
+        self.start();self.admission['connection_generation']='other';self.actor.close()
+        self.assertFalse(any(x[0]=='cancel-contract' for x in self.calls))
+
+
+class NativeTwsQualificationBindingTests(unittest.TestCase):
+    def test_actual_callback_routes_are_single_use_and_disconnect_closes_actor(self):
+        from unittest.mock import patch
+        from trading.tws_paper import TwsPaperClient
+        client=TwsPaperClient();client.accounts=['DUQ503649']
+        c=NS(symbol='BAC',exchange='SMART',secType='STK',currency='USD',conId=123,primaryExchange='NYSE')
+        details=NS(contract=c,minTick=.01,validExchanges='SMART',marketRuleIds='26')
+        with patch.object(client,'isConnected',return_value=True),patch.object(client,'reqContractDetails') as request,patch.object(client,'reqMarketRule') as rule,patch.object(client,'placeOrder') as financial:
+            actor=client.start_native_qualification(c)
+            client.contractDetails(1200000001,details);client.contractDetailsEnd(1200000001)
+            client.marketRule(26,[NS(lowEdge=0,increment=.01)])
+            self.assertIsNotNone(actor.result())
+            request.assert_called_once();rule.assert_called_once_with(26);financial.assert_not_called()
+            with self.assertRaises(PermissionError):client.start_native_qualification(c)
+            client.disconnect();self.assertEqual(actor.phase,'CLOSED');self.assertIsNone(actor.result())
+
+    def test_reconnect_retires_old_generation_and_next_id_evidence(self):
+        from unittest.mock import patch
+        from trading.tws_paper import TwsPaperClient
+        from ibapi.client import EClient
+        client=TwsPaperClient();client.accounts=['DUQ503649'];old=client.connection_generation
+        client.nextValidId(56);self.assertEqual(client.native_next_id_evidence()['value'],56)
+        with patch.object(EClient,'connect',return_value=None):client.connect('unused',4002,9)
+        self.assertNotEqual(client.connection_generation,old)
+        self.assertIsNone(client.native_next_id_evidence());self.assertEqual(client.accounts,[])
+        self.assertFalse(client.ready.is_set());client.disconnect()

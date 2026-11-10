@@ -19,7 +19,7 @@ class NativeContractQualifier:
         self.client,self.generation=client,generation
         self.admitted,self.allocate,self.clock,self.monotonic=admitted,allocate_request_id,clock,monotonic
         self.lock=threading.RLock();self.phase='IDLE';self.failure=None;self._result=None
-        self.rows=[];self.request_id=None;self.rule_id=None;self.started=None
+        self.rows=[];self.request_id=None;self.rule_id=None;self.started=None;self.contract_pending=False;self.cancel_failure=None
 
     def _stamp(self):return datetime.fromtimestamp(self.clock(),timezone.utc).isoformat()
 
@@ -30,7 +30,18 @@ class NativeContractQualifier:
             and evidence.get('connection_generation')==self.generation
             and self.client.isConnected() is True)
 
+    def _cancel_contract(self):
+        if not self.contract_pending:return
+        self.contract_pending=False
+        try:
+            from ibapi.server_versions import MIN_SERVER_VER_CANCEL_CONTRACT_DATA
+            version=self.client.serverVersion() if hasattr(self.client,'serverVersion') else None
+            if self._current() and type(version) is int and version>=MIN_SERVER_VER_CANCEL_CONTRACT_DATA:
+                self.client.cancelContractData(self.request_id)
+        except Exception as exc:self.cancel_failure=type(exc).__name__
+
     def _fail(self,reason):
+        self._cancel_contract()
         self.phase='FAILED';self.failure=reason;self._result=None;self.rows=[]
 
     def start(self,contract):
@@ -47,6 +58,7 @@ class NativeContractQualifier:
                 self.request_id=self.allocate()
                 if type(self.request_id) is not int or not 0<self.request_id<=2147483647:
                     raise ValueError('Unique positive bounded request ID required')
+                self.contract_pending=True
                 self.client.reqContractDetails(self.request_id,contract)
             except Exception as exc:self._fail('CONTRACT_REQUEST_'+type(exc).__name__)
 
@@ -86,6 +98,7 @@ class NativeContractQualifier:
     def contract_end(self,request_id):
         with self.lock:
             if self.phase!='CONTRACT' or request_id!=self.request_id:return False
+            self.contract_pending=False
             try:
                 if len(self.rows)!=1 or not self._current() or self.monotonic()-self.started>=8:
                     raise PermissionError('Exact complete timely contract required')
@@ -117,6 +130,8 @@ class NativeContractQualifier:
             return copy.deepcopy(self._result) if self.phase=='COMPLETE' else None
 
     def close(self):
-        # reqContractDetails/reqMarketRule are finite native requests with no
-        # cancel method in SDK1051. Ignore all late callbacks; never disconnect a peer.
-        with self.lock:self.phase='CLOSED';self._result=None;self.rows=[]
+        # Cancel only an owned outstanding contract read when server>=215 supports
+        # it. marketRule has no cancel; ignore late finite callbacks, never disconnect a peer.
+        with self.lock:
+            self._cancel_contract()
+            self.phase='CLOSED';self._result=None;self.rows=[]

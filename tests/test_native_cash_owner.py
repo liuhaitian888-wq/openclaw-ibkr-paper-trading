@@ -144,10 +144,11 @@ class NativeCashOwnerTests(unittest.TestCase):
     def test_generation_change_ignores_closed_previous_owner_callbacks(self):
         old=self.client.cashbook_collector;request=self.request();self.feed(request)
         self.client.isConnected=lambda:False
-        with patch('trading.tws_paper.TwsPaperClient.connect',return_value=None):self.client.connect('offline',4002,clientId=1)
+        with patch('ibapi.client.EClient.connect',return_value=None):self.client.connect('offline',4002,clientId=1)
         self.assertNotEqual(old.connection_generation,self.client.cashbook_collector.connection_generation)
         old.end(request);self.assertFalse(self.target.exists());self.assertTrue(old.closed)
         self.client.isConnected=lambda:True
+        self.client.managedAccounts(ACCOUNT)  # New native session must confirm its account again.
         self.client.cashbook_collector.monotonic=lambda:self.now
         self.monitor.state['api_protocol']={'connection':self.client.connection_generation}
         next_request=self.request();self.assertNotEqual(next_request,request)
@@ -176,6 +177,23 @@ class NativeCashOwnerTests(unittest.TestCase):
         self.assertEqual(self.monitor.coordinator.observations()['CURRENCY_BOOK']['state'],'DEGRADED')
         self.assertFalse(self.monitor.cashbook_publication_state.get('blocked',False))
         self.now=float(int(self.now)+6);self.complete();self.assertTrue(self.target.exists())
+
+    def test_real_connect_layers_share_one_final_collector_generation(self):
+        from ibapi.client import EClient
+        self.client.native_pnl_observation=True;self.client._reset_pnl_collector()
+        old_generation=self.client.connection_generation
+        old_cash=self.client.cashbook_collector;old_pnl=self.client.pnl_collector
+        with patch.object(EClient,'connect',return_value=None),patch.object(self.client,'isConnected',return_value=False):
+            self.client.connect('unused',4002,99)
+        generation=self.client.connection_generation
+        self.assertNotEqual(generation,old_generation)
+        self.assertEqual(self.client.cashbook_collector.connection_generation,generation)
+        self.assertEqual(self.client.pnl_collector.connection_generation,generation)
+        self.assertTrue(old_cash.closed);self.assertTrue(old_pnl.closed)
+        with patch.object(self.client,'serverVersion',return_value=200),patch.object(self.client,'useProtoBuf',return_value=False):
+            self.client.nextValidId(100)
+        self.assertEqual(self.monitor.state['api_protocol']['connection'],generation)
+        self.client.close_cashbook();self.client.close_pnl();self.client.disconnect()
 
 class CashbookDependencyTests(unittest.TestCase):
     def test_dependency_is_optin_and_stale_cash_blocks_order_module_only_after_enabling(self):

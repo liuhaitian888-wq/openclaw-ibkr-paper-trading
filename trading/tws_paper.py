@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+import uuid
 from dataclasses import dataclass, field
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -127,6 +128,10 @@ class BrokerSnapshot:
 class TwsPaperClient(EWrapper, EClient):
     def __init__(self) -> None:
         EClient.__init__(self, self)
+        self._qualification_lock = threading.RLock()
+        self.connection_generation = uuid.uuid4().hex
+        self._native_qualifier = None
+        self._next_id_observed_at = None
         self.ready = threading.Event()
         self.accounts_ready = threading.Event()
         self.next_order_id: Optional[int] = None
@@ -147,7 +152,59 @@ class TwsPaperClient(EWrapper, EClient):
 
     def nextValidId(self, orderId: int) -> None:  # noqa: N802
         self.next_order_id = orderId
+        self._next_id_observed_at = time.time()
         self.ready.set()
+
+    def start_native_qualification(self, contract):
+        """Read-only, single occurrence on this client; grants no wire authority."""
+        from trading.native_contract_qualifier import NativeContractQualifier
+        with self._qualification_lock:
+            if self._native_qualifier is not None:
+                raise PermissionError('This SDK client already consumed its qualification occurrence')
+            generation = self.connection_generation
+            def admission():
+                return dict(account=self.accounts[0] if self.accounts == ['DUQ503649'] else None,
+                    environment='PAPER',connection_generation=self.connection_generation)
+            actor = NativeContractQualifier(self,generation=generation,admitted=admission,
+                allocate_request_id=lambda:1200000001)
+            self._native_qualifier = actor
+            actor.start(contract)
+            return actor
+
+    def native_next_id_evidence(self):
+        """Historical callback evidence only; caller must revalidate freshness."""
+        if type(self.next_order_id) is not int or not 0 <= self.next_order_id <= 2147483647 or self._next_id_observed_at is None:
+            return None
+        from datetime import datetime, timezone
+        return dict(source='NATIVE_NEXT_VALID_ID',value=self.next_order_id,
+            connection_generation=self.connection_generation,
+            observed_at=datetime.fromtimestamp(self._next_id_observed_at,timezone.utc).isoformat())
+
+    def contractDetails(self, reqId, contractDetails):  # noqa: N802
+        if self._native_qualifier is not None:self._native_qualifier.contract_details(reqId,contractDetails)
+
+    def contractDetailsEnd(self, reqId):  # noqa: N802
+        if self._native_qualifier is not None:self._native_qualifier.contract_end(reqId)
+
+    def marketRule(self, marketRuleId, priceIncrements):  # noqa: N802
+        if self._native_qualifier is not None:self._native_qualifier.market_rule(marketRuleId,priceIncrements)
+
+    def _prepare_connection_generation(self):
+        if self._native_qualifier is not None:self._native_qualifier.close()
+        self.connection_generation = uuid.uuid4().hex
+        self.next_order_id = None
+        self._next_id_observed_at = None
+        self.accounts = []
+        self.ready.clear();self.accounts_ready.clear()
+
+    def connect(self, *args, **kwargs):
+        with self._qualification_lock:
+            if not self.isConnected():self._prepare_connection_generation()
+            return super().connect(*args, **kwargs)
+
+    def disconnect(self):
+        if self._native_qualifier is not None:self._native_qualifier.close()
+        super().disconnect()
 
     def run_loop(self) -> None:
         try:
