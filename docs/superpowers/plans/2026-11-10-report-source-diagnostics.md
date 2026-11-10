@@ -30,3 +30,9 @@ Interface: source_diagnostics(observation, expected_account, now) returns reason
 - [ ] Re-read concurrent cloud HEAD/manifests, back up config/manifest and consistent state, integrate only reviewed code via Git, run production quick smoke; restart only builder if required (oneshot next invocation otherwise).
 
 Verification: main candidate1299/52.482s and exact cloud candidate1268/54.920s complete offline PASS; runtime698b44c/cloud1218579. Secret scansPASS; current/delta strictspec8/8PASS. Publication remains one unified team owner; no runtime deployment is claimed. No services need restarting for this oneshot builder import.
+
+### Task 2: Preserve the successful report's original parsed observation
+
+Scope: financial_reports.py writes a private atomically replaced `<TYPE>.SOURCE.json` sidecar for only the current preview. New manifest binds canonical-json-v1 bytes and safe source_check. Cache reuse requires that sidecar hash. report_schedule.py verifies new manifests' exact path/hash/account/environment/completeness/time and freezes the sidecar only when enqueueing, using the existing immutable archive/backup owner. Old manifests without this new optional contract retain explicitly marked legacy provenance; no historical source is fabricated.
+
+No per-builder immutable source growth: mutable preview is overwritten; only queued sources enter content-addressed storage. No new producer/sender/dependency/permission and no historical replay. Regression tests use real isolated SQLite/temp files: observer changes after build, sidecar changes before/after enqueue, source tampering, cache upgrade and private atomic writes. Validate complete offline suite/secret/spec before handing the separate source commit to the unified publisher.
