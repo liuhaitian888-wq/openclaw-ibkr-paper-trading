@@ -32,3 +32,8 @@ Audit and metadata before/after receipts: /private/tmp/goal-readonly-audit.json 
 
 
 Artifact follow-through: frozen outbox1778 PNG228469bytes/0400/SHA9fc1d572ce0e6a5f4ddde10a83e3302473659631c1f2153180643f4442df62be and JSON8418bytes/0400/SHA61ae11b8606789da01b5ed7cfb6f7326cea376d6f0704e41f87a52e4e3b0a5db match queued hashes. Attempt180 records WIRE_START exact destination/artifact/caption fingerprints then ACCEPTED with native256 at01:00:01Z. Natural scheduled delivery is accepted; phone display not independently observed. Source diagnostic commit698b44c/cloud-compatible1218579 passed1299/1268 isolated suites respectively; not yet represented as deployed.
+
+
+## Checked private second copy
+
+Nov10 report1778 original PNG+JSON and native receipt were transferred read-only to the existing Mac private engineering archive, outside Git, with0600 permissions. Both tar-member SHA256 values and sizes match the original immutable queue identities above; archiveSHAecafd7c1090cf9d6e51bdb4e51a81e5034b98a61615494f16d8cafb70e110302, copyreceipt engineering/goal-reconcile-20261110/report1778-copy-receipt.json. No cloud deletion or live restore was performed. This verifies two copies of one delivered report, not cross-device live-state synchronization, full backup retention or recovery of all lost devices. Existing scheduled backup last success predates this report; its next run needs separate evidence.
