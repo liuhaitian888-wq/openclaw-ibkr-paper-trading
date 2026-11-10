@@ -58,3 +58,5 @@
 实施和验证日志保存在~/.local/state/openclaw/engineering/notification-recovery-20261110/。最终源码/离线/秘密扫描/云身份/真实投递状态分别在task-closeout与验收记录追加。
 
 部署复核补充：群简介新SHA f10aedbe12f0e4d8d2b4a4dfdab4ccf06da2ac9839a3d61f617e177fff5facf3已原生回读，保持原文，修改来源/客户端仍待核验。supervisor首轮误纳入8条旧预检耗尽历史，修正为仅审阅有新attempt的耗尽项，同轮未决私聊合并一条并逐事件关联；已发13条简报留痕，不删除或冒充测试。risk聚合1340（7/0）受旧STARTED1270–1272守卫阻断，暂无群摘要回执，不以代码或服务active冒充真实投递验收。
+
+发送前配置边界补充：常驻Telegram模式在claim前核对普通私有配置文件、大小、原生目标配置与已持有client一致性；配置异常保持原通知PENDING，不产生无attempt的STARTED。混合历史传输兼容分支若已claim且尚未进入transport，只追加明确PREFLIGHT_FAILED/异常类别再defer；传输开始后的错误仍UNKNOWN。新路径的正面证据不追认旧1270–1272未发送。

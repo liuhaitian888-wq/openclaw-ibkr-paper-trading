@@ -23,6 +23,22 @@
         "ops/cloud/paper_safety_watch.py": "9db1265baf4dfac4b1b8fbcba8c39b3d46af750d2618a086df876bffeb7c8784"
       },
       "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light/dark visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109. Phone missing-field labels changed without altering diagram topology; flow rechecked."
+    },
+    {
+      "path": "docs/diagrams/secretary-tools.html",
+      "output_sha256": "537dec9b41707ad50e6c610530ff6a015b7cd58652973b94e8c41786c0057117",
+      "inputs": {
+        "docs/diagrams/secretary-tools.architecture.json": "3a9bdf9c14db5210e9b65df1fee32a17781f749637bdf82c0e5494fe65c8b51b",
+        "reporting/secretary_broker.py": "8a69b16a440100374a4474c11f152e619730a5039a2dc11c0b3c4b55e38e50ae",
+        "trading/secretary_broker_owner.py": "3f4e84f49baf797fe96ef11aaf373a9630bf8bae1c8a895fbaff6286cda7543b",
+        "reporting/secretary_operations.py": "a545233912cf13f07c501acaf17ac837a7b4807dc8983348cbcc3574cc3363eb",
+        "ops/cloud/secretary_rpc.py": "37a4ac6b7d05566d6485692c0f860242c3a0b920a84b94765829bfa4087179fb",
+        "ops/cloud/paper_safety_watch.py": "6eb6a18c62f325e12a04a9b2cc6bcc93ee2e26f6b169cd340a8f27b0fc15dfe2",
+        "reporting/secretary_read.py": "671fade85ead9087ffced4640ec57f7f284d7b2b1cdd2c8ccb7f8eca32fcdc90",
+        "reporting/secretary_queue.py": "abe6f05152ba0f89618f8a1f7aabb7638988a725829f4708ca7b3b3ad959bac7",
+        "scripts/run_secretary_bridge.py": "1810efcc4a1d9bf6d6089a026406c898d382fa53e535761bb593476abb352750"
+      },
+      "semantic_review": "Source topology only; 9/9 artifact checks, browser checks PASS in light/dark, 1440x900 light image visually reviewed: readable, no overlap. Codex Cloud edge deliberately unverified; no deployment or native acceptance inferred."
     }
   ]
 }

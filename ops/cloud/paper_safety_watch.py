@@ -182,6 +182,11 @@ def main():
             worker=None
             try:
                 attach_research_scanner(client,root)
+                secretary_policy=root/'runtime/secretary-policy.json'
+                if secretary_policy.is_file() and json.loads(secretary_policy.read_text()).get('broker_queries_approved') is True:
+                    from trading.secretary_broker_owner import SecretaryBrokerOwner
+                    from reporting.agent_secretary import SecretaryArchive
+                    client.secretary_broker=SecretaryBrokerOwner(client,SecretaryArchive(root/'agent_secretary.sqlite3'))
                 client.connect('127.0.0.1',4002,clientId=18770)
                 worker=threading.Thread(target=client.run_loop,name='paper-safety-api',daemon=True)
                 worker.start()
@@ -238,6 +243,8 @@ def main():
                             client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS',
                                 low_frequency=action.get('low_frequency',False))
                         last_recovery_poll=time.monotonic()
+                    if client.secretary_broker is not None and client.secretary_broker.poll():
+                        last_sync=time.monotonic()
                     if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
                         client.reconcile()
                         last_sync=time.monotonic()
@@ -248,7 +255,10 @@ def main():
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
             finally:
                 try:
-                    if client.research_scanner is not None:client.research_scanner.close()
+                    try:
+                        if client.secretary_broker is not None:client.secretary_broker.close()
+                    finally:
+                        if client.research_scanner is not None:client.research_scanner.close()
                 finally:
                     try:client.close_cashbook()
                     finally:

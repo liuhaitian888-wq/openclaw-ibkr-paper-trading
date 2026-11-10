@@ -64,10 +64,12 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Observe owner phone click/visual acceptance separately.
 
 ## Owner Python/IBKR and database access clarification — 2026-11-10
-- [ ] Register bounded model-selected Python queries for account, positions, cash, orders, executions and entitled market data through the existing broker owner.
-- [ ] Verify read-only coverage of every registered business database, freshness, limits and unavailable-source behavior.
+- [x] Register bounded model-selected Python queries for account, positions, cash, orders, executions and entitled market data through the existing broker owner.
+- [x] Verify read-only coverage of every registered business database, freshness, limits and unavailable-source behavior.
 - [ ] Verify fresh Telegram → model → live Python broker tool → native Telegram result and record stage latency before optimizing.
 - [x] Reconcile fresh cloud OAuth/model acceptance separately: completed model receipt, archived SUCCEEDED result and native private message247; live Python broker-tool acceptance remains unchecked above.
 
 - [ ] Implement authorized Telegram development/operations routing to a verified Codex Cloud executor, with scoped tasks, execution receipts and Telegram progress/results.
 - [ ] Inventory every database and operational path; explicitly verify supported read/write/deploy operations before claiming complete coverage.
+
+- [x] Validate Telegram runtime configuration before claim and persist mixed-transport pre-wire failure evidence; keep old STARTED uncertainty unchanged.
