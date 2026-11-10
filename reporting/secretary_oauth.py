@@ -36,7 +36,7 @@ def analyze(prompt,*,key_path,receipt_path,model='gpt-6.1-sol',**unused):
     empty=Path(key_path).parent/'secretary-oauth-empty'
     if not empty.is_dir() or any(empty.iterdir()):raise PermissionError('Empty cloud inference workspace required')
     try:
-        result,usage=codex_analyze(prompt,codex=CODEX,codex_home=key_path,empty_dir=empty,model=model,force_chatgpt=True)
+        result,usage=codex_analyze(prompt,codex=CODEX,codex_home=key_path,empty_dir=empty,model=model,force_chatgpt=True,timeout=unused.get('timeout',120))
         atomic(receipt_path,{'state':'ACKNOWLEDGED','request_sha256':request_hash,'provider':'codex_oauth','model':model,
             'reasoning_effort':'low','result':result,'usage':usage,'finished_at':time.time()})
         return result,usage

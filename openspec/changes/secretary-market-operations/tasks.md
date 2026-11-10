@@ -90,3 +90,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Route fresh approved /login_assist starts to the existing cloud inbox; prevent cloud models from consuming unsupported transport controls and preserve Mac-only search ownership.
 - [x] Verify exact native command/identity, stopped-state recheck, bounded fixed-unit start, cutover/no-replay, distinct UNKNOWN outcome notice and unchanged auth/trading gates.
 - [ ] Install reviewed exact-unit start authorization and verify positive/negative native authorization queries without starting or restarting the healthy Gateway; record future inactive-Gateway/owner-message acceptance separately.
+
+## Owner correction: click-scoped live checks
+- [x] Implement bounded live cloud/model/broker checks through existing owners.
+- [x] Add nonce, timeout and non-replay regressions and update sequence diagram.
+- [ ] Record full offline/secret checks and real runtime acceptance after deployment.

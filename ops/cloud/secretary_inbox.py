@@ -30,6 +30,8 @@ async def run_worker():
                     from ops.cloud.secretary_control_executor import process_gateway_controls
                     process_gateway_controls(archive,root,config,policy)
                     tick_login(archive,root)
+                    from reporting.secretary_live_status import tick as tick_status
+                    tick_status(archive,root)
                     if time.monotonic()-last_observation>=60:
                         last_observation=time.monotonic()
                         print(json.dumps(observe(archive,root)),flush=True)

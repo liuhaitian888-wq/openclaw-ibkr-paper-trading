@@ -121,11 +121,15 @@ The bounded OAuth adapter SHALL accept only the exact pre-turn CLI notice that C
 
 ### Requirement: Owner-private status menu
 
-The secretary SHALL expose /api, /cloud and /market as deterministic owner-private controls using existing shared health evidence with observation time and freshness. Missing evidence SHALL be UNKNOWN. Configuration and stale HEALTHY records SHALL NOT prove current connectivity. Menu reads SHALL NOT call models or brokers, restart services or alter gates.
+The secretary SHALL implement /api, /cloud and /market as bounded click-scoped live checks through existing owners, reporting passed, failed or timeout instead of snapshot-only uncertainty. Checks SHALL preserve gates, the daily model budget and uncertain attempts without replay, new broker sessions or service restarts.
 
-#### Scenario: Existing status evidence is missing or old
-- **WHEN** the owner selects an API, cloud or market status menu entry and relevant runtime evidence is missing or expired
-- **THEN** the secretary shows UNKNOWN or stale status with observation time and does not create a model or broker connection.
+#### Scenario: Actual routes and matching responses
+- **WHEN** the owner clicks /api, /cloud or /market
+- **THEN** /api runs one25s nonce-checked model call and an existing-owner broker query, /cloud runs current systemd/SQLite checks, and /market requires realtime bid/ask timestamps after the click; OAuth never requires an API key. Old snapshots are historical, not current proof.
+
+#### Scenario: Requested live check does not complete
+- **WHEN** an owner selects a live status entry and the existing owner does not return a valid fresh response within the deadline
+- **THEN** the secretary reports timeout or the specific failure for this click, without replaying an uncertain attempt.
 
 ### Requirement: Cloud-native deterministic authentication assistance
 The verified cloud inbox SHALL own approved fresh Gateway-start controls independently of model inference and a Mac bridge. It SHALL recheck native owner provenance, cutover time and stopped-unit state, record the attempt before transport, and use only a bounded fixed-unit start. Normal Gateway processes SHALL NOT be restarted. Native startup acceptance SHALL NOT imply authentication or trading permission.
