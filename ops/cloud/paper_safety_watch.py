@@ -172,6 +172,12 @@ def main():
         else:
             monitor.coordinator.observe('CURRENCY_BOOK','PAUSED',freshness='UNKNOWN',enabled=False,
                 reason='Continuous native cash observation not configured',grants_trading_permission=False)
+        from trading.native_health_bridge import NativeOwnerHealthBridge,disable_native_health_owner
+        native_health=None
+        if monitoring.get('native_account_health_observation_approved') is True:
+            if cashbook_publisher is None:raise PermissionError('Native account health requires the approved native ledger owner')
+            native_health=NativeOwnerHealthBridge(root,monitor)
+        else:disable_native_health_owner(monitor.coordinator)
         while not stopped.is_set():
             if not monitor.admit_connection(gateway_generation(),api_listening=api_listener_ready()):
                 monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
@@ -245,12 +251,14 @@ def main():
                         last_recovery_poll=time.monotonic()
                     if client.secretary_broker is not None and client.secretary_broker.poll():
                         last_sync=time.monotonic()
+                    if native_health is not None:native_health.poll()
                     if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
                         client.reconcile()
                         last_sync=time.monotonic()
                     client.poll_cashbook()
                     client.poll_pnl()
             except Exception as exc:
+                if native_health is not None:native_health.invalidate('Owned SDK readback unavailable: '+type(exc).__name__)
                 monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
                 print('PAPER_SAFETY_BLOCKED_' + type(exc).__name__,flush=True)
             finally:
@@ -264,6 +272,7 @@ def main():
                     finally:
                         try:client.close_pnl()
                         finally:_close_owned_client(client,worker)
+        if native_health is not None:native_health.close()
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0
 

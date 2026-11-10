@@ -33,7 +33,7 @@
         "trading/secretary_broker_owner.py": "bd1a1881b44f0fa8c4e87a23b76210967ede3532a5d2aa8845bb1ea848c1b0c2",
         "reporting/secretary_operations.py": "a545233912cf13f07c501acaf17ac837a7b4807dc8983348cbcc3574cc3363eb",
         "ops/cloud/secretary_rpc.py": "5ebf7ca3ee509621cf737c9563cd3427cd5a80afddd107bdf3a8212e9b6163b4",
-        "ops/cloud/paper_safety_watch.py": "6eb6a18c62f325e12a04a9b2cc6bcc93ee2e26f6b169cd340a8f27b0fc15dfe2",
+        "ops/cloud/paper_safety_watch.py": "9d0a82a1318b0fa0c00b0fb792096ef9b419d62e18b2983f188f005747b193b7",
         "reporting/secretary_read.py": "671fade85ead9087ffced4640ec57f7f284d7b2b1cdd2c8ccb7f8eca32fcdc90",
         "reporting/secretary_queue.py": "abe6f05152ba0f89618f8a1f7aabb7638988a725829f4708ca7b3b3ad959bac7",
         "scripts/run_secretary_bridge.py": "51fd4da11be833c8b070e87e7c35ed524c751bfc1d6053cf43622547bca6a4cd",

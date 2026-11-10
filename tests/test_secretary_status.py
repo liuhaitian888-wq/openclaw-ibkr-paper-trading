@@ -1,3 +1,4 @@
+from contextlib import closing
 import json
 from contextlib import closing
 from pathlib import Path

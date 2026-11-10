@@ -2,7 +2,6 @@
 from datetime import datetime, timezone
 import time
 import math
-import uuid
 from trading.tws_paper import TwsPaperClient
 
 
@@ -13,7 +12,6 @@ class PaperSafetyClient(TwsPaperClient):
         super().__init__()
         self.monitor = monitor
         if not hasattr(monitor,'cashbook_publication_state'):monitor.cashbook_publication_state={}
-        self.connection_generation=uuid.uuid4().hex
         self.upstream_reported_lost=False
         self._initial_pending=set()
         self.tickers = {46000+i:s for i,s in enumerate(symbols)}
@@ -40,14 +38,14 @@ class PaperSafetyClient(TwsPaperClient):
         if self.bar_wire_protocol=='legacy' and msgId in bars:return False
         return super().useProtoBuf(msgId)
 
-    def connect(self,*args,**kwargs):
-        if not self.isConnected():
-            self.connection_generation=uuid.uuid4().hex
-            self._initial_pending.clear()
-            self.upstream_reported_lost=False
-            self._reset_cashbook_collector()
-            self._reset_pnl_collector()
-        return super().connect(*args,**kwargs)
+    def _prepare_connection_generation(self):
+        # The base owner chooses the final SDK generation exactly once, before
+        # rebuilding any collector that captures it.
+        super()._prepare_connection_generation()
+        self._initial_pending.clear()
+        self.upstream_reported_lost=False
+        self._reset_cashbook_collector()
+        self._reset_pnl_collector()
 
     def _next_cash_request_id(self):
         # Keep request identity unique even when the same EWrapper reconnects.

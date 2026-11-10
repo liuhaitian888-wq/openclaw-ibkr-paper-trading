@@ -80,7 +80,7 @@ class SubscriptionLifecycleTests(unittest.TestCase):
   c=PaperSafetyClient(m,['PFE'])
   for name in ('reqMarketDataType','reqMktData','reqRealTimeBars','cancelMktData','cancelRealTimeBars'):
    setattr(c,name,Mock())
-  with patch('trading.tws_paper.TwsPaperClient.connect'),patch.object(c,'isConnected',return_value=False):
+  with patch('ibapi.client.EClient.connect'),patch.object(c,'isConnected',return_value=False):
    c.connect('127.0.0.1',4002,clientId=18770);self.assertTrue(c.subscribe()[0]['allowed'])
    m.market_error('PFE',10197,'competing')
    for _ in range(4):

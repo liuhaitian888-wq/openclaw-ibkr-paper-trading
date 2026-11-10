@@ -21,7 +21,7 @@ import fcntl
 from pathlib import Path
 from contextlib import closing
 from datetime import datetime, timezone
-from .health import MODULE_DEPENDENCIES, LIVE_MODULES, resolve_modules, dependency_registry
+from .health import MODULE_DEPENDENCIES, LIVE_MODULES, resolve_modules, dependency_registry, callback_owned_modules
 
 RECOVERY_STEPS=('connect','authenticate','identity','refresh','freshness','reconcile','backlog')
 RETRY_POLICY={
@@ -64,10 +64,15 @@ class RecoveryCoordinator:
                         affected.add(child)
                         prior=c.execute('SELECT payload FROM module_observations WHERE name=?',(child,)).fetchone()
                         data=json.loads(prior[0]) if prior else {}
+                        previous_phase={k:data.get(k) for k in ('state','freshness','reason','recovery_state')}
                         data.update(state='DEGRADED',freshness='STALE',reason='Invalidated by '+name,
                                     observed_at=now,last_failure=now,recovery_state='WAITING_REFRESH')
                         c.execute('INSERT OR REPLACE INTO module_observations VALUES (?,?)',(child,json.dumps(data,sort_keys=True)))
-                        c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':child,**data}),))
+                        # The parent occurrence is retained above. An unrecovered
+                        # child is still in the same loss phase: refresh its local
+                        # observation without archiving the same payload again.
+                        if any(previous_phase[k]!=data.get(k) for k in previous_phase):
+                            c.execute('INSERT INTO module_events(payload) VALUES (?)',(json.dumps({'module':child,**data}),))
     def configure_delivery_transport(self,transport):
         if transport not in ('telegram','smtp','feishu'):raise ValueError('Unknown primary delivery transport')
         with closing(self.connect()) as c,c:
@@ -106,6 +111,7 @@ class RecoveryCoordinator:
             try:fcntl.flock(lease,fcntl.LOCK_EX|fcntl.LOCK_NB)
             except BlockingIOError:return []
             for module in MODULE_DEPENDENCIES:
+                if module in callback_owned_modules(self.observations()):continue
                 adapter=self.adapters.get(module)
                 if adapter is None:continue
                 state=self.snapshot()
@@ -196,6 +202,8 @@ def wire_live_adapters(coordinator, state_root, code_root, *, expected_account=N
     symbols=tuple(symbols or approved.get('market_symbols',()))
     def read(path):return json.loads(Path(path).read_text())
     def broker():
+        if coordinator.observations().get('NATIVE_BROKER_SESSION',{}).get('enabled') is True:
+            raise PermissionError('Existing native owner reserves broker transport; no independent generic probe')
         host=os.environ.get('TWS_HOST','127.0.0.1')
         port=int(os.environ.get('TWS_PORT','7497'))
         if host!='127.0.0.1' or port not in (4002,7497):
