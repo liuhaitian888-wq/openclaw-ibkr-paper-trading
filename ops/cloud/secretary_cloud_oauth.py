@@ -22,7 +22,15 @@ def main():
     for sig in (signal.SIGTERM,signal.SIGINT):signal.signal(sig,lambda *_:stopped.set())
     with monitoring_service('secretary-cloud-model',root):
         while not stopped.is_set():
-            try:state=run_once(root,config,root/'secretary-oauth',owner='cloud_oauth',provider='codex_oauth',auth_check=oauth_ready,inference_backend=analyze)
+            try:
+                if (root/'runtime/SECRETARY_MODEL_DRAIN').exists():
+                    stopped.wait(1);continue
+                # Same held kernel owner and OAuth home; never concurrent token refresh.
+                from ops.cloud.secretary_cloud_api import policy
+                from reporting.engineering_tasks import run_once as engineering_once
+                state=engineering_once(root,config,policy(root,'cloud_oauth'),home=root/'secretary-oauth')
+                if state in ('DISABLED','IDLE','SCOPE_INACTIVE','STARTED_REQUIRES_RECONCILIATION'):
+                    state=run_once(root,config,root/'secretary-oauth',owner='cloud_oauth',provider='codex_oauth',auth_check=oauth_ready,inference_backend=analyze)
             except Exception as exc:
                 print(json.dumps({'state':'OAUTH_DEPENDENCY_UNAVAILABLE','error_type':type(exc).__name__}),flush=True)
                 stopped.wait(15);continue

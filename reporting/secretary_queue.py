@@ -36,7 +36,9 @@ def accept_update(archive, update, config, *, armed_at):
     if allowed:
         archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/api','/cloud','/market','/members','/member_set','/hours','/weekly','/codex','/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
-            'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
+            'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date'],
+            'native_authority':{'sender_id':sender['id'],'chat_type':'private',
+                'is_bot':False,'forwarded':False,'edited':False}})
     with closing(archive.connect()) as c,c:
         c.execute('CREATE TABLE IF NOT EXISTS secretary_received (instruction TEXT PRIMARY KEY, received_at REAL NOT NULL)')
         if allowed:c.execute('INSERT OR IGNORE INTO secretary_received VALUES (?,?)',('telegram:'+str(native_chat)+':'+str(uid),received))

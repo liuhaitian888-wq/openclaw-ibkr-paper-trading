@@ -65,6 +65,9 @@ def process_controls(archive,root,config,policy=None):
                     if not 1<=len(request)<=3000:raise ValueError('工程需求长度1到3000字')
                     archive.append(instruction+':engineering-handoff',CONVERSATION,origin='TOOL',kind='ENGINEERING_HANDOFF',parent=instruction,payload={'request':request,'native_owner_instruction':instruction,'state':'ARCHIVED_NOT_ACCEPTED','automatic_deployment':False})
                     summary='已归档工程需求；尚未证明Codex接收或执行。可复制给Codex：\n请在买der按AGENTS.md核实并处理以下需求，保留交易与维护门禁：\n'+request
+                    if request in ('dbcheck','只读数据库检查'):
+                        from .engineering_tasks import control_receipt
+                        summary=control_receipt(archive,config,policy,instruction) or summary
                 else:
                     _,review=packet(archive,datetime.now(timezone.utc));summary=review['reason']
             elif command in ('/members','/member_set'):
