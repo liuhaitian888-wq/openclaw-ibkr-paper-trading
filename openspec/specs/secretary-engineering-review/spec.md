@@ -142,6 +142,10 @@ The secretary SHALL implement /api, /cloud and /market as bounded click-scoped l
 - **WHEN** an owner selects a live status entry and the existing owner does not return a valid fresh response within the deadline
 - **THEN** the secretary reports timeout or the specific failure for this click, without replaying an uncertain attempt.
 
+#### Scenario: Explain cloud and broker checks in plain language
+- **WHEN** a status menu reports process checks or a failed broker query
+- **THEN** it names the model connection, broker connection and cloud services explicitly, avoiding the ambiguous term upstream; expiry before broker admission is distinguished from an already-sent query waiting for a reply.
+
 ### Requirement: Cloud-native deterministic authentication assistance
 The verified cloud inbox SHALL own approved fresh Gateway-start controls independently of model inference and a Mac bridge. It SHALL recheck native owner provenance, cutover time and stopped-unit state, record the attempt before transport, and use only a bounded fixed-unit start. Normal Gateway processes SHALL NOT be restarted. Native startup acceptance SHALL NOT imply authentication or trading permission.
 

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 from reporting.agent_secretary import SecretaryArchive
 from reporting.secretary_queue import CONVERSATION
-from reporting.secretary_live_status import cloud_check,queue_check,model_probe,tick,UNITS
+from reporting.secretary_live_status import cloud_check,queue_check,model_probe,tick,UNITS,broker_failure
 
 class LiveStatusTests(unittest.TestCase):
     def setUp(self):
@@ -63,3 +63,18 @@ class LiveStatusTests(unittest.TestCase):
         with closing(self.a.connect()) as c:
             value=json.loads(c.execute("SELECT payload FROM secretary_events WHERE kind='LIVE_STATUS_MODEL_RESULT'").fetchone()[0])
         self.assertEqual(value['state'],'FAILED')
+
+    def test_menu_uses_explicit_connection_terms(self):
+        def runner(args,**kw):
+            return subprocess.CompletedProcess(args,0,stdout='\n\n'.join('Id='+u+'\nActiveState=active\nSubState=running' for u in UNITS))
+        text=cloud_check(self.a,runner=runner)
+        self.assertNotIn('上游',text)
+        self.assertIn('模型连接、券商连接',text)
+        self.assertIn('券商连接程序：通过',text)
+        self.assertNotIn('ibkr-paper-safety.service',text)
+
+    def test_failure_distinguishes_not_admitted_from_sent_timeout(self):
+        self.assertIn('未接收本次查询',broker_failure('UNAVAILABLE','Broker owner unavailable before query deadline'))
+        self.assertIn('查询已发出',broker_failure('UNAVAILABLE','Broker query timed out'))
+        self.assertIn('超时',broker_failure('STARTED',None))
+        self.assertIn('错误码354',broker_failure('UNAVAILABLE','BROKER_REQUEST_ERROR_354'))

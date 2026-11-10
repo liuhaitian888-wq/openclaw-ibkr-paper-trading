@@ -175,6 +175,28 @@ class DispositionTests(unittest.TestCase):
             self.assertEqual(c.execute('SELECT count(*) FROM notification_current_status').fetchone()[0],2)
             self.assertEqual(c.execute("SELECT count(*) FROM notification_disposition_events WHERE action='CURRENT_STATUS_ZERO_WIRE_REFRESH'").fetchone()[0],1)
             self.assertEqual(c.execute('SELECT count(*) FROM notification_attempts WHERE notification_id=?',(old,)).fetchone()[0],1)
+        self.store.delivery_receipt(old,{'transport':'unexpected_new_evidence'})
+        with self.assertRaises(PermissionError):validate_before_wire(self.store,get_item(self.store,new),self.now)
+        with closing(self.store.connect()) as c,c:c.execute('DELETE FROM notification_receipts WHERE notification_id=?',(old,))
+        with closing(self.store.connect()) as c:
+            aid=c.execute('SELECT id FROM notification_attempts WHERE notification_id=?',(old,)).fetchone()[0]
+        faults=[
+            ("INSERT INTO operation_attempts VALUES(?,'delivery','STARTED','{}')",('notification:outbox:'+str(old),),
+             'DELETE FROM operation_attempts WHERE identity=?',('notification:outbox:'+str(old),)),
+            ("INSERT INTO notification_attempt_events(attempt_id,observed_at,stage,evidence) VALUES(?,1031,'WIRE_START','{}')",(aid,),
+             "DELETE FROM notification_attempt_events WHERE attempt_id=? AND stage='WIRE_START'",(aid,)),
+            ("UPDATE notification_outbox SET status='UNKNOWN' WHERE id=?",(old,),
+             "UPDATE notification_outbox SET status='SUPERSEDED' WHERE id=?",(old,)),
+        ]
+        for inject,args,restore,undo_args in faults:
+            with self.subTest(late_evidence=inject):
+                with closing(self.store.connect()) as c,c:c.execute(inject,args)
+                try:
+                    self.assertIsNone(self.store.claim())
+                    with self.assertRaises(PermissionError):validate_before_wire(self.store,get_item(self.store,new),self.now)
+                finally:
+                    with closing(self.store.connect()) as c,c:c.execute(restore,undo_args)
+        validate_before_wire(self.store,get_item(self.store,new),self.now)
         self.assertEqual(asyncio.run(send_one(self.store,self.co,cfg,report_root=self.root,bot_factory=lambda **k:bot,clock=lambda:self.now)),'TELEGRAM_ACCEPTED')
         self.assertEqual(len(bot.sends),1)
         with self.assertRaises(PermissionError):queue_current(self.store,'owner-scope',refresh_unsent_reason='Accepted cannot refresh')

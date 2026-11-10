@@ -79,6 +79,6 @@ class ResponsesTests(unittest.TestCase):
 
  def test_receipt_ack_is_owner_specific_and_not_execution_confirmation(self):
   from reporting.secretary_queue import acknowledgement
-  self.assertIn('不是模型已开始',acknowledgement('cloud_api'))
-  self.assertNotIn('Mac',acknowledgement('cloud_api'))
-  self.assertIn('Mac',acknowledgement('mac_bridge'))
+  self.assertIn('收到',acknowledgement('cloud_api'))
+  self.assertNotIn('已开始',acknowledgement('cloud_api'))
+  self.assertNotIn('Mac',acknowledgement('mac_bridge'))
