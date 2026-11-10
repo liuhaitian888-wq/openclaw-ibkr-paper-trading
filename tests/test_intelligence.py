@@ -41,12 +41,12 @@ class IntelligenceTests(unittest.TestCase):
         result=source_result('BLS',failed);self.assertEqual(result['state'],'UNAVAILABLE');self.assertNotIn('unsubscribed',str(result).lower())
     def test_flat_nan_and_manual_exposure(self):
         self.assertEqual(held_symbols({'positions':{'AAPL':1,'NVDA':0,'PFE':-2,'MSFT':float('nan')}}),['AAPL','PFE'])
-    def test_progress_milestone_is_idempotent(self):
+    def test_legacy_technical_progress_does_not_emit_user_notifications(self):
         from reporting.secretary_queue import progress
         with tempfile.TemporaryDirectory() as tmp:
             store=IncidentStore(Path(tmp)/'recovery.sqlite3')
             progress(store,'run','CLAIMED','starting');progress(store,'run','CLAIMED','starting')
-            self.assertIsNotNone(store.claim());self.assertIsNone(store.claim())
+            self.assertIsNone(store.claim())
     def test_existing_quote_movement_has_window_not_daily_or_causal_claim(self):
         from reporting.intelligence import market_observations
         state={'epoch':'same','quotes':{'AAPL':{'bid':97,'ask':99,'bid_at':100,'ask_at':100,'data_type':1}}}

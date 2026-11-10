@@ -36,7 +36,9 @@ def accept_update(archive, update, config, *, armed_at):
     if allowed:
         archive.append('telegram:'+str(native_chat)+':'+str(uid),CONVERSATION,origin='USER',kind='CONTROL_INSTRUCTION' if (m['text'].split() or [''])[0].split('@')[0] in ('/api','/cloud','/market','/members','/member_set','/hours','/weekly','/codex','/screen','/screen_refresh','/scan','/compare','/data_status','/marketdata','/market_register','/market_check','/universe','/eligible','/watch','/work','/searchlog','/search','/start','/inbox','/event','/read','/notify','/preview','/report','/engineering','/ready','/holdings','/gate','/gate_apply','/gate_batch','/gate_confirm','/gate_help','/help','/gate_set','/qmax','/omax','/rmax','/smax','/gmax','/login','/login_assist','/focus','/intel') else 'CHAT_INSTRUCTION',payload={
             'text':redact(m['text']),'source':'Telegram native owner message','update_id':uid,
-            'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date']})
+            'message_id':m['message_id'],'chat_id':native_chat,'timestamp':m['date'],
+            'native_authority':{'sender_id':sender['id'],'chat_type':'private',
+                'is_bot':False,'forwarded':False,'edited':False}})
     with closing(archive.connect()) as c,c:
         c.execute('CREATE TABLE IF NOT EXISTS secretary_received (instruction TEXT PRIMARY KEY, received_at REAL NOT NULL)')
         if allowed:c.execute('INSERT OR IGNORE INTO secretary_received VALUES (?,?)',('telegram:'+str(native_chat)+':'+str(uid),received))
@@ -107,7 +109,10 @@ def enqueue_reply(archive, store, run, text, *, role='RESEARCH'):
     with closing(archive.connect()) as c:
         private_tool=c.execute("SELECT 1 FROM secretary_events WHERE origin='TOOL' AND occurrence LIKE ? AND json_extract(payload,'$.request.name') IN ('broker_query','broker_result','service_status','cloud_tasks','cloud_task_submit','cloud_task_status') LIMIT 1",(run+':tool:%',)).fetchone()
     private_metadata={'requires_response':True,'sensitivity':'PRIVATE_ACCOUNT_OPERATIONS'} if private_tool else {}
-    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram','message_role':role,'queued_at':archive.clock(),'finished_at':result[0] if result else None,'run':run,**(json.loads(metadata[0]) if metadata else {}),**private_metadata},ensure_ascii=False,sort_keys=True)
+    with closing(archive.connect()) as c:
+        described=c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(run+':description',)).fetchone()
+    task_metadata=json.loads(described[0]) if described and role in ('TASK','RESEARCH') else {}
+    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram','message_role':role,'queued_at':archive.clock(),'finished_at':result[0] if result else None,'run':run,**(json.loads(metadata[0]) if metadata else {}),**private_metadata,**task_metadata},ensure_ascii=False,sort_keys=True)
     with closing(store.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary:'+run,encoded))
@@ -123,11 +128,9 @@ def reconcile_replies(archive, store):
 
 
 def progress(store,run,stage,text):
-    """Public activity milestones only; unique enqueue, no private reasoning stream."""
+    """Legacy technical milestones stay internal; business descriptions announce tasks."""
     if stage not in ('CLAIMED','FIRST_TOOL'):raise ValueError('Bounded public milestone required')
-    payload=json.dumps({'reason':'处理进度｜'+text[:500]+'\n档案：'+run,'delivery_transport':'telegram','message_role':'PROGRESS'},ensure_ascii=False)
-    with closing(store.connect()) as c,c:
-        c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-progress:'+run+':'+stage,payload))
+    return False
 
 
 def checkpoint(archive,run,data):
@@ -152,9 +155,7 @@ def checkpoint(archive,run,data):
 
 
 def acknowledgement(model_owner):
-    base='已收到并入库，等待处理；这不是模型已开始执行的确认。'
-    if model_owner in ('cloud_api','cloud_oauth'):return base+'由云端模型服务领取，结果与投递状态分别记录；可用 /work 查询进度。'
-    return base+'当前模型仍依赖 Mac 桥接，离线或执行失败时无法保证及时答复。可用 /work 查询已记录进度。'
+    return '收到，稍后回复。进度可看 /work。'
 
 
 def reconcile_acknowledgements(archive,store,*,model_owner='mac_bridge'):
@@ -162,7 +163,7 @@ def reconcile_acknowledgements(archive,store,*,model_owner='mac_bridge'):
         rows=c.execute("SELECT e.occurrence,e.recorded_at FROM secretary_events e JOIN secretary_received v ON v.instruction=e.occurrence LEFT JOIN secretary_ack_checkpoint a ON a.instruction=e.occurrence WHERE a.instruction IS NULL AND e.kind='CHAT_INSTRUCTION' AND e.origin='USER' AND e.occurrence LIKE 'telegram:%' ORDER BY e.rowid LIMIT 100").fetchall()
     with closing(store.connect()) as c,c:
         for occurrence,saved in rows:
-            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason=acknowledgement(model_owner),delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
+            c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary-ack:'+occurrence,json.dumps(dict(reason=acknowledgement(model_owner)+'\n编号：'+__import__('reporting.secretary_presentation',fromlist=['reference']).reference(occurrence),delivery_transport='telegram',message_role='ACK',queued_at=saved,instruction=occurrence),ensure_ascii=False)))
     # Commit outbox first; crash before this checkpoint is repaired by INSERT OR IGNORE.
     with closing(archive.connect()) as c,c:
         c.executemany('INSERT OR IGNORE INTO secretary_ack_checkpoint VALUES (?)',[(x[0],) for x in rows])

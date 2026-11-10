@@ -65,6 +65,9 @@ def process_controls(archive,root,config,policy=None):
                     if not 1<=len(request)<=3000:raise ValueError('工程需求长度1到3000字')
                     archive.append(instruction+':engineering-handoff',CONVERSATION,origin='TOOL',kind='ENGINEERING_HANDOFF',parent=instruction,payload={'request':request,'native_owner_instruction':instruction,'state':'ARCHIVED_NOT_ACCEPTED','automatic_deployment':False})
                     summary='已归档工程需求；尚未证明Codex接收或执行。可复制给Codex：\n请在买der按AGENTS.md核实并处理以下需求，保留交易与维护门禁：\n'+request
+                    if request in ('dbcheck','只读数据库检查'):
+                        from .engineering_tasks import control_receipt
+                        summary=control_receipt(archive,config,policy,instruction) or summary
                 else:
                     _,review=packet(archive,datetime.now(timezone.utc));summary=review['reason']
             elif command in ('/members','/member_set'):
@@ -93,7 +96,10 @@ def process_controls(archive,root,config,policy=None):
                     from .notification_text import notification_text
                     item=get_item(store,int(args[0]));summary='私人事件详情｜来源：'+item['incident_key']+'\n投递：'+item['status']+'\n'+notification_text(item,store.clock(),max_length=2600)
                 else:raise ValueError('用法：/inbox [类别] · /event 编号 · /read 编号 · /preview 编号 · /notify [类别 on或off]')
-            elif command in ('/work','/searchlog','/search') and len(parts)==2:
+            elif command=='/work':
+                from .secretary_presentation import work_status
+                summary=work_status(archive,store,parts[1] if len(parts)==2 else '')
+            elif command in ('/searchlog','/search') and len(parts)==2:
                 if command=='/search':
                     from .telegram_search import request_values
                     request={'query':parts[1]};request_values(request)
@@ -217,7 +223,7 @@ def process_controls(archive,root,config,policy=None):
                         archive.append(run+':requested',CONVERSATION,origin='SYSTEM',kind='GATEWAY_START_REQUESTED',parent=instruction,payload={'run':run})
                         controls.append({'kind':'GATEWAY_START','instruction':instruction,'run':run});continue
                     summary='认证尚未通过新鲜完整回读。已跟踪现有唯一Gateway/IBAutomater owner；需要核对Gateway当前登录/连接界面；若出现手机二次验证，再由你完成。不要在Telegram发送密码或验证码。成功后将自动通知；不会为了检查而重启正常服务。'
-            else:raise ValueError('Supported commands: /gate, /gate_apply JSON, /login, /login_assist, /focus text, /intel')
+            else:raise ValueError('查看任务进度请直接发送 /work；查看命令说明请发送 /help')
         except (ValueError,PermissionError,OSError,sqlite3.Error) as exc:
             summary='命令未确认生效，请核对：'+str(exc)[:250]+'。现有交易权限和订单不变。'
         respond(archive,store,instruction,summary)

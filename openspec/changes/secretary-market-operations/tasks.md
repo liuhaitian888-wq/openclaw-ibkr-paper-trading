@@ -120,3 +120,7 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Add nonce, timeout and non-replay regressions and update sequence diagram.
 - [x] Record1273 full offline tests, secret scan, live model nonce receipt and native Telegram result acceptance after deployment.
 - [ ] Owner phone click after upgrade and fresh /market quote acceptance; broker query admission currently unavailable.
+
+## Broker repair/menu clarity follow-up
+- [x] Use explicit model/broker connection and service names; distinguish broker query admission expiry from missing broker response.
+- [ ] Integrate immutable menu patch with transaction engineer connection repair under notification engineer deployment ownership, then observe fresh Telegram menu receipts.

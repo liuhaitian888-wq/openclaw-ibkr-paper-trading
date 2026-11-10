@@ -9,7 +9,9 @@ import time
 from .secretary_queue import CONVERSATION, enqueue_reply
 from .incidents import IncidentStore
 
-UNITS = ('ibkr-secretary-inbox.service', 'ibkr-secretary-oauth.service', 'ibkr-paper-safety.service', 'ibkr-gateway.service')
+UNIT_LABELS = {'ibkr-secretary-inbox.service':'Telegram收信服务', 'ibkr-secretary-oauth.service':'模型服务',
+               'ibkr-paper-safety.service':'券商连接程序', 'ibkr-gateway.service':'IB Gateway券商网关'}
+UNITS = tuple(UNIT_LABELS)
 
 
 def cloud_check(archive, *, runner=subprocess.run):
@@ -33,12 +35,12 @@ def cloud_check(archive, *, runner=subprocess.run):
             for unit in UNITS:
                 row = found.get(unit, {})
                 active = row.get('ActiveState') == 'active' and row.get('SubState') == 'running'
-                lines.append(unit+'：'+('通过（正在运行）' if active else '失败（'+row.get('ActiveState','未返回')+'/'+row.get('SubState','未返回')+'）'))
+                lines.append(UNIT_LABELS[unit]+'：'+('通过（正在运行）' if active else '失败（'+row.get('ActiveState','未返回')+'/'+row.get('SubState','未返回')+'）'))
     except subprocess.TimeoutExpired:
         lines.append('服务检查：超时（3秒）。')
     except OSError as exc:
         lines.append('服务检查：失败（'+type(exc).__name__+'）。')
-    lines.append('运行不等于上游连接成功；模型与券商现场检查点 /api。耗时 %.1f 秒。'%(time.time()-started))
+    lines.append('以上检查云端程序和秘书数据库；模型连接、券商连接是否成功，请点 /api。耗时 %.1f 秒。'%(time.time()-started))
     return '\n'.join(lines)
 
 
@@ -59,9 +61,9 @@ def queue_check(archive, root, instruction, group, policy):
         broker=submit(archive, {'area':'snapshot','sections':['quotes'] if group=='market' else ['positions']}, run=run, step=1, wait_seconds=0)
         body['broker_id']=broker.get('id')
         if not body['broker_id']:body['broker_error']='既有券商查询队列繁忙，本次未发送。'
-    else:body['broker_error']='既有券商owner未授权接受只读查询，本次未发送。'
+    else:body['broker_error']='券商连接程序尚未获准接受只读查询，本次未发送。'
     archive.append(run+':request', CONVERSATION, origin='SYSTEM', kind='LIVE_STATUS_REQUESTED', parent=instruction, payload=body)
-    return '正在现场检查'+('模型与券商连接' if group=='api' else '券商与行情')+'；通过现有owner执行，最长65秒回报结果。不会重启服务或自动重试。'
+    return '正在现场检查'+('模型与券商连接' if group=='api' else '券商与行情')+'；复用现有连接，最长65秒回报结果。不会重启服务或自动重试。'
 
 
 def pending(archive):
@@ -96,6 +98,27 @@ def model_probe(archive, root, key_path, inference, *, owner):
     return False
 
 
+def broker_failure(state, reason):
+    """Explain the failed stage without presenting queue expiry as a broker rejection."""
+    if state in ('READY','STARTED'):
+        return '超时：券商连接程序未在65秒内完成查询。'
+    reasons = {
+        'Broker owner unavailable before query deadline':'券商连接程序未接收本次查询（等待30秒已到期）。',
+        'Query expired before broker admission':'券商连接程序接收前，本次查询已过期。',
+        'Broker query timed out':'查询已发出，但未及时收到完整券商回执。',
+        'Broker connection changed':'查询过程中券商连接发生变化。',
+        'Broker owner changed; previous attempt retained, not replayed':'券商连接程序已更换；原查询保留，不自动重发。',
+        'Broker request outcome uncertain; not replayed':'原查询结果不确定，已保留，不自动重发。',
+        'Broker owner closing; query not replayed':'券商连接程序正在关闭，原查询不自动重发。',
+    }
+    if reason in reasons:return '失败：'+reasons[reason]
+    if isinstance(reason,str) and reason.startswith('BROKER_REQUEST_ERROR_') and reason[len('BROKER_REQUEST_ERROR_'):].isdigit():
+        return '失败：券商拒绝本次只读查询（错误码'+reason[len('BROKER_REQUEST_ERROR_'):]+ '）。'
+    if isinstance(reason,str) and reason.startswith(('券商连接程序','既有券商查询队列')):
+        return '失败：'+reason[:220]
+    return '失败：本次没有取得有效券商回执；具体技术原因已保留在检查记录。'
+
+
 def tick(archive, root):
     from .secretary_broker import result as broker_result
     labels={'PASSED':'通过','FAILED':'失败','TIMEOUT':'超时'}
@@ -109,13 +132,13 @@ def tick(archive, root):
         if not expired and (not broker_done or job['group']=='api' and model is None):continue
         lines=['API现场检查结果' if job['group']=='api' else '行情现场检查结果','检查时间：'+datetime.now(timezone.utc).isoformat()]
         if job['group']=='api':
-            m=model or {'state':'TIMEOUT','reason':'现有模型owner未在期限内完成本次检查（可能正在忙或未运行）。'}
+            m=model or {'state':'TIMEOUT','reason':'模型服务未在65秒内完成本次检查（可能正在忙或未运行）。'}
             lines.append('模型连接：'+labels[m['state']]+'；'+m['reason'])
-            lines.append('模型链路：'+str(job['provider'])+'；OAuth模式不检查API密钥。' if job['provider']=='codex_oauth' else '模型链路：OpenAI Responses API。')
+            lines.append('模型连接方式：ChatGPT OAuth（云端登录，无需API密钥）。' if job['provider']=='codex_oauth' else '模型连接方式：OpenAI Responses API。')
         detail=broker.get('result') or {}
         valid=(broker['state']=='SUCCEEDED' and detail.get('source')=='OWNED_LIVE_BROKER_QUERY'
                and type(detail.get('server_reply_at')) in (int,float) and detail['server_reply_at']>=job['queued_at'])
-        lines.append('券商连接：'+('通过，本次既有连接收到原生回执。' if valid else ('超时，既有券商owner未在期限内返回。' if not broker_done else '失败，'+str(detail.get('reason','本次没有有效原生回执。'))[:220])))
+        lines.append('券商连接：'+('通过，本次连接收到IBKR真实回执。' if valid else broker_failure(broker['state'],detail.get('reason'))))
         if job['group']=='market':
             quotes=detail.get('data',{}).get('quotes',{}) if valid else {}
             good=[s for s,q in quotes.items() if isinstance(q,dict) and q.get('data_type')==1 and all(type(q.get(k)) in (int,float) and job['queued_at']<=q[k]<=now and now-q[k]<=10 for k in ('bid_at','ask_at'))]
