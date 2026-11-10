@@ -1,0 +1,162 @@
+"""Operator-recorded retirement of three delivery dependencies, never a resend.
+
+Original outcomes stay unknown. Only a bound, fresh current-state report can use
+the disposition; ordinary alerts, old digests and arbitrary UNKNOWNs cannot.
+"""
+from contextlib import closing
+import hashlib
+import json
+import math
+
+LEGACY={1270:('paper-safety:protection:NIO',7),1271:('paper-safety:protection:PFE',171),1272:('paper-safety:protection:T',7)}
+ACTION='ARCHIVE_UNKNOWN_NO_REPLAY_CURRENT_RISK'
+
+
+def encoded(value):return json.dumps(value,ensure_ascii=False,sort_keys=True,allow_nan=False)
+def sha(text):return hashlib.sha256(text.encode()).hexdigest()
+
+
+def initialize(store):
+    with closing(store.connect()) as c,c:
+        c.executescript('''
+        CREATE TABLE IF NOT EXISTS notification_disposition_scopes(
+          scope_id TEXT PRIMARY KEY,authorized_at REAL NOT NULL,cutoff_id INTEGER NOT NULL,
+          authorization TEXT NOT NULL,authorization_sha256 TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS notification_dependency_dispositions(
+          notification_id INTEGER PRIMARY KEY,scope_id TEXT NOT NULL,incident_key TEXT NOT NULL,
+          generation INTEGER NOT NULL,kind TEXT NOT NULL,original_status TEXT NOT NULL,
+          original_payload TEXT NOT NULL,payload_sha256 TEXT NOT NULL,evidence TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS notification_disposition_events(
+          id INTEGER PRIMARY KEY,scope_id TEXT NOT NULL,notification_id INTEGER NOT NULL,
+          action TEXT NOT NULL,recorded_at REAL NOT NULL,evidence TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS notification_current_status(
+          scope_id TEXT PRIMARY KEY,notification_id INTEGER NOT NULL UNIQUE,payload TEXT NOT NULL,
+          state_sha256 TEXT NOT NULL,observed_at REAL NOT NULL,expires_at REAL NOT NULL);
+        ''')
+
+
+def legacy_evidence(c,ident):
+    result={table:list(c.execute(sql,(ident,))) for table,sql in (
+        ('delivery','SELECT * FROM notification_delivery WHERE notification_id=?'),
+        ('receipt','SELECT * FROM notification_receipts WHERE notification_id=?'),
+        ('attempts','SELECT id,envelope_sha256 FROM notification_attempts WHERE notification_id=?'))}
+    result['operations']=list(c.execute('SELECT * FROM operation_attempts WHERE identity=?',('notification:outbox:'+str(ident),)))
+    return encoded(result)
+
+
+def archive_dependencies(store,scope_id,authorization,expected):
+    """Trusted operator only. The model has no write tool for this operation."""
+    if (not isinstance(scope_id,str) or not 1<=len(scope_id)<=150
+            or authorization.get('action')!=ACTION or authorization.get('origin')!='USER'
+            or not all(isinstance(authorization.get(k),str) and authorization[k] for k in ('source_thread','source_message','user_text','interpretation'))
+            or set(expected)!=set(LEGACY)):
+        raise PermissionError('Exact three-occurrence operator disposition and owner provenance required')
+    initialize(store);auth=encoded(authorization)
+    with closing(store.connect()) as c,c:
+        c.execute('BEGIN IMMEDIATE')
+        old=c.execute('SELECT authorization FROM notification_disposition_scopes WHERE scope_id=?',(scope_id,)).fetchone()
+        if old:
+            hashes=dict(c.execute('SELECT notification_id,payload_sha256 FROM notification_dependency_dispositions WHERE scope_id=?',(scope_id,)))
+            if old[0]!=auth or hashes!=expected or not scope_valid(c,scope_id):raise PermissionError('Disposition identity/evidence reused or changed')
+            return scope_id
+        originals=[]
+        for ident,(key,generation) in LEGACY.items():
+            row=c.execute('SELECT incident_key,generation,kind,status,payload FROM notification_outbox WHERE id=?',(ident,)).fetchone()
+            if row is None or row[:4]!=(key,generation,'ALERT','STARTED') or sha(row[4])!=expected[ident]:
+                raise PermissionError('Original occurrence/status/raw payload differs')
+            evidence=legacy_evidence(c,ident)
+            if any(json.loads(evidence).values()):raise PermissionError('New positive evidence requires reconciliation first')
+            originals.append((ident,scope_id,*row,sha(row[4]),evidence))
+        cutoff=c.execute('SELECT coalesce(max(id),0) FROM notification_outbox').fetchone()[0]
+        c.execute('INSERT INTO notification_disposition_scopes VALUES(?,?,?,?,?)',(scope_id,store.clock(),cutoff,auth,sha(auth)))
+        c.executemany('INSERT INTO notification_dependency_dispositions VALUES(?,?,?,?,?,?,?,?,?)',originals)
+        # Keep obsolete, never-attempted aggregate history, rather than flushing it.
+        rows=c.execute("""SELECT id,payload FROM notification_outbox n WHERE id<=? AND status='PENDING' AND kind='RECOVERY'
+          AND incident_key LIKE 'paper-safety:protection-recovery-batch:%' AND json_extract(payload,'$.scope')='PAPER_SAFETY'
+          AND json_extract(payload,'$.recovery_digest_version')=1
+          AND NOT EXISTS(SELECT 1 FROM notification_attempts a WHERE a.notification_id=n.id)
+          AND NOT EXISTS(SELECT 1 FROM notification_delivery d WHERE d.notification_id=n.id)
+          AND NOT EXISTS(SELECT 1 FROM notification_receipts r WHERE r.notification_id=n.id)
+          AND NOT EXISTS(SELECT 1 FROM operation_attempts o WHERE o.identity='notification:outbox:'||n.id)""",(cutoff,)).fetchall()
+        for ident,payload in rows:
+            c.execute("UPDATE notification_outbox SET status='SUPERSEDED' WHERE id=? AND status='PENDING'",(ident,))
+            c.execute('INSERT INTO notification_disposition_events(scope_id,notification_id,action,recorded_at,evidence) VALUES(?,?,?,?,?)',
+                      (scope_id,ident,'OBSOLETE_UNATTEMPTED_DIGEST_SUPERSEDED',store.clock(),encoded({'original_payload':payload,'not_a_delivery_receipt':True})))
+    return scope_id
+
+
+def scope_valid(c,scope_id):
+    scope=c.execute('SELECT authorization,authorization_sha256 FROM notification_disposition_scopes WHERE scope_id=?',(scope_id,)).fetchone()
+    if not scope or sha(scope[0])!=scope[1]:return False
+    authorization=json.loads(scope[0])
+    if authorization.get('action')!=ACTION or authorization.get('origin')!='USER':return False
+    rows=c.execute('SELECT notification_id,incident_key,generation,kind,original_status,original_payload,evidence FROM notification_dependency_dispositions WHERE scope_id=?',(scope_id,)).fetchall()
+    if {x[0] for x in rows}!=set(LEGACY):return False
+    for ident,*original,evidence in rows:
+        row=c.execute('SELECT incident_key,generation,kind,status,payload FROM notification_outbox WHERE id=?',(ident,)).fetchone()
+        if row!=tuple(original) or legacy_evidence(c,ident)!=evidence:return False
+    return True
+
+
+def proof(state,now):
+    from .paper_readiness import ENDS
+    if (any(state.get(k) is not True for k in ('identity','connected','upstream_connected'))
+            or state.get('dirty') is not False or set(state.get('ends',[]))!=ENDS
+            or not isinstance(state.get('epoch'),str) or not state['epoch']
+            or any(type(state.get(k)) not in (int,float) or not math.isfinite(state[k]) or not 0<=now-state[k]<=limit
+                   for k,limit in (('last_server_reply',10),('reconciled_at',60)))):
+        raise PermissionError('Fresh complete owned Paper readback required')
+    return sha(encoded({k:state.get(k) for k in ('epoch','positions','orders','contracts')}))
+
+
+def queue_current(store,scope_id):
+    """One real current-state report, not a replay or synthetic recovery event."""
+    from .paper_readiness import inventory
+    with closing(store.connect()) as c,c:
+        c.execute('BEGIN IMMEDIATE')
+        if not scope_valid(c,scope_id):raise PermissionError('Disposition no longer matches original evidence')
+        previous=c.execute('SELECT notification_id FROM notification_current_status WHERE scope_id=?',(scope_id,)).fetchone()
+        if previous:return previous[0]
+        now=store.clock();raw=c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
+        state=json.loads(raw[0]) if raw else {};state_sha=proof(state,now)
+        if now-state['reconciled_at']>20:raise PermissionError('Wait for next naturally completed broker readback')
+        rows=inventory(state,verified=True)
+        for symbol in sorted({o.get('symbol') for o in state.get('orders',{}).values()
+                if not o.get('completed') and o.get('status') not in ('Filled','Cancelled','ApiCancelled','Inactive')
+                and not state.get('positions',{}).get(o.get('symbol'))}):
+            if not isinstance(symbol,str) or not symbol:raise PermissionError('Native order symbol missing')
+            rows.append({'symbol':symbol,'protection':'REVIEW_REQUIRED','reason':'ACTIVE_ORDER_WITHOUT_POSITION'})
+        if len(rows)>100:raise PermissionError('Bounded actual holdings required')
+        recovered=sum(x['protection']=='PROTECTED' for x in rows);unresolved=len(rows)-recovered
+        payload=dict(scope='CURRENT_PAPER_PROTECTION',data_classification='public_status',current_risk_scope=scope_id,
+            queued_at=now,source_observed_at=state['reconciled_at'],expires_at=now+30,broker_epoch=state['epoch'],
+            recovered_count=recovered,unresolved_count=unresolved,archived_unknown_count=3,
+            reason='本次新鲜完整回读的当前保护核验；旧三条结果未知已封存且未重发，不冒充旧恢复通知的回执。',
+            grants_trading_permission=False)
+        cur=c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES(?,1,'CURRENT_RISK_STATUS',?,'PENDING')",('paper-safety:current-status:'+scope_id,encoded(payload)))
+        ident=cur.lastrowid
+        c.execute('INSERT INTO notification_current_status VALUES(?,?,?,?,?,?)',(scope_id,ident,encoded(payload),state_sha,now,now+30))
+        c.execute('INSERT INTO notification_disposition_events(scope_id,notification_id,action,recorded_at,evidence) VALUES(?,?,?,?,?)',
+            (scope_id,ident,'CURRENT_STATUS_FROM_FRESH_NATIVE_READBACK',now,encoded({'broker_epoch':state['epoch'],'state_sha256':state_sha,'holdings':rows,'historical_outcomes':'UNKNOWN_NOT_REPLAYED'})))
+    return ident
+
+
+def claim_allowed(c,item):
+    if item['kind']!='CURRENT_RISK_STATUS':return True
+    scope=item['payload'].get('current_risk_scope')
+    row=c.execute('SELECT payload FROM notification_current_status WHERE scope_id=? AND notification_id=?',(scope,item['id'])).fetchone()
+    if row is None or row[0]!=encoded(item['payload']) or not scope_valid(c,scope):return False
+    # Other uncertain protection occurrences remain barriers, even after this scope.
+    return not c.execute("""SELECT 1 FROM notification_outbox n WHERE n.status IN ('STARTED','UNKNOWN')
+      AND n.id!=? AND n.incident_key LIKE 'paper-safety:protection:%'
+      AND n.id NOT IN (SELECT notification_id FROM notification_dependency_dispositions WHERE scope_id=?) LIMIT 1""",(item['id'],scope)).fetchone()
+
+
+def validate_before_wire(store,item,now):
+    if item['kind']!='CURRENT_RISK_STATUS':return
+    with closing(store.connect()) as c:
+        if not claim_allowed(c,item):raise PermissionError('Current-status administrative proof changed')
+        row=c.execute('SELECT state_sha256,observed_at,expires_at FROM notification_current_status WHERE notification_id=?',(item['id'],)).fetchone()
+        state=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
+        if not 0<=now-row[1]<=30 or now>=row[2] or proof(state,now)!=row[0]:
+            raise PermissionError('Current protection snapshot changed or expired')
