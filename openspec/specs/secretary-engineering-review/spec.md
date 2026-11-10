@@ -72,6 +72,14 @@ The system SHALL classify private account/security/immediate-gate content before
 - **WHEN** trusted evidence proves an occurrence was not sent, dependencies recover and the report remains valid
 - **THEN** the existing sender may create one authorized linked retry with a short public explanation and separately recorded owner-private result notice.
 
+#### Scenario: Configuration rejected before a Telegram claim
+- **WHEN** the current private Telegram configuration is invalid or differs from the existing client identity
+- **THEN** the regular Telegram owner rejects it before claim and leaves the notification PENDING without creating a new unaudited STARTED.
+
+#### Scenario: Configuration rejected in an already claimed legacy route
+- **WHEN** the mixed legacy route has claimed an item but configuration fails before transport entry
+- **THEN** append PREFLIGHT_FAILED with transport_entered=false before deferring that unsent attempt, preserve errors after transport as UNKNOWN, and never infer non-delivery of older legacy STARTED records from the new guard.
+
 #### Scenario: Display label versus authorized reader
 - **WHEN** a group member changes a tag or a private report is requested through an ordinary group message
 - **THEN** the label does not confer access and existing owner-private control requirements remain enforced.
