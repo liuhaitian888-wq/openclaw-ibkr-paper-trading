@@ -195,7 +195,7 @@ def run(evidence, *, home, empty_dir, record, codex=CODEX, timeout=120, handshak
                 raise RuntimeError('Native inference error')
             if method in ('item/started', 'item/completed'):
                 item = params.get('item', {})
-                if item.get('type') not in ('agentMessage', 'reasoning'):
+                if item.get('type') not in ('userMessage', 'agentMessage', 'reasoning'):
                     raise PermissionError('Unexpected native tool event refused')
                 if params.get('threadId') != thread or params.get('turnId') != identity:
                     raise ValueError('Native item identity mismatch')

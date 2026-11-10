@@ -37,9 +37,12 @@ for line in sys.stdin:
   send({'id':identity,'result':{'thread':{'id':'native-thread'},'model':'gpt-6.1-sol','modelProvider':'secretary_oauth','approvalPolicy':'never','sandbox':{'type':'readOnly','networkAccess':False}}})
  elif method=='turn/start':
   assert p['sandboxPolicy']=={'type':'readOnly','networkAccess':False} and p['effort']=='low'
+  send({'method':'item/started','params':{'threadId':'native-thread','turnId':'native-turn','item':{'type':'userMessage','content':p['input']}}})
   send({'id':identity,'result':{'turn':{'id':'native-turn','status':'inProgress'}}})
+  send({'method':'item/completed','params':{'threadId':'native-thread','turnId':'native-turn','item':{'type':'userMessage','content':p['input']}}})
   if MODE=='hang':time.sleep(30)
   if MODE=='tool':send({'id':100,'method':'item/commandExecution/requestApproval','params':{}});continue
+  if MODE=='file':send({'method':'item/started','params':{'threadId':'native-thread','turnId':'native-turn','item':{'type':'fileChange'}}});continue
   tid='other-turn' if MODE=='mismatch' else 'native-turn'
   send({'method':'item/completed','params':{'threadId':'native-thread','turnId':tid,'item':{'type':'agentMessage','text':'{"summary":"数据库检查完成。"}'}}})
   send({'method':'turn/completed','params':{'threadId':'native-thread','turn':{'id':'native-turn','status':'completed'}}})
@@ -64,7 +67,7 @@ for line in sys.stdin:
         self.assert_closed()
 
     def test_native_tool_request_refused_and_completion_identity_must_match(self):
-        for mode, expected in [('tool',PermissionError),('mismatch',ValueError)]:
+        for mode, expected in [('tool',PermissionError),('file',PermissionError),('mismatch',ValueError)]:
             self.children.clear();self.records.clear()
             with self.assertRaises(expected):self.invoke(mode)
             self.assertNotIn('TURN_COMPLETED',[x[0] for x in self.records]);self.assert_closed()
