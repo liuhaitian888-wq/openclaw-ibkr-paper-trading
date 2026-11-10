@@ -108,7 +108,10 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
             return saved['result']
         if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal'):
             return {'state':'REFUSED','reason':'Conversation cannot create work'}
-        if req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
+        # search_records.source selects a registered ledger, not an execution host.
+        # Other tools retain the cloud/local-snapshot provenance boundary.
+        ledger_source=req.get('name')=='search_records' and req.get('source','work') in ('work','notifications')
+        if not ledger_source and req.get('source','cloud')!='cloud':raise ValueError('Cloud tool cannot impersonate local snapshot')
         tool_started_at=time.time();tool_timer=time.monotonic()
         try:
             if req.get('name') in ('broker_query','broker_result'):
