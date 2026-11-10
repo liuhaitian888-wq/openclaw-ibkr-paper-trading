@@ -2,6 +2,8 @@
 from datetime import timezone
 import json
 import hashlib
+import os
+import tempfile
 from pathlib import Path
 
 from scripts.report_aggregation import collect_report, read_json, stamp
@@ -37,6 +39,19 @@ def source_diagnostics(observation, expected_account, now):
                 age_seconds=age, snapshot_sha256=hashlib.sha256(canonical.encode()).hexdigest())
 
 
+def _publish_source(path, data):
+    fd, name = tempfile.mkstemp(prefix='.source-', dir=path.parent)
+    try:
+        with os.fdopen(fd, 'wb') as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(name, path)
+    finally:
+        if os.path.exists(name):
+            os.unlink(name)  # Only this call's newly-created temporary inode.
+
+
 def prepare_reports(root, expected_account, now, *, publish_image=None, transport="feishu"):
     if transport not in ("feishu", "smtp", "telegram"):
         raise ValueError("Unsupported report transport")
@@ -50,13 +65,24 @@ def prepare_reports(root, expected_account, now, *, publish_image=None, transpor
     directory = root/'reports/financial'/day.isoformat()
     directory.mkdir(parents=True, exist_ok=True)
     prepared = []
+    source_bytes = json.dumps(observation, sort_keys=True, ensure_ascii=False, separators=(',', ':')).encode()
     from reporting.paper_readiness import collect as readiness_snapshot
     readiness=readiness_snapshot(root)
     manifest=read_json(root/'production.json')
     cashbook=read_json(root/'runtime/currency-book.latest.json')
     for kind in due_types(day):
         previous = read_json(directory/(kind+'.json'))
-        if (previous.get('render_version') == RENDER_VERSION and previous.get('source_snapshot_at') == observed.isoformat()
+        source_path = directory/(kind+'.SOURCE.json')
+        source_record = dict(path=str(source_path), sha256=source_check['snapshot_sha256'], encoding='canonical-json-v1')
+        source_matches = (previous.get('source_snapshot') == source_record and source_path.is_file()
+                          and isinstance(previous.get('source_check'), dict)
+                          and previous['source_check'].get('snapshot_sha256') == source_record['sha256']
+                          and previous['source_check'].get('reason_codes') == []
+                          and not source_path.is_symlink())
+        if source_matches:
+            with source_path.open('rb') as handle:
+                source_matches = handle.read(len(source_bytes)+1) == source_bytes
+        if (source_matches and previous.get('render_version') == RENDER_VERSION and previous.get('source_snapshot_at') == observed.isoformat()
                 and ((transport == 'feishu' and str(previous.get('image_key','')).startswith('img_')) or
                      (transport in ('smtp','telegram') and previous.get('image_path') == str(directory/(kind+'.png'))
                       and (directory/(kind+'.png')).is_file()
@@ -111,6 +137,8 @@ def prepare_reports(root, expected_account, now, *, publish_image=None, transpor
                 report.update(image_path=str(png), image_sha256=hashlib.sha256(content).hexdigest())
             else:
                 report['image_key'] = published
+        _publish_source(source_path, source_bytes)
+        report.update(source_snapshot=source_record, source_check=source_check)
         for suffix, content in [('json',json.dumps(report,ensure_ascii=False,indent=2))]:
             path=directory/(kind+'.'+suffix)
             temporary=path.with_suffix(path.suffix+'.tmp')

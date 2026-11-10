@@ -14,6 +14,35 @@ def due_types(day):
     return ['DAILY'] + (['WEEKLY'] if day.weekday() == 0 else []) + (['MONTHLY'] if day.day == 1 else [])
 
 
+def source_artifact(report, directory, day, kind, expected_account, now):
+    """Validate new source contracts; legacy evidence is explicitly unavailable."""
+    if 'source_snapshot' not in report:
+        if 'source_check' in report:
+            raise ValueError('New source contract is incomplete')
+        return None
+    record = report['source_snapshot']
+    path = Path(directory)/day.isoformat()/(kind+'.SOURCE.json')
+    if (not isinstance(record, dict) or record.get('encoding') != 'canonical-json-v1'
+            or path.is_symlink() or Path(record.get('path', '')).resolve() != path.resolve()):
+        raise ValueError('Exact source sidecar required')
+    with path.open('rb') as handle:
+        data = handle.read(10*1024*1024+1)
+    if not 0 < len(data) <= 10*1024*1024 or hashlib.sha256(data).hexdigest() != record.get('sha256'):
+        raise ValueError('Source sidecar identity changed')
+    observation = json.loads(data)
+    if not isinstance(observation, dict):
+        raise ValueError('Source observation required')
+    from .financial_reports import source_diagnostics
+    check = source_diagnostics(observation, expected_account, now)
+    saved_check = report.get('source_check')
+    if (not isinstance(saved_check, dict) or saved_check.get('reason_codes') != []
+            or check['reason_codes'] or check['snapshot_sha256'] != record['sha256']
+            or check['source_snapshot_at'] != report['source_snapshot_at']
+            or saved_check.get('snapshot_sha256') != record['sha256']):
+        raise ValueError('Source identity/time/validation mismatch')
+    return dict(path=str(path), sha256=record['sha256'])
+
+
 def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
     ready, missing = {}, {}
     for kind in due_types(day):
@@ -37,6 +66,7 @@ def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
                 if (Path(report.get('image_path', '')).resolve() != png or not content.startswith(b'\x89PNG\r\n\x1a\n')
                         or report.get('image_sha256') != hashlib.sha256(content).hexdigest()):
                     raise ValueError('Local PNG identity not verified')
+            source_artifact(report, directory, day, kind, expected_account, now)
             ready[kind] = report
         except (OSError, ValueError, KeyError, TypeError):
             missing[kind] = '报告缺失、日期不符或来源/账户未验证'
@@ -108,6 +138,9 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
                 if json.loads(data)!=r:raise ValueError('Report manifest changed before immutable snapshot')
                 snapshots.append(freeze(directory,source,hashlib.sha256(data).hexdigest()))
             payload['report_manifests']=snapshots
+            originals = [source_artifact(r, directory, day, k, expected_account, now) for k,r in selected.items()]
+            payload['source_snapshots'] = [freeze(directory, x['path'], x['sha256']) for x in originals if x is not None]
+            payload['source_provenance_missing'] = [k for k,r in selected.items() if 'source_snapshot' not in r]
         payload['data_classification']='private_account' if selected else 'public_status'
         if selected:
             payload['expires_at']=min(datetime.fromisoformat(r['source_snapshot_at']).timestamp()+600 for r in selected.values())
