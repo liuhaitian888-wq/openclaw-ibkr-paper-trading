@@ -77,3 +77,6 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Recompute seven flagged dependency-receipt source hashes and confirm exact documented false positives.
 - [x] Run temporary secret snapshot with relative source paths so existing exact .gitleaksignore fingerprints apply; retain blocking for other findings.
 - [x] Verify final isolated suite1217/48.234s, strict specs8/8, real snapshot scan and blocking canary; record Git/five-project refresh receipts in task-closeout.
+
+## Notification prewire configuration boundary
+- [x] Validate Telegram runtime configuration before claim and persist mixed-transport pre-wire failure evidence; keep old STARTED uncertainty unchanged.

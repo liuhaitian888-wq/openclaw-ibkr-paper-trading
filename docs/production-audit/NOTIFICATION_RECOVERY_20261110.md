@@ -14,7 +14,7 @@
 | 日报历史 | Nov8告警980/message156（02:00:06）与实际补报986/message159（02:20:53）；Nov9 1094UNKNOWN无回执且历史PNG已被可变预览覆盖 | 不因搜索无结果或缺DB行判定未发，不补造旧文件、不重放 |
 | 日报调度 | 09:00Asia/Shanghai=01:00UTC=全年02:00GMT+1；柏林冬02/夏03。23:01:44Z的PREPARED是柏林00:01:44的准备记录 | 02:00GMT+1契约无需改动；Nov10实际日报尚未到时，冻结附件/备份/投递原生验收等待真实排队 |
 
-Runtime patch fingerprint SHA256 `b0e839a2a9d81beceb65ae669dd8ab70a3b59869adf6b18dcd7cc0b25910239c`：sorted NUL-delimited runtime Python paths/content in git diff71fa3e6..a46921b（不含tests）。文档提交可领先运行源码；cloud source/manifest仍a46921b，不因文档收尾重载业务。
+Runtime patch fingerprint SHA256 `b0e839a2a9d81beceb65ae669dd8ab70a3b59869adf6b18dcd7cc0b25910239c`：sorted NUL-delimited runtime Python paths/content in git diff71fa3e6..a46921b（不含tests）。此处是a469阶段的实际发布证据；文档提交可领先运行源码，不因文档收尾重载业务。后续并行源码/本轮最终配置预检修复见下节。
 
 ## 漂移核查
 
@@ -33,3 +33,7 @@ Runtime patch fingerprint SHA256 `b0e839a2a9d81beceb65ae669dd8ab70a3b59869adf6b1
 回退先保留所有新审计表/冻结字节；若必须退回旧sender，不恢复旧宽泛自动群路由，使用旧固定公开模板边界（automatic_updates_to_group=false），保留已授权完整日报群投递和private身份核验；不清未知、重放或解除金融门禁。源库快照20261109T234709.896409Z在同机backups，跨库非原子、异地灾备未证明。
 
 既有维护/宽筛图不描绘此通知路径；保留先前PRODUCTION/paper_safety_watch依赖收据REVIEW_REQUIRED。其他聊天新增工具拓扑由其任务独立维护，不覆盖其图表/收据、不用文件指纹匹配冒充语义验证。
+
+## 最终发送前配置修复
+
+并行云端已前进91f7f64，notification_access/reconciliation/report_schedule等本轮核心字节未被替换。root以91为新基线保留已发布ledger/secretary tools，仅补通知worker：常驻Telegram模式在claim前检查普通私有配置、大小、内容及缓存client一致性；兼容混合模式若先claim后发现配置失败，正面记录PREFLIGHT_FAILED及transport_entered=false后defer。不会据此追认旧STARTED的结果。组合1219/47.111s/OK、六规格/activechange strictPASS、all-filessecretPASS；workerSHA2565b77ade39cc26bfe57966a21e4272097191d0f799cdba13a3733a121a73b4505。源码整合与最终通知owner重载结果追加到task-closeout/秘书工程档案；Paper/inbox/Gateway/OAuth本轮最终修复无需重启。
