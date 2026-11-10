@@ -101,3 +101,11 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [x] Cover changed authorization/original/attempt evidence, unrelated UNKNOWN, stale/dirty/changed state, bound payload, orphan orders and retention with isolated tests.
 - [ ] Deploy reviewed source with exact manifests and current positive broker proof; accept actual current-summary group receipt/UI and secretary persistent handoff.
 - [ ] Broader automatic ALERT/upgrade/recovery group aggregation and stable recovery after root-cause repair remain a separate user planning scope.
+
+
+## Automatic notification flood clarification — planning scope
+- [x] Record independently observed screenshot event/private receipt evidence and distinguish source churn, RECOVERY-only grouping and wrong automatic destination.
+- [x] Record the owner target and separate Codex-to-Codex collaboration from unverified autonomous secretary-to-Codex delivery.
+- [ ] Implement and offline-verify all automatic safe status routing to deehub, shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private mirror within a separately authorized implementation turn.
+- [ ] Establish the live recurrence root cause and verify callback/database lifecycle repair with fresh complete source evidence; do not infer protection-order loss from missing evidence.
+- [ ] Verify natural group delivery and absence of unwanted private mirrors with native receipts and user-visible messages; legacy disposition acceptance alone is insufficient.
