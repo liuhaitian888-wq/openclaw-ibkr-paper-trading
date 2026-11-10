@@ -22,3 +22,6 @@
 - [ ] Update actual diagram and provenance with archify, closeout and independent five-project collector.
 
 Progress evidence: source91f7f64 deployed; native broker query1.226s successful and systemctl/database probes accepted. Official Cloud adapter environment compatibility is unverified; server-hosted versus official executor intent clarification pending. Native Telegram result/latency and dev/ops write paths remain required for full goal.
+
+## Measured optimization follow-up
+Files: reporting/secretary_broker.py validates optional snapshot sections; trading/secretary_broker_owner.py returns selected fields and opens summary only for account/cash; scripts/run_secretary_bridge.py guides combined questions toward one snapshot. Tests: tests/test_secretary_broker_tools.py covers one reconciliation, selected-data projection, no account subscription for positions/orders and malformed/duplicate section refusal. Native before/after probes use distinct identities, existing sole model lock and original-result preservation; no Telegram impersonation/delivery claim.

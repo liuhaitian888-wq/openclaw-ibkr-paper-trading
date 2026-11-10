@@ -133,6 +133,10 @@ The secretary SHALL invoke registered Python tools through the existing broker o
 - **WHEN** a verified owner asks for current positions or cash
 - **THEN** a registered Python tool queries through the existing broker connection owner, reports source time and incomplete or unavailable results honestly, and creates no competing Gateway or trading permission.
 
+#### Scenario: Combined broker facts in one readback
+- **WHEN** an owner question needs multiple broker datasets together
+- **THEN** the registered snapshot tool accepts an explicit bounded section list, returns only the requested datasets from one owned reconciliation window, and avoids account-summary subscriptions when neither account nor cash is requested; source times and non-atomic consistency limits remain explicit.
+
 #### Scenario: Cross-database analysis
 - **WHEN** the owner requests analysis across business databases
 - **THEN** registered read-only tools expose each registered business database with bounded results and distinguish unavailable databases and stale snapshots from complete current coverage.

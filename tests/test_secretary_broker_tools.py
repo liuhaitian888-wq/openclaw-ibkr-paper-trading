@@ -83,6 +83,24 @@ class BrokerToolsTests(unittest.TestCase):
         self.now+=10;self.complete();r=result(self.archive,q['id'])
         self.assertEqual(r['result']['data']['quotes']['AAPL']['freshness'],'STALE_OR_UNENTITLED')
         self.assertEqual(self.monitor.state['quotes'],before)
+    def test_selected_snapshot_uses_one_reconciliation_and_returns_only_requested_data(self):
+        q=submit(self.archive,{'name':'broker_query','area':'snapshot','sections':['cash','positions','orders']},run='r',step=1,wait_seconds=0)
+        self.owner.poll();n=self.owner.pending['request_id']
+        self.owner.summary(n,ACCOUNT,'TotalCashValue','12','EUR');self.owner.summary_end(n);self.complete()
+        data=result(self.archive,q['id'])['result']['data']
+        self.assertEqual(set(data),{'positions','orders','account_summary'})
+        self.assertEqual(self.calls.count('reconcile'),1)
+        self.assertEqual(len([x for x in self.calls if isinstance(x,tuple) and x[0]=='summary']),1)
+    def test_selected_positions_snapshot_does_not_open_account_subscription(self):
+        q=submit(self.archive,{'name':'broker_query','area':'snapshot','sections':['positions','orders']},run='r',step=1,wait_seconds=0)
+        self.owner.poll();self.complete()
+        self.assertEqual(set(result(self.archive,q['id'])['result']['data']),{'positions','orders'})
+        self.assertFalse(any(isinstance(x,tuple) and x[0]=='summary' for x in self.calls))
+    def test_invalid_snapshot_sections_do_not_create_requests(self):
+        for area,sections in [('positions',['orders']),('snapshot',[]),('snapshot',['orders','orders']),('snapshot',['shell']),('snapshot',[[1]])]:
+            with self.subTest(area=area,sections=sections),self.assertRaises(ValueError):
+                submit(self.archive,{'name':'broker_query','area':area,'sections':sections},run='r',step=1,wait_seconds=0)
+
     def test_invalid_query_and_symbol_limit_do_not_enqueue(self):
         for request in ({'name':'broker_query','area':'placeOrder'}, {'name':'broker_query','area':'quotes','symbols':['X']*6}, {'name':'broker_query','area':'orders','command':'anything'}):
             with self.assertRaises(ValueError):submit(self.archive,request,run='r',step=1,wait_seconds=0)

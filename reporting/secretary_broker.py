@@ -4,7 +4,8 @@ import hashlib
 import json
 import time
 
-AREAS=frozenset(('account','positions','cash','orders','executions','quotes','snapshot'))
+SECTIONS=frozenset(('account','positions','cash','orders','executions','quotes'))
+AREAS=SECTIONS|{'snapshot'}
 
 
 def initialize(archive):
@@ -31,13 +32,21 @@ def result(archive,identity):
 
 
 def submit(archive,request,*,run,step,wait_seconds=8):
-    if (request.get('area') not in AREAS or set(request)-{'name','area','symbols','source'}
+    if (request.get('area') not in AREAS or set(request)-{'name','area','symbols','sections','source'}
             or type(step) is not int or not 1<=step<=12 or not isinstance(run,str) or not run
             or not 0<=wait_seconds<=8):raise ValueError('Bounded registered broker query required')
     symbols=request.get('symbols',[])
     if not isinstance(symbols,list) or len(symbols)>5 or any(not isinstance(s,str) or not 1<=len(s)<=16 or not s.replace('.','').isalnum() for s in symbols):
         raise ValueError('At most five explicit symbol identifiers required')
-    body=json.dumps({'area':request['area'],'symbols':symbols},sort_keys=True)
+    body={'area':request['area'],'symbols':symbols}
+    if 'sections' in request:
+        sections=request['sections']
+        if (request['area']!='snapshot' or not isinstance(sections,list) or not 1<=len(sections)<=6
+                or any(not isinstance(x,str) or x not in SECTIONS for x in sections)
+                or len(set(sections))!=len(sections)):
+            raise ValueError('Snapshot requires one to six distinct registered sections')
+        body['sections']=sections
+    body=json.dumps(body,sort_keys=True)
     identity='broker-query:'+hashlib.sha256((run+':'+str(step)).encode()).hexdigest()
     initialize(archive)
     with closing(archive.connect()) as c,c:

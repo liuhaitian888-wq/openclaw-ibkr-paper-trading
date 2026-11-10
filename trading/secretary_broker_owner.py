@@ -83,17 +83,18 @@ class SecretaryBrokerOwner:
                            and s.get('last_server_reply',0)>=p['started'])
                     if ready and p['summary_end']:
                         symbols=p['body']['symbols'];area=p['body']['area']
+                        sections=set(p['body'].get('sections',('account','positions','cash','orders','executions','quotes'))) if area=='snapshot' else {area}
                         data={}
                         for name in ('positions','orders','executions','quotes'):
-                            if area not in (name,'snapshot'):continue
+                            if name not in sections:continue
                             values=s.get(name,{})
                             if symbols:
                                 values={k:v for k,v in values.items() if (v.get('symbol',k) if isinstance(v,dict) else k) in symbols}
                             if len(values)>100:
                                 data[name]={'truncated':True,'items':dict(list(values.items())[:100])}
                             else:data[name]=copy.deepcopy(values)
-                        if area in ('account','cash','snapshot'):data['account_summary']=list(p['summary'].values())
-                        if area=='quotes':
+                        if sections&{'account','cash'}:data['account_summary']=list(p['summary'].values())
+                        if 'quotes' in sections:
                             for symbol,q in data.get('quotes',{}).items():
                                 if isinstance(q,dict):q['freshness']='FRESH' if q.get('data_type')==1 and all(type(q.get(k)) in (int,float) and 0<=now-q[k]<=5 for k in ('bid_at','ask_at')) else 'STALE_OR_UNENTITLED'
                             data['requested_unavailable_symbols']=[x for x in symbols if x not in data.get('quotes',{})]
@@ -103,7 +104,7 @@ class SecretaryBrokerOwner:
                             server_reply_at=s.get('last_server_reply'),data=data,
                             scope='Current native callbacks; execution history limited to broker session/API window; no cross-source atomicity',
                             grants_trading_permission=False)
-                        if area in ('account','cash','snapshot') and not p['summary']:
+                        if sections&{'account','cash'} and not p['summary']:
                             self._finish('UNAVAILABLE',{'reason':'Empty account summary is not verified account data'})
                         else:self._finish('SUCCEEDED',payload)
                 return False
@@ -127,7 +128,7 @@ class SecretaryBrokerOwner:
             p=self.pending
             try:
                 self.client.reconcile();self.client.reqCurrentTime()
-                if p['body']['area'] in ('account','cash','snapshot'):
+                if p['body']['area'] in ('account','cash') or p['body']['area']=='snapshot' and set(p['body'].get('sections',('account','cash')))&{'account','cash'}:
                     p['summary_sent']=True
                     self.client.reqAccountSummary(p['request_id'],'All',TAGS)
                 else:p['summary_end']=True

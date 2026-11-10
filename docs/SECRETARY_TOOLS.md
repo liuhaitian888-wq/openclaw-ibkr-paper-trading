@@ -25,3 +25,5 @@
 - 新的 Telegram → 模型实际选择工具 → IBKR → 私聊结果及各阶段延迟验收。
 
 IBKR 官方 account_summary 文档明确 `$LEDGER:ALL` 返回 account=All 的各币种汇总。工具只在 managedAccounts 精确为唯一 Paper 账户时接纳 CashBalance/TotalCashBalance/ExchangeRate，并保留原生 account=All 及汇总范围标签；其他账户仍拒绝，不把汇总伪装为精确账户字段。来源：https://interactivebrokers.github.io/tws-api/account_summary.html 。首次工程原生 snapshot 查询因该汇总标签被拒绝，保留 UNAVAILABLE；修正使用新查询身份验收，不重放原请求。
+
+组合查询可用 `{"name":"broker_query","area":"snapshot","sections":["cash","positions","orders"]}`，sections为1–6个不同的已登记领域，省略保持旧全量snapshot行为。只请求持仓/订单时不额外开账户摘要订阅；仍保留原生观察时间和一致性限制。一次问题优先一次snapshot，减少重复完整回读与不需要的模型上下文。真实模型到工具工程基线为23.909s（3次broker_query+databases，2轮模型）；不是Telegram端到端耗时。

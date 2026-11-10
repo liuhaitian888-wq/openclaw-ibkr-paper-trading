@@ -80,3 +80,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 
 ## Notification prewire configuration boundary
 - [x] Validate Telegram runtime configuration before claim and persist mixed-transport pre-wire failure evidence; keep old STARTED uncertainty unchanged.
+
+## Measured model/Python broker fast path
+- [x] Record finite sole-owner OAuth model → Python → broker/database → grounded model result,23.909s, without claiming Telegram acceptance or sending probe messages.
+- [x] Implement selected-section snapshots with one reconciliation, bounded validation, model routing and no unnecessary account-summary subscription.
+- [ ] Validate offline and a fresh finite native model-tool sample; record actual calls/timing separately from full Telegram latency and preserve prior attempts.
