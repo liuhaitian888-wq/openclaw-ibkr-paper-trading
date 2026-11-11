@@ -5,6 +5,7 @@ import json
 import hashlib
 from pathlib import Path
 from zoneinfo import ZoneInfo
+from scripts.report_aggregation import period_for
 
 BJ = ZoneInfo('Asia/Shanghai')
 LABELS = {'DAILY': '日报', 'WEEKLY': '周报', 'MONTHLY': '月报'}
@@ -12,6 +13,12 @@ LABELS = {'DAILY': '日报', 'WEEKLY': '周报', 'MONTHLY': '月报'}
 
 def due_types(day):
     return ['DAILY'] + (['WEEKLY'] if day.weekday() == 0 else []) + (['MONTHLY'] if day.day == 1 else [])
+
+
+def period_signature(period):
+    if not isinstance(period, dict):
+        return None
+    return tuple(period.get(key) for key in ('start_date', 'end_date_exclusive', 'timezone', 'sessions_complete', 'partial'))
 
 
 def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
@@ -31,6 +38,14 @@ def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
                     or report.get('source_validated') is not True
                     or (transport == 'feishu' and not str(report.get('image_key','')).startswith('img_'))):
                 raise ValueError('Report identity/date/source not verified')
+            expected_period = period_for(kind, now)
+            if period_signature(report.get('trading_period')) != period_signature(expected_period):
+                missing[kind] = ('交易期间待更新至纽约 ' + expected_period['start_date'] + ' 至 '
+                                 + expected_period['end_date_exclusive'] + '（结束日不含）；等待正确期间报告')
+                continue
+            if source_at < datetime.fromisoformat(expected_period['last_session_close_utc']):
+                missing[kind] = '源快照尚未覆盖该交易期间纽约20:00完整会话；等待会话结束后的新鲜完整回读'
+                continue
             if transport in ('smtp','telegram'):
                 png = (Path(directory)/day.isoformat()/(kind+'.png')).resolve()
                 content = png.read_bytes()
@@ -81,7 +96,8 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
         if kind == 'REPORT_SUPPLEMENT':
             lines += ['当日一次补报；延迟秒数：' + str(int((now - scheduled).total_seconds()))]
         for report_kind, report in selected.items():
-            lines += [LABELS[report_kind] + '｜' + report['trading_period']['start_date'] + ' 至 '
+            lines += [LABELS[report_kind] + '｜报告日（Asia/Shanghai）：' + report['report_date'],
+                      '交易期间（America/New_York）：' + report['trading_period']['start_date'] + ' 至 '
                       + report['trading_period']['end_date_exclusive'] + '（结束日不含）',
                       '数据截至：' + str(report.get('source_snapshot_at') or '未提供')]
             for field, label in [('net_liquidation','净资产'), ('total_cash_value','现金'), ('daily_pnl','当日盈亏')]:

@@ -4,9 +4,9 @@ import json
 import hashlib
 from pathlib import Path
 
-from scripts.report_aggregation import collect_report, read_json, stamp
+from scripts.report_aggregation import collect_report, read_json, stamp, period_for
 from scripts.report_rendering import render_html, RENDER_VERSION
-from reporting.report_schedule import BJ, due_types
+from reporting.report_schedule import BJ, due_types, period_signature
 
 
 def source_diagnostics(observation, expected_account, now):
@@ -47,6 +47,12 @@ def prepare_reports(root, expected_account, now, *, publish_image=None, transpor
     if source_check['reason_codes']:
         return {'status': 'SOURCE_UNVERIFIED', 'prepared': [], 'source_check': source_check}
     day = now.astimezone(BJ).date()
+    periods = {kind: period_for(kind, now) for kind in due_types(day)}
+    required_close = max(stamp(period['last_session_close_utc']) for period in periods.values())
+    if observed < required_close:
+        return {'status': 'SOURCE_UNVERIFIED', 'prepared': [],
+                'source_check': {**source_check, 'reason_codes': ['SOURCE_BEFORE_SESSION_CLOSE'],
+                                 'required_session_close_at': required_close.isoformat()}}
     directory = root/'reports/financial'/day.isoformat()
     directory.mkdir(parents=True, exist_ok=True)
     prepared = []
@@ -56,7 +62,8 @@ def prepare_reports(root, expected_account, now, *, publish_image=None, transpor
     cashbook=read_json(root/'runtime/currency-book.latest.json')
     for kind in due_types(day):
         previous = read_json(directory/(kind+'.json'))
-        if (previous.get('render_version') == RENDER_VERSION and previous.get('source_snapshot_at') == observed.isoformat()
+        if (period_signature(previous.get('trading_period')) == period_signature(periods[kind])
+                and previous.get('render_version') == RENDER_VERSION and previous.get('source_snapshot_at') == observed.isoformat()
                 and ((transport == 'feishu' and str(previous.get('image_key','')).startswith('img_')) or
                      (transport in ('smtp','telegram') and previous.get('image_path') == str(directory/(kind+'.png'))
                       and (directory/(kind+'.png')).is_file()

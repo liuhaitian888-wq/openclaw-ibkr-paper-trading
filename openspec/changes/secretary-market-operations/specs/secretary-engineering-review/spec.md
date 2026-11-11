@@ -179,3 +179,14 @@ The secretary SHALL invoke registered Python tools through the existing broker o
 Historical planning boundary (2026-11-10, before implementation): the owner-confirmed Python broker target was initially unimplemented. This paragraph is not the current runtime state.
 
 Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa5c918cc5813397 registered and deployed model-selected broker query/result tools on the existing Python broker connection owner, registered read-only service observations, absolute paths for all four business databases, and an unarmed official CLI Cloud-task adapter. Four native database queries and a native engineering broker snapshot succeeded; the latter returned6 positions/6 orders/3 API-window executions/6 account-summary fields in1.226s. Returned summary fields do not establish complete per-currency or settled-cash coverage. The first aggregate-account rejection remains retained as a separate failed query. Full source integration passed1218 isolated offline tests; those tests do not prove native Telegram delivery. The OAuth dialogue loop has its separate verified stage below. Telegram model-selected live broker/private result timing, all development/operations write paths and the intended Codex executor remain incomplete. Owner clarification is pending between the server-hosted OAuth Codex executor, official hosted Codex Cloud, or both; no substitute executor is declared accepted.
+
+### Requirement: Scheduled report period correctness
+Report cache reuse and dispatch SHALL match the complete trading period required at the current scheduled time, retaining the existing New York20:00/calendar policy. Freshness alone SHALL NOT prove source coverage of a newly completed session. Older-period or pre-close source reports SHALL wait with an explicit missing reason; report date and trading period SHALL be separately labelled.
+
+#### Scenario: Winter preview crosses session close
+- **WHEN** a preview is prepared before20:00New York and dispatch occurs after the required session changes
+- **THEN** the older period is refused, unchanged pre-close source is not relabelled fresh, and only genuinely post-close complete source enables the new period and existing once-only supplement.
+
+#### Scenario: Cached report has the wrong period
+- **WHEN** the source timestamp is unchanged but cached trading-period identity differs from the current complete target
+- **THEN** the cache is invalidated without changing the source timestamp, historical receipts or prior frozen files.

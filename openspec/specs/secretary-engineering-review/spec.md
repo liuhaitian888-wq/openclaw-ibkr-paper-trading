@@ -204,3 +204,14 @@ OAuth is the selected route; API-key instructions above describe superseded prep
 The preceding API and OAuth preparation paragraphs are historical snapshots. Current cloud source71fa3e6 uses independent Gmail ChatGPT OAuth, gpt-6.1-sol/low, with Mac bridge stopped. Fresh owner private update600875499 completed a native model turn in7.833s, archived SUCCEEDED and delivered through existing notification1304 with private message247/serverdate23:40:14Z. Human confirmed seeing actual text. Evidence: cloud engineering/secretary-oauth-20261109/cloud-private-acceptance.json. This verifies the current cloud dialogue loop for that request, not future uptime, live broker model tools, Codex Cloud task execution or all pending tasks in this active change. Earlier UNKNOWN states remain preserved.
 
 Notification continuation: candidate61619c0/8c63c5a retains explicit full group account-report approval, immutable artifacts and append-only reviews. New combined deployment/native report acceptance is recorded separately.
+
+### Requirement: Scheduled report period correctness
+Report cache reuse and dispatch SHALL match the complete trading period required at the current scheduled time, retaining the existing New York20:00/calendar policy. Freshness alone SHALL NOT prove source coverage of a newly completed session. Older-period or pre-close source reports SHALL wait with an explicit missing reason; report date and trading period SHALL be separately labelled.
+
+#### Scenario: Winter preview crosses session close
+- **WHEN** a preview is prepared before20:00New York and dispatch occurs after the required session changes
+- **THEN** the older period is refused, unchanged pre-close source is not relabelled fresh, and only genuinely post-close complete source enables the new period and existing once-only supplement.
+
+#### Scenario: Cached report has the wrong period
+- **WHEN** the source timestamp is unchanged but cached trading-period identity differs from the current complete target
+- **THEN** the cache is invalidated without changing the source timestamp, historical receipts or prior frozen files.

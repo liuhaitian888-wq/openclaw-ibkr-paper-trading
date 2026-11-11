@@ -176,12 +176,13 @@ class ReconciliationTests(unittest.TestCase):
 
     def test_enqueue_freezes_selected_bytes_before_builder_overwrites_latest(self):
         from reporting.report_schedule import enqueue_reports,BJ
+        from scripts.report_aggregation import period_for
         now=datetime(2026,11,5,9,tzinfo=BJ);self.now=now.timestamp()
         directory=self.root/'2026-11-05';directory.mkdir()
         png=directory/'DAILY.png';data=b'\x89PNG\r\n\x1a\nfrozen-report';png.write_bytes(data)
         manifest=dict(generated_at=now.isoformat(),source_snapshot_at=now.isoformat(),report_date='2026-11-05',
             report_type='DAILY',account_id='DU123',environment='PAPER',source_validated=True,image_path=str(png),
-            image_sha256=hashlib.sha256(data).hexdigest(),trading_period=dict(start_date='2026-11-04',end_date_exclusive='2026-11-05'))
+            image_sha256=hashlib.sha256(data).hexdigest(),trading_period=period_for('DAILY',now))
         (directory/'DAILY.json').write_text(json.dumps(manifest))
         self.assertEqual(enqueue_reports(self.store,self.root,'DU123',now,transport='telegram'),'REPORT_BUNDLE')
         item=get_item(self.store,1);art=item['payload']['png_artifacts'][0]

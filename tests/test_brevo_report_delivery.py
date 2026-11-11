@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from reporting.report_schedule import BJ, enqueue_reports
+from scripts.report_aggregation import period_for
 from reporting.incident_mail import send_one
 
 
@@ -23,7 +24,7 @@ class BrevoReportTests(unittest.TestCase):
                       report_date=now.date().isoformat(), report_type='DAILY', account_id='DU123',
                       environment='PAPER', source_validated=True, image_path=str(png),
                       image_sha256=hashlib.sha256(png.read_bytes()).hexdigest(),
-                      trading_period=dict(start_date='2026-11-04',end_date_exclusive='2026-11-05'))
+                      trading_period=period_for('DAILY',now))
         (directory/'DAILY.json').write_text(json.dumps(report))
         co=RecoveryCoordinator(root/'recovery.sqlite3');store=IncidentStore(co.path)
         self.assertEqual(enqueue_reports(store,root,'DU123',now,transport='smtp'),'REPORT_BUNDLE')
