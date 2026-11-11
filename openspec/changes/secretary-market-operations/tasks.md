@@ -145,3 +145,7 @@ Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded
 - [ ] Deploy candidate readiness/early2FA phases with compatible sharedpublisher; observe real manual-attention/2FA presentation without fault injection.
 
 Gateway actual acceptance2026-11-11: running409e255/oldrelease62c only; once06:09:47Z→newJava3186637:163137691→independentcomplete06:13:42Z→stableRECOVERED. Originalbuilder1985/group299 supplement independently accepted bypublisher; originalscopeUNKNOWN/old5unchanged. Sourcecandidate252b notactivated; pinprojection/baseadapter/fees/tradingrelease remain separate. See docs/production-audit/GATEWAY_RECOVERY_20261111.md.
+
+## Recovery coverage follow-up
+- [x] Independently recheck actual deployed recovery policy/release, distinguish known failure from unknown Java trigger, and record exact auto/manual coverage and a minimal offline successor test plan.
+- [ ] Any additional business-readiness automatic action needs explicit policy review, exact-source combination tests and separate deployment/native acceptance; this item grants no new restart or trading authority.
