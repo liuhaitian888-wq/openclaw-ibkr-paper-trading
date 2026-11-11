@@ -1,4 +1,6 @@
-# Combined executor source candidate
+# Combined executor source and deployment evidence
+
+## Author frozen candidate (historical source/offline)
 
 Base730c172. Reuse native-diagnostics d0c2230 (local cherry-pick2408634) and compact decoder fromef2847f; wire scoped_patch to COMPACT_PATCH_SCHEMA/INSTRUCTIONS. Diagnostics remain metadata-only; effective native75seconds/whole130seconds/stderr1M/ephemeral/no tools/no retries unchanged. Compact output still requires exact source hash/unique scope assignment and complete AST/compile/isolated test verification. Parent/child work progress and native private-reply provenance retained. No DB/OAuth permission, task scope, budget or real native opportunity added.
 
@@ -20,3 +22,13 @@ Exact runtime/test difference from730c172:
   "tests/test_native_journal.py": "397e33e8678860b019e4c1ab68069bcd969c4e27c3ce73695a920e4dc0abd927"
 }
 ```
+
+## Publisher minimal release and actual loading
+
+Current cloud Git source `7e2a9d12befc57fa41b54880f59f51a62afc0c34` was published from actual933, selecting only the10 runtime/test files (author8 plus already-reviewed /work projection/test). No larger-main qualification code was imported. Root minimal linked suite1472/84.512s OK;337Python fingerprint15a82639877ec58cf94d9c7e3ec1c638c892b8506fa78025ec5a1406e7545cb4. Root main linked suite1494/83.362s OK;339Python fingerprint61491b771023f89667ea6fb50a4b0e45bae14fecc55d30d3c79fa7104da5daee. These are independent checks of different trees; author1494/82.840s remains the author receipt above. Final strict12/12 and all-filessecret PASS, exitcodes independently checked. Minimal lineage also syncs the pre-existing capacity delta into its previously missing current spec, with existing private-critical title/body coherent.
+
+Actual source publication07:50:47UTC (08:50:47Berlin), identity-only dual manifests. Existing notification/inbox/OAuth owners3220704/05/06 loaded; Paper3094254/Gateway3186610 unchanged. Production/risk/pause/maintenance/expired protection/funding scope hashes and old five uncertain notification IDs/status/payloads match before/after. Full secretary-policy and storage-policy content preserved by publisher guards. Model call ledger still8 today, no current-owner STARTED, no model child process and owned drain released. No new native server/thread/read/turn/model task/canary/development workspace/scope was created by publication.
+
+Existing release folder `release-20261111T075047.600037Z`: recovery backup120840192bytes, secretary37437440bytes, Git bundle4375301bytes and small manifests/receipt; allocated162676736bytes (155.14MiB), below the256MiB planning reserve. Original headroom max(1GiB,3*twoDBsizes+inputbundle) unchanged; prepublication available6188924928bytes and inputbundle38810bytes, later observed6024843264bytes. Historical files and original task artifacts retained; no raw+gzip pair or large audit/history copy. Five service FD counts4–10/soft1024, no threshold warning; this is a point observation, not proof of no long-term growth.
+
+Original taskc81b6ee5de9729a64b08693b1dfebc67c01d99562ce1eb59a6ca767626e959f1 remains UNKNOWN with original TURN_ACCEPTED/thread/turn, same max1 consumed scope. Its error cannot be retroactively classified by new journaling. Loading verifies source identity/service startup and protected state only: actual compact output, new native diagnostic error path and owner-native /work view remain UNVERIFIED. A new native task opportunity requires a concrete independent human authorization; none is inferred from this release or output-size measurement.
