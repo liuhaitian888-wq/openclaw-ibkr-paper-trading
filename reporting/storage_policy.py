@@ -15,6 +15,7 @@ CLASSES = {
 }
 POLICY = dict(version=1, approved=True, enabled=True, grants_trading_permission=False,
     minimum_free_bytes=8*GIB, minimum_free_fraction=.28)
+ENGINEERING_RESERVE = 128*MIB
 
 
 def load(root):
@@ -159,6 +160,46 @@ def read(root):
         return dict(state='RECORDED', current=data['current'], event_count=len(data['events']))
     except (OSError, ValueError, KeyError, TypeError):
         return dict(state='UNKNOWN', current={})
+
+
+def engineering_decision(root, *, disk=None):
+    policy = load(root)
+    if policy is None:
+        return dict(kind='ENGINEERING_SNAPSHOT', allowed=True, state='POLICY_UNARMED')
+    st = os.statvfs(root) if disk is None else disk
+    available, total = st.f_bavail*st.f_frsize, st.f_blocks*st.f_frsize
+    used = usage(root,'engineering/development',budget=.05,limit=20000)
+    space = available-ENGINEERING_RESERVE >= max(policy['minimum_free_bytes'],total*policy['minimum_free_fraction'])
+    quota = used+ENGINEERING_RESERVE <= 512*MIB
+    return dict(kind='ENGINEERING_SNAPSHOT',allowed=space and quota,
+        state='ALLOWED' if space and quota else 'DEFERRED_CAPACITY' if not space else 'DEFERRED_CLASS_QUOTA',
+        available_bytes=available,total_bytes=total,class_bytes=used,next_run_reserve_bytes=ENGINEERING_RESERVE,
+        quota_bytes=512*MIB,sampled_at=time.time(),grants_trading_permission=False)
+
+
+def engineering_preflight(root):
+    try:
+        value = engineering_decision(root)
+        if value['state'] != 'POLICY_UNARMED': _audit(root,value)
+        return value
+    except (OSError,ValueError,TimeoutError):
+        return dict(kind='ENGINEERING_SNAPSHOT',allowed=False,state='DEFERRED_CAPACITY_UNKNOWN')
+
+
+def publication_decision(root, *, input_bytes, source_bundle_bytes, extra_bytes=0, disk=None):
+    """Explicit sole-publisher preflight; no backup is skipped or deleted."""
+    if any(type(x) is not int or not 0 <= x <= GIB for x in (input_bytes,source_bundle_bytes,extra_bytes)):
+        raise ValueError('Finite explicit publisher byte estimates required')
+    required = sum(contained(root,p).stat().st_size for p in ('runtime/recovery.sqlite3','agent_secretary.sqlite3'))
+    st = os.statvfs(root) if disk is None else disk
+    available = st.f_bavail*st.f_frsize
+    projected = required+2*input_bytes+source_bundle_bytes+extra_bytes+8*MIB
+    peak = max(GIB,3*required+input_bytes)
+    allowed = projected <= 256*MIB and available > peak and available-projected >= 2*GIB
+    return dict(kind='PUBLICATION_ARTIFACTS',allowed=allowed,state='ALLOWED' if allowed else 'DEFERRED_PUBLICATION_BUDGET',
+        available_bytes=available,required_backup_bytes=required,projected_bytes=projected,
+        wave_budget_bytes=256*MIB,original_peak_guard_bytes=peak,post_wave_floor_bytes=2*GIB,
+        source_estimates_must_be_rechecked=True,grants_cleanup_permission=False,grants_trading_permission=False)
 
 
 def observe(root, coordinator):
