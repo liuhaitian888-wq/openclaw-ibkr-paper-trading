@@ -128,9 +128,11 @@ def period_for(kind, now, monthly_policy='first_day'):
     end = min(nominal_end, now.astimezone(UTC))
     last_session = end_day - timedelta(days=1)
     while not trading_day(last_session):last_session -= timedelta(days=1)
-    sessions_complete = datetime.combine(last_session, time(20), NY).astimezone(UTC) <= now.astimezone(UTC)
+    last_session_close = datetime.combine(last_session, time(20), NY).astimezone(UTC)
+    sessions_complete = last_session_close <= now.astimezone(UTC)
     return {'start_utc': start.isoformat(), 'end_utc': end.isoformat(), 'timezone': NY.key,
             'start_date': start_day.isoformat(), 'end_date_exclusive': end_day.isoformat(),
+            'last_session_close_utc': last_session_close.isoformat(),
             'partial': partial or not sessions_complete, 'calendar_period_complete': end >= nominal_end, 'sessions_complete': sessions_complete}
 
 

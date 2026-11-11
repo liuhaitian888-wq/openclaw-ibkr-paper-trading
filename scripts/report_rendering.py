@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 from pathlib import Path
 from scripts.daily_visual_report import render_png, png_dimensions
 
-RENDER_VERSION='2026-11-07-cjk-cash-v4'
+RENDER_VERSION='2026-11-11-period-label-v5'
 
 
 def esc(v):return html.escape(str(v))
@@ -170,7 +170,7 @@ def render_html(r):
             bottom+=panel('周度快照','Weekly Snapshot',body)
         bottom+=panel('下月关注' if kind=='MONTHLY' else '下周关注','Next Month' if kind=='MONTHLY' else 'Next Week',attention(r))
     period=r['trading_period'];ready={True:'YES',False:'NO'}.get(r['paper_readiness'],'MISSING')
-    return f'''<!doctype html><html lang="zh-CN" data-report-auto-height="true"><head><meta charset="utf-8"><title>{zh}</title><style>{CSS}</style></head><body><main class="page {kind.lower()}"><div class="watermark">liuhaitian888-wq</div><header><div><h1>{zh}</h1><div class="subtitle">Paper Trading / {en}</div><div class="meta">{('SIMULATION / MOCK. Not real Trading data.<br>' if r.get('simulation') else '')}{esc(period['start_date'])} to {esc(period['end_date_exclusive'])} (end exclusive, New York). {'期间未结束 / Partial period' if period['partial'] else '交易期间 / Trading period'}</div></div><div class="status"><b>{esc(r['runtime_state'])}</b>PAPER readiness: {ready}<br><span class="note">报告日 / Beijing: {esc(r['report_date'])}</span></div></header>{top}<div class="note">基础货币是报表计价币种，不代表全部现金都在该币种。可用资金与购买力包含保证金能力，不是现金余额，也不是允许透支的额度。交易仅使用自有现金；币种余额须单独核对。<br>{esc(r.get('cash_balance_note',''))}</div><div class="split middle">{middle}</div><div class="split bottom">{bottom}</div><footer><div class="sources"><span>真实账本 / Broker ledger. 缺失不补零 / Missing stays unavailable.<br>{pnl_status(r)}</span><span>Snapshot generated {beijing_time(r.get('source_snapshot_at'))}<br>Generated {beijing_time(r.get('generated_at'))}</span></div><div class="copyright">© 2026 liuhaitian888-wq</div><div>For intended recipients only and do not redistribute without permission.</div></footer></main></body></html>'''
+    return f'''<!doctype html><html lang="zh-CN" data-report-auto-height="true"><head><meta charset="utf-8"><title>{zh}</title><style>{CSS}</style></head><body><main class="page {kind.lower()}"><div class="watermark">liuhaitian888-wq</div><header><div><h1>{zh}</h1><div class="subtitle">Paper Trading / {en}</div><div class="meta">{('SIMULATION / MOCK. Not real Trading data.<br>' if r.get('simulation') else '')}交易期间 / Trading period: {esc(period['start_date'])} to {esc(period['end_date_exclusive'])} (end exclusive, New York). {'期间未结束 / Partial period' if period['partial'] else '交易期间 / Trading period'}</div></div><div class="status"><b>{esc(r['runtime_state'])}</b>PAPER readiness: {ready}<br><span class="note">报告日 / Report date (Beijing): {esc(r['report_date'])}</span></div></header>{top}<div class="note">基础货币是报表计价币种，不代表全部现金都在该币种。可用资金与购买力包含保证金能力，不是现金余额，也不是允许透支的额度。交易仅使用自有现金；币种余额须单独核对。<br>{esc(r.get('cash_balance_note',''))}</div><div class="split middle">{middle}</div><div class="split bottom">{bottom}</div><footer><div class="sources"><span>真实账本 / Broker ledger. 缺失不补零 / Missing stays unavailable.<br>{pnl_status(r)}</span><span>Snapshot generated {beijing_time(r.get('source_snapshot_at'))}<br>Generated {beijing_time(r.get('generated_at'))}</span></div><div class="copyright">© 2026 liuhaitian888-wq</div><div>For intended recipients only and do not redistribute without permission.</div></footer></main></body></html>'''
 
 
 def write_report(r,output_dir):
