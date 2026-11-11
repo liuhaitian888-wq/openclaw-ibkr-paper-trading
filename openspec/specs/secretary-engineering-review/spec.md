@@ -300,6 +300,17 @@ The system SHALL preserve MODEL problem provenance and require a separately pers
 - **WHEN** the authorized fixed tests finish successfully
 - **THEN** return PATCH_READY plus immutable patch/log fingerprints privately through the existing sender, retain UNKNOWN on uncertain steps, and require the original publisher independent full-suite/review before any production merge or release.
 
+### Requirement: Native development result provenance
+The host SHALL bind development ACCEPTED, RESULT and UNKNOWN notices to the persisted task requesting run, its native USER CHAT or CONTROL instruction and received receipt. Exact verified current private owner and original scope/time identity SHALL be required for private routing. MODEL labels and external standing authorization SHALL NOT grant a native reply route. Existing uncertain or suppressed notice content MUST remain unchanged.
+
+#### Scenario: The owner receives one development result
+- **WHEN** the current private owner native request created the task within its original scope
+- **THEN** the existing sender routes its result privately once; no group companion or new sender is created.
+
+#### Scenario: Provenance is absent or owner changes
+- **WHEN** a notice has only MODEL or standing authorization provenance, no received receipt, stale identity, or a different current owner
+- **THEN** it remains internal without changing patch/test outcomes or replaying old uncertain notices.
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
@@ -333,14 +344,3 @@ Eight existing Codex chats are grouped and role-named; collaboration handoffs an
 
 ### Verified restricted Codex task — 2026-11-10
 Current deploymentc3443a25 completed fresh native ownerTelegramupdate600875513 through Hetzner officialCodexAppServer native thread/turn and read-only registeredDB diagnostics; archivedSUCCEEDED report hashd66e75e6b4c0dd1105390266c4e6236e42b836f704566a5faedf8b7e96414b5e and existingoutbox1834/private413 accepted02:17:31Z. Owner-session history independently contains resulttext. This supersedes earlier NOT_CONNECTED stage only for registered-db-diagnostic-v1, not arbitrary coding/deployment orHostedCloud. One-shot consumed; original UNKNOWNs preserved. Full evidence inSECRETARY_CODEX_NATIVE_ACCEPTANCE_20261110.md.
-
-### Requirement: Native development result provenance
-The host SHALL bind development ACCEPTED, RESULT and UNKNOWN notices to the persisted task requesting run, its native USER CHAT or CONTROL instruction and received receipt. Exact verified current private owner and original scope/time identity SHALL be required for private routing. MODEL labels and external standing authorization SHALL NOT grant a native reply route. Existing uncertain or suppressed notice content MUST remain unchanged.
-
-#### Scenario: The owner receives one development result
-- **WHEN** the current private owner native request created the task within its original scope
-- **THEN** the existing sender routes its result privately once; no group companion or new sender is created.
-
-#### Scenario: Provenance is absent or owner changes
-- **WHEN** a notice has only MODEL or standing authorization provenance, no received receipt, stale identity, or a different current owner
-- **THEN** it remains internal without changing patch/test outcomes or replaying old uncertain notices.
