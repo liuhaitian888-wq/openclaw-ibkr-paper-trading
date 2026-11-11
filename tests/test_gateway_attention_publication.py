@@ -209,6 +209,75 @@ class GatewayAttentionTests(unittest.TestCase):
         bot=fixtures.NotificationCenterTests.bot(self);self.assertEqual(self.send(bot),'TELEGRAM_ACCEPTED')
         self.assertEqual([x[0] for x in bot.sends],[42])
 
+    def test_duplicate_native_conflict_records_keep_evidence_but_only_one_action(self):
+        collect(self.store,self.root,reader=lambda _:[]);self.now+=1
+        texts=['Existing session detected','Existing session detected','START_RESULT ExistingSessionDetected']
+        rows=[dict(__CURSOR='same-login-'+str(i),__REALTIME_TIMESTAMP=str(self.now*1000000+i),MESSAGE=m) for i,m in enumerate(texts)]
+        collect(self.store,self.root,reader=lambda _:rows)
+        with closing(self.store.connect()) as c:ids=[r[0] for r in c.execute("select id from notification_outbox where kind='AUTH_SESSION_EVENT'")]
+        self.assertEqual(len(ids),3)
+        actions=[get_item(self.store,i) for i in ids if decision(get_item(self.store,i),CONFIG)['audience']=='owner']
+        self.assertEqual(len(actions),1)
+        prepare(self.store,CONFIG);bot=fixtures.NotificationCenterTests.bot(self)
+        self.assertEqual(self.send(bot),'TELEGRAM_ACCEPTED');self.assertEqual(self.send(bot),'EMPTY')
+        self.assertEqual(len(bot.sends),1)
+
+    def terminal(self):
+        return dict(invocation_id='23158813198f414b8d5f3a645e018988',result='exit-code',main_pid=0,
+                    active_state='failed',exit_status=2,exit_monotonic=123,checked_at=self.now)
+
+    def terminal_stage(self):
+        e=self.evidence(self.now);e.update(generation=None,service='failed',terminal_service=self.terminal())
+        e['readback']['gateway_api_handshake']=False
+        state,action=decide(dict(operation='RECOVERED',request_id='original',last_attempt=100),e,self.now)
+        self.assertEqual(action,'NONE');s=observe(state,e,self.now)
+        self.assertTrue(s['readiness_requires_operator']);self.persist(s);publish(self.store,s)
+        return s,self.notice()
+
+    def test_failed_fixed_service_without_java_prompts_once_without_new_restart(self):
+        s,item=self.terminal_stage();self.assertEqual(item['payload']['cause'],'SERVICE_FAILED')
+        with patch('trading.gateway_readiness.read_terminal_service',return_value=self.terminal(),create=True):
+            self.assertTrue(validate(self.store,item,CONFIG))
+        self.assertEqual((s['request_id'],s['last_attempt']),('original',100))
+        publish(self.store,s);self.assertEqual(self.notice()['id'],item['id'])
+
+    def test_terminal_notice_refuses_replaced_or_recovered_service_before_wire(self):
+        _,item=self.terminal_stage()
+        for proof in (None,{**self.terminal(),'invocation_id':'0'*32}):
+            with patch('trading.gateway_readiness.read_terminal_service',return_value=proof,create=True):
+                self.assertFalse(validate(self.store,item,CONFIG))
+
+    def test_terminal_probe_is_fixed_read_only_and_refuses_inactive_or_stale(self):
+        from trading import gateway_readiness as readiness
+        from types import SimpleNamespace
+        stdout='ActiveState=failed\nMainPID=0\nResult=exit-code\nInvocationID=23158813198f414b8d5f3a645e018988\nExecMainStatus=2\nExecMainExitTimestampMonotonic=123\n'
+        with patch.object(readiness.subprocess,'run',return_value=SimpleNamespace(stdout=stdout)) as run:
+            self.assertTrue(readiness.terminal_proof(readiness.read_terminal_service(self.now),self.now))
+        command=run.call_args.args[0];self.assertEqual(command[:3],['systemctl','show','ibkr-gateway.service'])
+        self.assertNotIn('restart',command);self.assertNotIn('reset-failed',command)
+        for change in (dict(active_state='inactive'),dict(main_pid=1),dict(invocation_id='bad'),dict(exit_monotonic=0),dict(checked_at=self.now-91)):
+            self.assertFalse(readiness.terminal_proof({**self.terminal(),**change},self.now))
+
+    def test_pre_wire_status_probe_uses_one_clock_sample_not_future_completion(self):
+        from trading import gateway_readiness as readiness
+        from types import SimpleNamespace
+        _,item=self.terminal_stage()
+        stdout='ActiveState=failed\nMainPID=0\nResult=exit-code\nInvocationID=23158813198f414b8d5f3a645e018988\nExecMainStatus=2\nExecMainExitTimestampMonotonic=123\n'
+        with patch.object(readiness.subprocess,'run',return_value=SimpleNamespace(stdout=stdout)),patch.object(readiness.time,'time',return_value=self.now+0.5):
+            self.assertTrue(validate(self.store,item,CONFIG))
+
+    def test_full_readback_closes_manual_auth_episode_before_obsolete_wire(self):
+        collect(self.store,self.root,reader=lambda _:[]);self.now+=1
+        row=dict(__CURSOR='attention',__REALTIME_TIMESTAMP=str(self.now*1000000),MESSAGE='START_RESULT ExistingSessionDetected')
+        collect(self.store,self.root,reader=lambda _:[row])
+        with closing(self.store.connect()) as c:ident=c.execute("select id from notification_outbox where kind='AUTH_SESSION_EVENT'").fetchone()[0]
+        item=get_item(self.store,ident);self.assertTrue(validate(self.store,item,CONFIG))
+        self.now+=2
+        init=dict(__CURSOR='initialized',__REALTIME_TIMESTAMP=str((self.now-1)*1000000),MESSAGE='START_RESULT None')
+        with patch('reporting.secretary_controls.login_status',return_value=dict(verified=True,last_server_reply=self.now)),patch('reporting.secretary_read.query',return_value={'rows':[{'at':self.now}]}):
+            collect(self.store,self.root,reader=lambda _:[init])
+        self.assertFalse(validate(self.store,item,CONFIG))
+
     def test_journal_operator_proof_rejects_old_other_epoch_or_superseded_phase(self):
         stamp=lambda t:datetime.fromtimestamp(t,timezone.utc).isoformat()
         text=stamp(990)+' START_RESULT SecurityDialogDetected'

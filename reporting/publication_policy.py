@@ -55,6 +55,8 @@ def decision(item, config):
     if (kind == 'AUTH_SESSION_EVENT' and key.startswith('gateway-session:')
             and p.get('phase') in ('OPERATOR','CONFLICT')
             and p.get('source') == 'existing Gateway owner journal'):
+        if p.get('manual_action_primary') is False:
+            return route('archive','same_native_manual_episode_evidence')
         return route('owner', 'native_gateway_requires_human_action')
     if (key.startswith('paper-safety:protection:') and kind in
             ('ALERT', 'PROTECTION_UNPROTECTED', 'PROTECTION_PARTIALLY_PROTECTED', 'ESCALATION_RED')
@@ -119,7 +121,12 @@ def validate(store, item, config):
         p=item['payload']
         if not cutover or item['id']<=json.loads(cutover[0])['cutover_id'] or not _fresh(p.get('queued_at'),store.clock(),180):return False
         if route['reason']=='native_gateway_requires_human_action':
-            return _fresh(p.get('observed_at'),store.clock(),180)
+            from .gateway_session_events import SOURCE
+            with closing(store.connect()) as c:
+                current=c.execute('SELECT payload FROM incident_cursors WHERE source=?',(SOURCE,)).fetchone()
+            attention=json.loads(current[0]).get('manual_attention',{}) if current else {}
+            return (_fresh(p.get('observed_at'),store.clock(),180) and p.get('manual_action_primary') is True
+                    and p.get('manual_episode_key')==item['incident_key']==attention.get('key'))
         with closing(store.connect()) as c:
             live=c.execute('SELECT generation,state FROM incidents WHERE incident_key=?',(item['incident_key'],)).fetchone()
             last=c.execute('SELECT max(id) FROM notification_outbox WHERE incident_key=?',(item['incident_key'],)).fetchone()[0]
