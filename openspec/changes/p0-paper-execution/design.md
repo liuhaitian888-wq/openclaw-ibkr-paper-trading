@@ -1,6 +1,8 @@
 ## Decisions
 Reuse RiskEngine, canonical audit, RecoveryCoordinator, existing notification owner, pinned ib_async and CashBook-style Decimal units. New order scopes bind account, code identity, finite budget and preserved global gate hashes. UNKNOWN/STARTED never replay. Hypothetical fee requests are explicitly what-if; a reference conversion is not a real currency exchange.
 
+Nov11 owner continuation: the researched handoff in `docs/engineering/RELIABILITY_RESEARCH_DECISIONS_20261111.md` maps connection identity, durable business acceptance, native acknowledgement, execution and accounting receipts to these existing gates. It adds no execution grant and does not replace the current final-wire/ACK-handoff candidate with another executor. Existing source/offline/native boundaries and open tasks remain. Historical outcome, current settled funding, market-data and formal release acceptance are independent of transport recovery. The research/backtest section is staged follow-up to existing strategy interfaces, not a new live engine or validated historical return claim.
+
 ## Boundaries
 Source, isolated offline verification, cloud deployment and native acceptance are independent evidence classes. Legacy protection uses the existing temporary5% Paper fallback on fresh bid with actual broker tick. A new entry cap is not applied to leave inherited NIO200 partly uncovered. FX spends only existing EUR cash, covers the inherited USD deficit and leaves2010USD operating buffer; total EUR debit including fee reserve<=65000, one occurrence. Actual fees/positions/cash/executions must reconcile after fill. Funding conversion is excluded from stock daily notional and strategy return attribution.
 
