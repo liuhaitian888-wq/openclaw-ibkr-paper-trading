@@ -199,5 +199,5 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 ## Readable news delivery continuation
 - [x] Implement existing-producer bounded article retention/revision identity and secretary actual-text tool on current00cfe81; freeze3b1a728.
 - [x] Verify19focused/1503full offline tests, including many-body projection budget, source hashes/TTL/identity and existing capacity route preservation.
-- [ ] Unique publisher constructs actual-cloud minimal tree and validates/loads news source.
-- [ ] Verify natural fresh article body, model summary with evidence and native private/authorized publication receipt; no test group message or full paid article.
+- [x] Unique publisher constructed actual-cloud minimal6ad75f8, independently passed1481/195.531s and loaded14:03:18UTC; dual identity manifests verified.
+- [x] Natural14:05:27UTC article body verified; actualnews_evidence→ordinaryCHAT summary→outbox2309→nativeprivate2050 exact match. No group test/full article. Autonomous completedRESEARCH registration/publication and broader source coverage remain unverified.
