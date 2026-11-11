@@ -42,3 +42,12 @@
 # News diagram dependency content SHA256 values; independently rehashed, not credentials.
 .der/maintenance/diagram-dependencies.json:generic-api-key:130
 .der/maintenance/diagram-dependencies.json:generic-api-key:131
+
+# Stop-hook dc7ab596d7d2b42f4fe1d993: all five values independently rehashed
+# from their named current source files; SHA-256 diagram receipts, not tokens.
+# Evidence: docs/production-audit/CAPACITY_HOOK_FALSE_POSITIVES_20261111.md
+.der/maintenance/diagram-dependencies.json:generic-api-key:84
+.der/maintenance/diagram-dependencies.json:generic-api-key:118
+.der/maintenance/diagram-dependencies.json:generic-api-key:119
+.der/maintenance/diagram-dependencies.json:generic-api-key:133
+.der/maintenance/diagram-dependencies.json:generic-api-key:134
