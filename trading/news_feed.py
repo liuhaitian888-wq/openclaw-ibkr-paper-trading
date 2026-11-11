@@ -1,7 +1,7 @@
 """Actual IBKR news evidence. No order methods, inferred subscriptions or fixtures."""
 import asyncio
 from datetime import datetime, timedelta, timezone
-import hashlib
+from trading.news_article_evidence import retain
 
 
 def utc_now():
@@ -82,21 +82,20 @@ async def collect(ib, stock_factory, *, expected_account, host='127.0.0.1', port
                         article_id=r.articleId, headline=r.headline,
                         source_kind='BROKER_API', retrieved_at=utc_now().isoformat()) for r in rows]
                     entry['headlines'] = [r for r in entry['returned_headlines']
-                        if in_window(r['time'], start, end)]
+                        if r['provider_code']==provider.code and in_window(r['time'], start, end)]
                     entry['out_of_window_count'] = len(rows)-len(entry['headlines'])
                     if not entry['headlines']:
                         entry['status'] = 'OUTSIDE_REQUESTED_WINDOW'
                         entry['errors'] = errors[error_start:]
                         continue
                     entry['status'] = 'HEADLINES_VERIFIED'
-                    latest = next(r for r in rows if r.articleId == entry['headlines'][0]['article_id'])
+                    latest = next(r for r in rows if r.articleId == entry['headlines'][0]['article_id'] and r.providerCode==provider.code)
                     article = await asyncio.wait_for(ib.reqNewsArticleAsync(
                         latest.providerCode, latest.articleId), timeout)
                     if article and article.articleText.strip():
-                        body = article.articleText.encode('utf-8')
-                        entry.update(status='ARTICLE_VERIFIED', article_sha256=hashlib.sha256(body).hexdigest(),
-                                     article_bytes=len(body), article_type=article.articleType,
-                                     article_id=latest.articleId)
+                        entry.update(status='ARTICLE_VERIFIED', **retain(article.articleText,
+                            provider=latest.providerCode, article_id=latest.articleId,
+                            article_type=article.articleType, retrieved_at=utc_now(), published_at=latest.time))
             except asyncio.TimeoutError:
                 entry['status'] = 'REQUEST_TIMEOUT'
             except Exception as exc:
