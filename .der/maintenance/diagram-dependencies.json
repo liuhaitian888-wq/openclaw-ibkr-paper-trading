@@ -32,17 +32,17 @@
         "reporting/secretary_broker.py": "23f4c7294646852bebe91cf6532a30a974de7514dc5996871d744314732b13a4",
         "trading/secretary_broker_owner.py": "bd1a1881b44f0fa8c4e87a23b76210967ede3532a5d2aa8845bb1ea848c1b0c2",
         "reporting/secretary_operations.py": "a545233912cf13f07c501acaf17ac837a7b4807dc8983348cbcc3574cc3363eb",
-        "ops/cloud/secretary_rpc.py": "5ebf7ca3ee509621cf737c9563cd3427cd5a80afddd107bdf3a8212e9b6163b4",
+        "ops/cloud/secretary_rpc.py": "d5cfdb85e54d5d82ecac7f7c55ced87ef9419f387fbf601c03da1dd4b582809e",
         "ops/cloud/paper_safety_watch.py": "9d0a82a1318b0fa0c00b0fb792096ef9b419d62e18b2983f188f005747b193b7",
         "reporting/secretary_read.py": "671fade85ead9087ffced4640ec57f7f284d7b2b1cdd2c8ccb7f8eca32fcdc90",
-        "reporting/secretary_queue.py": "abe6f05152ba0f89618f8a1f7aabb7638988a725829f4708ca7b3b3ad959bac7",
-        "scripts/run_secretary_bridge.py": "51fd4da11be833c8b070e87e7c35ed524c751bfc1d6053cf43622547bca6a4cd",
+        "reporting/secretary_queue.py": "a344481881c95a839d2c9afa5cc57302bef665d5ac6e32bb1a46cb246efb6793",
+        "scripts/run_secretary_bridge.py": "c42e215db16e38a033020905c025bd1f2af69de4c616cd27fb5c6d3ec1a28a93",
         "ops/cloud/secretary_control_executor.py": "01b2cbd96d678b2b0865657e53b87bac79a9a43e71a8f698c2928c918addef61",
         "ops/cloud/secretary_inbox.py": "e93ad84d0ddcd86520a45e5343fcdc90453f9f47fab21d03ffda5dc100d0fe0e",
         "reporting/secretary_controls.py": "1930d8cbd218cf666ea1a8b3c74904f266a59d90fe3ae3242610d9582d538c5d",
         "ops/cloud/polkit/00-openclaw-paper-gateway.rules": "e1bd00f0dd565237566fad4adf82fe1d15e1c3ae7a34f4e67353ceb2ba452952"
       },
-      "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate. Grouped native-reply provenance changes metadata on existing edges; prior differing source receipts retained REVIEW_REQUIRED, not copied from the canonical branch."
+      "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate. Grouped native-reply provenance changes metadata on existing edges; prior differing source receipts retained REVIEW_REQUIRED, not copied from the canonical branch. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch."
     },
     {
       "path": "docs/diagrams/secretary-live-status.html",
@@ -78,9 +78,9 @@
         "reporting/incident_telegram.py": "68f111fbeaf914a59f9ebd779a519d84e5b9b8114de4540c3d08cedf0cc20d03",
         "ops/cloud/feishu_alert_watch.py": "173ee928939975070a94e2866a5d8f6e1150fa2d718252b2a79f6908142789e6",
         "reporting/report_schedule.py": "b67d2136fc7f48efac6772a32c6d15514c9c4edc73b7504aaf8ce0b55aac6221",
-        "ops/cloud/secretary_rpc.py": "7838fc80edf379ede58c3bce5b6fe51b1194c2d4efeecb386ad26888b65cc21d"
+        "ops/cloud/secretary_rpc.py": "d5cfdb85e54d5d82ecac7f7c55ced87ef9419f387fbf601c03da1dd4b582809e"
       },
-      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged. Native-vs-registry projection review: current native proof, same-epoch history, independent closed observer and disabled/stale registry text are separate facts inside the existing local snapshot node; no new actor/transport/pin/permission or health adapter. Existing picture remains semantically applicable; only reviewed source input receipt updated."
+      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged. Native-vs-registry projection review: current native proof, same-epoch history, independent closed observer and disabled/stale registry text are separate facts inside the existing local snapshot node; no new actor/transport/pin/permission or health adapter. Existing picture remains semantically applicable; only reviewed source input receipt updated. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch."
     },
     {
       "path": "docs/diagrams/storage-governance.html",
@@ -101,6 +101,22 @@
         "docs/diagrams/storage-governance.architecture.json": "c1c0625bbb50c87857f9bc1c89836856ece7a851a0b6f728347db4823d8d4ed5"
       },
       "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps."
+    },
+    {
+      "path": "docs/diagrams/secretary-development.html",
+      "output_sha256": "783a6543e60d0dc04abb14321b87a3e28b1684b8c3b447dad73e56b3552bf59d",
+      "inputs": {
+        "docs/diagrams/secretary-development.architecture.json": "f99be7d23868799af95c82138aaabb9600e24765e3dc591effcd9195fb5ab9ca",
+        "reporting/engineering_development.py": "cedb11a980d09ebf4772285ee03f716b85b5bc653d7b8179f99c025e39f61a89",
+        "reporting/engineering_patch.py": "82d8b60be658edda8facd99302384c0f1b1254159308a94eaf932c637553adfd",
+        "reporting/engineering_sandbox.py": "75078e03e4c46b5a07f31fab7cdeb9ca5221d49f27c6a3d6abd85747e5f649e2",
+        "ops/cloud/run_engineering_sandbox.py": "366bc71a3012df8359a931822f1648aae63ec9b77734c0c95471aae8aca8afcd",
+        "reporting/codex_appserver.py": "ffe77dce5defa1da28e97d21e7a48c3028ee1e6eb1e660c7dc75f5bcc0ab9660",
+        "ops/cloud/secretary_cloud_oauth.py": "064d1a67098cd9b73c7f9a44dd295fe16b5057c90bd655920880cd9445499dcd",
+        "ops/cloud/secretary_rpc.py": "d5cfdb85e54d5d82ecac7f7c55ced87ef9419f387fbf601c03da1dd4b582809e",
+        "tests/test_development_publication.py": "1cb70ce0b1fe4f77d63fa0874735db4b7b73217375a86a162773cdb8c3ff2681"
+      },
+      "semantic_review": "Implementation boundary only; no native new-scope acceptance claimed. Archify9/9 showcase PASS; automated four desktop sizes and light/dark endpoints PASS; 2048x1320 light visually reviewed. MODEL source and USER authority separate, model auth outside kernel-isolated tests, independent publisher retains merge/deploy. Unrelated stale diagram receipts retained, not blindly rehashed. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root combined-source review: sender result edge now explicitly requires host task-to-native-request proof and current verified private owner; same actors, ledger, sender and transport, no new topology or permission. Original model proposal/external class authorization/native request remain separate. Actual accept_update/private-only sender and rejected provenance matrix verify this edge; render remains applicable."
     }
   ]
 }

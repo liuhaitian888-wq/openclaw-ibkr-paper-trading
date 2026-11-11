@@ -248,13 +248,13 @@ def run_once(root, config, value, *, home, backend=None):
     initialize(archive)
     # Idempotent enqueue repairs an archive/outbox interruption without HTTP replay.
     with closing(archive.connect()) as c:
-        completed = c.execute("SELECT t.id,e.payload FROM secretary_engineering_tasks t JOIN secretary_runs r ON r.occurrence=t.id JOIN secretary_events e ON e.occurrence=r.result_event WHERE r.state='SUCCEEDED' ORDER BY t.created DESC LIMIT 20").fetchall()
+        completed = c.execute("SELECT t.id,e.payload FROM secretary_engineering_tasks t JOIN secretary_runs r ON r.occurrence=t.id JOIN secretary_events e ON e.occurrence=r.result_event WHERE r.state='SUCCEEDED' AND json_extract(t.payload,'$.scope')=? ORDER BY t.created DESC LIMIT 20", (SCOPE,)).fetchall()
     for identity, payload in completed:
         enqueue_reply(archive, store, identity, json.loads(payload)['summary'], role='CONTROL')
     # Completion after a crash is repaired from a native completed checkpoint,
     # never by issuing a new thread/turn. No STARTED/UNKNOWN model retry exists.
     with closing(archive.connect()) as c:
-        prior = c.execute("SELECT id,instruction,payload,native FROM secretary_engineering_tasks WHERE state='STARTED' ORDER BY created LIMIT 1").fetchone()
+        prior = c.execute("SELECT id,instruction,payload,native FROM secretary_engineering_tasks WHERE state='STARTED' AND json_extract(payload,'$.scope')=? ORDER BY created LIMIT 1", (SCOPE,)).fetchone()
     if prior:
         native = json.loads(prior[3])
         if native.get('stage') != 'TURN_COMPLETED':

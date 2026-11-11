@@ -126,4 +126,12 @@ Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded
 ## Native versus registry card projection — 2026-11-11
 - [x] Separate actual current native recovery, same-epoch historical proof, independent observer and shared registry gaps with strict account/time/generation checks, without changing gates or adapters.
 - [x] Complete exact frozen prescribed full1429/56.563s,10new+24existingfocused,strict9/9 and gitleaks checks; independent static review no newblockers.
-- [ ] Sole-owner Git integration and next safe sender-only publication; independently read same296 after deployment without a new card/pin/query.
+- [x] Root58f33b3 actual same296 natural EDIT06:51:48Z and pinned296 independently read; no new card or pin.
+
+## Second-stage fixed engineering patch class
+- [x] Implement explicit human authorization/MODEL proposal distinction and same-owner ledger/budget/native patch output/private outbox.
+- [x] Implement source snapshot/independent repo+linkedworktree, constrained guard AST and protected independent test profiles.
+- [x] Observe actual kernel denial canaries and reference-only baseline/patch/isolated tests; do not claim real model task acceptance.
+- [x] Complete final isolated full suite, secret/spec/diagram/context checks and immutable sole-publisher handoff (77711e2;1407/104.793s; native new-scope acceptance remains open).
+- [ ] Sole publisher loads exact candidate and independently arms a new one-task scope after its existing priority wave.
+- [ ] Verify one real secretary MODEL proposal→native Codex patch→isolated tests/artifact→owner-private native result; preserve all old UNKNOWN and consumed dbcheck.
