@@ -317,6 +317,8 @@ def tick(root, *, now=None):
         samples = data.get('samples', [])
         if samples and 0 <= now-samples[-1]['at'] < INTERVAL:
             _reconcile_notification(root, data)
+            from .capacity_engineering import reconcile
+            reconcile(root)
             return False
         if samples and now < samples[-1]['at']:
             raise ValueError('Capacity clock regression requires reconciliation')
@@ -329,6 +331,8 @@ def tick(root, *, now=None):
         result['notification_pending'] = data.get('notification_pending', False) or risk['level'] != data.get('risk', {}).get('level', 0)
         _save(root, result)
         _reconcile_notification(root, result)
+        from .capacity_engineering import reconcile
+        reconcile(root)
         from .recovery import RecoveryCoordinator
         complete = all(samples[-1]['databases'].get(name[0], {}).get('state') == 'OBSERVED' for name in DATABASES)
         coordinator=RecoveryCoordinator(contained(root, 'runtime/recovery.sqlite3'))
@@ -355,7 +359,8 @@ def read(root, *, now=None):
     age = now-latest['at']
     from .storage_policy import read as read_optional
     optional=read_optional(root)
-    return dict(optional_write_budget=optional,state=data['risk']['state'] if 0 <= age <= STALE_AFTER else 'STALE',
+    from .capacity_engineering import read as read_engineering
+    return dict(engineering_followup=read_engineering(root), optional_write_budget=optional,state=data['risk']['state'] if 0 <= age <= STALE_AFTER else 'STALE',
         observed_at=latest['at'], age_seconds=age, latest=latest, risk=data['risk'],
         inventory=data['inventory'], sample_count=len(data['samples']), thresholds=THRESHOLDS,
         threshold_status='PROVISIONAL; calibrate growth after continuous evidence',

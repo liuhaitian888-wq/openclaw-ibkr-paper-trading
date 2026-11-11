@@ -221,10 +221,22 @@ def snapshot(store, root, now):
     tcp='近期API回执已核验' if recent and p.get('connected') is True else '未就绪/UNKNOWN（端口不等于业务就绪）'
     handshake,readback=_observer_readback(root,p,now,ACCOUNT)
     if handshake and not (recent and p.get('connected') is True):tcp='近期协议握手已完成（observer）；账户另验'
+    recovery='未取得新版恢复探针证据'
+    row=obs.get('GATEWAY_RECOVERY',{})
+    try:checked=datetime.fromisoformat(row.get('observed_at','').replace('Z','+00:00'))
+    except (ValueError,TypeError,AttributeError):checked=None
+    if (row.get('readiness_version')==1 and checked and checked.tzinfo
+            and _fresh(checked.timestamp(),now,90)):
+        recovery={'HEALTHY':'完整回读已核验；无需人工',
+                  'OBSERVING':'业务就绪持续观察中；尚未确认需人工',
+                  'OPERATOR_REQUIRED':'需要本人检查；指引走本人私聊',
+                  'VERIFYING_RECOVERY':'恢复验证中；等待稳定完整回读',
+                  'RECOVERY_IN_PROGRESS':'既有恢复进行中；不会重复提交',
+                  'UNVERIFIED':'业务就绪证据未齐；不等于认证失败'}.get(row.get('readiness_phase'),'恢复状态UNKNOWN')
     return dict(tcp=tcp,
                 account=account, readback=readback, registry=_registration(obs,modules,p,ACCOUNT),
                 data=module('MARKET_DATA'), model=module('SECRETARY_MODEL'),
-                codex=codex, gates=gates)
+                codex=codex, gates=gates,recovery=recovery)
 
 
 def queue(store, root, config):
@@ -277,7 +289,7 @@ def valid(store, item, config):
 def render(item):
     p = item['payload']; s = p['links']
     labels = [('tcp', 'API/TCP'), ('account', '业务账户'), ('readback','独立回读'),
-              ('registry','健康登记'),('data', '行情新鲜度'),
+              ('registry','健康登记'),('recovery','Gateway恢复/人工'),('data', '行情新鲜度'),
               ('model', '模型链路'), ('codex', 'Codex'), ('gates', '交易门禁')]
     return '当前 API 与各链路状态\n'+'\n'.join(label+'：'+s.get(key,'未记录（旧版快照）') for key, label in labels)+'\n核对时间（柏林）：'+datetime.fromtimestamp(p['observed_at'], ZoneInfo('Europe/Berlin')).strftime('%Y-%m-%d %H:%M:%S')+'\n普通事件后台存档；日报附件和研究成果发布到群。'
 
