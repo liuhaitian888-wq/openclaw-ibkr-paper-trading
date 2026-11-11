@@ -57,16 +57,19 @@
     },
     {
       "path": "docs/diagrams/capacity.html",
-      "output_sha256": "88c11c6766ffa62a126767ae6d5b5e8539747ac4a2e1fa55d4bf7c8831a60ae1",
+      "output_sha256": "f17bbe9e5da81e1f56c6dc7c73d7b010d3979bb6e85db65ec9c7cbb557a07eaf",
       "inputs": {
-        "reporting/capacity.py": "8366aba1df5b3f8a3257bc98dd8309afb7b7f4e28d3a3ae4c5a3fed420981e28",
+        "reporting/capacity.py": "a418ab7727010fec32aaf5bec310ae0abf10285df4a9cf7a3847ab1a55a98f30",
         "reporting/health.py": "e274f7ae303ad8ddf37d6bd9bbf7a5ef18233a72dbdc0092c080abd930260b30",
         "reporting/secretary_observations.py": "32d51977cda97d52c2545b76173236e7607e146af6a68b9a764c2131a96e73f7",
         "reporting/secretary_read.py": "46c09392c866ba1c99d545ceffdc13fc785c6ae8e5581b95f225e21dd1df5f12",
-        "docs/diagrams/capacity.architecture.json": "fed1dad38c27c842d8765eb0045c651e77255dd0d62255e8099a9e3f5c2ac755",
-        "ops/cloud/secretary_inbox.py": "b64d493ee87892493f3bd1e4d1436cf1ff4d8a4a495de16fe5c8653990894ce9"
+        "docs/diagrams/capacity.architecture.json": "4abf26107ab04f8b0302d8b6a729ae326477f0eeba1c033831b3ce2840d74afb",
+        "ops/cloud/secretary_inbox.py": "b64d493ee87892493f3bd1e4d1436cf1ff4d8a4a495de16fe5c8653990894ce9",
+        "reporting/capacity_engineering.py": "12432c9feb5792fbe137b88d6df12aea9d9ba03de195e2f51361544710c7da2b",
+        "reporting/secretary_presentation.py": "1e586c2658ccef0fafb741255024bf1bfc1ceb67cb91691481a84532755e1dfb",
+        "scripts/capacity_engineering.py": "c4ed467204ccad7e0efc10928b726519a0eaac9d8f2d308e64043d8bbc68053f"
       },
-      "semantic_review": "Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Actual deployment exposed the legacy poll-before-observe coupling. The bounded local observer is now scheduled independently before polling, under the same existing inbox owner; this restores the diagrammed passive local branch without a new daemon or external probe. Render unchanged. Governance component review: Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Storage-policy and strict internal stat-only additions preserve the core capacity route; new optional gate/archive branches are rendered in separate storage-governance.html. News continuation: capacity dispatch branch byte-identical; two additional fixed evidence readers do not alter the diagrammed local capacity snapshot/tool edge or permissions. New news retention/model edges are represented separately in secretary-news.html. Only the reviewed secretary_read input was refreshed; output and other dependencies remain exact."
+      "semantic_review": "A candidate b0f4892 on actual6ad: original source event/outbox remains, bounded SYSTEM read-only engineering queue and explicit host claim added. Same unresolved episode identity retained through warning/severe. No automatic model/desktop wakeup/cleanup. Source-only candidate; actual publisher acceptance pending. Archify9/9 showcase, all four desktop browser measures and light/dark screenshots PASS; 2048light/dark images actually reviewed readable/contained. B snapshot/source cache excluded. Publisher integration: this A diagram supersedes the earlier capacity-only topology; original versions and news-only dispatch review remain in Git history. New news source diagram and all unrelated receipts are retained, not replaced or blindly rehashed."
     },
     {
       "path": "docs/diagrams/publication-routing.html",

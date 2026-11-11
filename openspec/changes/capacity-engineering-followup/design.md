@@ -1,0 +1,7 @@
+# Design
+
+Source events remain in recovery; destination task and proposal/status records share one secretary transaction. Reconcile <=8 primary-key sequence IDs per existing tick and advance a <=4KiB cursor only after commits. Exact content SHA detects occurrence mutation; the event ID is the task identity. A severe source remains actionable for diagnosis after warning/recovery, but current risk is shown independently. No outbox replay or USER authority is fabricated. <=128 tasks are retained; overflow blocks visibly without deleting evidence.
+
+An explicit host claim binds immutable payload SHA and owner, validates the original source/outbox pair and conditionally changes QUEUED_READ_ONLY to STARTED_READ_ONLY. These states cannot be picked by existing native executors. UNKNOWN/terminal tasks never reclaim. Claim is read-only diagnostic authority only; model execution/deployment/cleanup stay unconnected. Existing mailbox, capacity tool and /work show true queued/claimed/unknown state. The cursor retains the first severe occurrence through warning/severe oscillation; only source OK ends the risk episode, without changing its existing task outcome.
+
+Optional snapshot gating is deferred to separate B. No shared mutable source cache/hardlinks, liveDB backup reuse, original guard changes or new global log deletion is included in A. New engineering cursor/status storage is bounded; existing APT cache relief is not repeated.

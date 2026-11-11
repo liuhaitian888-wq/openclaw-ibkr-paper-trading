@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "architecture",
   "meta": {
-    "title": "买der容量观测 · 最小发布候选",
+    "title": "买der容量 · 严重事件工程接线候选",
     "quality_profile": "showcase",
     "locale": "zh-CN"
   },
@@ -14,7 +14,7 @@
       "sublabel": "只读元数据 · 保留历史副本",
       "pos": [
         60,
-        100
+        35
       ],
       "size": [
         230,
@@ -28,7 +28,7 @@
       "sublabel": "5分钟采样 · 固定时间预算",
       "pos": [
         430,
-        100
+        35
       ],
       "size": [
         230,
@@ -42,7 +42,7 @@
       "sublabel": "288样本 · 最多1 MiB",
       "pos": [
         800,
-        100
+        35
       ],
       "size": [
         230,
@@ -56,7 +56,7 @@
       "sublabel": "增长 / 阈值 / UNKNOWN证据",
       "pos": [
         800,
-        360
+        185
       ],
       "size": [
         230,
@@ -70,7 +70,7 @@
       "sublabel": "普通后台归档 · 严重才入outbox",
       "pos": [
         430,
-        360
+        185
       ],
       "size": [
         230,
@@ -84,10 +84,38 @@
       "sublabel": "仅严重需行动 · 现有owner私聊",
       "pos": [
         60,
-        360
+        185
       ],
       "size": [
         230,
+        78
+      ]
+    },
+    {
+      "id": "engineering",
+      "type": "messagebus",
+      "label": "既有秘书工程任务队列",
+      "sublabel": "SYSTEM来源 · 最多128项",
+      "pos": [
+        430,
+        335
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "operator",
+      "type": "security",
+      "label": "既有工程owner显式领取",
+      "sublabel": "仅只读诊断 · UNKNOWN不重放",
+      "pos": [
+        800,
+        335
+      ],
+      "size": [
+        260,
         78
       ]
     }
@@ -119,25 +147,42 @@
       "from": "outbox",
       "to": "sender",
       "label": "原生回执保留"
+    },
+    {
+      "from": "outbox",
+      "to": "engineering",
+      "label": "严重事件补登记",
+      "labelDy": 24
+    },
+    {
+      "from": "engineering",
+      "to": "operator",
+      "label": "身份与指纹重验",
+      "labelDy": 24
+    },
+    {
+      "from": "engineering",
+      "to": "secretary",
+      "label": "容量与任务可查"
     }
   ],
   "cards": [
     {
       "dot": "amber",
-      "title": "当前现场",
+      "title": "真实阶段",
       "items": [
-        "当前根盘81%，可用约6.83 GiB",
-        "有效库四项已逐库核对，历史副本不删",
-        "连续速率不足，距满时间UNKNOWN"
+        "6ad云端基线：已有严重私聊告警",
+        "本候选补工程任务；不重发原2016",
+        "采样owner与sender均不新增"
       ]
     },
     {
       "dot": "emerald",
-      "title": "治理边界",
+      "title": "权限与恢复边界",
       "items": [
-        "无新daemon、sender或券商会话",
-        "金融状态、回执和UNKNOWN保留",
-        "清理必须逐项核验副本及恢复来源"
+        "同一风险未解除：警告/严重共用任务",
+        "恢复不删任务；UNKNOWN不自动重领",
+        "无自动模型、桌面唤醒、清理或交易"
       ]
     }
   ]
