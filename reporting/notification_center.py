@@ -21,10 +21,11 @@ CATEGORIES = {
  'fyi': ('📬', '券商FYI', '券商通知原始类别；未接入时不伪造数据'),
  'other': ('📎', '其他', '未分类事件，默认私人可见'),
 }
-GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstream': '券商上游连接'}
+GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstream': '券商服务器连接'}
 
 
 def category(item):
+    if item['kind']=='AUTOMATIC_STATUS':return 'risk' if item['payload'].get('family')=='broker' else 'auth' if item['payload'].get('family')=='authentication' else 'ops'
     if item['kind']=='CURRENT_RISK_STATUS':return 'risk'
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
     if kind=='SECRETARY_REPLY':
@@ -187,7 +188,10 @@ def render(item,config,at):
         route=decision(item,config)
         if route['audience']=='group' and route['public_view']:
             mode=route['public_view']
-            if mode=='calendar':text=public_calendar(item)
+            if mode=='automatic_status':
+                from .automatic_notifications import rendered
+                text=rendered(item,at)
+            elif mode=='calendar':text=public_calendar(item)
             elif mode=='filing':text=public_filing(item)
             elif mode=='risk_status':
                 counts=p['public_recovery_counts']
@@ -196,11 +200,12 @@ def render(item,config,at):
                 text='当前保护核验汇总｜已核验 '+str(p['recovered_count'])+' 项；待核验/处理 '+str(p['unresolved_count'])+' 项。\n本次新鲜完整回读；旧三条投递结果未知，已按授权封存且未重发。详细证据留档，按需查询；交易权限不变。事件 #'+str(item['id'])
             else:
                 titles={'ops_status':'服务状态已恢复' if kind=='RECOVERY' else '服务状态更新',
+                        'auth_status':'认证状态已更新；需要时请在本人私聊完成认证',
                         'activity_status':'研究或任务进度已更新', 'engineering_status':'工程周报已归档',
                         'report_status':'日报生成或投递状态已更新'}
                 text=titles[mode]+'｜事件 #'+str(item['id'])+'。'
                 if mode=='report_status':text+='仅状态提示，未在群内分享账户数据或附件。'
-                else:text+='详细证据按授权保留，私人内容仅发本人秘书私聊。'
+                else:text+='详细证据已保留，可在本人私聊按需查询。'
             return {'text':text,'html':html.escape(text),'category':cat,'audience':'group','chat_id':recipient(item,config)}
     if kind=='SECRETARY_REPLY' and p.get('message_role') in ('TASK','RESEARCH','PROGRESS') and audience(item,config)=='owner':
         from .secretary_presentation import compact_message
@@ -240,6 +245,15 @@ def preview(store,config,ident):
 
 
 def prior_card(store,item,chat_id):
+    if item['kind']=='AUTOMATIC_STATUS':
+        with closing(store.connect()) as c:
+            rows=c.execute('''SELECT r.payload FROM notification_outbox n JOIN notification_receipts r ON r.notification_id=n.id
+              WHERE n.incident_key=? AND n.id<? AND n.status='TELEGRAM_ACCEPTED' ORDER BY n.id DESC LIMIT 1''',
+              (item['incident_key'],item['id'])).fetchall()
+        if rows:
+            r=json.loads(rows[0][0])
+            if r.get('chat_id')==chat_id and r.get('card_format')=='compact-v1' and len(r.get('message_ids',[]))==1:return r['message_ids'][0]
+        return None
     if item['kind'] not in ('ALERT','RECOVERY') and not item['kind'].startswith(('REMINDER_','ESCALATION_','PROTECTION_')):return None
     with closing(store.connect()) as c:
         rows=c.execute('''SELECT r.payload FROM notification_outbox n JOIN notification_receipts r ON r.notification_id=n.id

@@ -108,11 +108,14 @@ def enqueue_reply(archive, store, run, text, *, role='RESEARCH'):
         result=c.execute('SELECT recorded_at FROM secretary_events WHERE occurrence=(SELECT result_event FROM secretary_runs WHERE occurrence=?)',(run,)).fetchone()
     with closing(archive.connect()) as c:
         private_tool=c.execute("SELECT 1 FROM secretary_events WHERE origin='TOOL' AND occurrence LIKE ? AND json_extract(payload,'$.request.name') IN ('broker_query','broker_result','service_status','cloud_tasks','cloud_task_submit','cloud_task_status') LIMIT 1",(run+':tool:%',)).fetchone()
+        source=c.execute('''SELECT e.origin,e.kind FROM secretary_runs r
+          JOIN secretary_events e ON e.occurrence=r.instruction WHERE r.occurrence=?''',(run,)).fetchone()
     private_metadata={'requires_response':True,'sensitivity':'PRIVATE_ACCOUNT_OPERATIONS'} if private_tool else {}
     with closing(archive.connect()) as c:
         described=c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(run+':description',)).fetchone()
     task_metadata=json.loads(described[0]) if described and role in ('TASK','RESEARCH') else {}
-    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram','message_role':role,'queued_at':archive.clock(),'finished_at':result[0] if result else None,'run':run,**(json.loads(metadata[0]) if metadata else {}),**private_metadata,**task_metadata},ensure_ascii=False,sort_keys=True)
+    provenance={'native_owner_reply':bool(source and source[0]=='USER' and source[1] in ('CHAT_INSTRUCTION','CONTROL_INSTRUCTION'))}
+    encoded=json.dumps({'reason':redact(text[:3300]),'delivery_transport':'telegram','message_role':role,'queued_at':archive.clock(),'finished_at':result[0] if result else None,'run':run,**(json.loads(metadata[0]) if metadata else {}),**private_metadata,**task_metadata,**provenance},ensure_ascii=False,sort_keys=True)
     with closing(store.connect()) as c,c:
         c.execute('BEGIN IMMEDIATE')
         c.execute("INSERT OR IGNORE INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,1,'SECRETARY_REPLY',?,'PENDING')",('secretary:'+run,encoded))

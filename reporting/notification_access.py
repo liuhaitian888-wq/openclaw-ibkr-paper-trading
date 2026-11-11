@@ -36,6 +36,21 @@ def decision(item, config):
                 and all(type(p.get(k)) is int and 0<=p[k]<=100 for k in ('recovered_count','unresolved_count'))):
             return choose('group','bound_current_risk_fixed_summary','current_risk_status')
         return choose('hold','invalid_current_risk_summary')
+    from .automatic_notifications import enabled as grouped, interactive
+    if grouped(config):
+        result['policy_version']='automatic-grouped-v1'
+        if interactive(item):
+            return choose('owner','verified_interaction_or_required_response')
+        if kind=='AUTOMATIC_STATUS':
+            return choose('group','grouped_automatic_lifecycle','automatic_status')
+        # Complete authorized report artifacts, public filings and calendars
+        # retain their existing validated views below.
+        from .notification_center import public_calendar,public_filing
+        if kind not in ('REPORT_BUNDLE','REPORT_SUPPLEMENT') and public_calendar(item) is None and public_filing(item) is None:
+            return choose('group','automatic_safe_summary_no_private_mirror',
+                          'auth_status' if kind.startswith('AUTH_') or p.get('scope')=='GATEWAY_AUTHENTICATION'
+                          else 'activity_status' if kind=='SECRETARY_REPLY' and not p.get('private_notice')
+                          else 'ops_status')
     if (p.get('requires_response') is True or p.get('phase')=='OPERATOR'
             or role in ('ACK','CHAT','CONTROL','AUTH') or kind.startswith('AUTH_')
             or p.get('scope')=='GATEWAY_AUTHENTICATION' or p.get('private_notice') is True):

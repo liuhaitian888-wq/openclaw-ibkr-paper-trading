@@ -105,25 +105,41 @@ class IncidentStore:
         c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,?,?,?,'PENDING')", (incident_key, generation, kind, json.dumps(queued, sort_keys=True)))
         return True
 
-    def claim(self):
+    def claim(self, *, automatic_grouped=False):
         """Reserve before transport; STARTED survives restart without replay."""
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
-            rows = c.execute("""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
+            grouped_clause=''
+            grouped_exception=''
+            parameters=[self.clock()]
+            if automatic_grouped:
+                from .automatic_notifications import batch_family
+                c.create_function('automatic_group_source',3,lambda kind,key,raw:
+                    int(batch_family(dict(kind=kind,incident_key=key,payload=json.loads(raw))) is not None),deterministic=True)
+                grouped_clause='AND automatic_group_source(n.kind,n.incident_key,n.payload)=0'
+                from .grouped_current import eligible_grouped_current_ids
+                eligible=eligible_grouped_current_ids(self,c,self.clock())
+                if eligible:
+                    placeholders=','.join('?' for _ in eligible)
+                    grouped_exception=f'AND NOT (n.id IN ({placeholders}) AND unresolved.id IN (1270,1271,1272))'
+                    parameters.extend(eligible)
+            rows = c.execute(f"""SELECT n.id,n.kind,n.payload,n.incident_key,n.generation FROM notification_outbox n
                 WHERE n.status='PENDING' AND NOT EXISTS (
                     SELECT 1 FROM notification_preflight p WHERE p.notification_id=n.id AND p.not_before>?)
+                {grouped_clause}
                 AND NOT EXISTS (
                     SELECT 1 FROM json_each(n.payload,'$.recovery_members') member
                     JOIN notification_outbox source ON source.id=json_extract(member.value,'$.notification_id')
                     JOIN notification_outbox unresolved ON unresolved.incident_key=source.incident_key
                       AND unresolved.id<source.id
-                    WHERE unresolved.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED'))
+                    WHERE unresolved.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')
+                    {grouped_exception})
                 AND NOT EXISTS (
                     SELECT 1 FROM notification_outbox earlier
                     WHERE earlier.incident_key=n.incident_key AND earlier.id<n.id
-                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN n.kind='CURRENT_RISK_STATUS' THEN -1 WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 100""", (self.clock(),)).fetchall()
+                    AND earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED')) ORDER BY CASE WHEN n.kind='CURRENT_RISK_STATUS' THEN -1 WHEN json_extract(n.payload,'$.severity')='RED' THEN 0 WHEN n.kind!='SECRETARY_REPLY' AND n.kind NOT LIKE 'REPORT_%' THEN 1 WHEN json_extract(n.payload,'$.message_role') IN ('CONTROL','ACK','AUTH') THEN 2 ELSE 3 END,n.id LIMIT 100""", parameters).fetchall()
             from .notification_disposition import claim_allowed
-            row=next((r for r in rows if claim_allowed(c,dict(id=r[0],kind=r[1],payload=json.loads(r[2])))),None)
+            row=next((r for r in rows if claim_allowed(c,dict(id=r[0],kind=r[1],payload=json.loads(r[2]),incident_key=r[3],generation=r[4]),store=self,now=self.clock())),None)
             if row is None:
                 return None
             c.execute("UPDATE notification_outbox SET status='STARTED' WHERE id=?", (row[0],))

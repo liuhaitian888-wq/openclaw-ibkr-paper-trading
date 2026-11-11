@@ -105,3 +105,10 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Broker repair/menu clarity follow-up
 - [x] Use explicit model/broker connection and service names; distinguish broker query admission expiry from missing broker response.
 - [ ] Integrate immutable menu patch with transaction engineer connection repair under notification engineer deployment ownership, then observe fresh Telegram menu receipts.
+
+## Authorized grouped automatic lifecycle implementation
+- [x] Implement explicit grouped-v1 safe automatic routing, archive-native direct-reply provenance, durable500-row zero-wire projection and cutover retention.
+- [x] Implement2second coalescing,900second repeat cap, confirmed-gap escalation,60second stable fresh recovery, same native card updates, and pre-wire invalidation with unchanged uncertainty guards.
+- [ ] Complete full isolated suite/secret/spec checks and sole-owner integration; record the exact reviewed source/config activation.
+- [ ] Validate shared Paper persistence helper integration and retain fail-closed recovery if its required module/proof is unavailable.
+- [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.

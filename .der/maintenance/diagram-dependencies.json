@@ -42,7 +42,7 @@
         "reporting/secretary_controls.py": "1930d8cbd218cf666ea1a8b3c74904f266a59d90fe3ae3242610d9582d538c5d",
         "ops/cloud/polkit/00-openclaw-paper-gateway.rules": "e1bd00f0dd565237566fad4adf82fe1d15e1c3ae7a34f4e67353ceb2ba452952"
       },
-      "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate."
+      "semantic_review": "Updated actual topology: native inbox → deterministic Gateway start, separate from model Python read tools and unverified developer executor. Archify9/9 showcase checks, light/dark real-browser checks PASS;1440x900 light screenshot visually reviewed. Runtime deployment and inactive-Gateway/native-owner acceptance remain separate. Grouped native-reply provenance changes metadata on existing edges; prior differing source receipts retained REVIEW_REQUIRED, not copied from the canonical branch."
     },
     {
       "path": "docs/diagrams/secretary-live-status.html",
