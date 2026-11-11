@@ -38,7 +38,16 @@ def phase(message):
         return 'INITIALIZED', '既有Paper Gateway软重启完成；等待新的账户和订单回读，行情仍单独核验。'
     if text.endswith('START_RESULT None') or text.endswith('RESTART_RESULT None'):
         return 'INITIALIZED', '既有Paper Gateway重新初始化完成；等待新的账户和订单回读，不能据此认定行情已恢复。'
-    if text.endswith('RESTART_LIMIT_REQUIRES_OPERATOR') or text.endswith('2FA confirmation timeout') or text.endswith('2FA maximum attempts'):
+    if text.endswith('Waiting for 2FA confirmation'):
+        return 'OPERATOR', 'Gateway已报告正在等待IBKR手机确认，请在本人设备查看原生认证；不要在群内发送密码或验证码。'
+    operator_results = ('TwoFactorConfirmationTimeout', 'SecurityDialogDetected', 'LoginFailed',
+                        'LoginFailedAccountTasksRequired', 'InitializationTimeout', 'SoftRestartTimeout',
+                        'UnknownMessageWindowDetected', 'RestartedProcessNotFound')
+    if (text.endswith('RESTART_LIMIT_REQUIRES_OPERATOR') or text.endswith('2FA confirmation timeout')
+            or text.endswith('2FA maximum attempts') or text.endswith('Auto-restart token expired')
+            or text.endswith('auto-restart login failed')
+            or any(text.endswith(prefix + code) for prefix in ('START_RESULT ', 'RESTART_RESULT ')
+                   for code in operator_results)):
         return 'OPERATOR', 'Gateway登录恢复需要人工检查或手机验证；没有重新提交登录或抢占请求。'
     return None
 
@@ -85,7 +94,7 @@ def collect(store, root, *, reader=read_journal):
                 key = 'gateway-session:'+hashlib.sha256(entry['__CURSOR'].encode()).hexdigest()[:32]
                 label, text = event
                 enqueue(c, key, dict(scope='GATEWAY_AUTHENTICATION', reason=text,
-                        observed_at=at, phase=label, source='existing Gateway owner journal',
+                        observed_at=at, queued_at=store.clock(),phase=label, source='existing Gateway owner journal',
                         action_taken='只记录既有owner事件，未新增登录、重启或会话抢占。',
                         grants_trading_permission=False))
                 count += 1
@@ -106,7 +115,7 @@ def collect(store, root, *, reader=read_journal):
             pending = state['pending'][0]
             if status['verified'] and pending['at'] < reconciled <= store.clock() and status['last_server_reply'] > pending['at']:
                 enqueue(c, pending['key']+':readback', dict(scope='GATEWAY_AUTHENTICATION', phase='ACCOUNT_VERIFIED',
-                        observed_at=store.clock(), reason='本次Gateway初始化之后，正确Paper身份及新鲜完整账户／订单回读已核验；行情与交易门禁仍独立。',
+                        observed_at=store.clock(),queued_at=store.clock(), reason='本次Gateway初始化之后，正确Paper身份及新鲜完整账户／订单回读已核验；行情与交易门禁仍独立。',
                         action_taken='只读核对既有安全owner证据，未发送券商请求。', grants_trading_permission=False))
                 state['pending'] = []
                 count += 1
