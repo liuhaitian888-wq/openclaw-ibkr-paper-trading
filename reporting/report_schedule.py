@@ -88,6 +88,43 @@ def ready_reports(directory, day, expected_account, now, *, transport="feishu"):
     return ready, missing
 
 
+
+def _archived_missing_initial(c, ident, payload):
+    """A quiet local missing notice is not an uncertain or delivered report."""
+    if (payload.get('scope') != 'FINANCIAL_REPORTS'
+            or payload.get('delivery_transport') != 'telegram'
+            or payload.get('included_reports') != [] or payload.get('png_artifacts') != []
+            or payload.get('report_manifests', []) != [] or not payload.get('missing_reports')):
+        return False
+    if not c.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='publication_archive'").fetchone():
+        return False
+    from .publication_policy import digest
+    row=c.execute('SELECT policy,reason,payload_sha256 FROM publication_archive WHERE notification_id=?',(ident,)).fetchone()
+    if row != ('publication-v2','report_status_is_not_a_report',digest(payload)):
+        return False
+    from .automatic_notifications import _safe_unsent
+    return _safe_unsent(c,ident)
+
+
+
+def quiet_supplement_valid(store, item):
+    """Recheck the exact local predecessor proof at claim and before wire."""
+    proof=item['payload'].get('quiet_initial_archive')
+    if item['kind'] != 'REPORT_SUPPLEMENT' or proof is None:
+        return True
+    if (not isinstance(proof,dict) or set(proof) != {'notification_id','payload_sha256'}
+            or type(proof['notification_id']) is not int):
+        return False
+    with closing(store.connect()) as c:
+        row=c.execute('SELECT incident_key,kind,status,payload FROM notification_outbox WHERE id=?',
+                      (proof['notification_id'],)).fetchone()
+        if not row or row[:3] != (item['incident_key'],'REPORT_BUNDLE','SUPPRESSED'):
+            return False
+        payload=json.loads(row[3])
+        from .publication_policy import digest
+        return digest(payload)==proof['payload_sha256'] and _archived_missing_initial(c,proof['notification_id'],payload)
+
+
 def enqueue_reports(store, directory, expected_account, now, *, transport="feishu"):
     if transport not in ("feishu", "smtp", "telegram"):
         raise ValueError("Unsupported report transport")
@@ -104,14 +141,17 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
     key = 'financial-reports:' + day.isoformat()
     with closing(store.connect()) as c, c:
         c.execute('BEGIN IMMEDIATE')
-        initial = c.execute('SELECT payload,status FROM notification_outbox WHERE incident_key=? AND kind=?',
+        initial = c.execute('SELECT payload,status,id FROM notification_outbox WHERE incident_key=? AND kind=?',
                             (key, 'REPORT_BUNDLE')).fetchone()
         kind = 'REPORT_BUNDLE'
         selected = ready
+        locally_archived = False
         if initial:
-            if initial[1] not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'TELEGRAM_ACCEPTED'):
-                return 'BLOCKED_INITIAL_UNCONFIRMED'
             initial_payload = json.loads(initial[0])
+            locally_archived = (initial[1] == 'SUPPRESSED' and transport == 'telegram'
+                                and _archived_missing_initial(c, initial[2], initial_payload))
+            if initial[1] not in ('SMTP_ACCEPTED', 'FEISHU_ACCEPTED', 'TELEGRAM_ACCEPTED') and not locally_archived:
+                return 'BLOCKED_INITIAL_UNCONFIRMED'
             selected = {k: ready[k] for k in initial_payload['missing_reports'] if k in ready}
             if not selected or c.execute('SELECT 1 FROM notification_outbox WHERE incident_key=? AND kind=?',
                                          (key, 'REPORT_SUPPLEMENT')).fetchone():
@@ -157,6 +197,9 @@ def enqueue_reports(store, directory, expected_account, now, *, transport="feish
             originals = [source_artifact(r, directory, day, k, expected_account, now) for k,r in selected.items()]
             payload['source_snapshots'] = [freeze(directory, x['path'], x['sha256']) for x in originals if x is not None]
             payload['source_provenance_missing'] = [k for k,r in selected.items() if 'source_snapshot' not in r]
+        if locally_archived:
+            from .publication_policy import digest
+            payload['quiet_initial_archive']=dict(notification_id=initial[2],payload_sha256=digest(initial_payload))
         payload['data_classification']='private_account' if selected else 'public_status'
         if selected:
             payload['expires_at']=min(datetime.fromisoformat(r['source_snapshot_at']).timestamp()+600 for r in selected.values())

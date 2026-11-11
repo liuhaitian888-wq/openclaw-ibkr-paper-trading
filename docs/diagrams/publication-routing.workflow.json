@@ -1,0 +1,187 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "通知与状态卡的发布路由",
+    "locale": "zh-CN",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "publication",
+      "label": "群内发布"
+    },
+    {
+      "id": "archive",
+      "label": "后台证据"
+    },
+    {
+      "id": "private",
+      "label": "本人私聊"
+    },
+    {
+      "id": "state",
+      "label": "唯一状态卡"
+    }
+  ],
+  "mainPath": [
+    "facts",
+    "policy",
+    "sender",
+    "group"
+  ],
+  "nodes": [
+    {
+      "id": "facts",
+      "lane": "publication",
+      "col": 0,
+      "type": "database",
+      "label": "原始事实",
+      "sublabel": "保留账户与事件证据",
+      "width": 180
+    },
+    {
+      "id": "policy",
+      "lane": "publication",
+      "col": 1,
+      "type": "security",
+      "label": "发布规则",
+      "sublabel": "publication-v2",
+      "width": 180
+    },
+    {
+      "id": "sender",
+      "lane": "publication",
+      "col": 3,
+      "type": "messagebus",
+      "label": "现有唯一发送器",
+      "sublabel": "outbox / 原生回执",
+      "width": 180
+    },
+    {
+      "id": "group",
+      "lane": "publication",
+      "col": 4,
+      "type": "frontend",
+      "label": "deehub 群",
+      "sublabel": "实际日报附件 / 研究成果",
+      "width": 180
+    },
+    {
+      "id": "ledger",
+      "lane": "archive",
+      "col": 2,
+      "type": "database",
+      "label": "后台归档",
+      "sublabel": "普通事件不推送",
+      "width": 180
+    },
+    {
+      "id": "owner",
+      "lane": "private",
+      "col": 3,
+      "type": "frontend",
+      "label": "秘书私聊",
+      "sublabel": "快速问答 / 需行动事项",
+      "width": 180
+    },
+    {
+      "id": "host",
+      "lane": "state",
+      "col": 1,
+      "type": "backend",
+      "label": "可信状态快照",
+      "sublabel": "连接与业务就绪分开",
+      "width": 180
+    },
+    {
+      "id": "registry",
+      "lane": "state",
+      "col": 2,
+      "type": "security",
+      "label": "状态卡注册",
+      "sublabel": "固定来源 / 内容指纹",
+      "width": 180
+    },
+    {
+      "id": "pin",
+      "lane": "state",
+      "col": 4,
+      "type": "security",
+      "label": "独立置顶结果",
+      "sublabel": "缺权阻塞 / UNKNOWN不重放",
+      "width": 180
+    }
+  ],
+  "edges": [
+    {
+      "id": "facts-policy",
+      "from": "facts",
+      "to": "policy"
+    },
+    {
+      "id": "policy-sender",
+      "from": "policy",
+      "to": "sender",
+      "variant": "emphasis",
+      "label": "报告与成果"
+    },
+    {
+      "id": "sender-group",
+      "from": "sender",
+      "to": "group",
+      "variant": "emphasis"
+    },
+    {
+      "id": "policy-archive",
+      "from": "policy",
+      "to": "ledger",
+      "label": "一般事件",
+      "variant": "dashed"
+    },
+    {
+      "id": "policy-owner",
+      "from": "sender",
+      "to": "owner",
+      "label": "互动或需行动",
+      "variant": "security"
+    },
+    {
+      "id": "host-registry",
+      "from": "host",
+      "to": "registry"
+    },
+    {
+      "id": "registry-sender",
+      "from": "registry",
+      "to": "sender",
+      "label": "单卡 EDIT",
+      "variant": "security"
+    },
+    {
+      "id": "group-pin",
+      "from": "group",
+      "to": "pin",
+      "variant": "dashed",
+      "label": "独立对账"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "当前源码行为",
+      "items": [
+        "群内不再刊登普通短事件或缺报占位",
+        "现有sender更新唯一API链路状态卡"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "验收边界",
+      "items": [
+        "发送与置顶结果分别留痕",
+        "源码和离线通过不代表生产已验收"
+      ]
+    }
+  ]
+}

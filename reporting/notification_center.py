@@ -87,7 +87,8 @@ def public_calendar(item):
 def audience(item, config):
     # Owner-authorized automatic updates share one group; interactive replies
     # and action requests retain the verified secretary destination.
-    if config.get('automatic_updates_to_group') is True:
+    from .publication_policy import enabled as publication
+    if publication(config) or config.get('automatic_updates_to_group') is True:
         from .notification_access import decision
         return decision(item,config)['audience']
     if config.get('audience_mode')=='shared_group':
@@ -97,7 +98,7 @@ def audience(item, config):
 
 def recipient(item, config):
     target=audience(item,config)
-    if target=='hold':raise PermissionError('Account report audience decision pending')
+    if target in ('hold','archive'):raise PermissionError('No push destination for archived or held evidence')
     if target=='group':return config['chat_id']
     ident=config.get('owner_private_chat_id')
     if (type(ident) is not int or ident!=config['owner_user_id']
@@ -183,6 +184,24 @@ def mark_read(store,ident):
 def render(item,config,at):
     """Return exact plain/HTML views. Automatic updates may include owner-authorized research and task results."""
     cat=category(item);icon,label,_=CATEGORIES[cat];p=item['payload'];kind=item['kind']
+    from .publication_policy import enabled as publication
+    if publication(config):
+        from .notification_access import decision
+        route=decision(item,config)
+        if route['audience']=='archive':
+            raise PermissionError('Archived event has no wire rendering')
+        if route['public_view']=='link_status_card':
+            from .link_status_card import render as status_text
+            text=status_text(item)
+            return dict(text=text,html=html.escape(text),category='ops',audience='group',chat_id=recipient(item,config))
+        if route['public_view']=='research_result':
+            text='研究成果\n'+display(p['reason'])+'\n信息不改变交易授权。'
+            return dict(text=text,html=html.escape(text),category='research',audience='group',chat_id=recipient(item,config))
+        if route['public_view']=='capacity_action':
+            from .capacity import public_status
+            text=public_status(item)
+            if text is None:raise PermissionError('Bounded fixed capacity numbers required')
+            return dict(text=text,html=html.escape(text),category='ops',audience='owner',chat_id=recipient(item,config))
     if config.get('automatic_updates_to_group') is True:
         from .notification_access import decision
         route=decision(item,config)
@@ -245,6 +264,9 @@ def preview(store,config,ident):
 
 
 def prior_card(store,item,chat_id):
+    if item['kind']=='LINK_STATUS_CARD':
+        from .link_status_card import message_id
+        return message_id(store)
     if item['kind']=='AUTOMATIC_STATUS':
         with closing(store.connect()) as c:
             rows=c.execute('''SELECT r.payload FROM notification_outbox n JOIN notification_receipts r ON r.notification_id=n.id

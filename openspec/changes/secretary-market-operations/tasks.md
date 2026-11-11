@@ -112,3 +112,12 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Complete full isolated suite/secret/spec checks and sole-owner integration; record the exact reviewed source/config activation.
 - [ ] Validate shared Paper persistence helper integration and retain fail-closed recovery if its required module/proof is unavailable.
 - [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.
+
+Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded. Natural fault1907/group295 and zero automatic private messages verified01:54:28–02:00:45Z. Recovery/EDIT remains open behind real Gateway session blockage and one-shot UNKNOWN; fresh broker menu/Nov11 complete supplement also remain unaccepted. Full report shared_group audience explicitly reconfirmed by the human.
+
+
+## Current publication-v2 override — human 01a1c869
+- [x] Replace ordinary automatic group/private pushes with bounded auditable archive; keep unknown/reserved identities and full-backlog claim filtering.
+- [x] Share real report attachments and registered completed research; preserve native interaction/current action-only private routing, without activity mirrors.
+- [x] Implement one host-registered current link card with live prewire checks, receipt-based identity recovery and independent exact-once pin/UNKNOWN handling.
+- [ ] Publish through the existing sole owner and independently read native card/pin/private/group results; never equate offline success with acceptance.

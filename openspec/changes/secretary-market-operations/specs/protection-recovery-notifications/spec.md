@@ -14,3 +14,32 @@ The system SHALL preserve the unknown delivery outcome of an explicitly scoped h
 #### Scenario: Proven preflight failure permits explicit current-only refresh
 - **WHEN** every prior version has terminal PREFLIGHT_FAILED evidence and no operation, delivery, receipt or transport evidence, and an operator explicitly requests refresh with fresh complete broker proof
 - **THEN** retain all version registrations, payloads and attempts; supersede only the old unsent current projection and audit the new version in the same scope. The scope permits at most one transport attempt; STARTED, UNKNOWN and accepted outcomes are never refreshed or replayed. No automatic refresh loop is authorized.
+
+
+## ADDED Requirements
+
+### Requirement: Current deliverables-only publication policy
+The system SHALL apply publication-v2: ordinary events remain archived without push; actual account-report artifacts and registered completed research publish to the approved group. Native interaction and fresh human-action requirements MUST remain owner-private. Uncertain/reserved/wired attempts MUST NOT be suppressed as unsent or replayed. This overrides the earlier all-automatic group dispatch rule.
+
+#### Scenario: Large ordinary backlog after policy change
+- **WHEN** more than500 pending ordinary events exist
+- **THEN** bounded archival passes retain payload fingerprints and the whole-queue claim filter prevents any ordinary event escaping to either chat.
+
+#### Scenario: Quiet missing notice is followed by a real report
+- **WHEN** an initial Telegram report row was locally SUPPRESSED only as a missing-only notice with exactly empty included reports and PNGs, and its publication-v2 archive policy/reason/parsed-payload hash and positive zero-wire proof remain intact
+- **THEN** retain that initial row unchanged, permit at most one same-day genuine report supplement through all existing period/source/artifact/expiry checks, and bind the exact initial identity/hash for revalidation at claim and before wire.
+
+#### Scenario: Missing-notice evidence changes before the supplement is sent
+- **WHEN** the initial has any operation, delivery, receipt, wire or uncertain outcome, its archive proof/content changes, or it contained an actual report
+- **THEN** do not use the local archive exception, do not retry the initial, and refuse the supplement's exception again before wire; unrelated historical UNKNOWN and STARTED outcomes remain unchanged.
+
+### Requirement: One authorized current-link card and independent pin result
+The system SHALL maintain one registered current-link card through the existing sender, checking source, target, exact payload and current facts before wire. Heartbeat MUST NOT imply business readiness or trading authority. Accepted receipts MUST prevent replacement SEND. Pin uncertainty MUST remain independent of accepted delivery and MUST NOT permit replay or expanded rights.
+
+#### Scenario: Pin permission missing after accepted card
+- **WHEN** the accepted status-card bot lacks existing pin rights
+- **THEN** retain accepted delivery, record BLOCKED_PERMISSION without changing rights, and permit only the separately human-authorized exact owner pin reservation followed by native readback.
+
+#### Scenario: Business state changes during destination proof
+- **WHEN** current independent facts differ from a queued status version
+- **THEN** suppress that proven zero-wire version and retain evidence instead of publishing stale readiness; create no second card for uncertain outcomes.

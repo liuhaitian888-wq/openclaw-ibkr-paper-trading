@@ -105,13 +105,18 @@ class IncidentStore:
         c.execute("INSERT INTO notification_outbox(incident_key,generation,kind,payload,status) VALUES (?,?,?,?,'PENDING')", (incident_key, generation, kind, json.dumps(queued, sort_keys=True)))
         return True
 
-    def claim(self, *, automatic_grouped=False):
+    def claim(self, *, automatic_grouped=False, publication_config=None):
         """Reserve before transport; STARTED survives restart without replay."""
         with closing(self.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
             grouped_clause=''
             grouped_exception=''
             parameters=[self.clock()]
+            if publication_config is not None:
+                from .publication_policy import decision
+                c.create_function('publication_push',3,lambda kind,key,raw:
+                    int(decision(dict(kind=kind,incident_key=key,payload=json.loads(raw)),publication_config)['audience']!='archive'),deterministic=True)
+                grouped_clause='AND publication_push(n.kind,n.incident_key,n.payload)=1'
             if automatic_grouped:
                 from .automatic_notifications import batch_family
                 c.create_function('automatic_group_source',3,lambda kind,key,raw:

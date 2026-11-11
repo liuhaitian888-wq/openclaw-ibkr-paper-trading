@@ -34,11 +34,11 @@
 ### Task2: Quiet route and host status card
 **Files:** publication_policy.py, link_status_card.py, automatic_notifications.py, notification_access/center, incident_telegram.py, existing worker and focused tests; exact owner diff determines final paths.
 **Interfaces:** publication policy enabled/decision/prepare/archive_claimed; trusted status registry with complete fingerprints and two prewire checks; send/edit and pin independent records.
-- [ ] Review fixed candidate and source authority, pending sweep, send-time fail-closed guards.
-- [ ] Test archive-only backlog beyond500, report/research group content, interaction/private critical, forged host card, state change, UNKNOWN/card/pin idempotency.
+- [x] Review fixed candidate and source authority, pending sweep, send-time fail-closed guards.
+- [x] Test archive-only backlog beyond500, report/research group content, interaction/private critical, forged host card, state change, UNKNOWN/card/pin idempotency.
 
 ### Task3: Sole-owner integration and acceptance
-- [ ] Combine only necessary c1 successors in linked worktree, full run_worktree_tests.py, strict current/active specs, all-filesgitleaks.
+- [x] Combine only necessary c1 successors in linked worktree, full run_worktree_tests.py, strict current/active specs, all-filesgitleaks.
 - [ ] Check actual source/dualmanifests/gates/Gateway/Paper generation, model idle and disk admission, retain bounded source/liveDB backups.
 - [ ] Git FF approved cloud workspace, identity-only manifest update, reload only changed existing owners.
 - [ ] Activatepublication-v2 and trusted card scope after exact source load; verify natural card native receipt then owner-session one-time pin/readback.

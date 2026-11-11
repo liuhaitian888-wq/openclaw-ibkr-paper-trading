@@ -50,6 +50,8 @@ def claim_telegram(store, path, expected):
     config=telegram_configuration(path,expected)
     from reporting.automatic_notifications import prepare, enabled
     prepare(store,config)
+    from reporting.publication_policy import enabled as publication
+    if publication(config):return store.claim(publication_config=config),config
     return (store.claim(automatic_grouped=True) if enabled(config) else store.claim()),config
 
 
@@ -112,11 +114,24 @@ async def run_worker():
                 from telegram import Bot
                 owned_bot=await clients.enter_async_context(Bot(token=cfg['bot_token']))
             report_audit_at=0;recovery_audit_at=0
+            link_audit_at=0
             while not stopped.is_set() and armed.is_file():
                 item=None
                 if ((root/'runtime/FEISHU_ALERTS_ARMED').exists() if (smtp or telegram) else smtp_armed.exists()):
                     raise RuntimeError('Concurrent SMTP arming is not permitted')
                 try:
+                    if telegram and time.monotonic()-link_audit_at>=5:
+                        from reporting.link_status_card import queue,ensure_pin
+                        from reporting.publication_policy import enabled as publication
+                        if publication(cfg):
+                            try:
+                                queue(store,root,cfg)
+                                await ensure_pin(store,owned_bot,cfg)
+                            except Exception as exc:
+                                # A failed status projection must not prevent a
+                                # native owner reply or an actual report send.
+                                print('LINK_STATUS_PROJECTION_UNAVAILABLE','exception_type='+type(exc).__name__,flush=True)
+                        link_audit_at=time.monotonic()
                     if telegram and time.monotonic()-recovery_audit_at>=10:
                         from reporting.notification_reconciliation import recover
                         try:

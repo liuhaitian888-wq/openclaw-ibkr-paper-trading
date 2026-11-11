@@ -202,6 +202,9 @@ def _fresh_paper(store, c, now):
 
 def prepare(store, config):
     """Bounded projection before the existing sender claims; no HTTP or clients."""
+    from .publication_policy import enabled as publication, prepare as archive_events
+    if publication(config):
+        return archive_events(store, config)
     if not enabled(config):
         return 0
     now = store.clock(); created = 0
