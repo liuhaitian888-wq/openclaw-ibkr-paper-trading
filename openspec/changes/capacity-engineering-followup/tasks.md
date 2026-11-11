@@ -3,5 +3,5 @@
 - [x] Expose true task states through existing capacity/mailbox/work interfaces.
 - [x] Full linked offline suite1491/114.493s and secret scan; diagram9/9 deterministic validation.
 - [x] Fixed runtime b0f4892056e19e88a90e0ad0adc5f1545ae6a370 handed to sole publisher.
-- [ ] Unique publisher combined verification/deployment, real old-event backfill and secretary/host-claim acceptance. No new alert/model opportunity is required.
+- [x] Unique publisher7f combined1511/88.965s; natural event2/outbox2016→task2, explicit read-onlyclaim→DIAGNOSED and native/work2055 verified. No alert replay/model opportunity.
 - [ ] Continuous growth calibration remains separate; no guarantee of time-to-full.

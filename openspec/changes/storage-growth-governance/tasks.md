@@ -10,5 +10,5 @@
 - [x] Actual entry run_once→prepare budget before reservation/source/canary/model, preserve old uncertain outcomes.
 - [x] Explicit publication preflight entry preserving required backups/originalguard and256MiB wave/2GiB postreserve.
 - [x] Exact3534da19 linked1516/119.265s and all-filessecrets/commit hookPASS.
-- [ ] Sole publisher combined verification, binding before upload and backup mkdir, exact before/after actual allocated bytes and live read-onlyDEFER decision.
+- [x] Root15f minimal1522/main1544 passed; actual pre-SCP and pre-backup binding, projected211361950B/final189583360B and live CLIexit2 DEFERRED_CAPACITY_UNKNOWN verified. Incomplete quota inventory remains explicit.
 - [ ] Same-content source archive reuse is separate C; not implemented by B1 and not claimed here.

@@ -45,3 +45,12 @@ Broker baseline批准标记只授权现有只读采集器持久化券商事实�
 - 自有资金兑换：`runtime/cash-conversion-scope.json`，`cash-funding-20261109-v1:EURUSD`已FILLED/CONFIRMED；已用完唯一提交机会，不能重置/更换key重放。现金以新鲜各币种ledger为准，保留CASH类FX交易头寸事实；不当股票空仓，不删除或隐瞒。
 - 云端任何Git部署须核对这两份scope及monitoring/gateway部署身份。保护scope仍在有效期时，先比较其核心代码/依赖与目标提交并跑规定离线验证，再记录源identity整合；只更新经过核验的身份字段，原数量、权限、到期和已提交预算不变。不能仅更新monitoring manifest而让保护scope身份悄悄失配，也不能为避免失配放宽验证。
 - 源码指纹/原生结果与剩余P0见`docs/production-audit/CASH_FUNDING_20261109.md`、`SCOPED_PROTECTION_20261109.md`、`.der/context/task-closeout.md`。连续股票执行/原子预算/部分成交与重启对账、币种/旧仓归属、实时及结算资金、T0和正式release仍未验收。PAUSED/MAINTENANCE与SAFE_MONITOR_ONLY保留。
+
+
+## 2026-11-11 可选工程快照与发布工件预算
+
+新工程快照使用现有storage-policy的8GiB/28%底线、每次128MiB预留与512MiB目录配额；目录额度清点不完整时拒写。原STARTED/UNKNOWN对账先于此门禁；不通过新任务、复制或清理把UNKNOWN刷成正常。
+
+任何后续非必要源码发布，唯一publisher须先运行`scripts/check_artifact_budget.py --kind publication`，显式给出实际输入bundle、source-before bundle保守估计及额外工件字节：**SCP前先查，evidence目录/备份创建前再查**。波次预计不超过256MiB，并保留原peak guard与至少2GiB发布后余量。必须保留必需两库恢复备份；不足时暂缓可选发布，不能跳过备份或降低阈值。旧的未绑定预算helper不再是本项目批准的可选发布入口；这不是新的部署/交易授权，也不是全局文件系统硬quota。
+
+首次15f7b9a发布以已测3534模块SHA通过只读stdin预检，在未传入新bundle之前判断，再于publisher写入前复核；之后采用已部署CLI。必须核对实际source-before bundle和全部保留工件字节，超估计需对账。实证、复现脚本及局限见docs/ENGINEERING_ARTIFACT_BUDGET_20261111.md与.der/context/task-closeout.md。历史来源、数据库、UNKNOWN与旧备份均保留；同内容缓存复用仍为后续候选。

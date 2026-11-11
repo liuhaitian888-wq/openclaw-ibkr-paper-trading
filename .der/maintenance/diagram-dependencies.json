@@ -6,9 +6,9 @@
       "inputs": {
         "engineering/task_completion.py": "60dc16361aa6685baa14c4edf48eac387c336493adecd2aeab91ef84df46839e",
         ".der/maintenance/README.md": "2036cf1f7b96991ac4cfd1f455b32ef3b66ed621dbf14c589572d1d1031dd9d2",
-        "PRODUCTION.md": "4d08f027e1ca5ec443c65ec9b31b446382ad01e8d93387ff14633bc928a98494"
+        "PRODUCTION.md": "ecd9e3411a1edc095a121a88f82f20d5eed0d01347899366c4ac968f49fdff6d"
       },
-      "semantic_review": "Separate from content identity; artifact/browser/visual receipts in engineering/openspec-task-completion-20261109"
+      "semantic_review": "Separate from content identity; artifact/browser/visual receipts in engineering/openspec-task-completion-20261109 Root A+B1/terminal review: same existing owners, current fixed private-action route and single pinned-card/public-report paths. Capacity handoff and optional artifact admission are drawn separately; public archive/core financial behavior unchanged. PRODUCTION adds the required budget check inside the existing publication gate, not new execution authority. Only these reviewed source inputs are refreshed; other historical mismatches remain visible."
     },
     {
       "path": "docs/diagrams/broad-screening.html",
@@ -76,14 +76,14 @@
       "output_sha256": "70aba5c1d0f1043c825abe96a800ed49b40b8dcdbfc8e6635c1071c35565e804",
       "inputs": {
         "docs/diagrams/publication-routing.workflow.json": "ac78db25630b2057231f4aa9329a4ba191f4f5de9a06e7ff62504882356155f4",
-        "reporting/publication_policy.py": "c420d48911417a16709358b12227714bdb0ff5fd51d6e8f6ef79f9c722f13994",
-        "reporting/link_status_card.py": "63eef7d5c523733325accae33c37da34b3b3f6a2d15b6900e0128b57abb8eae2",
+        "reporting/publication_policy.py": "c4c85c4e2988603ccc666d1957a397e0c28c93f56784b28d498caa2782af82c9",
+        "reporting/link_status_card.py": "7f6db5d374018f2ceb1206e2edc6208a225b305dec23e303273b64e4e569bae4",
         "reporting/incident_telegram.py": "68f111fbeaf914a59f9ebd779a519d84e5b9b8114de4540c3d08cedf0cc20d03",
         "ops/cloud/feishu_alert_watch.py": "173ee928939975070a94e2866a5d8f6e1150fa2d718252b2a79f6908142789e6",
         "reporting/report_schedule.py": "b67d2136fc7f48efac6772a32c6d15514c9c4edc73b7504aaf8ce0b55aac6221",
         "ops/cloud/secretary_rpc.py": "d5cfdb85e54d5d82ecac7f7c55ced87ef9419f387fbf601c03da1dd4b582809e"
       },
-      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged. Native-vs-registry projection review: current native proof, same-epoch history, independent closed observer and disabled/stale registry text are separate facts inside the existing local snapshot node; no new actor/transport/pin/permission or health adapter. Existing picture remains semantically applicable; only reviewed source input receipt updated. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch."
+      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged. Native-vs-registry projection review: current native proof, same-epoch history, independent closed observer and disabled/stale registry text are separate facts inside the existing local snapshot node; no new actor/transport/pin/permission or health adapter. Existing picture remains semantically applicable; only reviewed source input receipt updated. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root A+B1/terminal review: same existing owners, current fixed private-action route and single pinned-card/public-report paths. Capacity handoff and optional artifact admission are drawn separately; public archive/core financial behavior unchanged. PRODUCTION adds the required budget check inside the existing publication gate, not new execution authority. Only these reviewed source inputs are refreshed; other historical mismatches remain visible."
     },
     {
       "path": "docs/diagrams/storage-governance.html",
@@ -92,7 +92,7 @@
         "reporting/storage_policy.py": "3d002ff5a5c623483fe971cb4e4780a5c5f1838acd21b7dd5740f00d957b7df3",
         "reporting/storage_archive.py": "f3d883ac9edb5330b36f005e57ceb75a2d8c022e929ad3a950d3ba853ea94f07",
         "scripts/archive_storage_batch.py": "0f6e6f4177fcff80300fead2cc3bf1a6def9751f0f86da83a6de28cbb6ed48a7",
-        "reporting/capacity.py": "8366aba1df5b3f8a3257bc98dd8309afb7b7f4e28d3a3ae4c5a3fed420981e28",
+        "reporting/capacity.py": "a418ab7727010fec32aaf5bec310ae0abf10285df4a9cf7a3847ab1a55a98f30",
         "reporting/health.py": "e274f7ae303ad8ddf37d6bd9bbf7a5ef18233a72dbdc0092c080abd930260b30",
         "reporting/broad_screening.py": "13f026c652765b7e0b14b4871ba8b95ab4fa5db099b87b9cc869ae7be4612eb0",
         "reporting/security_directory.py": "92d5ee1255e05568a202a795cf4d81075dbafa0866dc0e3a7f0e2a39318472d1",
@@ -103,7 +103,7 @@
         "ops/cloud/storage-policy.example.json": "935729ea1d812b8325eebcb782534679a5a45266252c9210a1cc8a8824c33ca8",
         "docs/diagrams/storage-governance.architecture.json": "c1c0625bbb50c87857f9bc1c89836856ece7a851a0b6f728347db4823d8d4ed5"
       },
-      "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps. B1 review2026-11-11: existing public/archive and native development actors remain; added pre-reservation storage admission is separately drawn in engineering-artifacts.html. Historical source stage and UNKNOWN/native boundaries retained; no new live acceptance asserted."
+      "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps. B1 review2026-11-11: existing public/archive and native development actors remain; added pre-reservation storage admission is separately drawn in engineering-artifacts.html. Historical source stage and UNKNOWN/native boundaries retained; no new live acceptance asserted. Root A+B1/terminal review: same existing owners, current fixed private-action route and single pinned-card/public-report paths. Capacity handoff and optional artifact admission are drawn separately; public archive/core financial behavior unchanged. PRODUCTION adds the required budget check inside the existing publication gate, not new execution authority. Only these reviewed source inputs are refreshed; other historical mismatches remain visible."
     },
     {
       "path": "docs/diagrams/secretary-development.html",
@@ -146,7 +146,7 @@
         "scripts/check_artifact_budget.py": "8bbd01dfe255db00f75cace1e85be733cbaea0f426ae51e48d6806694d3906d8",
         "docs/diagrams/engineering-artifacts.architecture.json": "c89e1452b7671482fba65898db45a8a78105915c19c3352c5049741caf568ec5"
       },
-      "semantic_review": "B1 fixed3534da19 on actual7f: before-reserve snapshot admission and explicit sole-publisher CLI binding; no cleanup, financial backup skip or source reuse claim. Archify9/9, all desktop browser measures pass and light/dark2048 visually reviewed readable/contained. Runtime source/1516offline proven; live binding/deployment pending publisher."
+      "semantic_review": "B1 fixed3534da19 on actual7f: before-reserve snapshot admission and explicit sole-publisher CLI binding; no cleanup, financial backup skip or source reuse claim. Archify9/9, all desktop browser measures pass and light/dark2048 visually reviewed readable/contained. Runtime source/1516offline proven; live binding/deployment pending publisher. Actual15f publisher bound the same module before SCP and again before artifact writes; projected/actual receipts and live fail-closed UNKNOWN are recorded in ENGINEERING_ARTIFACT_BUDGET_20261111.md. Rendering remains the source-stage candidate topology; no C reuse/global quota or Gateway recovery acceptance is inferred."
     }
   ]
 }
