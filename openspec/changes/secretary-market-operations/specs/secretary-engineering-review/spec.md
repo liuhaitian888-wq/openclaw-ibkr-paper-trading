@@ -371,3 +371,18 @@ The existing news producer SHALL retain bounded type0 article text with separate
 #### Scenario: Actual news result acceptance
 - **WHEN** source and isolated tests pass
 - **THEN** natural fresh text, an evidence-based model summary and native delivery remain separate unproven acceptance steps until their actual receipts exist.
+
+### Requirement: Durable Gateway manual attention without new restart authority
+The existing watchdog SHALL distinguish business readiness from transport handshake, persist an operator episode, and validate a host-registered private action notice against current evidence before wire. The existing pinned card SHALL expose only fixed safe state. This capability SHALL NOT grant a new restart category, replay an uncertain action or bypass native authentication.
+
+#### Scenario: Handshake succeeds while business readiness stays absent
+- **WHEN** stable-generation fresh independent failures persist for900seconds with bounded observations
+- **THEN** persist manual attention, retain the old operation budget and publish through the existing verified private sender without a group mirror.
+
+#### Scenario: Recovery or uncertainty precedes delivery
+- **WHEN** the source recovers, becomes stale, changes registration or has an uncertain attempt
+- **THEN** refuse obsolete or forged wire attempts and never replace or replay STARTED/UNKNOWN.
+
+#### Scenario: An existing native login phase requires the owner
+- **WHEN** a fresh canonical owner journal phase indicates operator action
+- **THEN** preserve observed and queued times for the existing private auth route, reject old-generation hints and keep authentication as a restart-negative gate; no second watchdog private mirror is created.

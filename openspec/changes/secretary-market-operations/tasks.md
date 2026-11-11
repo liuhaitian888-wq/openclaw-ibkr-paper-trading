@@ -201,3 +201,11 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Verify19focused/1503full offline tests, including many-body projection budget, source hashes/TTL/identity and existing capacity route preservation.
 - [x] Unique publisher constructed actual-cloud minimal6ad75f8, independently passed1481/195.531s and loaded14:03:18UTC; dual identity manifests verified.
 - [x] Natural14:05:27UTC article body verified; actualnews_evidence→ordinaryCHAT summary→outbox2309→nativeprivate2050 exact match. No group test/full article. Autonomous completedRESEARCH registration/publication and broader source coverage remain unverified.
+
+
+## Gateway Python attention on actual7e
+- [x] Split Python business-readiness/manual route from early2FA C# release, retaining original restart policy and held owner.
+- [x] Add durable host notice/current-condition validation, journal queued_at, auth negative gate and fixed existing-pin projection; cover real sender contracts offline.
+- [x] Complete exact7e isolated1492 suite/20 focused/secret/spec checks.
+- [ ] Complete sole-publisher Git integration/actual load without Gateway/Paper/OAuth restart.
+- [ ] Verify natural live watchdog version/health/same pinned native message and preserved old operation/gate/UNKNOWN records; genuine manual/2FA event remains unverified until naturally observed.
