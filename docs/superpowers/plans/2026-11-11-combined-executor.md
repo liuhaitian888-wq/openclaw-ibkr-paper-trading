@@ -15,6 +15,6 @@ Publisher minimal-release steps (same authorized execution method):
 - [x] Run complete isolated minimal suite, strict specs and secret scan; freeze commit/bundle and record exact byte budgets.
 - [x] Recheck current disk and existing sole owners, drain model owner when idle, retain bounded mandatory two-DB/Git backups, forward Git source and identity-only manifests. Reload existing owners, preserve all scope/UNKNOWN/gates and release owned drain. No new native server/turn/canary/dev workspace is part of publication.
 - [x] Observe only service/source/read-only state and resource metadata; keep live compact/native outcome UNVERIFIED until separately approved opportunity.
-- [ ] Independently validate larger main source integration, preserve unrelated files, record source/offline/deployment/native separately, refresh canonical five-project states and publish through Git.
+- [x] Independently validate larger main source integration, preserve unrelated files, record source/offline/deployment/native separately, refresh canonical five-project states and publish through Git.
 
 Review focus: failure journal creation must precede child spawn; any later journal failure must still close owned pipes/child, typed deadline/stderr reasons remain distinct without changing limits, compact output preserves original native evidence and full AST gate, and no old UNKNOWN may produce a new task.
