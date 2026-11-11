@@ -194,3 +194,8 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Focused33 tests pass, preserving native uncertainty and private-result provenance; no native model call.
 - [x] Complete combined1494PASS/82.840s, focused33PASS, strictall12/12PASS, secrets/diff/receipt checks; prepare fixed-source publisher handoff.
 - [ ] Sole publisher constructs future minimal deployed tree and independently verifies it; no new native opportunity is authorized here.
+
+## Independent early2FA output phase candidate
+- [x] Split from mixed252 onto actual7e, add the fixed early phone-confirmation phase with real.NET smoke/Linux build and prescribed1472-test isolated suite.
+- [ ] After Python attention publication is actually verified, review a new immutable release inventory and activate only at a natural or separately authorized process lifecycle; no Gateway restart in this task.
+- [ ] Observe real native phone confirmation/private action receipt and safe owner completion without credential/OTP copies or group disclosure.
