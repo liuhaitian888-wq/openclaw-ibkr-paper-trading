@@ -141,4 +141,7 @@ Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded
 - [x] Implement durable independent attention, immutable incident retries and health requires_operator through existing owners; retain latest shared pinned/archival presentation policy.
 - [x] Complete exact-source isolated1405-test suite, C# phase smoke/linux build, strict8spec and stagedsecret scan.
 - [ ] Complete exact-source publisher/main integration and compatible routing/release activation.
-- [ ] Observe a natural operator group card and stable genuine recovery; separately resolve pending one-time Gateway restart authorization.
+- [x] Independently verify new one-time human authorization and one existing-service recovery with two real complete Paper sources and stablewatchdogRECOVERED; retain originalUNKNOWN/gates.
+- [ ] Deploy candidate readiness/early2FA phases with compatible sharedpublisher; observe real manual-attention/2FA presentation without fault injection.
+
+Gateway actual acceptance2026-11-11: running409e255/oldrelease62c only; once06:09:47Z→newJava3186637:163137691→independentcomplete06:13:42Z→stableRECOVERED. Originalbuilder1985/group299 supplement independently accepted bypublisher; originalscopeUNKNOWN/old5unchanged. Sourcecandidate252b notactivated; pinprojection/baseadapter/fees/tradingrelease remain separate. See docs/production-audit/GATEWAY_RECOVERY_20261111.md.
