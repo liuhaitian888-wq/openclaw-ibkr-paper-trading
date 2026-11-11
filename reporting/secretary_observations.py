@@ -12,7 +12,9 @@ from zoneinfo import ZoneInfo
 
 def observe(archive, root):
     results = {}; errors = {}
-    jobs = {'gateway_sessions': lambda: collect(IncidentStore(root/'runtime/recovery.sqlite3'), root),
+    from .capacity import tick as capacity_tick
+    jobs = {'capacity': lambda: capacity_tick(root),
+            'gateway_sessions': lambda: collect(IncidentStore(root/'runtime/recovery.sqlite3'), root),
             'market_clock': lambda: market_clock(IncidentStore(root/'runtime/recovery.sqlite3')),
             'engineering_weekly': lambda: engineering_weekly(archive, IncidentStore(root/'runtime/recovery.sqlite3')),
             'market_subscription_sample': lambda: check(archive, root, periodic=True)}
@@ -23,6 +25,8 @@ def observe(archive, root):
         except Exception as exc:
             errors[name] = type(exc).__name__
     coordinator = RecoveryCoordinator(root/'runtime/recovery.sqlite3')
+    if 'capacity' in errors:
+        coordinator.observe('CAPACITY','DEGRADED',freshness='UNKNOWN',enabled=True,reason='Capacity collector unavailable; '+errors['capacity'])
     for job,module in (('market_clock','MARKET_CLOCK'),('engineering_weekly','ENGINEERING_WEEKLY')):
         failed = job in errors
         expired = False

@@ -72,7 +72,7 @@ class SecretaryObservationTests(unittest.TestCase):
         from reporting.secretary_observations import observe
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            with patch('reporting.secretary_observations.collect',side_effect=ValueError('private journal detail')) as session, patch('reporting.secretary_observations.check',return_value=None) as sample:
+            with patch('reporting.capacity.tick',return_value=False), patch('reporting.secretary_observations.collect',side_effect=ValueError('private journal detail')) as session, patch('reporting.secretary_observations.check',return_value=None) as sample:
                 result=observe(object(),root)
             sample.assert_called_once()
             self.assertEqual(result['errors'],{'gateway_sessions':'ValueError'})
