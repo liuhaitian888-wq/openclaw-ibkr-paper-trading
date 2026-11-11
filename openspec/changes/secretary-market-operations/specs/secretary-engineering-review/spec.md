@@ -357,3 +357,17 @@ A restricted engineering edit MAY use insert_after with the exact source SHA and
 #### Scenario: Unauthorized insertion behavior
 - **WHEN** a compact edit changes the anchor, base hash or behavior outside the fixed guard class
 - **THEN** reject it before modifying the target file.
+
+
+## MODIFIED Requirements
+
+### Requirement: Retained readable news evidence
+The existing news producer SHALL retain bounded type0 article text with separate provider/article identity, content revision and retrieval occurrence. The fixed secretary reader SHALL verify identity, source/hash and300second retrieval TTL before exposing bounded text. Unknown revision time SHALL remain unknown. Hash-only snapshots SHALL NOT establish body research; research publication SHALL use summaries and existing authority/sender policy.
+
+#### Scenario: Many provider bodies
+- **WHEN** multiple verified articles exceed model context capacity
+- **THEN** expose at most12000 text characters in total and2000 per body, preserve metadata, and explicitly mark truncation/budget-limited bodies without discarding all usable evidence.
+
+#### Scenario: Actual news result acceptance
+- **WHEN** source and isolated tests pass
+- **THEN** natural fresh text, an evidence-based model summary and native delivery remain separate unproven acceptance steps until their actual receipts exist.

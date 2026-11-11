@@ -361,6 +361,17 @@ A restricted engineering edit MAY use insert_after with the exact source SHA and
 - **WHEN** a compact edit changes the anchor, base hash or behavior outside the fixed guard class
 - **THEN** reject it before modifying the target file.
 
+### Requirement: Retained readable news evidence
+The existing news producer SHALL retain bounded type0 article text with separate provider/article identity, content revision and retrieval occurrence. The fixed secretary reader SHALL verify identity, source/hash and300second retrieval TTL before exposing bounded text. Unknown revision time SHALL remain unknown. Hash-only snapshots SHALL NOT establish body research; research publication SHALL use summaries and existing authority/sender policy.
+
+#### Scenario: Many provider bodies
+- **WHEN** multiple verified articles exceed model context capacity
+- **THEN** expose at most12000 text characters in total and2000 per body, preserve metadata, and explicitly mark truncation/budget-limited bodies without discarding all usable evidence.
+
+#### Scenario: Actual news result acceptance
+- **WHEN** source and isolated tests pass
+- **THEN** natural fresh text, an evidence-based model summary and native delivery remain separate unproven acceptance steps until their actual receipts exist.
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.

@@ -194,3 +194,10 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Focused33 tests pass, preserving native uncertainty and private-result provenance; no native model call.
 - [x] Complete combined1494PASS/82.840s, focused33PASS, strictall12/12PASS, secrets/diff/receipt checks; prepare fixed-source publisher handoff.
 - [ ] Sole publisher constructs future minimal deployed tree and independently verifies it; no new native opportunity is authorized here.
+
+
+## Readable news delivery continuation
+- [x] Implement existing-producer bounded article retention/revision identity and secretary actual-text tool on current00cfe81; freeze3b1a728.
+- [x] Verify19focused/1503full offline tests, including many-body projection budget, source hashes/TTL/identity and existing capacity route preservation.
+- [ ] Unique publisher constructs actual-cloud minimal tree and validates/loads news source.
+- [ ] Verify natural fresh article body, model summary with evidence and native private/authorized publication receipt; no test group message or full paid article.

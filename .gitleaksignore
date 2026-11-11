@@ -38,3 +38,7 @@
 .der/maintenance/diagram-dependencies.json:generic-api-key:81
 .der/maintenance/diagram-dependencies.json:generic-api-key:115
 .der/maintenance/diagram-dependencies.json:generic-api-key:116
+
+# News diagram dependency content SHA256 values; independently rehashed, not credentials.
+.der/maintenance/diagram-dependencies.json:generic-api-key:130
+.der/maintenance/diagram-dependencies.json:generic-api-key:131

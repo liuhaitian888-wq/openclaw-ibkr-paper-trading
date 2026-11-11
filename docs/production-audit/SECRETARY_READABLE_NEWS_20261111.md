@@ -1,0 +1,7 @@
+# Readable news source delivery
+
+Fixed runtime3b1a728 on00cfe81: existing producer now preserves real type0 article text rather than only its SHA. No new broker connection, request, collector worker, subscription, paid source or delivery owner. Existing intelligence_broker uses ibkr-news-probe lock and current natural schedule. Max24000UTF8bytes retained/article; unsupported binary stays metadata only. Provider/article identity, content revision hash and retrieval occurrence are separate; published/retrieved/expiry fields retained, unknown provider revision time not invented.
+
+Fixed news_evidence tool reads512KB maximum, verifies BROKER_API/account identity, exact provider/article, retained/full hash and300second retrieval freshness. Model gets up to2000characters/body and12000total, with truncation/budget exhaustion declared and metadata retained.19focusedPASS;1503complete isolatedPASS145.890s. Ordinary research consumes this as untrusted evidence, cites source/time, separates fact/judgment and must not reproduce full paid text. No B code-task scope, new native model server or group test message.
+
+Source/isolated tests are complete; source loading, natural fresh-body read, model research summary and actual native delivery remain separate acceptance steps owned by publisher/normal secretary research. No current all-news readiness claim. Original gate/UNKNOWN records unchanged. Current/delta specs synchronized for this requirement; existing historical archive advisories preserved.

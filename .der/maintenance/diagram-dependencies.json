@@ -118,6 +118,20 @@
         "reporting/native_journal.py": "630c3091fcb1d43dbed80fab6e45060aa1d591dd1a4aaae5debfe5781bbe91e0"
       },
       "semantic_review": "Implementation boundary only; no native new-scope acceptance claimed. Archify9/9 showcase PASS; automated four desktop sizes and light/dark endpoints PASS; 2048x1320 light visually reviewed. MODEL source and USER authority separate, model auth outside kernel-isolated tests, independent publisher retains merge/deploy. Unrelated stale diagram receipts retained, not blindly rehashed. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root combined-source review: sender result edge now explicitly requires host task-to-native-request proof and current verified private owner; same actors, ledger, sender and transport, no new topology or permission. Original model proposal/external class authorization/native request remain separate. Actual accept_update/private-only sender and rejected provenance matrix verify this edge; render remains applicable. Combined730 candidate: JSON patch remains on the same model-to-host edge; insert_after expands before unchanged full AST and isolated test edge. Private bounded metadata stays in the existing host-owned artifact store; no new actor/transport/native permission. Existing model JSON/host patch/isolation/owner-private-result labels remain accurate. Native journal included as reviewed storage implementation dependency; rendering and architecture input unchanged. UNKNOWN and not-deployed boundary unchanged; offline source only, no real latency or native acceptance inferred."
+    },
+    {
+      "path": "docs/diagrams/secretary-news.html",
+      "output_sha256": "85a4348701c5eb2bbdf430bfa47da211ed14db129aac06c79680182dd46ed24c",
+      "inputs": {
+        "docs/diagrams/secretary-news.architecture.json": "c0eec3a3cf5406053c6453c9a1c35b8c4e65c1ce6c6f63b814ba020a5ea2a29f",
+        "trading/news_feed.py": "53b5d9d3b06cbb51c78e231840e3e40b484a8d588b669a7097d13817983eae25",
+        "trading/news_article_evidence.py": "9f9422d34b7897cc39463ba55df05fe9995461358c9ea508f7f61ce6949615ef",
+        "reporting/secretary_research_evidence.py": "96164b306eed558e1266fcb6b81c12b31f56be743c27b69d93fd6aa6217439ea",
+        "reporting/secretary_read.py": "46c09392c866ba1c99d545ceffdc13fc785c6ae8e5581b95f225e21dd1df5f12",
+        "scripts/run_secretary_bridge.py": "56e51e6fdfdec56b49684c6a4ed8e7258b47f370023d60f481d10ad01acf00cd",
+        "ops/cloud/intelligence_broker.py": "3714999e1fb400c3af4f12227d0be0f0dc4a62db7b159d558c1db0449cede45a"
+      },
+      "semantic_review": "Source-body/revision/TTL read path inspected; existing producer and sender owners retained. Source data-to-model edge now explicit, final research registration/delivery dashed pending native acceptance. Historical secretary-tools view retained, unrelated receipts not rehashed. Archify new source diagram, no production readiness inferred."
     }
   ]
 }
