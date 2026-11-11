@@ -168,6 +168,33 @@ class DevelopmentTests(unittest.TestCase):
                 apply(job,{'edits':[{'path':FILES[0],'before_sha256':before,'content':content}]})
             self.assertEqual(original,file.read_text())
 
+    def test_compact_patch_preserves_full_ast_and_original_native_evidence(self):
+        from reporting.engineering_patch import prepare, ANCHOR
+        job=self.root/'compact'
+        source=prepare(self.source,self.value['engineering_development_scope']['base_commit'],job)
+        original=source['files'][FILES[0]]
+        edit={'path':FILES[0],'before_sha256':original['sha256'],
+              'operation':'insert_after','anchor':ANCHOR,'content':GUARD}
+        native={'edits':[edit.copy()]}
+        result=apply(job,native)
+        self.assertTrue(result['patch_sha256'])
+        self.assertEqual(edit,native['edits'][0])
+        self.assertEqual(original['content'].replace(ANCHOR,ANCHOR+GUARD,1),(job/'worktree'/FILES[0]).read_text())
+        self.assertLess(len(json.dumps(edit)),1000)
+
+    def test_compact_patch_rejects_extra_behavior_wrong_anchor_or_base(self):
+        from reporting.engineering_patch import prepare, ANCHOR
+        for variation in ({'content':GUARD+'    print("injected")\n'},
+                          {'anchor':'scope'}, {'before_sha256':'0'*64},
+                          {'operation':'replace_all'}, {'content':'x'*4097}):
+            with tempfile.TemporaryDirectory(dir=self.root) as folder:
+                job=Path(folder)/'new-job';src=prepare(self.source,self.value['engineering_development_scope']['base_commit'],job)['files'][FILES[0]]
+                edit={'path':FILES[0],'before_sha256':src['sha256'],
+                      'operation':'insert_after','anchor':ANCHOR,'content':GUARD,**variation}
+                with self.assertRaises((PermissionError,ValueError)):
+                    apply(job,{'edits':[edit]})
+                self.assertEqual(src['content'],(job/'worktree'/FILES[0]).read_text())
+
     def test_public_result_projection_failure_never_repeats_patch_or_tests(self):
         self.enqueue();self.a.finish_run('secretary-run',state='FAILED')
         with patch('reporting.engineering_development.finish',side_effect=OSError()):

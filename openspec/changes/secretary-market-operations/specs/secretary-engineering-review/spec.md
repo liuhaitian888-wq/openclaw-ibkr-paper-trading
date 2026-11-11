@@ -322,3 +322,38 @@ The existing /work view SHALL join ordinary secretary requests with their record
 #### Scenario: Legacy archive without engineering table
 - **WHEN** an existing archive has no engineering task table
 - **THEN** ordinary work lookup remains available without creating that table.
+
+### Requirement: Bounded native failure diagnostics
+The host SHALL preserve private bounded native metadata and distinguish NATIVE_DEADLINE from STDERR_BUDGET. The existing75-second native,130-second whole-task and1,000,000-byte stderr limits SHALL remain unchanged. Journal write failure SHALL fail closed with owned resources cleaned up.
+
+#### Scenario: Metadata is retained without native content
+- **WHEN** the native client records an attempt
+- **THEN** bound the private snapshot to16KiB and16 recent item IDs/types; retain monotonic timing, effective timeout, phases, native IDs, counters and cleanup only, without prompts, bodies, reasoning, credentials, environment or raw streams.
+
+#### Scenario: A native limit fails after acceptance
+- **WHEN** the native turn has been accepted and its deadline, stderr budget or journal write fails
+- **THEN** preserve its original native identity and UNKNOWN task disposition without retry, budget reset, new scope or reinterpretation as unexecuted/FAILED.
+
+#### Scenario: A child emits partial, malformed or invalid output
+- **WHEN** output is incomplete, malformed, schema-invalid or the child exits before a valid completion
+- **THEN** retain safe phase/counter/exit evidence, close owned pipes and boundedly terminate only that child; no partial response becomes a completed patch.
+
+#### Scenario: A valid public completion is observed
+- **WHEN** a valid native completion reaches the host
+- **THEN** persist the existing public completion checkpoint before marking journal completion; a later journal failure cannot erase that checkpoint or imply deployment/test acceptance.
+
+#### Scenario: The original ephemeral process has exited
+- **WHEN** only the original acceptance and uncertainty evidence remains
+- **THEN** preserve the old journal/UNKNOWN and consumed budget, never start a replacement server/turn for reconciliation, and do not claim that stored-thread APIs can recover ephemeral memory.
+
+
+### Requirement: Hash bound compact engineering edits
+A restricted engineering edit MAY use insert_after with the exact source SHA and unique approved anchor. Before writing, the host SHALL expand the bounded insertion and validate the complete resulting AST with the existing fixed class contract. Wrong hashes, ambiguous anchors and additional behavior SHALL be refused. Compact output SHALL NOT alter native receipt identity, task budgets or UNKNOWN replay policy.
+
+#### Scenario: Small approved insertion
+- **WHEN** an edit supplies the approved file, base hash, exact unique scope assignment and guard statements
+- **THEN** expansion preserves every other source byte and passes the existing whole-file scope validation before patch artifact creation.
+
+#### Scenario: Unauthorized insertion behavior
+- **WHEN** a compact edit changes the anchor, base hash or behavior outside the fixed guard class
+- **THEN** reject it before modifying the target file.

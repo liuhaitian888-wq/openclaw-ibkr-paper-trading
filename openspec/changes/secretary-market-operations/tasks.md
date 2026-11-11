@@ -186,3 +186,11 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Implement bounded read-only child aggregation and dual short-reference lookup with explicit not-deployed patch state.
 - [x] Complete full offline1477/67.481s, focused13, strict8spec and all-files secret checks; prepare sole-publisher handoff.
 - [ ] Verify real /work child state after approved integration; no task replay to create evidence.
+
+
+## Combined executor source candidate
+- [x] Integrate diagnostics and compact edit decoding on730c172 in an isolated worktree; wire scoped_patch schema/instructions.
+- [x] Reproduce old whole-file schema mismatch with an actual fakechild assertion, then verify compact protocol passes.
+- [x] Focused33 tests pass, preserving native uncertainty and private-result provenance; no native model call.
+- [x] Complete combined1494PASS/82.840s, focused33PASS, strictall12/12PASS, secrets/diff/receipt checks; prepare fixed-source publisher handoff.
+- [ ] Sole publisher constructs future minimal deployed tree and independently verifies it; no new native opportunity is authorized here.
