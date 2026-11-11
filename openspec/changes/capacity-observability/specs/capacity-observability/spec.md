@@ -14,7 +14,7 @@ The sampler SHALL report available/DB/WAL/SHM/page bytes, fixed-table row growth
 - **WHEN** free space is7.78GiB and historical rate evidence is insufficient
 - **THEN** the current space policy may warn, but growth and days-to-full remain UNKNOWN and no deletion or purchase is authorized.
 
-### Requirement: Existing owners and safe public summaries
+### Requirement: Existing owners and private critical alerts
 The CAPACITY module SHALL use the shared registry with900second expiry, and secretary reads SHALL only read stored evidence. Transition/event/cursor updates MUST be atomic. Ordinary warnings/recoveries SHALL remain local without OPEN incidents or delivery entries. Only critical actionable alerts SHALL enter the existing owner-private outbox; STARTED/UNKNOWN transport outcomes MUST NOT replay.
 
 #### Scenario: Crash between snapshot and event publication

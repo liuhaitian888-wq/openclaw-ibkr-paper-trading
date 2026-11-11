@@ -12,6 +12,7 @@ from reporting.engineering_development import approved, tool, run_once, CLASS
 from reporting.engineering_patch import apply, FILES, GUARD
 from reporting.engineering_relay import propose
 from reporting.engineering_tasks import initialize
+from reporting.native_journal import NativeDeadlineExceeded, NativeStderrBudgetExceeded, JournalWriteError
 from reporting.incidents import IncidentStore
 from reporting.secretary_queue import claim as research_claim, initialize as inbox_initialize
 
@@ -117,6 +118,34 @@ class DevelopmentTests(unittest.TestCase):
         self.assertEqual('UNKNOWN',self.execute(backend=uncertain));self.assertEqual('IDLE',self.execute())
         self.assertEqual(1,self.calls)
 
+    def accepted_failure(self, fault):
+        item=self.enqueue();self.a.finish_run('secretary-run',state='FAILED')
+        def uncertain(*args,record,**kwargs):
+            self.calls+=1
+            record('THREAD_CREATED',{'thread_id':'retained-thread'})
+            record('TURN_ACCEPTED',{'thread_id':'retained-thread','turn_id':'retained-turn'})
+            raise fault(fault.code)
+        self.assertEqual('UNKNOWN',self.execute(backend=uncertain))
+        with closing(self.a.connect()) as c:
+            before=c.execute('SELECT state,native FROM secretary_engineering_tasks WHERE id=?',(item['task_id'],)).fetchone()
+            status=json.loads(c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(item['task_id']+':uncertainty',)).fetchone()[0])
+        self.assertEqual('UNKNOWN',before[0]);self.assertEqual('TURN_ACCEPTED',json.loads(before[1])['stage'])
+        self.assertEqual(fault.code,status['error_code'])
+        self.assertEqual('IDLE',self.execute());self.assertEqual(1,self.calls)
+        with closing(self.a.connect()) as c:
+            self.assertEqual(before,c.execute('SELECT state,native FROM secretary_engineering_tasks WHERE id=?',(item['task_id'],)).fetchone())
+        folder=self.root/'engineering/development'/item['task_id'].split(':')[1]
+        self.assertFalse((folder/'patch.diff').exists());self.assertTrue((folder/'source.tar').exists())
+
+    def test_distinct_native_deadline_after_acceptance_stays_unknown(self):
+        self.accepted_failure(NativeDeadlineExceeded)
+
+    def test_distinct_stderr_budget_after_acceptance_stays_unknown(self):
+        self.accepted_failure(NativeStderrBudgetExceeded)
+
+    def test_journal_failure_after_acceptance_stays_unknown(self):
+        self.accepted_failure(JournalWriteError)
+
     def test_kernel_canary_failure_prevents_model_and_untrusted_tests(self):
         self.enqueue();self.a.finish_run('secretary-run',state='FAILED');modes=[]
         def bad(location,mode,**kwargs):modes.append(mode);return {'exit_code':1,'stdout':'{}','stderr':''}
@@ -138,6 +167,33 @@ class DevelopmentTests(unittest.TestCase):
             with self.assertRaises(PermissionError):
                 apply(job,{'edits':[{'path':FILES[0],'before_sha256':before,'content':content}]})
             self.assertEqual(original,file.read_text())
+
+    def test_compact_patch_preserves_full_ast_and_original_native_evidence(self):
+        from reporting.engineering_patch import prepare, ANCHOR
+        job=self.root/'compact'
+        source=prepare(self.source,self.value['engineering_development_scope']['base_commit'],job)
+        original=source['files'][FILES[0]]
+        edit={'path':FILES[0],'before_sha256':original['sha256'],
+              'operation':'insert_after','anchor':ANCHOR,'content':GUARD}
+        native={'edits':[edit.copy()]}
+        result=apply(job,native)
+        self.assertTrue(result['patch_sha256'])
+        self.assertEqual(edit,native['edits'][0])
+        self.assertEqual(original['content'].replace(ANCHOR,ANCHOR+GUARD,1),(job/'worktree'/FILES[0]).read_text())
+        self.assertLess(len(json.dumps(edit)),1000)
+
+    def test_compact_patch_rejects_extra_behavior_wrong_anchor_or_base(self):
+        from reporting.engineering_patch import prepare, ANCHOR
+        for variation in ({'content':GUARD+'    print("injected")\n'},
+                          {'anchor':'scope'}, {'before_sha256':'0'*64},
+                          {'operation':'replace_all'}, {'content':'x'*4097}):
+            with tempfile.TemporaryDirectory(dir=self.root) as folder:
+                job=Path(folder)/'new-job';src=prepare(self.source,self.value['engineering_development_scope']['base_commit'],job)['files'][FILES[0]]
+                edit={'path':FILES[0],'before_sha256':src['sha256'],
+                      'operation':'insert_after','anchor':ANCHOR,'content':GUARD,**variation}
+                with self.assertRaises((PermissionError,ValueError)):
+                    apply(job,{'edits':[edit]})
+                self.assertEqual(src['content'],(job/'worktree'/FILES[0]).read_text())
 
     def test_public_result_projection_failure_never_repeats_patch_or_tests(self):
         self.enqueue();self.a.finish_run('secretary-run',state='FAILED')

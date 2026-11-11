@@ -20,6 +20,46 @@ GUARD = '''    if not isinstance(scope, dict):
         raise PermissionError('Approved fresh one-shot engineering scope required')
 '''
 
+ANCHOR = "    scope = value.get('engineering_scope', {})\n"
+COMPACT_PATCH_INSTRUCTIONS = (
+    'Return JSON with summary and edits. Return exactly one edit with path, before_sha256, '
+    'operation="insert_after", anchor and content. Use the supplied exact scope-assignment '
+    'line as anchor. content contains only the new guard statements, never the entire file. '
+    'Preserve every existing gate and all other behavior. Do not modify tests or call tools.')
+COMPACT_PATCH_SCHEMA = {'type': 'object', 'properties': {
+    'summary': {'type': 'string'},
+    'edits': {'type': 'array', 'minItems': 1, 'maxItems': 1, 'items': {
+        'type': 'object', 'properties': {
+            'path': {'type': 'string', 'enum': [FILES[0]]},
+            'before_sha256': {'type': 'string'},
+            'operation': {'type': 'string', 'enum': ['insert_after']},
+            'anchor': {'type': 'string', 'enum': [ANCHOR]},
+            'content': {'type': 'string', 'maxLength': 4096}},
+        'required': ['path', 'before_sha256', 'operation', 'anchor', 'content'],
+        'additionalProperties': False}}},
+    'required': ['summary', 'edits'], 'additionalProperties': False}
+
+
+def expand_edit(edit, work):
+    """Expand a hash-bound compact edit without modifying saved model evidence."""
+    if not isinstance(edit, dict) or 'operation' not in edit:
+        return edit
+    if (set(edit) != {'path', 'before_sha256', 'operation', 'anchor', 'content'}
+            or edit['path'] != FILES[0] or edit['operation'] != 'insert_after'
+            or edit['anchor'] != ANCHOR or not isinstance(edit['content'], str)
+            or not 1 <= len(edit['content'].encode('utf-8')) <= 4096):
+        raise PermissionError('Invalid bounded insertion contract')
+    path = work / FILES[0]
+    if any(parent.is_symlink() for parent in (path, path.parent, work)) or path.stat().st_nlink != 1:
+        raise PermissionError('Patch target must be a regular unlinked file')
+    if digest(path) != edit['before_sha256']:
+        raise ValueError('Patch base content changed')
+    original = path.read_text()
+    if original.count(ANCHOR) != 1:
+        raise PermissionError('Unique approved insertion anchor required')
+    return {'path': edit['path'], 'before_sha256': edit['before_sha256'],
+            'content': original.replace(ANCHOR, ANCHOR+edit['content'], 1)}
+
 
 def expected_ast(content):
     """The first class permits only these two guards, preserving every old gate."""
@@ -128,6 +168,7 @@ def apply(job, native):
     edits = native.get('edits')
     if not isinstance(edits, list) or not 1 <= len(edits) <= 2:
         raise ValueError('One or two scoped file replacements required')
+    edits = [expand_edit(edit, work) for edit in edits]
     paths = []
     for edit in edits:
         if (not isinstance(edit, dict) or set(edit) != {'path', 'before_sha256', 'content'}

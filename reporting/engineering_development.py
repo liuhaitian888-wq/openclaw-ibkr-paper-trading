@@ -11,6 +11,7 @@ from .database_console import contained
 from .engineering_patch import CLASS, FILES, GUARD, command, prepare, apply, attest, test, digest
 from .engineering_tasks import initialize, checkpoint
 from .incidents import IncidentStore
+from .native_journal import error_code
 from .secretary_api import atomic
 from .secretary_queue import CONVERSATION
 
@@ -268,7 +269,8 @@ def run_once(root, value, *, home, backend=None, tester=None, config=None):
                             'thread_id': receipt['thread_id'], 'turn_id': receipt['turn_id'], 'automatic_deployment': False})
                     notice(archive, store, job['id'], 'ACCEPTED', 'Hetzner Codex已原生接下受限补丁任务，隔离测试结果与工件将回到本私聊。', config=config)
             native = (backend or run)(context, home=home, empty_dir=contained(root, 'secretary-oauth-empty'),
-                purpose='scoped_patch', timeout=remaining(75), record=record)
+                purpose='scoped_patch', timeout=remaining(75), record=record,
+                journal_path=location/'native-journal.json')
             atomic(location/'native-result.json', native)
             patch = apply(location, native)
             validation = runner(location, 'regression'); atomic(location/'regression.json', validation)
@@ -288,7 +290,7 @@ def run_once(root, value, *, home, backend=None, tester=None, config=None):
             # Public result already committed: only repair projection next time.
             return 'COMPLETION_RECONCILIATION_REQUIRED'
         archive.append(job['id']+':uncertainty', CONVERSATION, origin='SYSTEM', kind='ENGINEERING_STATUS',
-            parent=job['instruction'], payload={'state': 'UNKNOWN', 'error_type': type(exc).__name__, 'automatic_replay': False})
+            parent=job['instruction'], payload={'state': 'UNKNOWN', 'error_type': type(exc).__name__, 'error_code': error_code(exc), 'automatic_replay': False})
         with closing(archive.connect()) as c, c:
             c.execute("UPDATE secretary_engineering_tasks SET state='UNKNOWN',updated=? WHERE id=?", (archive.clock(), job['id']))
         archive.finish_run(job['id'], state='UNKNOWN')

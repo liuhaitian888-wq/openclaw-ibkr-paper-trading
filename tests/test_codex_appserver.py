@@ -45,7 +45,11 @@ for line in sys.stdin:
   if MODE=='file':send({'method':'item/started','params':{'threadId':'native-thread','turnId':'native-turn','item':{'type':'fileChange'}}});continue
   tid='other-turn' if MODE=='mismatch' else 'native-turn'
   value={'summary':'数据库检查完成。'}
-  if MODE=='patch':value['edits']=[{'path':'reporting/engineering_tasks.py','before_sha256':'f'*64,'content':'fixture = 1'}]
+  if MODE=='patch':
+   fields=p['outputSchema']['properties']['edits']['items']['properties']
+   assert fields['operation']['enum']==['insert_after']
+   anchor=fields['anchor']['enum'][0]
+   value['edits']=[{'path':'reporting/engineering_tasks.py','before_sha256':'f'*64,'operation':'insert_after','anchor':anchor,'content':'fixture = 1'}]
   send({'method':'item/completed','params':{'threadId':'native-thread','turnId':tid,'item':{'type':'agentMessage','text':json.dumps(value)}}})
   send({'method':'turn/completed','params':{'threadId':'native-thread','turn':{'id':'native-turn','status':'completed'}}})
 ''')
@@ -72,6 +76,7 @@ for line in sys.stdin:
         result=self.invoke('patch',purpose='scoped_patch')
         self.assertEqual('native-turn',result['turn_id'])
         self.assertEqual('fixture = 1',result['edits'][0]['content'])
+        self.assertEqual('insert_after',result['edits'][0]['operation'])
         self.assertEqual(result,self.records[-1][1]);self.assert_closed()
 
     def test_native_tool_request_refused_and_completion_identity_must_match(self):

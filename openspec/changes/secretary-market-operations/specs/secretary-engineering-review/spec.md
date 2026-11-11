@@ -93,6 +93,13 @@ The system SHALL preserve the exact report PNG and manifest bytes selected at en
 - **WHEN** Telegram rejects a send but the root cause remains unverified
 - **THEN** the original evidence remains retained and no automatic retry occurs solely because connectivity returned.
 
+### Requirement: Safe report source diagnostics
+The builder SHALL return fixed failure codes, parsed source time, computable age and canonical observation SHA256 through its existing result. It SHALL preserve source gates and reject without publication. Diagnostics SHALL exclude raw account data and untrusted strings and SHALL NOT authorize UNKNOWN replay.
+
+#### Scenario: Several source predicates fail
+- **WHEN** the saved source is stale, incomplete or belongs to a different account
+- **THEN** all applicable fixed reason codes and a deterministic observation fingerprint are returned, with no publication or relaxed account/environment/completeness or 600-second freshness checks; this does not retroactively prove the Nov8 failure predicate.
+
 ### Requirement: Owner-selected independent ChatGPT OAuth
 The system SHALL support the owner-selected Hetzner ChatGPT OAuth provider through the official Codex CLI using a fresh cloud login. It SHALL NOT require an API key, copy the Mac auth cache, automatically fall back to another authentication method, or grant native model tools. API-key preparation remains inactive historical work.
 
@@ -180,13 +187,10 @@ Historical planning boundary (2026-11-10, before implementation): the owner-conf
 
 Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa5c918cc5813397 registered and deployed model-selected broker query/result tools on the existing Python broker connection owner, registered read-only service observations, absolute paths for all four business databases, and an unarmed official CLI Cloud-task adapter. Four native database queries and a native engineering broker snapshot succeeded; the latter returned6 positions/6 orders/3 API-window executions/6 account-summary fields in1.226s. Returned summary fields do not establish complete per-currency or settled-cash coverage. The first aggregate-account rejection remains retained as a separate failed query. Full source integration passed1218 isolated offline tests; those tests do not prove native Telegram delivery. The OAuth dialogue loop has its separate verified stage below. Telegram model-selected live broker/private result timing, all development/operations write paths and the intended Codex executor remain incomplete. Owner clarification is pending between the server-hosted OAuth Codex executor, official hosted Codex Cloud, or both; no substitute executor is declared accepted.
 
+Official hosted executor decision and uncertain submission (observed boundary):
+Owner selected the OpenAI official hosted Codex Cloud environment and approved one read-only acceptance chat on2026-11-10. This resolves the earlier executor-choice question. One create_thread submission returned no native task identity; outcome remains UNKNOWN, and absence from recent thread lists does not authorize replay. Current legacy CLI adapter is unarmed and is not verified compatible with the selected saved configuration. End-to-end dispatch and result delivery remain unaccepted.
 
-### Requirement: Safe report source diagnostics
-The builder SHALL return fixed failure codes, parsed source time, computable age and canonical observation SHA256 through its existing result. It SHALL preserve source gates and reject without publication. Diagnostics SHALL exclude raw account data and untrusted strings and SHALL NOT authorize UNKNOWN replay.
 
-#### Scenario: Several source predicates fail
-- **WHEN** the saved source is stale, incomplete or belongs to a different account
-- **THEN** all applicable fixed reason codes and a deterministic observation fingerprint are returned, with no publication or relaxed account/environment/completeness or 600-second freshness checks; this does not retroactively prove the Nov8 failure predicate.
 
 
 ### Requirement: Ledger domain is distinct from execution provenance
@@ -302,3 +306,54 @@ The host SHALL bind development ACCEPTED, RESULT and UNKNOWN notices to the pers
 #### Scenario: Provenance is absent or owner changes
 - **WHEN** a notice has only MODEL or standing authorization provenance, no received receipt, stale identity, or a different current owner
 - **THEN** it remains internal without changing patch/test outcomes or replaying old uncertain notices.
+
+
+### Requirement: Unified owner engineering progress
+The existing /work view SHALL join ordinary secretary requests with their recorded engineering child tasks using requested_by_run or the direct instruction. Either short reference SHALL find the same bounded view. Child UNKNOWN SHALL remain unconfirmed even when the parent answer succeeded. PATCH_READY SHALL mean patch and isolated tests await review, never deployment. Reading progress SHALL NOT initialize tasks, replay them or send notifications.
+
+#### Scenario: Parent reply precedes unresolved development
+- **WHEN** the secretary has answered but its linked engineering child is UNKNOWN
+- **THEN** /work shows development result awaiting reconciliation and both short references without promoting the child to completed.
+
+#### Scenario: Isolated patch result
+- **WHEN** a linked child is PATCH_READY
+- **THEN** /work shows patch and isolated tests complete, awaiting review and not deployed; secretary reply delivery remains a separate fact.
+
+#### Scenario: Legacy archive without engineering table
+- **WHEN** an existing archive has no engineering task table
+- **THEN** ordinary work lookup remains available without creating that table.
+
+### Requirement: Bounded native failure diagnostics
+The host SHALL preserve private bounded native metadata and distinguish NATIVE_DEADLINE from STDERR_BUDGET. The existing75-second native,130-second whole-task and1,000,000-byte stderr limits SHALL remain unchanged. Journal write failure SHALL fail closed with owned resources cleaned up.
+
+#### Scenario: Metadata is retained without native content
+- **WHEN** the native client records an attempt
+- **THEN** bound the private snapshot to16KiB and16 recent item IDs/types; retain monotonic timing, effective timeout, phases, native IDs, counters and cleanup only, without prompts, bodies, reasoning, credentials, environment or raw streams.
+
+#### Scenario: A native limit fails after acceptance
+- **WHEN** the native turn has been accepted and its deadline, stderr budget or journal write fails
+- **THEN** preserve its original native identity and UNKNOWN task disposition without retry, budget reset, new scope or reinterpretation as unexecuted/FAILED.
+
+#### Scenario: A child emits partial, malformed or invalid output
+- **WHEN** output is incomplete, malformed, schema-invalid or the child exits before a valid completion
+- **THEN** retain safe phase/counter/exit evidence, close owned pipes and boundedly terminate only that child; no partial response becomes a completed patch.
+
+#### Scenario: A valid public completion is observed
+- **WHEN** a valid native completion reaches the host
+- **THEN** persist the existing public completion checkpoint before marking journal completion; a later journal failure cannot erase that checkpoint or imply deployment/test acceptance.
+
+#### Scenario: The original ephemeral process has exited
+- **WHEN** only the original acceptance and uncertainty evidence remains
+- **THEN** preserve the old journal/UNKNOWN and consumed budget, never start a replacement server/turn for reconciliation, and do not claim that stored-thread APIs can recover ephemeral memory.
+
+
+### Requirement: Hash bound compact engineering edits
+A restricted engineering edit MAY use insert_after with the exact source SHA and unique approved anchor. Before writing, the host SHALL expand the bounded insertion and validate the complete resulting AST with the existing fixed class contract. Wrong hashes, ambiguous anchors and additional behavior SHALL be refused. Compact output SHALL NOT alter native receipt identity, task budgets or UNKNOWN replay policy.
+
+#### Scenario: Small approved insertion
+- **WHEN** an edit supplies the approved file, base hash, exact unique scope assignment and guard statements
+- **THEN** expansion preserves every other source byte and passes the existing whole-file scope validation before patch artifact creation.
+
+#### Scenario: Unauthorized insertion behavior
+- **WHEN** a compact edit changes the anchor, base hash or behavior outside the fixed guard class
+- **THEN** reject it before modifying the target file.

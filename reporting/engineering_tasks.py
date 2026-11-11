@@ -12,6 +12,7 @@ import time
 
 from .database_console import DATABASES, contained, inspect_database
 from .errors import redact
+from .native_journal import error_code
 from .secretary_queue import CONVERSATION, enqueue_reply
 from .secretary_read import query
 from .secretary_api import atomic
@@ -289,7 +290,8 @@ def run_once(root, config, value, *, home, backend=None):
             checkpoint(archive, job, stage, result)
             if stage == 'TURN_ACCEPTED':
                 notice(store, job['id'], 'ACCEPTED', 'Hetzner Codex执行器已原生接下只读数据库检查；完成结果将回到此私聊。')
-        native = (backend or run)(evidence, home=home, empty_dir=empty, record=record)
+        native = (backend or run)(evidence, home=home, empty_dir=empty, record=record,
+            journal_path=contained(root, folder + "/native-journal.json"))
         finish(archive, store, root, job, native, evidence)
         return 'SUCCEEDED'
     except BaseException as exc:
@@ -302,7 +304,7 @@ def run_once(root, config, value, *, home, backend=None):
             archive.finish_run(job['id'], state='UNKNOWN')
         notice(store, job['id'], 'UNKNOWN', 'Hetzner Codex执行器的结果待核对；原任务和原生检查点已保留，不会自动重做。')
         archive.append(job['id'] + ':uncertainty', CONVERSATION, origin='SYSTEM', kind='ENGINEERING_STATUS',
-            parent=job['instruction'], payload={'state': 'UNKNOWN', 'error_type': type(exc).__name__,
+            parent=job['instruction'], payload={'state': 'UNKNOWN', 'error_type': type(exc).__name__, 'error_code': error_code(exc),
                 'executor': EXECUTOR, 'automatic_replay': False})
         if isinstance(exc, (KeyboardInterrupt, SystemExit)):
             raise
