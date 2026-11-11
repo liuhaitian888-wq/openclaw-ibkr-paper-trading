@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import os
+import resource
 from pathlib import Path, PurePosixPath
 import signal
 import subprocess
@@ -84,11 +85,14 @@ def clean_env(home):
         'GIT_OPTIONAL_LOCKS': '0', 'PYTHONDONTWRITEBYTECODE': '1'}
 
 
-def command(argv, *, cwd, home, timeout=30, limit=100000):
+def command(argv, *, cwd, home, timeout=30, limit=100000, file_limit=None):
     """Only the host constructs argv. Capture public artifacts, not inherited secrets."""
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+        def bound_file():
+            resource.setrlimit(resource.RLIMIT_FSIZE,(file_limit,file_limit))
         child = subprocess.Popen(argv, cwd=cwd, env=clean_env(home), stdin=subprocess.DEVNULL,
-            stdout=out, stderr=err, close_fds=True, start_new_session=True)
+            stdout=out, stderr=err, close_fds=True, start_new_session=True,
+            preexec_fn=bound_file if file_limit is not None else None)
         deadline = time.monotonic() + timeout
         try:
             while child.poll() is None:
@@ -109,12 +113,20 @@ def command(argv, *, cwd, home, timeout=30, limit=100000):
                 child.wait()
 
 
-def prepare(source, commit, job, *, deadline=None):
+def prepare(source, commit, job, *, deadline=None, storage_root=None):
     if len(commit) != 40 or any(c not in '0123456789abcdef' for c in commit):
         raise ValueError('Immutable approved source commit required')
     job = Path(job)
     if job.exists():
         raise PermissionError('Existing development workspace retained; never automatically replay')
+    if storage_root is None and job.parent.name=='development' and job.parent.parent.name=='engineering':
+        storage_root=job.parent.parent.parent
+    guarded=False
+    if storage_root is not None:
+        from .storage_policy import engineering_decision
+        budget=engineering_decision(storage_root)
+        if not budget['allowed']:raise OSError('Optional source snapshot deferred by storage budget')
+        guarded=budget['state']!='POLICY_UNARMED'
     job.mkdir(mode=0o700, parents=True)
     repository = job/'repository'; repository.mkdir(mode=0o700)
     (job/'tmp').mkdir(mode=0o700)
@@ -127,13 +139,16 @@ def prepare(source, commit, job, *, deadline=None):
         left = 10 if deadline is None else min(10, deadline-time.monotonic())
         if left <= 0:
             raise TimeoutError('Development source preparation deadline')
-        result = command(['/usr/bin/git', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', *args], cwd=cwd, home=home, timeout=left)
+        result = command(['/usr/bin/git', '-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgsign=false', *args], cwd=cwd, home=home, timeout=left,
+                         file_limit=32*1024**2 if guarded else None)
         if result['exit_code']:
             raise RuntimeError('Local snapshot Git operation failed')
         return result['stdout']
     git(['-C', str(source), 'archive', '--format=tar', '--output='+str(archive), commit])
     if archive.stat().st_size > 64_000_000:
         raise ValueError('Source archive exceeds fixed budget')
+    if guarded and 4*archive.stat().st_size+8*1024**2 > 128*1024**2:
+        raise ValueError('Retained source preparation exceeds reserved128MiB')
     with tarfile.open(archive) as tar:
         members = tar.getmembers()
         if len(members) > 3000:

@@ -219,6 +219,10 @@ def run_once(root, value, *, home, backend=None, tester=None, config=None):
         approved(value, archive.clock()); check_source(value['engineering_development_scope'])
     except PermissionError:
         return 'SCOPE_INACTIVE'
+    from .storage_policy import engineering_preflight
+    budget = engineering_preflight(root)
+    if not budget['allowed']:
+        return budget['state']  # Before reserve, canary, source copy or model call.
     from .engineering_sandbox import capabilities
     try:
         capabilities()  # No untrusted code starts on unsupported kernels.
@@ -236,7 +240,7 @@ def run_once(root, value, *, home, backend=None, tester=None, config=None):
             raise TimeoutError('Whole development task deadline')
         return left
     try:
-        source = prepare(source_root(), job['payload']['scope_policy']['base_commit'], location, deadline=deadline)
+        source = prepare(source_root(), job['payload']['scope_policy']['base_commit'], location, deadline=deadline, storage_root=root)
         def phase(name):
             archive.append(job['id']+':phase:'+name, CONVERSATION, origin='SYSTEM',
                 kind='ENGINEERING_TEST_STAGE', parent=job['instruction'],
