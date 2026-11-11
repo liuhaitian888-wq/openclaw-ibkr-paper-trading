@@ -206,4 +206,4 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Reproduce actual no-Java failed-unit and duplicate canonical conflict-action gaps; preserve old archived events.
 - [x] Add current fixed-unit invocation-bound manual proof/prewire recheck and primary manual episode with full-readback cancellation;26focused cases pass.
 - [x] Complete exact6ad+A+delta1507 isolated suite,26focused, strictspec/scan/diff checks.
-- [ ] Sole-publisher load and one actual private action/same pinned state for natural existing failure, without login/restart.
+- [x] Sole-publisher load and one actual private action/same pinned state for natural existing failure, without login/restart:15f7b9a, natural outbox2390/private485/native2056, same pin296,16:10UTC Nov11. Actual Gateway login/recovery and early2FA activation remain unverified.
