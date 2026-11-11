@@ -28,6 +28,9 @@ def sensitive(payload):
 
 def decision(item, config):
     """Pure decision. A model-set public label never overrides private evidence."""
+    from .publication_policy import enabled as publication, decision as publication_decision
+    if publication(config):
+        return publication_decision(item, config)
     p=item['payload']; kind=item['kind']; role=p.get('message_role'); key=item['incident_key']
     result={'policy_version':POLICY, 'audience':'owner', 'reason':'private_or_unclassified', 'public_view':None}
     def choose(audience, reason, view=None):return {**result, 'audience':audience, 'reason':reason, 'public_view':view}

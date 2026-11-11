@@ -24,6 +24,13 @@ async def run_worker():
         async with Bot(token=config['bot_token']) as bot:
             proof={};last_observation=0
             while not stopped.is_set():
+                # Local observers have their own owner/budgets and do not depend
+                # on Telegram polling or model/control availability.
+                if time.monotonic()-last_observation>=60:
+                    last_observation=time.monotonic()
+                    try:print(json.dumps(observe(archive,root)),flush=True)
+                    except Exception as exc:
+                        print(json.dumps({'state':'OBSERVATION_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True)
                 try:
                     result=await poll(archive,root,config,policy['armed_at'],owned_bot=bot,proof=proof)
                     process_controls(archive,root,config,policy)
@@ -32,9 +39,6 @@ async def run_worker():
                     tick_login(archive,root)
                     from reporting.secretary_live_status import tick as tick_status
                     tick_status(archive,root)
-                    if time.monotonic()-last_observation>=60:
-                        last_observation=time.monotonic()
-                        print(json.dumps(observe(archive,root)),flush=True)
                     if result['accepted']:print(json.dumps({'accepted_native_owner_messages':result['accepted'],'at':time.time()}),flush=True)
                 except Exception as exc:
                     print(json.dumps({'state':'INBOX_UNAVAILABLE','error_type':type(exc).__name__,'at':time.time()}),flush=True);await asyncio.sleep(5)

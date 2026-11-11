@@ -135,3 +135,13 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.
 
 Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded. Natural fault1907/group295 and zero automatic private messages verified01:54:28–02:00:45Z. Recovery/EDIT remains open behind real Gateway session blockage and one-shot UNKNOWN; fresh broker menu/Nov11 complete supplement also remain unaccepted. Full report shared_group audience explicitly reconfirmed by the human.
+
+
+## Current publication-v2 override — human 01a1c869
+- [x] Replace ordinary automatic group/private pushes with bounded auditable archive; keep unknown/reserved identities and full-backlog claim filtering.
+- [x] Share real report attachments and registered completed research; preserve native interaction/current action-only private routing, without activity mirrors.
+- [x] Implement one host-registered current link card with live prewire checks, receipt-based identity recovery and independent exact-once pin/UNKNOWN handling.
+- [x] Publish through the existing sole owner and independently read native card/pin/private/group results; never equate offline success with acceptance.
+
+Publication-v2 actualnative: group296 one card+pinned+naturalEDIT; ordinaryevent/privateautomatic0 in independent3hour window, actualcapacityprivatequestion/result and realreport1985/group299 accepted.
+- [ ] Verify a naturally completed new research result in the group; code/atomicity tests do not substitute for an actual new research outcome.

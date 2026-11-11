@@ -29,3 +29,7 @@ Owner active-goal clarification: Telegram shall orchestrate the complete authori
 
 ## Automatic notification clarification — planning only, 2026-11-10
 The owner reiterated that all automatic messages belong in deehub and must be combined; secretary private chat is for interaction. Extend this existing change with a planned lifecycle policy covering ALERT, escalation and RECOVERY, shared-cause grouping, bounded reminders and stable recovery, without an automatic private detail mirror. Sensitive source evidence stays in the database and is retrieved through verified private interaction; fixed safe summaries are used in the group. This planning clarification does not implement or deploy the policy, resolve legacy uncertain delivery, or authorize service actions.
+
+
+## Current publication override — 2026-11-11
+Human source 01a1c257-2703-7653-a2a5-4ab583256cf4 / 01a1c869-090b-7b62-8bb4-7c8850b54d4c supersedes the Nov10 all-automatic group broadcast policy. publication-v2 archives ordinary incidents, short progress, calendar/filing notices and missing-report placeholders without a push. The group receives actual report account artifacts and archived completed research conclusions, plus one fixed current-link status card explicitly authorized for pinning. Native rapid interaction and genuinely current human-action requirements remain owner-private. Historical grouped-v1 design and receipts remain historical, not the current delivery instruction. No trading permission follows.

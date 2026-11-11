@@ -17,3 +17,13 @@
 .der/maintenance/diagram-dependencies.json:generic-api-key:51
 .der/maintenance/diagram-dependencies.json:generic-api-key:52
 .der/maintenance/diagram-dependencies.json:generic-api-key:53
+
+# Exact capacity-release diagram source SHA256 receipts, independently
+# recomputed from secretary_observations.py and secretary_read.py. No tokens.
+.der/maintenance/diagram-dependencies.json:generic-api-key:64
+.der/maintenance/diagram-dependencies.json:generic-api-key:65
+
+# Exact false positives: independently recomputed SHA-256 source receipts for
+# the inbox scheduling/private identity fix; these are not API credentials.
+.der/maintenance/diagram-dependencies.json:generic-api-key:67
+.der/maintenance/diagram-dependencies.json:generic-api-key:81

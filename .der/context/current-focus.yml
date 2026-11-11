@@ -1,9 +1,9 @@
 schema_version: 1
 project_id: PROJ-IBKR-000001
 name: 买der
-updated: '2026-11-10'
+updated: '2026-11-11'
 current_focus:
-  - Sensitivity-first notifications, owner-approved full group daily reports, immutable delivery evidence and bounded reconciliation; UNKNOWN never auto-replays.
+  - "publication-v2: ordinary events archive only, real reports and completed research in group, one host link card/pin; source and native acceptance recorded separately."
   - Value-investing-guided secretary research, portfolio learning and evidence-based engineering handoff; no claim of validated profit.
   - Five inherited Paper stops natively confirmed and independently verified; PFE preserved; finite timer retired after5/5, no strategy release.
   - Close continuous cash/settlement ownership, stock value-date matching, native executor partial-fill/restart and final T0 before full-automatic release.

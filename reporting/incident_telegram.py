@@ -10,9 +10,9 @@ import time
 
 
 def validate_config(config):
-    if config.get('automatic_notification_policy') not in (None,'grouped-v1'):
+    if config.get('automatic_notification_policy') not in (None,'grouped-v1','publication-v2'):
         raise PermissionError('Unknown automatic notification policy')
-    if config.get('automatic_notification_policy')=='grouped-v1' and (
+    if config.get('automatic_notification_policy') in ('grouped-v1','publication-v2') and (
             config.get('automatic_updates_to_group') is not True
             or config.get('audience_mode')!='shared_group'
             or config.get('notification_format')!='compact-v1'
@@ -25,8 +25,9 @@ def validate_config(config):
     if config.get('audience_mode')=='shared_group':
         if config.get('notification_format')!='compact-v1':
             raise PermissionError('Shared group requires privacy-safe compact rendering')
-        from .notification_center import recipient
-        recipient({'incident_key':'private-target-proof','kind':'SECRETARY_REPLY','payload':{'message_role':'CHAT'}},config)
+        private=config.get('owner_private_chat_id')
+        if type(private) is not int or private != config.get('owner_user_id') or config.get('owner_private_verified') is not True:
+            raise PermissionError('Exact verified owner private configuration required')
     extra=config.get('allowed_additional_bots',[])
     if (not isinstance(extra,list) or len(extra)>1
             or any(not isinstance(x,dict) or x.get('username')!='HealthchecksBot'
@@ -119,7 +120,15 @@ async def verify_destination(bot,config,item):
     from .notification_center import recipient
     target=recipient(item,config)
     if target==config['chat_id']:return await verify_audience(bot,config)
-    # Private delivery doesn't depend on group membership, title or friends.
+    return await verify_owner_private(bot,config)
+
+
+async def verify_owner_private(bot, config):
+    """Native input identity proof is independent of outgoing publication."""
+    validate_config(config)
+    target=config.get('owner_private_chat_id')
+    if type(target) is not int or target!=config['owner_user_id']:
+        raise PermissionError('Exact owner private identity required')
     me=await bot.get_me(read_timeout=10,connect_timeout=5)
     chat=await bot.get_chat(target,read_timeout=10,connect_timeout=5)
     if (me.id!=config['bot_id'] or me.username!=config['bot_username']
@@ -134,7 +143,8 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
         from .automatic_notifications import prepare
         prepare(store,config)
     from .automatic_notifications import enabled as grouped, batch_family
-    item=claimed_item if claimed_item is not None else store.claim(automatic_grouped=grouped(config))
+    from .publication_policy import enabled as publication, validate as publication_valid, archive_claimed, decision as publication_decision
+    item=claimed_item if claimed_item is not None else (store.claim(publication_config=config) if publication(config) else store.claim(automatic_grouped=grouped(config)))
     if item is None:return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
     operation='notification:outbox:'+str(item['id'])
     # Never log HTTP URLs: Telegram embeds credentials in their path.
@@ -148,6 +158,11 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
     from .notification_reconciliation import begin_attempt,event,fingerprint
     try:
         attempt=begin_attempt(store,item)
+        if publication(config) and not publication_valid(store,item,config):
+            event(store,attempt,'SUPPRESSED',{'reason':'publication_policy_archive_or_unregistered','transport_entered':False})
+            if not archive_claimed(store,item,config):
+                raise PermissionError('Uncertain source cannot be silently archived')
+            return 'SUPPRESSED'
         from .notification_center import enabled,render,prior_card,stale_schedule
         if stale_schedule(item,clock()):
             event(store,attempt,'SUPPRESSED',{'reason':'expired_schedule'})
@@ -189,6 +204,10 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     if target==config.get('owner_private_chat_id') and private_proof is not None:
                         private_proof.clear();private_proof[proof_key]=(clock(),chat)
                 sending_at=clock()
+                if publication(config) and not publication_valid(store,item,config):
+                    event(store,attempt,'SUPPRESSED',{'reason':'publication_changed_during_proof','transport_entered':False})
+                    if not archive_claimed(store,item,config):raise PermissionError('Reserved source cannot be archived')
+                    return 'SUPPRESSED'
                 if not valid(store,item,sending_at):
                     event(store,attempt,'SUPPRESSED',{'reason':'automatic_state_changed_during_destination_proof','transport_entered':False})
                     store.suppress(item['id'])
@@ -209,6 +228,7 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 if item['payload'].get('retry_of') is not None:previous=None
                 action='EDIT' if previous else 'SEND'
                 formatting={'parse_mode':'HTML'} if compact else {}
+                if item['kind']=='LINK_STATUS_CARD':formatting['disable_notification']=True
                 if item['payload'].get('message_role')=='CONTROL' and item['payload'].get('web_app_url'):
                     from telegram import InlineKeyboardButton,InlineKeyboardMarkup,WebAppInfo
                     url=item['payload']['web_app_url']
@@ -222,6 +242,10 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     from .automatic_notifications import release_before_wire
                     release_before_wire(store,item,'automatic_state_changed_before_reservation');return 'SUPPRESSED'
                 validate_before_wire(store,item,clock())
+                if publication(config) and not publication_valid(store,item,config):
+                    event(store,attempt,'SUPPRESSED',{'reason':'publication_changed_before_reservation','transport_entered':False})
+                    if not archive_claimed(store,item,config):raise PermissionError('Reserved source cannot be archived')
+                    return 'SUPPRESSED'
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     event(store,attempt,'BLOCKED',{'reason':'existing_operation_identity'})
                     store.finish(item['id'],'UNKNOWN');return 'UNKNOWN'
@@ -233,6 +257,7 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     'recipient_decision':decision(item,config) if config.get('automatic_updates_to_group') is True else {'policy_version':'legacy-authorized'},
                     'previous_message_id':previous})
                 if previous:
+                    formatting.pop('disable_notification',None)
                     messages=[await bot.edit_message_text(chat_id=chat.id,message_id=previous,text=caption,**formatting,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
                 elif not documents:
                     messages=[await bot.send_message(chat.id,text=caption,**formatting,connect_timeout=5,read_timeout=20,write_timeout=20,pool_timeout=5)]
@@ -259,10 +284,18 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 coordinator.finish_operation(operation,'SENT_ACCEPTED')
                 if config.get('automatic_updates_to_group') is True:
                     from .automatic_notifications import enabled as grouped
-                    if not grouped(config):
+                    if not grouped(config) and not publication(config):
                         from .notification_reconciliation import activity_status
                         activity_status(store,item)
                 store.finish(item['id'],'TELEGRAM_ACCEPTED')
+                if item['kind']=='LINK_STATUS_CARD':
+                    # Delivery is already durably accepted. Local card projection
+                    # and independent pin failures must not turn SEND UNKNOWN.
+                    try:
+                        from .link_status_card import accepted
+                        accepted(store,item,config,receipt)
+                    except Exception:
+                        logging.getLogger(__name__).warning('status card local receipt requires reconciliation: id=%s',item['id'])
                 return 'TELEGRAM_ACCEPTED'
     except BaseException as exc:
         # Exception text may contain credential URLs or private payloads.

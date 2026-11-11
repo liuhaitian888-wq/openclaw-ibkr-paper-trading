@@ -13,7 +13,7 @@ from reporting.agent_secretary import SecretaryArchive
 from reporting.secretary_queue import initialize, accept_update, cursor, autonomous, claim, enqueue_reply, reconcile_replies, progress, checkpoint, reconcile_acknowledgements
 from reporting.secretary_read import tool
 from reporting.secretary_conversation import response_mode
-from reporting.incident_telegram import verify_audience, verify_destination
+from reporting.incident_telegram import verify_audience, verify_owner_private
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from reporting.secretary_controls import process_controls,tick_login,finish_start
@@ -27,7 +27,7 @@ async def poll(archive, root, config, armed_at, *, owned_bot=None, proof=None):
         async with (nullcontext(owned_bot) if owned_bot is not None else Bot(token=config['bot_token'])) as bot:
             verify=proof is None or not 0<=time.monotonic()-proof.get('at',0)<30
             if verify and config.get('audience_mode')=='shared_group':
-                await verify_destination(bot,config,{'incident_key':'private-inbox-proof','kind':'SECRETARY_REPLY','payload':{}})
+                await verify_owner_private(bot,config)
             elif verify:
                 await verify_audience(bot,config)
             if verify and (await bot.get_webhook_info()).url:

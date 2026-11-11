@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "买der容量观测 · 最小发布候选",
+    "quality_profile": "showcase",
+    "locale": "zh-CN"
+  },
+  "components": [
+    {
+      "id": "state",
+      "type": "database",
+      "label": "已登记运行库与磁盘",
+      "sublabel": "只读元数据 · 保留历史副本",
+      "pos": [
+        60,
+        100
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "observe",
+      "type": "backend",
+      "label": "既有inbox观察owner",
+      "sublabel": "5分钟采样 · 固定时间预算",
+      "pos": [
+        430,
+        100
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "snapshot",
+      "type": "database",
+      "label": "有界容量快照",
+      "sublabel": "288样本 · 最多1 MiB",
+      "pos": [
+        800,
+        100
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "secretary",
+      "type": "backend",
+      "label": "秘书capacity只读工具",
+      "sublabel": "增长 / 阈值 / UNKNOWN证据",
+      "pos": [
+        800,
+        360
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "outbox",
+      "type": "messagebus",
+      "label": "既有事件归档与通知账本",
+      "sublabel": "普通后台归档 · 严重才入outbox",
+      "pos": [
+        430,
+        360
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "sender",
+      "type": "backend",
+      "label": "唯一通知sender",
+      "sublabel": "仅严重需行动 · 现有owner私聊",
+      "pos": [
+        60,
+        360
+      ],
+      "size": [
+        230,
+        78
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "state",
+      "to": "observe",
+      "label": "mode=ro / statvfs"
+    },
+    {
+      "from": "observe",
+      "to": "snapshot",
+      "label": "原子替换自有文件"
+    },
+    {
+      "from": "snapshot",
+      "to": "secretary",
+      "label": "读取快照",
+      "labelDy": 24
+    },
+    {
+      "from": "observe",
+      "to": "outbox",
+      "label": "阈值状态变化",
+      "labelDy": 24
+    },
+    {
+      "from": "outbox",
+      "to": "sender",
+      "label": "原生回执保留"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "当前现场",
+      "items": [
+        "当前根盘81%，可用约6.83 GiB",
+        "有效库四项已逐库核对，历史副本不删",
+        "连续速率不足，距满时间UNKNOWN"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "治理边界",
+      "items": [
+        "无新daemon、sender或券商会话",
+        "金融状态、回执和UNKNOWN保留",
+        "清理必须逐项核验副本及恢复来源"
+      ]
+    }
+  ]
+}
