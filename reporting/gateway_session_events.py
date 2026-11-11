@@ -93,7 +93,12 @@ def collect(store, root, *, reader=read_journal):
                     continue
                 key = 'gateway-session:'+hashlib.sha256(entry['__CURSOR'].encode()).hexdigest()[:32]
                 label, text = event
-                enqueue(c, key, dict(scope='GATEWAY_AUTHENTICATION', reason=text,
+                manual={}
+                if label in ('OPERATOR','CONFLICT'):
+                    first=not state.get('manual_attention')
+                    if first:state['manual_attention']=dict(key=key,at=at)
+                    manual=dict(manual_episode_key=state['manual_attention']['key'],manual_action_primary=first)
+                enqueue(c, key, dict(scope='GATEWAY_AUTHENTICATION', reason=text,**manual,
                         observed_at=at, queued_at=store.clock(),phase=label, source='existing Gateway owner journal',
                         action_taken='只记录既有owner事件，未新增登录、重启或会话抢占。',
                         grants_trading_permission=False))
@@ -118,6 +123,7 @@ def collect(store, root, *, reader=read_journal):
                         observed_at=store.clock(),queued_at=store.clock(), reason='本次Gateway初始化之后，正确Paper身份及新鲜完整账户／订单回读已核验；行情与交易门禁仍独立。',
                         action_taken='只读核对既有安全owner证据，未发送券商请求。', grants_trading_permission=False))
                 state['pending'] = []
+                state.pop('manual_attention',None)
                 count += 1
         c.execute('INSERT OR REPLACE INTO incident_cursors VALUES(?,?)', (SOURCE, json.dumps(state, sort_keys=True)))
     return count

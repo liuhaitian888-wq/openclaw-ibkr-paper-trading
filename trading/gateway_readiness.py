@@ -1,13 +1,40 @@
 """Persist operator attention independently of the one-shot restart ledger."""
 import hashlib
 import json
+import subprocess
+import time
 from contextlib import closing
 
 from .gateway_recovery import ACCOUNT, ENDS, fresh
 
-CAUSES = {'IDENTITY_UNVERIFIED', 'AUTHENTICATION_OPERATOR', 'BUSINESS_READINESS_UNVERIFIED', 'RECOVERY_UNVERIFIED'}
+CAUSES = {'IDENTITY_UNVERIFIED', 'AUTHENTICATION_OPERATOR', 'BUSINESS_READINESS_UNVERIFIED', 'RECOVERY_UNVERIFIED','SERVICE_FAILED'}
 SOURCE = 'existing Gateway watchdog'
 KIND = 'GATEWAY_OPERATOR_ATTENTION'
+
+
+def terminal_proof(proof,now):
+    if not isinstance(proof,dict):return False
+    ident=proof.get('invocation_id')
+    return (isinstance(ident,str) and len(ident)==32 and all(x in '0123456789abcdef' for x in ident)
+            and proof.get('active_state')=='failed' and proof.get('main_pid')==0
+            and proof.get('result') in ('exit-code','signal','core-dump','timeout','watchdog','oom-kill','start-limit-hit')
+            and type(proof.get('exit_monotonic')) is int and proof['exit_monotonic']>0
+            and fresh(proof.get('checked_at'),now,90))
+
+
+def read_terminal_service(now=None):
+    """Bounded status query of the one existing unit; never starts/resets it."""
+    try:
+        result=subprocess.run(['systemctl','show','ibkr-gateway.service','-p','ActiveState','-p','MainPID',
+            '-p','Result','-p','InvocationID','-p','ExecMainStatus','-p','ExecMainExitTimestampMonotonic'],
+            capture_output=True,text=True,timeout=3,check=True)
+        if len(result.stdout)>8192:return None
+        p=dict(line.split('=',1) for line in result.stdout.splitlines() if '=' in line)
+        proof=dict(active_state=p['ActiveState'],main_pid=int(p['MainPID']),result=p['Result'],
+            invocation_id=p['InvocationID'],exit_status=int(p['ExecMainStatus']),
+            exit_monotonic=int(p['ExecMainExitTimestampMonotonic']),checked_at=time.time() if now is None else now)
+        return proof if terminal_proof(proof,proof['checked_at']) else None
+    except (OSError,ValueError,TypeError,KeyError,subprocess.SubprocessError):return None
 
 
 def _native_ready(native, now):
@@ -22,10 +49,15 @@ def observe(state, evidence, now):
     e = evidence
     native = e.get('native', {})
     rb = e.get('readback', {})
-    generation = e.get('generation')
+    session_generation = e.get('generation')
+    terminal=e.get('terminal_service')
+    stopped=(not session_generation and e.get('service')=='failed' and terminal_proof(terminal,now))
+    # This identity is only for the attention episode. It is never passed back
+    # to the restart decision as a fabricated Java generation.
+    generation = session_generation or ('systemd:'+terminal['invocation_id'] if stopped else None)
     s.update(readiness_checked_at=now, readiness_requires_operator=False, readiness_phase='UNVERIFIED')
     episode = dict(s.get('readiness_episode', {}))
-    healthy = (generation and _native_ready(native, now)
+    healthy = (session_generation and _native_ready(native, now)
                and rb.get('complete') is True and rb.get('account_id') == ACCOUNT
                and rb.get('environment') == 'PAPER' and fresh(rb.get('at'), now, 420)
                and fresh(rb.get('server_time'),rb.get('at',0),30)
@@ -63,7 +95,7 @@ def observe(state, evidence, now):
     mismatch = (e.get('identity_mismatch') and fresh(rb.get('at'), now, 420)
                 and rb.get('at', 0) >= (e.get('generation_started_at') or now) - 1)
     failed_recovery = s.get('operation') == 'OPERATOR_REQUIRED'
-    explicit = generation and (auth or mismatch or failed_recovery) and not healthy
+    explicit = generation and (auth or mismatch or failed_recovery or stopped) and not healthy
     if not failure and not explicit:
         s.pop('readiness_suspect', None)
         s['readiness_phase'] = 'HEALTHY' if healthy else 'UNVERIFIED'
@@ -80,7 +112,7 @@ def observe(state, evidence, now):
     sustained = (now - suspect['since'] >= 900 and len(suspect['failures']) == 2
                  and suspect['failures'][-1] - suspect['failures'][0] >= 60)
     if explicit or sustained:
-        cause = ('IDENTITY_UNVERIFIED' if mismatch else 'RECOVERY_UNVERIFIED' if failed_recovery else
+        cause = ('SERVICE_FAILED' if stopped else 'IDENTITY_UNVERIFIED' if mismatch else 'RECOVERY_UNVERIFIED' if failed_recovery else
                  'AUTHENTICATION_OPERATOR' if auth else 'BUSINESS_READINESS_UNVERIFIED')
         identity = hashlib.sha256((str(generation) + ':' + str(now)).encode()).hexdigest()[:32]
         s['readiness_episode'] = dict(id=identity, generation=generation, opened_at=now,
@@ -133,9 +165,10 @@ def publish(store, state):
 
 def operator_text(payload):
     if payload.get('cause') not in CAUSES:raise PermissionError('Known Gateway attention cause required')
-    reason = {'BUSINESS_READINESS_UNVERIFIED':'协议仍可握手，但完整账户业务持续未就绪。',
+    reason = {'BUSINESS_READINESS_UNVERIFIED':'此前协议可握手但业务未就绪；当前仍未取得完整可用证据。',
               'IDENTITY_UNVERIFIED':'Paper身份核验未通过。',
               'RECOVERY_UNVERIFIED':'既有一次恢复后，完整回读仍未核验。',
+              'SERVICE_FAILED':'既有Gateway服务当前已失败停止，无法提供完整业务；需要本人检查会话或认证。',
               'AUTHENTICATION_OPERATOR':'检测到原生登录或会话阻塞。'}[payload['cause']]
     return 'Gateway需要人工检查\n'+reason+'\n请在本人IB官方客户端检查；若出现手机原生确认，请本人完成。不要在群聊发送密码或验证码。\n本提示没有新增登录或重启；交易门禁保持。'
 
@@ -161,6 +194,9 @@ def valid_operator_notice(store, item):
                 or ep.get('opened_at')!=p.get('observed_at') or p.get('queued_at')!=ep.get('opened_at')
                 or state.get('readiness_requires_operator') is not True
                 or not fresh(state.get('readiness_checked_at'),now,90)):return False
+        if p['cause']=='SERVICE_FAILED':
+            proof=read_terminal_service(now)
+            if not terminal_proof(proof,now) or ep.get('generation')!='systemd:'+proof['invocation_id']:return False
         with closing(store.connect()) as c:
             row=c.execute('SELECT payload FROM incident_cursors WHERE source=?',('gateway-operator:'+p['episode_id'],)).fetchone()
             raw=c.execute('SELECT payload FROM notification_outbox WHERE id=?',(item['id'],)).fetchone()
@@ -168,7 +204,7 @@ def valid_operator_notice(store, item):
         registry=json.loads(row[0]) if row else {}
         return bool(raw and json.loads(raw[0])==p and registry==dict(notification_id=item['id'],kind=KIND,
                     incident_key=item['incident_key'],generation=1,payload_sha256=hashlib.sha256(raw[0].encode()).hexdigest())
-                    and native and (p['cause'] in ('IDENTITY_UNVERIFIED','RECOVERY_UNVERIFIED')
+                    and native and (p['cause'] in ('IDENTITY_UNVERIFIED','RECOVERY_UNVERIFIED','SERVICE_FAILED')
                                     or not _native_ready(json.loads(native[0]),now)))
     except (OSError,ValueError,TypeError,KeyError,AttributeError,__import__('sqlite3').Error):
         return False
