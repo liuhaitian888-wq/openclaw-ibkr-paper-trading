@@ -89,7 +89,7 @@
       "path": "docs/diagrams/storage-governance.html",
       "output_sha256": "395fb52ce51f53c9472e599f482b049f133bfc8acab4b96750a734e92fab349b",
       "inputs": {
-        "reporting/storage_policy.py": "8bcea949536c05146c6ce49b9b8ab835cbd46c4ea5a25098d192702e820d5633",
+        "reporting/storage_policy.py": "3d002ff5a5c623483fe971cb4e4780a5c5f1838acd21b7dd5740f00d957b7df3",
         "reporting/storage_archive.py": "f3d883ac9edb5330b36f005e57ceb75a2d8c022e929ad3a950d3ba853ea94f07",
         "scripts/archive_storage_batch.py": "0f6e6f4177fcff80300fead2cc3bf1a6def9751f0f86da83a6de28cbb6ed48a7",
         "reporting/capacity.py": "8366aba1df5b3f8a3257bc98dd8309afb7b7f4e28d3a3ae4c5a3fed420981e28",
@@ -103,15 +103,15 @@
         "ops/cloud/storage-policy.example.json": "935729ea1d812b8325eebcb782534679a5a45266252c9210a1cc8a8824c33ca8",
         "docs/diagrams/storage-governance.architecture.json": "c1c0625bbb50c87857f9bc1c89836856ece7a851a0b6f728347db4823d8d4ed5"
       },
-      "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps."
+      "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps. B1 review2026-11-11: existing public/archive and native development actors remain; added pre-reservation storage admission is separately drawn in engineering-artifacts.html. Historical source stage and UNKNOWN/native boundaries retained; no new live acceptance asserted."
     },
     {
       "path": "docs/diagrams/secretary-development.html",
       "output_sha256": "783a6543e60d0dc04abb14321b87a3e28b1684b8c3b447dad73e56b3552bf59d",
       "inputs": {
         "docs/diagrams/secretary-development.architecture.json": "f99be7d23868799af95c82138aaabb9600e24765e3dc591effcd9195fb5ab9ca",
-        "reporting/engineering_development.py": "f56bc5892f01f78c78ce770ec480c9c09737666b012fc0fe58d3f2ba0c3bc792",
-        "reporting/engineering_patch.py": "de457b09021f900fb1f7019e60844a62ab88ad8e36f7a612ebde2b0a58597825",
+        "reporting/engineering_development.py": "89690ed4e602eb108f78b7453b286375d5915c533b9844f9f407dffa2a53d19a",
+        "reporting/engineering_patch.py": "93f567934f82532081a8f695e97b799cdc5c07e99910042b17787109f37ba23c",
         "reporting/engineering_sandbox.py": "75078e03e4c46b5a07f31fab7cdeb9ca5221d49f27c6a3d6abd85747e5f649e2",
         "ops/cloud/run_engineering_sandbox.py": "366bc71a3012df8359a931822f1648aae63ec9b77734c0c95471aae8aca8afcd",
         "reporting/codex_appserver.py": "331c90893c4c7fb74c2313401c4055377d6114b9a513b89602847d3a44b10b75",
@@ -120,7 +120,7 @@
         "tests/test_development_publication.py": "1cb70ce0b1fe4f77d63fa0874735db4b7b73217375a86a162773cdb8c3ff2681",
         "reporting/native_journal.py": "630c3091fcb1d43dbed80fab6e45060aa1d591dd1a4aaae5debfe5781bbe91e0"
       },
-      "semantic_review": "Implementation boundary only; no native new-scope acceptance claimed. Archify9/9 showcase PASS; automated four desktop sizes and light/dark endpoints PASS; 2048x1320 light visually reviewed. MODEL source and USER authority separate, model auth outside kernel-isolated tests, independent publisher retains merge/deploy. Unrelated stale diagram receipts retained, not blindly rehashed. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root combined-source review: sender result edge now explicitly requires host task-to-native-request proof and current verified private owner; same actors, ledger, sender and transport, no new topology or permission. Original model proposal/external class authorization/native request remain separate. Actual accept_update/private-only sender and rejected provenance matrix verify this edge; render remains applicable. Combined730 candidate: JSON patch remains on the same model-to-host edge; insert_after expands before unchanged full AST and isolated test edge. Private bounded metadata stays in the existing host-owned artifact store; no new actor/transport/native permission. Existing model JSON/host patch/isolation/owner-private-result labels remain accurate. Native journal included as reviewed storage implementation dependency; rendering and architecture input unchanged. UNKNOWN and not-deployed boundary unchanged; offline source only, no real latency or native acceptance inferred."
+      "semantic_review": "Implementation boundary only; no native new-scope acceptance claimed. Archify9/9 showcase PASS; automated four desktop sizes and light/dark endpoints PASS; 2048x1320 light visually reviewed. MODEL source and USER authority separate, model auth outside kernel-isolated tests, independent publisher retains merge/deploy. Unrelated stale diagram receipts retained, not blindly rehashed. Root B reviewed additive registered development context/submit dispatch, same owner-private interaction/result path and preserved publication-v2 atomic registry/inbox native identity. Existing projection graph topology unchanged; constrained executor is shown in the separate secretary-development graph. Exact combined-source hash refreshed only for reviewed dispatch. Root combined-source review: sender result edge now explicitly requires host task-to-native-request proof and current verified private owner; same actors, ledger, sender and transport, no new topology or permission. Original model proposal/external class authorization/native request remain separate. Actual accept_update/private-only sender and rejected provenance matrix verify this edge; render remains applicable. Combined730 candidate: JSON patch remains on the same model-to-host edge; insert_after expands before unchanged full AST and isolated test edge. Private bounded metadata stays in the existing host-owned artifact store; no new actor/transport/native permission. Existing model JSON/host patch/isolation/owner-private-result labels remain accurate. Native journal included as reviewed storage implementation dependency; rendering and architecture input unchanged. UNKNOWN and not-deployed boundary unchanged; offline source only, no real latency or native acceptance inferred. B1 review2026-11-11: existing public/archive and native development actors remain; added pre-reservation storage admission is separately drawn in engineering-artifacts.html. Historical source stage and UNKNOWN/native boundaries retained; no new live acceptance asserted."
     },
     {
       "path": "docs/diagrams/secretary-news.html",
@@ -135,6 +135,18 @@
         "ops/cloud/intelligence_broker.py": "3714999e1fb400c3af4f12227d0be0f0dc4a62db7b159d558c1db0449cede45a"
       },
       "semantic_review": "Source-body/revision/TTL read path inspected; existing producer and sender owners retained. Source data-to-model edge now explicit, final research registration/delivery dashed pending native acceptance. Historical secretary-tools view retained, unrelated receipts not rehashed. Archify new source diagram, no production readiness inferred."
+    },
+    {
+      "path": "docs/diagrams/engineering-artifacts.html",
+      "output_sha256": "19382cfe06179be705a1503edb02e2caec5e811ea776fb957dbe7ba3f33bbb0f",
+      "inputs": {
+        "reporting/storage_policy.py": "3d002ff5a5c623483fe971cb4e4780a5c5f1838acd21b7dd5740f00d957b7df3",
+        "reporting/engineering_development.py": "89690ed4e602eb108f78b7453b286375d5915c533b9844f9f407dffa2a53d19a",
+        "reporting/engineering_patch.py": "93f567934f82532081a8f695e97b799cdc5c07e99910042b17787109f37ba23c",
+        "scripts/check_artifact_budget.py": "8bbd01dfe255db00f75cace1e85be733cbaea0f426ae51e48d6806694d3906d8",
+        "docs/diagrams/engineering-artifacts.architecture.json": "c89e1452b7671482fba65898db45a8a78105915c19c3352c5049741caf568ec5"
+      },
+      "semantic_review": "B1 fixed3534da19 on actual7f: before-reserve snapshot admission and explicit sole-publisher CLI binding; no cleanup, financial backup skip or source reuse claim. Archify9/9, all desktop browser measures pass and light/dark2048 visually reviewed readable/contained. Runtime source/1516offline proven; live binding/deployment pending publisher."
     }
   ]
 }

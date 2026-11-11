@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "工程工件写入 · B1有界准入候选",
+    "quality_profile": "showcase",
+    "locale": "zh-CN"
+  },
+  "components": [
+    {
+      "id": "policy",
+      "type": "database",
+      "label": "既有storage-policy",
+      "sublabel": "8 GiB / 28% · 原公开门禁保持",
+      "pos": [
+        60,
+        35
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "owner",
+      "type": "backend",
+      "label": "现有工程model owner",
+      "sublabel": "新任务预留128 MiB · 配额512 MiB",
+      "pos": [
+        430,
+        35
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "prepare",
+      "type": "backend",
+      "label": "私有source准备入口",
+      "sublabel": "32 MiB子进程文件上限",
+      "pos": [
+        800,
+        35
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "publisher",
+      "type": "backend",
+      "label": "唯一手工publisher",
+      "sublabel": "先于SCP和备份目录调用准入",
+      "pos": [
+        60,
+        185
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "admit",
+      "type": "security",
+      "label": "同模块发布准入",
+      "sublabel": "256 MiB波次 · 原peak与2 GiB余量",
+      "pos": [
+        430,
+        185
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "files",
+      "type": "database",
+      "label": "新私有工件",
+      "sublabel": "源码包 / repository / linked worktree",
+      "pos": [
+        800,
+        185
+      ],
+      "size": [
+        245,
+        78
+      ]
+    },
+    {
+      "id": "protected",
+      "type": "security",
+      "label": "既有关键证据与历史",
+      "sublabel": "只拒未来可选写入 · 不删旧文件",
+      "pos": [
+        430,
+        335
+      ],
+      "size": [
+        245,
+        78
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "policy",
+      "to": "owner",
+      "label": "空间与配额"
+    },
+    {
+      "from": "owner",
+      "to": "prepare",
+      "label": "准入后才reserve"
+    },
+    {
+      "from": "prepare",
+      "to": "files",
+      "label": "受限创建",
+      "labelDy": 24
+    },
+    {
+      "from": "publisher",
+      "to": "admit",
+      "label": "强制检查"
+    },
+    {
+      "from": "admit",
+      "to": "protected",
+      "label": "不以删除换放行",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "真实接线",
+      "items": [
+        "新研发在reserve / canary / source复制前检查",
+        "prepare再次检查；原UNKNOWN先对账",
+        "手工publisher须绑定CLI，不宣称全写入覆盖"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "保留边界",
+      "items": [
+        "原两库必需备份与旧peak guard不省略",
+        "历史、金融、回执与UNKNOWN不删除",
+        "B1未含内容复用；C另固定候选验收"
+      ]
+    }
+  ]
+}
