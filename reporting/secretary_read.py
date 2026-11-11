@@ -61,6 +61,9 @@ def tool(root, request):
     if name=='capacity':
         from .capacity import read
         return read(root)
+    if name in ('strategy_evidence','news_evidence'):
+        from .secretary_research_evidence import read
+        return read(root,request)
     if name=='notification_evidence':
         from .notification_reconciliation import inspect
         return inspect(root,request['notification_id'])
