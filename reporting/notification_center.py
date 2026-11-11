@@ -25,6 +25,7 @@ GROUP_KEYS = {'paper-safety:connection': '本地API连接', 'paper-safety:upstre
 
 
 def category(item):
+    if item['kind']=='GATEWAY_OPERATOR_ATTENTION':return 'ops'
     if item['kind']=='AUTOMATIC_STATUS':return 'risk' if item['payload'].get('family')=='broker' else 'auth' if item['payload'].get('family')=='authentication' else 'ops'
     if item['kind']=='CURRENT_RISK_STATUS':return 'risk'
     p=item['payload'];k=item['incident_key'];kind=item['kind'];role=p.get('message_role')
@@ -201,6 +202,10 @@ def render(item,config,at):
             from .capacity import public_status
             text=public_status(item)
             if text is None:raise PermissionError('Bounded fixed capacity numbers required')
+            return dict(text=text,html=html.escape(text),category='ops',audience='owner',chat_id=recipient(item,config))
+        if route['public_view']=='gateway_action':
+            from trading.gateway_readiness import operator_text
+            text=operator_text(p)
             return dict(text=text,html=html.escape(text),category='ops',audience='owner',chat_id=recipient(item,config))
     if config.get('automatic_updates_to_group') is True:
         from .notification_access import decision

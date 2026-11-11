@@ -111,7 +111,14 @@ def work_status(archive,store,query=''):
             delivery = ('秘书'+delivery) if delivery else ''
         cards.append(ref+(' / '+child['ref'] if child else '')+'｜'+data['task_title']+'\n简介：'+data['task_brief']+'\n状态：'+status+(' · '+delivery if delivery else ''))
         if len(cards)>=5:break
-    return '最近任务\n\n'+'\n\n'.join(cards) if cards else ('没有找到这个任务。直接发送 /work 可看最近任务。' if needle else '目前没有待显示的任务。直接告诉我你想研究或处理什么即可。')
+    from .capacity_engineering import read as capacity_tasks
+    labels={'QUEUED_READ_ONLY':'已登记，等待工程owner领取只读诊断','STARTED_READ_ONLY':'工程owner已领取只读诊断',
+            'DIAGNOSED':'只读诊断已记录，变更须另行实施','UNKNOWN':'结果待核对，不会自动重做'}
+    for item in capacity_tasks(archive.path.parent)['items']:
+        if needle and needle not in ('容量 capacity '+item['id']).lower():continue
+        cards.insert(0,item['id']+'｜主机容量风险诊断\n状态：'+labels.get(item['state'],'待核对')+'\n未自动启动模型或部署。')
+        if len(cards)>=5:break
+    return '最近任务\n\n'+'\n\n'.join(cards[:5]) if cards else ('没有找到这个任务。直接发送 /work 可看最近任务。' if needle else '目前没有待显示的任务。直接告诉我你想研究或处理什么即可。')
 
 
 def compact_message(item):
