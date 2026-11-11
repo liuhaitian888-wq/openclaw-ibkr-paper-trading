@@ -306,3 +306,19 @@ The host SHALL bind development ACCEPTED, RESULT and UNKNOWN notices to the pers
 #### Scenario: Provenance is absent or owner changes
 - **WHEN** a notice has only MODEL or standing authorization provenance, no received receipt, stale identity, or a different current owner
 - **THEN** it remains internal without changing patch/test outcomes or replaying old uncertain notices.
+
+
+### Requirement: Unified owner engineering progress
+The existing /work view SHALL join ordinary secretary requests with their recorded engineering child tasks using requested_by_run or the direct instruction. Either short reference SHALL find the same bounded view. Child UNKNOWN SHALL remain unconfirmed even when the parent answer succeeded. PATCH_READY SHALL mean patch and isolated tests await review, never deployment. Reading progress SHALL NOT initialize tasks, replay them or send notifications.
+
+#### Scenario: Parent reply precedes unresolved development
+- **WHEN** the secretary has answered but its linked engineering child is UNKNOWN
+- **THEN** /work shows development result awaiting reconciliation and both short references without promoting the child to completed.
+
+#### Scenario: Isolated patch result
+- **WHEN** a linked child is PATCH_READY
+- **THEN** /work shows patch and isolated tests complete, awaiting review and not deployed; secretary reply delivery remains a separate fact.
+
+#### Scenario: Legacy archive without engineering table
+- **WHEN** an existing archive has no engineering task table
+- **THEN** ordinary work lookup remains available without creating that table.

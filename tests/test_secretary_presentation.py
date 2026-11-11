@@ -65,6 +65,41 @@ class PresentationTests(unittest.TestCase):
   with closing(self.store.connect()) as c,c:
    ident=c.execute('SELECT id FROM notification_outbox').fetchone()[0];c.execute('INSERT INTO notification_receipts VALUES (?,?)',(ident,json.dumps({'message_ids':[9]})))
   self.assertIn('回复已发送',work_status(self.a,self.store))
+ def engineering_child(self,state):
+  from reporting.engineering_tasks import initialize as engineering_initialize
+  engineering_initialize(self.a)
+  identity='engineering-development:'+'a'*56+'26e959f1'
+  with closing(self.a.connect()) as c,c:
+   c.execute('INSERT INTO secretary_engineering_tasks VALUES (?,?,?,?,?,?,?,?)',
+    (identity,identity+':instruction','fixture',state,json.dumps({'requested_by_run':self.run}), '{}',1000,1001))
+  return identity
+ def test_engineering_unknown_overrides_successful_parent_reply(self):
+  self.reserve();self.a.append('done','der-secretary',origin='MODEL',kind='PUBLIC_RESEARCH_RESULT',parent=self.i,payload={'summary':'已接单'});self.a.finish_run(self.run,state='SUCCEEDED',result_event='done')
+  child=self.engineering_child('UNKNOWN')
+  text=work_status(self.a,self.store)
+  self.assertIn('开发结果待核对',text);self.assertNotIn('答复已生成',text)
+  self.assertIn('T26E959F1',text)
+  self.assertIn('开发结果待核对',work_status(self.a,self.store,'T26E959F1'))
+  self.assertIn('开发结果待核对',work_status(self.a,self.store,reference(self.i)))
+  with closing(self.a.connect()) as c:self.assertEqual(c.execute('SELECT state FROM secretary_engineering_tasks').fetchone()[0],'UNKNOWN')
+ def test_engineering_patch_ready_is_not_deployed_or_delivered(self):
+  self.reserve();self.a.append('done','der-secretary',origin='MODEL',kind='PUBLIC_RESEARCH_RESULT',parent=self.i,payload={'summary':'已接单'});self.a.finish_run(self.run,state='SUCCEEDED',result_event='done');self.engineering_child('PATCH_READY')
+  text=work_status(self.a,self.store)
+  self.assertIn('补丁与隔离测试完成，等待审阅；尚未部署',text)
+  self.assertNotIn('回复已发送',text);self.assertNotIn('artifact',text)
+ def test_missing_engineering_table_does_not_create_one(self):
+  self.assertIn('等待处理',work_status(self.a,self.store))
+  with closing(self.a.connect()) as c:self.assertIsNone(c.execute("SELECT name FROM sqlite_master WHERE name='secretary_engineering_tasks'").fetchone())
+ def test_engineering_direct_control_is_visible(self):
+  self.reserve();child=self.engineering_child('SUCCEEDED')
+  control='telegram:42:99'
+  self.a.append(control,'der-secretary',origin='USER',kind='CONTROL_INSTRUCTION',payload={'text':'/codex dbcheck'})
+  with closing(self.a.connect()) as c,c:
+   c.execute('UPDATE secretary_engineering_tasks SET id=?,instruction=?,payload=?',(child.replace('engineering-development:','engineering:'),control,'{}'))
+  text=work_status(self.a,self.store,'T26E959F1')
+  self.assertIn('只读数据库检查',text);self.assertIn('检查完成；未部署',text)
+  self.assertNotIn('已部署',text)
+
  def test_old_progress_is_sanitized_and_new_results_are_plain_and_escaped(self):
   item={'id':7,'incident_key':'secretary-progress:'+self.run,'kind':'SECRETARY_REPLY','generation':1,'payload':{'message_role':'PROGRESS','reason':'broker_query None '+self.run}}
   self.assertEqual(render(item,CFG,1000)['text'],'任务处理中。\n事件 #7')

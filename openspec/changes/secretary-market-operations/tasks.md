@@ -179,3 +179,10 @@ Gateway actual acceptance2026-11-11: running409e255/oldrelease62c only; once06:0
 - [ ] Any additional business-readiness automatic action needs explicit policy review, exact-source combination tests and separate deployment/native acceptance; this item grants no new restart or trading authority.
 
 Actual B native boundary: owner2039→MODEL proposal→native thread/turn accepted; TimeoutError yields UNKNOWN07:08:05, no acknowledged patch/result. Native private UNKNOWN2043 verified; final PATCH_READY/tests task remains unchecked. No replay/new scope; see STORAGE_DEVELOPMENT_20261111.md.
+
+
+## Engineering child work view
+- [x] Reproduce parent-success/child-UNKNOWN and absent direct diagnostic in isolated fixtures.
+- [x] Implement bounded read-only child aggregation and dual short-reference lookup with explicit not-deployed patch state.
+- [x] Complete full offline1477/67.481s, focused13, strict8spec and all-files secret checks; prepare sole-publisher handoff.
+- [ ] Verify real /work child state after approved integration; no task replay to create evidence.
