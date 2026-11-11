@@ -63,9 +63,10 @@
         "reporting/health.py": "760fce089d840dc799cc47a9f9f0a39467e71256d9a6c6d2ec7dd5518109eae2",
         "reporting/secretary_observations.py": "32d51977cda97d52c2545b76173236e7607e146af6a68b9a764c2131a96e73f7",
         "reporting/secretary_read.py": "3fe1ee0c12b00b7938f3eb046826336367c835d70bda7bcf8d3af0d6fc8d0dbd",
-        "docs/diagrams/capacity.architecture.json": "fed1dad38c27c842d8765eb0045c651e77255dd0d62255e8099a9e3f5c2ac755"
+        "docs/diagrams/capacity.architecture.json": "fed1dad38c27c842d8765eb0045c651e77255dd0d62255e8099a9e3f5c2ac755",
+        "ops/cloud/secretary_inbox.py": "b64d493ee87892493f3bd1e4d1436cf1ff4d8a4a495de16fe5c8653990894ce9"
       },
-      "semantic_review": "Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim."
+      "semantic_review": "Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Actual deployment exposed the legacy poll-before-observe coupling. The bounded local observer is now scheduled independently before polling, under the same existing inbox owner; this restores the diagrammed passive local branch without a new daemon or external probe. Render unchanged."
     },
     {
       "path": "docs/diagrams/publication-routing.html",
@@ -74,11 +75,12 @@
         "docs/diagrams/publication-routing.workflow.json": "ac78db25630b2057231f4aa9329a4ba191f4f5de9a06e7ff62504882356155f4",
         "reporting/publication_policy.py": "c420d48911417a16709358b12227714bdb0ff5fd51d6e8f6ef79f9c722f13994",
         "reporting/link_status_card.py": "1f49d4cb42f51b72cac886555e4a67e1ce02fc562f3880a30e8b8c78f22768d9",
-        "reporting/incident_telegram.py": "7d1c84f1cfd4cee66dbc8e97ce661511b34f69ed7ecbf17ce8a2a3a78888aa75",
+        "reporting/incident_telegram.py": "68f111fbeaf914a59f9ebd779a519d84e5b9b8114de4540c3d08cedf0cc20d03",
         "ops/cloud/feishu_alert_watch.py": "173ee928939975070a94e2866a5d8f6e1150fa2d718252b2a79f6908142789e6",
-        "reporting/report_schedule.py": "b67d2136fc7f48efac6772a32c6d15514c9c4edc73b7504aaf8ce0b55aac6221"
+        "reporting/report_schedule.py": "b67d2136fc7f48efac6772a32c6d15514c9c4edc73b7504aaf8ce0b55aac6221",
+        "ops/cloud/secretary_rpc.py": "7838fc80edf379ede58c3bce5b6fe51b1194c2d4efeecb386ad26888b65cc21d"
       },
-      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases."
+      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged."
     }
   ]
 }

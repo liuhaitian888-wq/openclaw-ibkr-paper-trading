@@ -53,6 +53,14 @@ The system SHALL apply publication-v2: ordinary events remain archived without p
 - **WHEN** the initial has any operation, delivery, receipt, wire or uncertain outcome, its archive proof/content changes, or it contained an actual report
 - **THEN** do not use the local archive exception, do not retry the initial, and refuse the supplement's exception again before wire; unrelated historical UNKNOWN and STARTED outcomes remain unchanged.
 
+#### Scenario: Private input identity is independent of publication
+- **WHEN** publication-v2 archives ordinary outbound events and the cloud inbox verifies its native private input destination
+- **THEN** validate the exact configured owner/private target, bot native identity and private chat type directly without routing a fabricated outbound notification; preserve webhook/sole-receiver and native-owner update gates.
+
+#### Scenario: Telegram polling is unavailable while local capacity monitoring is due
+- **WHEN** the existing inbox owner cannot poll Telegram
+- **THEN** its bounded local observation schedule still runs independently under the same owner, without creating a second daemon, changing business gates or invoking a model.
+
 ### Requirement: One authorized current-link card and independent pin result
 The system SHALL maintain one registered current-link card through the existing sender, checking source, target, exact payload and current facts before wire. Heartbeat MUST NOT imply business readiness or trading authority. Accepted receipts MUST prevent replacement SEND. Pin uncertainty MUST remain independent of accepted delivery and MUST NOT permit replay or expanded rights.
 

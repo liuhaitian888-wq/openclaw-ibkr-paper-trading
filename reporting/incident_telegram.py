@@ -25,8 +25,9 @@ def validate_config(config):
     if config.get('audience_mode')=='shared_group':
         if config.get('notification_format')!='compact-v1':
             raise PermissionError('Shared group requires privacy-safe compact rendering')
-        from .notification_center import recipient
-        recipient({'incident_key':'private-target-proof','kind':'SECRETARY_REPLY','payload':{'message_role':'CHAT','native_owner_reply':True}},config)
+        private=config.get('owner_private_chat_id')
+        if type(private) is not int or private != config.get('owner_user_id') or config.get('owner_private_verified') is not True:
+            raise PermissionError('Exact verified owner private configuration required')
     extra=config.get('allowed_additional_bots',[])
     if (not isinstance(extra,list) or len(extra)>1
             or any(not isinstance(x,dict) or x.get('username')!='HealthchecksBot'
@@ -119,7 +120,15 @@ async def verify_destination(bot,config,item):
     from .notification_center import recipient
     target=recipient(item,config)
     if target==config['chat_id']:return await verify_audience(bot,config)
-    # Private delivery doesn't depend on group membership, title or friends.
+    return await verify_owner_private(bot,config)
+
+
+async def verify_owner_private(bot, config):
+    """Native input identity proof is independent of outgoing publication."""
+    validate_config(config)
+    target=config.get('owner_private_chat_id')
+    if type(target) is not int or target!=config['owner_user_id']:
+        raise PermissionError('Exact owner private identity required')
     me=await bot.get_me(read_timeout=10,connect_timeout=5)
     chat=await bot.get_chat(target,read_timeout=10,connect_timeout=5)
     if (me.id!=config['bot_id'] or me.username!=config['bot_username']
