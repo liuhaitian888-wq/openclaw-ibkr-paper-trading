@@ -2,8 +2,8 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "从宽范围研究到券商核对",
-    "subtitle": "免费来源分层缓存；研究投影不授予交易权限",
+    "title": "宽范围研究 · 存储门禁候选",
+    "subtitle": "公开原始工件有配额；研究投影不授予交易权限",
     "locale": "zh-CN",
     "quality_profile": "showcase",
     "visual_preset": "signal-flow"
@@ -85,7 +85,7 @@
       "id": "public-cache",
       "from": "public",
       "to": "cache",
-      "label": "有界定时采集",
+      "label": "容量允许才采集",
       "role": "main"
     },
     {
@@ -122,6 +122,28 @@
       "to": "compare",
       "label": "按需对照",
       "role": "branch"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "可选写入预算",
+      "items": [
+        "批准storage-policy后才启用",
+        "保留8 GiB且28%可用空间",
+        "研究原始工件256 MiB，目录64 MiB",
+        "单产物5/2 MiB，配额不足暂缓"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "保留与权限",
+      "items": [
+        "旧时点原始资料不自动删除",
+        "订单、风控、UNKNOWN和回执保留",
+        "既有broker owner与交易门禁不改",
+        "本波仍需publisher组合与真实验收"
+      ]
     }
   ]
 }

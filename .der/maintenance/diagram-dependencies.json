@@ -12,17 +12,17 @@
     },
     {
       "path": "docs/diagrams/broad-screening.html",
-      "output_sha256": "f69b5ecf4165dfe9262e0ed0ad8ac018654a7dc6b9da8e10545a3b3f7caaa7c6",
+      "output_sha256": "7ed3a59ec695f648037e505ec8157062e5539c6ffb4f60a62f67d1b481332e25",
       "inputs": {
-        "docs/diagrams/broad-screening.workflow.json": "878dba3fa89c037062a9a2e3686d5759bbbf341898a2a8727236edba501c18b7",
-        "reporting/broad_screening.py": "15aeba00f82e574c2c71cc426875fec810d53e3974a99f6f22641fa555369fb2",
+        "docs/diagrams/broad-screening.workflow.json": "3196ec712125eb7cbfd32247de9cba14a849d8edfc4789c53f1a4ad5cd4a0e11",
+        "reporting/broad_screening.py": "13f026c652765b7e0b14b4871ba8b95ab4fa5db099b87b9cc869ae7be4612eb0",
         "trading/broker_screening.py": "440feb7dfccd507c27933ec40ddc1b2c67ba471132fb2dc1fbb3fa252f34456f",
-        "scripts/refresh_broad_screening.py": "733a2cf03a185c1f93c85f89224be87db52f4b44f493bd06b37da87ecbfd9e76",
+        "scripts/refresh_broad_screening.py": "db4dabac7c37322383c720ee04e602659273e309162fc678818908ee10c4f9d4",
         "reporting/screening_comparison.py": "eb0fc9eaf134d369dd8520265218b57bccc6cd95eed9d3b201e7d14cb2936942",
         "reporting/screening_sources.py": "d7051e177adbff1e2c8a723cf9e83293024915cb23b08f89abfe60927e9e8b08",
         "ops/cloud/paper_safety_watch.py": "9db1265baf4dfac4b1b8fbcba8c39b3d46af750d2618a086df876bffeb7c8784"
       },
-      "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light/dark visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109. Phone missing-field labels changed without altering diagram topology; flow rechecked."
+      "semantic_review": "9/9 artifact checks, automated browser light/dark PASS; 1440x900 light/dark visually reviewed: readable, no overlaps. Receipts retained in engineering/broad-screening-20261109. Phone missing-field labels changed without altering diagram topology; flow rechecked. Governance component review: Capacity precondition and necessary quota/retention cards added; original broker/permission edges preserved. Final compact layout restored after expanded-lane viewport overflow; 9/9 showcase and final all-desktop light/dark browser PASS. Actual final image review recorded separately; source deployment remains pending."
     },
     {
       "path": "docs/diagrams/secretary-tools.html",
@@ -59,14 +59,14 @@
       "path": "docs/diagrams/capacity.html",
       "output_sha256": "88c11c6766ffa62a126767ae6d5b5e8539747ac4a2e1fa55d4bf7c8831a60ae1",
       "inputs": {
-        "reporting/capacity.py": "40ed36282b1b4bca062f34dc9f8929a4204b0d2043ef5d6100e0afc7670b21f2",
-        "reporting/health.py": "760fce089d840dc799cc47a9f9f0a39467e71256d9a6c6d2ec7dd5518109eae2",
+        "reporting/capacity.py": "8366aba1df5b3f8a3257bc98dd8309afb7b7f4e28d3a3ae4c5a3fed420981e28",
+        "reporting/health.py": "e274f7ae303ad8ddf37d6bd9bbf7a5ef18233a72dbdc0092c080abd930260b30",
         "reporting/secretary_observations.py": "32d51977cda97d52c2545b76173236e7607e146af6a68b9a764c2131a96e73f7",
         "reporting/secretary_read.py": "3fe1ee0c12b00b7938f3eb046826336367c835d70bda7bcf8d3af0d6fc8d0dbd",
         "docs/diagrams/capacity.architecture.json": "fed1dad38c27c842d8765eb0045c651e77255dd0d62255e8099a9e3f5c2ac755",
         "ops/cloud/secretary_inbox.py": "b64d493ee87892493f3bd1e4d1436cf1ff4d8a4a495de16fe5c8653990894ce9"
       },
-      "semantic_review": "Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Actual deployment exposed the legacy poll-before-observe coupling. The bounded local observer is now scheduled independently before polling, under the same existing inbox owner; this restores the diagrammed passive local branch without a new daemon or external probe. Render unchanged."
+      "semantic_review": "Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Actual deployment exposed the legacy poll-before-observe coupling. The bounded local observer is now scheduled independently before polling, under the same existing inbox owner; this restores the diagrammed passive local branch without a new daemon or external probe. Render unchanged. Governance component review: Current minimal candidate based on c1f95fa: ordinary warning/recovery archived only, critical action owner-private through existing sender. Old public group patch superseded. Archify9/9 showcase and all desktop light/dark browser checks PASS; 2048light image visually reviewed readable/no overlap. No native deployment claim. Storage-policy and strict internal stat-only additions preserve the core capacity route; new optional gate/archive branches are rendered in separate storage-governance.html."
     },
     {
       "path": "docs/diagrams/publication-routing.html",
@@ -74,13 +74,33 @@
       "inputs": {
         "docs/diagrams/publication-routing.workflow.json": "ac78db25630b2057231f4aa9329a4ba191f4f5de9a06e7ff62504882356155f4",
         "reporting/publication_policy.py": "c420d48911417a16709358b12227714bdb0ff5fd51d6e8f6ef79f9c722f13994",
-        "reporting/link_status_card.py": "1f49d4cb42f51b72cac886555e4a67e1ce02fc562f3880a30e8b8c78f22768d9",
+        "reporting/link_status_card.py": "63eef7d5c523733325accae33c37da34b3b3f6a2d15b6900e0128b57abb8eae2",
         "reporting/incident_telegram.py": "68f111fbeaf914a59f9ebd779a519d84e5b9b8114de4540c3d08cedf0cc20d03",
         "ops/cloud/feishu_alert_watch.py": "173ee928939975070a94e2866a5d8f6e1150fa2d718252b2a79f6908142789e6",
         "reporting/report_schedule.py": "b67d2136fc7f48efac6772a32c6d15514c9c4edc73b7504aaf8ce0b55aac6221",
         "ops/cloud/secretary_rpc.py": "7838fc80edf379ede58c3bce5b6fe51b1194c2d4efeecb386ad26888b65cc21d"
       },
-      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged."
+      "semantic_review": "New current publication-v2 routing and single-card/pin scope, based on actual source. Archify9/9 showcase/no warnings, automated browser four desktop sizes and light/dark capture PASS. 2048x1320 light visually reviewed: readable, no overlaps. Deployment and native pin acceptance separate. Existing unrelated diagram drift remains REVIEW_REQUIRED. Atomic research registration preserves the existing completed-result edge; observer handshake is separate from independently timed account readiness. 1440x900 dark also visually reviewed, no overlaps. Integration review: quiet missing-only initial evidence now permits one genuine later supplement, with exact archive/hash/zero-wire predecessor proof rechecked before wire. This repairs continuity inside the existing report-and-results edge and does not change depicted routing actors or topology; output unchanged. The two publication runtime source fingerprints were recomputed only after reviewing that narrow semantic diff and its positive/negative integration cases. Inbox fix review: native private identity verification is separate from outbound publication; same fixed owner/bot/private guards and same depicted interaction edge, no new actor or transport. Render unchanged. Native-vs-registry projection review: current native proof, same-epoch history, independent closed observer and disabled/stale registry text are separate facts inside the existing local snapshot node; no new actor/transport/pin/permission or health adapter. Existing picture remains semantically applicable; only reviewed source input receipt updated."
+    },
+    {
+      "path": "docs/diagrams/storage-governance.html",
+      "output_sha256": "395fb52ce51f53c9472e599f482b049f133bfc8acab4b96750a734e92fab349b",
+      "inputs": {
+        "reporting/storage_policy.py": "8bcea949536c05146c6ce49b9b8ab835cbd46c4ea5a25098d192702e820d5633",
+        "reporting/storage_archive.py": "f3d883ac9edb5330b36f005e57ceb75a2d8c022e929ad3a950d3ba853ea94f07",
+        "scripts/archive_storage_batch.py": "0f6e6f4177fcff80300fead2cc3bf1a6def9751f0f86da83a6de28cbb6ed48a7",
+        "reporting/capacity.py": "8366aba1df5b3f8a3257bc98dd8309afb7b7f4e28d3a3ae4c5a3fed420981e28",
+        "reporting/health.py": "e274f7ae303ad8ddf37d6bd9bbf7a5ef18233a72dbdc0092c080abd930260b30",
+        "reporting/broad_screening.py": "13f026c652765b7e0b14b4871ba8b95ab4fa5db099b87b9cc869ae7be4612eb0",
+        "reporting/security_directory.py": "92d5ee1255e05568a202a795cf4d81075dbafa0866dc0e3a7f0e2a39318472d1",
+        "scripts/refresh_broad_screening.py": "db4dabac7c37322383c720ee04e602659273e309162fc678818908ee10c4f9d4",
+        "scripts/refresh_security_directory.py": "77bb142e0d84b427faac6c5968800d3d9278fce902d7495a8e6df530c9bb8914",
+        "tests/test_storage_governance.py": "ef91c5eab6834d1ab3ba6ff0d44dacae40fd131439d75d7d5acf8f247c316b39",
+        "tests/test_capacity.py": "01e1c399e25ba5007f60da332fb17339c9f16f37972602d840986e0cdb3add31",
+        "ops/cloud/storage-policy.example.json": "935729ea1d812b8325eebcb782534679a5a45266252c9210a1cc8a8824c33ca8",
+        "docs/diagrams/storage-governance.architecture.json": "c1c0625bbb50c87857f9bc1c89836856ece7a851a0b6f728347db4823d8d4ed5"
+      },
+      "semantic_review": "New candidate optional-write/public-archive route; no second observer or deletion path. Showcase9/9zeroerrors/warnings. Initial vertical viewport overflow repaired by authored row spacing, final all desktoplight/dark containmentPASS; 2048light screenshot actually reviewed readable/nooverlaps."
     }
   ]
 }

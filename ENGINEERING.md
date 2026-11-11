@@ -429,3 +429,8 @@ OpenSpec收尾最终回执：整合并行b6bd676后完整1017项/43.919s/OK。�
 同日最终手机展示修正：e7e5661上线；完整离线1042项/42.249s/OK、secret scan PASS。逐股缺口和具体财务缺字段已用真实缓存回读；第三次部署保持Gateway/门禁/canonical业务字段，inbox/Paper/timer均active。未制造Telegram用户指令或宣称未来维护成功。
 
 Nov9资金真实验收：b3d00e6单次SELL64414EUR成交，permId957281729/exec0000e215.6af0f839.01.01，佣金1.79496EUR；USD-69788.66→2019.4231，EUR943040.605。独立18996双ledger/订单/持仓回读确认FX挂单0/未知0、六只STK及PFE旧单不变。保留CASH EUR/USD虚拟交易头寸-64414，不伪称股票空仓或删除；当前两币种现金均正。股票全自动仍禁用，资金结算/实时性、币种/持仓规范归属、原子预算和连续执行/部分成交/重启验收未收口。详见CASH_FUNDING纪要和state原生证据。
+
+
+## 2026-11-11 存储增长治理候选与小批次归档
+
+容量aba2fda先行波不等待本波。新增可选公开研究/目录写入预算、固定诊断环、既有capacity owner/sharedhealth及秘书只读预算输出；配置未武装不假称已止写。阈值8GiB/28%、raw256/64MiB和单产物5/2MiB，先挡DB/网络/claim前的新低优先工作，旧金融状态/UNKNOWN/回执/历史副本不动。OAuth辅助采样强化为纯stat无SQLite连接。手动公开工件归档默认5GiB总量/100GiB余量，SHA分块续传与隔离字节重建；实际261185bytes两批+独立源SHA通过，源未删、回收0。没有把Mac设核心或唯一备份，也未复制历史大DB。清理仅dry-run且无delete API，文档/白名单/剩余引用核验见STORAGE_GOVERNANCE_20261111.md。最终隔离1396/109.971s通过；云gate与原生秘书验收由唯一publisher另记录。

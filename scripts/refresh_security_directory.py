@@ -14,6 +14,10 @@ def main():
     root=Path.home()/'.local/state/openclaw'
     with monitoring_service('security-directory-refresh',root):
         try:
+            from reporting.storage_policy import preflight
+            budget=preflight(root,'PUBLIC_DIRECTORY')
+            if not budget['allowed']:
+                print(json.dumps(budget,sort_keys=True));return 0
             result=refresh(SecretaryArchive(root/'agent_secretary.sqlite3'),root)
             print(json.dumps({k:result[k] for k in ('revision','count','sources','collected_at','permission_status','grants_trading_permission')},sort_keys=True))
         except Exception as exc:

@@ -121,3 +121,9 @@ Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded
 - [x] Share real report attachments and registered completed research; preserve native interaction/current action-only private routing, without activity mirrors.
 - [x] Implement one host-registered current link card with live prewire checks, receipt-based identity recovery and independent exact-once pin/UNKNOWN handling.
 - [ ] Publish through the existing sole owner and independently read native card/pin/private/group results; never equate offline success with acceptance.
+
+
+## Native versus registry card projection — 2026-11-11
+- [x] Separate actual current native recovery, same-epoch historical proof, independent observer and shared registry gaps with strict account/time/generation checks, without changing gates or adapters.
+- [x] Complete exact frozen prescribed full1429/56.563s,10new+24existingfocused,strict9/9 and gitleaks checks; independent static review no newblockers.
+- [ ] Sole-owner Git integration and next safe sender-only publication; independently read same296 after deployment without a new card/pin/query.

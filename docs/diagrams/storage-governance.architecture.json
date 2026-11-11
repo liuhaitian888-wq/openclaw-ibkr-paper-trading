@@ -1,0 +1,201 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "存储增长治理 · 候选未部署",
+    "quality_profile": "showcase",
+    "locale": "zh-CN"
+  },
+  "components": [
+    {
+      "id": "space",
+      "type": "database",
+      "label": "磁盘与既有容量owner",
+      "sublabel": "自动采样 · 无新daemon",
+      "pos": [
+        60,
+        80
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "gate",
+      "type": "security",
+      "label": "可选写入门禁",
+      "sublabel": "空间余量 + 分类总配额",
+      "pos": [
+        430,
+        80
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "producer",
+      "type": "backend",
+      "label": "现有公开数据采集",
+      "sublabel": "预算不足暂缓 · 不动核心",
+      "pos": [
+        800,
+        80
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "raw",
+      "type": "database",
+      "label": "白名单已有原始快照",
+      "sublabel": "公开来源 · 保留历史与引用",
+      "pos": [
+        800,
+        210
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "client",
+      "type": "backend",
+      "label": "本机有限归档客户端",
+      "sublabel": "人工按批运行 · 核心无依赖",
+      "pos": [
+        430,
+        210
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "chunks",
+      "type": "database",
+      "label": "内容校验与断点",
+      "sublabel": "SHA分块去重 · 目标5 GiB上限",
+      "pos": [
+        60,
+        210
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "restore",
+      "type": "backend",
+      "label": "本地隔离重建验证",
+      "sublabel": "校验字节 · 非金融库恢复",
+      "pos": [
+        60,
+        340
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "review",
+      "type": "frontend",
+      "label": "清理dry-run清单",
+      "sublabel": "引用/来源/逐项批准待核验",
+      "pos": [
+        430,
+        340
+      ],
+      "size": [
+        230,
+        78
+      ]
+    },
+    {
+      "id": "protected",
+      "type": "security",
+      "label": "关键状态与历史保护",
+      "sublabel": "订单风控 / UNKNOWN / 回执",
+      "pos": [
+        800,
+        340
+      ],
+      "size": [
+        230,
+        78
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "from": "space",
+      "to": "gate",
+      "label": "statvfs / 配额"
+    },
+    {
+      "from": "gate",
+      "to": "producer",
+      "label": "限制未来写入"
+    },
+    {
+      "from": "producer",
+      "to": "raw",
+      "label": "单产物上限",
+      "labelDy": 24
+    },
+    {
+      "from": "raw",
+      "to": "client",
+      "label": "SSH分批只读"
+    },
+    {
+      "from": "client",
+      "to": "chunks",
+      "label": "校验后记断点"
+    },
+    {
+      "from": "chunks",
+      "to": "restore",
+      "label": "隔离重建",
+      "labelDy": 24
+    },
+    {
+      "from": "restore",
+      "to": "review",
+      "label": "不自动清理"
+    },
+    {
+      "from": "review",
+      "to": "protected",
+      "label": "本轮零删除"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署边界",
+      "items": [
+        "容量监测先由唯一publisher发布",
+        "新增门禁需批准的storage-policy配置",
+        "原生查询与新门禁验收分别记录"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "归档边界",
+      "items": [
+        "本地保留100 GiB余量，每批有上限",
+        "本次仅261185字节公开数据通过续传/校验",
+        "历史副本、活库与凭据不在归档白名单"
+      ]
+    }
+  ]
+}

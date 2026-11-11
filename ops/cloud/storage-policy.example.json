@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "approved": true,
+  "enabled": true,
+  "grants_trading_permission": false,
+  "minimum_free_bytes": 8589934592,
+  "minimum_free_fraction": 0.28
+}

@@ -73,7 +73,10 @@ class CapacityTests(unittest.TestCase):
         oauth.mkdir()
         with closing(sqlite3.connect(oauth/'logs_2.sqlite')) as c:
             c.execute('CREATE TABLE internal_private(payload TEXT)')
-        self.assertEqual(cap.database_sample(self.root, 'secretary-oauth/logs_2.sqlite')['rows'], {})
+        with patch.object(cap.sqlite3,'connect',side_effect=AssertionError('internal DB must remain stat-only')):
+            internal=cap.database_sample(self.root, 'secretary-oauth/logs_2.sqlite')
+        self.assertEqual(internal['rows'], {})
+        self.assertEqual(internal['state'],'STAT_ONLY_INTERNAL')
         from reporting.secretary_read import REGISTRY
         self.assertNotIn('secretary-oauth/logs_2.sqlite', REGISTRY)
         (self.root/'new-runtime.db').write_text('fixture')

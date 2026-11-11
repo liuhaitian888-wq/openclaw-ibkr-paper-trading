@@ -171,7 +171,8 @@ def refresh(archive, root, run, *, sec_email=None, loader=sources.fetch, now=Non
         raw = loader(url, sec_email=sec_email, retry=retry, now=now)
         counter += 1
         path = folder/(str(counter)+'.json')
-        path.write_bytes(raw)
+        from .storage_policy import write_blob
+        write_blob(root,'PUBLIC_SCREENING',path,raw)
         with closing(archive.connect()) as c, c:
             c.execute('INSERT INTO screen_versions VALUES(?,?,?,?,?,?)',
                       (run+':'+str(counter), urlsplit_source(url), url, hashlib.sha256(raw).hexdigest(), str(path), now))
@@ -239,7 +240,8 @@ def refresh(archive, root, run, *, sec_email=None, loader=sources.fetch, now=Non
         projection = rebuild(archive, root, now=now, run=run)
         result = dict(sources=outcomes, projection=projection, snapshot=str(folder), observed_at=now,
                       scope='RESEARCH_ONLY', grants_trading_permission=False)
-        (folder/'manifest.json').write_text(json.dumps(result, sort_keys=True))
+        from .storage_policy import write_blob
+        write_blob(root,'PUBLIC_SCREENING',folder/'manifest.json',json.dumps(result, sort_keys=True).encode())
         return result
     finally:
         with closing(archive.connect()) as c, c:
