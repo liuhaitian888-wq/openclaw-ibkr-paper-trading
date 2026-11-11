@@ -13,6 +13,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from ops.cloud.paper_safety_watch import gateway_generation
 from trading.gateway_recovery import decide, ACCOUNT
+from trading.gateway_readiness import observe as observe_readiness, publish as publish_readiness
 from reporting.recovery import RecoveryCoordinator
 from reporting.incidents import IncidentStore
 
@@ -53,7 +54,7 @@ def evidence(root, now):
     # Read only bounded local journal output; never export raw launcher/credential logs.
     p=subprocess.run(['journalctl','-u',UNIT,'--since','-30min','-n','100','--no-pager','-o','cat'],capture_output=True,text=True,timeout=4,check=True)
     text=p.stdout.lower()
-    auth=any(x in text for x in ('2fa confirmation timeout','2fa maximum attempts','existing session detected','auto-restart token expired','auto-restart login failed','authenticationfailed','invalid username or password','twofactorconfirmationtimeout','securitydialogdetected','existingsessiondetected','loginfailed'))
+    auth=any(x in text for x in ('waiting for 2fa confirmation','2fa confirmation timeout','2fa maximum attempts','existing session detected','auto-restart token expired','auto-restart login failed','authenticationfailed','invalid username or password','twofactorconfirmationtimeout','securitydialogdetected','existingsessiondetected','loginfailed'))
     return dict(approved=approved,hold=(root/'runtime/GATEWAY_RECOVERY_HOLD').exists(),
                 generation=gateway_generation(),service=unit().get('ActiveState'),native=native,readback=readback,
                 identity_mismatch=readback.get('failure_class')=='IDENTITY_MISMATCH',auth_required=auth)
@@ -71,12 +72,16 @@ def evaluate(root=ROOT, *, submit=False):
         path=root/'runtime/gateway-recovery-state.json'
         before=bounded_json(path) if path.exists() else {}
         now=time.time();e=evidence(root,now);state,action=decide(before,e,now)
+        state=observe_readiness(state,e,now)
         atomically(path,state) # Reserve durably BEFORE returning any restart request.
+        if state.get('readiness_episode'):
+            publish_readiness(IncidentStore(root/'runtime/recovery.sqlite3'),state)
         co=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
-        healthy=state['reason']=='API_RESPONSIVE'
+        attention=state.get('readiness_episode',{}).get('status')=='OPEN'
+        healthy=state['reason']=='API_RESPONSIVE' and not attention
         co.observe('GATEWAY_RECOVERY','HEALTHY' if healthy else 'RECOVERING' if state.get('operation') in ('STARTED','ACCEPTED') else 'DEGRADED',
-                   freshness='FRESH',reason=state['reason'],enabled=True,operation=state.get('operation'),
-                   generation=e.get('generation'),grants_trading_permission=False)
+                   freshness='FRESH',reason='BUSINESS_READINESS_OPERATOR_REQUIRED' if attention else state['reason'],enabled=True,operation=state.get('operation'),
+                   generation=e.get('generation'),requires_operator=attention,grants_trading_permission=False)
         if state.get('operation') in ('STARTED','ACCEPTED','OPERATOR_REQUIRED','RECOVERED'):
             resolved=state['operation']=='RECOVERED'
             text=('Gateway卡死恢复已通过新进程、API心跳及独立账户/订单回读核验。' if resolved else

@@ -38,7 +38,16 @@ def phase(message):
         return 'INITIALIZED', '既有Paper Gateway软重启完成；等待新的账户和订单回读，行情仍单独核验。'
     if text.endswith('START_RESULT None') or text.endswith('RESTART_RESULT None'):
         return 'INITIALIZED', '既有Paper Gateway重新初始化完成；等待新的账户和订单回读，不能据此认定行情已恢复。'
-    if text.endswith('RESTART_LIMIT_REQUIRES_OPERATOR') or text.endswith('2FA confirmation timeout') or text.endswith('2FA maximum attempts'):
+    if text.endswith('Waiting for 2FA confirmation'):
+        return 'OPERATOR', 'Gateway已报告正在等待IBKR手机确认，请在本人设备查看原生认证；不要在群内发送密码或验证码。'
+    operator_results = ('TwoFactorConfirmationTimeout', 'SecurityDialogDetected', 'LoginFailed',
+                        'LoginFailedAccountTasksRequired', 'InitializationTimeout', 'SoftRestartTimeout',
+                        'UnknownMessageWindowDetected', 'RestartedProcessNotFound')
+    if (text.endswith('RESTART_LIMIT_REQUIRES_OPERATOR') or text.endswith('2FA confirmation timeout')
+            or text.endswith('2FA maximum attempts') or text.endswith('Auto-restart token expired')
+            or text.endswith('auto-restart login failed')
+            or any(text.endswith(prefix + code) for prefix in ('START_RESULT ', 'RESTART_RESULT ')
+                   for code in operator_results)):
         return 'OPERATOR', 'Gateway登录恢复需要人工检查或手机验证；没有重新提交登录或抢占请求。'
     return None
 

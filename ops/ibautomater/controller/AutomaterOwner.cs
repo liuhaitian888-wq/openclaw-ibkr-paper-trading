@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Text.Json;
@@ -6,6 +7,10 @@ using System.Runtime.InteropServices;
 using QuantConnect.IBAutomater;
 namespace OpenClaw {
 public static class AutomaterOwner {
+ public static IEnumerable<string> SafePhases(string text) {
+  foreach (string phase in new[]{"IB Automater initialized", "Waiting for 2FA confirmation", "2FA confirmation timeout", "2FA maximum attempts", "Existing session detected", "Auto-restart token expired", "auto-restart login failed", "IBGateway process exited"})
+   if ((text ?? "").Contains(phase, StringComparison.OrdinalIgnoreCase)) yield return phase;
+ }
  public static int Main(string[] args) {
   var stopped = new ManualResetEventSlim(false);
   using var term = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context => { context.Cancel=true; stopped.Set(); });
@@ -20,8 +25,7 @@ public static class AutomaterOwner {
   int failures=0; int pending=0;
   automater.OutputDataReceived += (_, e) => {
    string text = e.Data ?? "";
-   foreach (string phase in new[]{"IB Automater initialized", "2FA confirmation timeout", "2FA maximum attempts", "Existing session detected", "Auto-restart token expired", "auto-restart login failed", "IBGateway process exited"})
-    if (text.Contains(phase, StringComparison.OrdinalIgnoreCase)) Console.WriteLine(DateTime.UtcNow.ToString("O")+" "+phase);
+   foreach (string phase in SafePhases(text)) Console.WriteLine(DateTime.UtcNow.ToString("O")+" "+phase);
   };
   automater.ErrorDataReceived += (_, e) => Console.WriteLine(DateTime.UtcNow.ToString("O")+" AUTOMATER_ERROR_DETAILS_PRIVATE");
   automater.Restarted += (_, e) => { failures=0; Console.WriteLine(DateTime.UtcNow.ToString("O")+" SOFT_RESTART_COMPLETED_REQUIRES_API_RECONCILIATION"); };

@@ -275,3 +275,18 @@ Report cache reuse and dispatch SHALL match the complete trading period required
 #### Scenario: Cached report has the wrong period
 - **WHEN** the source timestamp is unchanged but cached trading-period identity differs from the current complete target
 - **THEN** the cache is invalidated without changing the source timestamp, historical receipts or prior frozen files.
+
+### Requirement: Gateway business readiness operator attention
+The existing Gateway watchdog SHALL persist sustained handshake-only business unavailability independently of restart outcomes and budgets. It SHALL publish idempotent incident and health evidence through existing owners. Presentation SHALL follow the current archival and single pinned-status policy, with no new sender, send replay, or trading permission.
+
+#### Scenario: Protocol responds but business callbacks remain absent
+- **WHEN** fresh distinct independent failed readbacks report successful local protocol handshake under the same Gateway generation across900seconds of observations with gaps no greater than90seconds
+- **THEN** open one durable operator-attention episode, keep automatic restart ineligible, and expose operator attention through existing health and incident state for the single shared status publisher without asserting a password or2FA cause.
+
+#### Scenario: Source is stale or process observations are interrupted
+- **WHEN** evidence is missing, repeated, stale, or its process generation/poll continuity changes before confirmation
+- **THEN** restart the observation window or remain unverified, never fabricate a confirmed hang or login failure.
+
+#### Scenario: Genuine business readiness returns
+- **WHEN** new clean native exact-Paper/four-end/heartbeat evidence and independent complete exact-Paper/server-time evidence after the episode remain positively observed for60seconds with no sample gap over45seconds or generation change
+- **THEN** close the episode through the existing recovery path; process presence or systemctl success alone SHALL NOT close it.

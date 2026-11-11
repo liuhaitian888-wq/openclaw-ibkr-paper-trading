@@ -135,3 +135,10 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 - [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.
 
 Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded. Natural fault1907/group295 and zero automatic private messages verified01:54:28–02:00:45Z. Recovery/EDIT remains open behind real Gateway session blockage and one-shot UNKNOWN; fresh broker menu/Nov11 complete supplement also remain unaccepted. Full report shared_group audience explicitly reconfirmed by the human.
+
+## Nov11 Gateway business readiness notice
+- [x] Explain handshake-only business failure without widening automatic restart conditions.
+- [x] Implement durable independent attention, immutable incident retries and health requires_operator through existing owners; retain latest shared pinned/archival presentation policy.
+- [x] Complete exact-source isolated1405-test suite, C# phase smoke/linux build, strict8spec and stagedsecret scan.
+- [ ] Complete exact-source publisher/main integration and compatible routing/release activation.
+- [ ] Observe a natural operator group card and stable genuine recovery; separately resolve pending one-time Gateway restart authorization.
