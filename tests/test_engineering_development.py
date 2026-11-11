@@ -12,6 +12,7 @@ from reporting.engineering_development import approved, tool, run_once, CLASS
 from reporting.engineering_patch import apply, FILES, GUARD
 from reporting.engineering_relay import propose
 from reporting.engineering_tasks import initialize
+from reporting.native_journal import NativeDeadlineExceeded, NativeStderrBudgetExceeded, JournalWriteError
 from reporting.incidents import IncidentStore
 from reporting.secretary_queue import claim as research_claim, initialize as inbox_initialize
 
@@ -116,6 +117,34 @@ class DevelopmentTests(unittest.TestCase):
         def uncertain(*args,**kwargs):self.calls+=1;raise TimeoutError()
         self.assertEqual('UNKNOWN',self.execute(backend=uncertain));self.assertEqual('IDLE',self.execute())
         self.assertEqual(1,self.calls)
+
+    def accepted_failure(self, fault):
+        item=self.enqueue();self.a.finish_run('secretary-run',state='FAILED')
+        def uncertain(*args,record,**kwargs):
+            self.calls+=1
+            record('THREAD_CREATED',{'thread_id':'retained-thread'})
+            record('TURN_ACCEPTED',{'thread_id':'retained-thread','turn_id':'retained-turn'})
+            raise fault(fault.code)
+        self.assertEqual('UNKNOWN',self.execute(backend=uncertain))
+        with closing(self.a.connect()) as c:
+            before=c.execute('SELECT state,native FROM secretary_engineering_tasks WHERE id=?',(item['task_id'],)).fetchone()
+            status=json.loads(c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(item['task_id']+':uncertainty',)).fetchone()[0])
+        self.assertEqual('UNKNOWN',before[0]);self.assertEqual('TURN_ACCEPTED',json.loads(before[1])['stage'])
+        self.assertEqual(fault.code,status['error_code'])
+        self.assertEqual('IDLE',self.execute());self.assertEqual(1,self.calls)
+        with closing(self.a.connect()) as c:
+            self.assertEqual(before,c.execute('SELECT state,native FROM secretary_engineering_tasks WHERE id=?',(item['task_id'],)).fetchone())
+        folder=self.root/'engineering/development'/item['task_id'].split(':')[1]
+        self.assertFalse((folder/'patch.diff').exists());self.assertTrue((folder/'source.tar').exists())
+
+    def test_distinct_native_deadline_after_acceptance_stays_unknown(self):
+        self.accepted_failure(NativeDeadlineExceeded)
+
+    def test_distinct_stderr_budget_after_acceptance_stays_unknown(self):
+        self.accepted_failure(NativeStderrBudgetExceeded)
+
+    def test_journal_failure_after_acceptance_stays_unknown(self):
+        self.accepted_failure(JournalWriteError)
 
     def test_kernel_canary_failure_prevents_model_and_untrusted_tests(self):
         self.enqueue();self.a.finish_run('secretary-run',state='FAILED');modes=[]
