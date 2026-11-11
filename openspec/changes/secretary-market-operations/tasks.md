@@ -145,3 +145,6 @@ Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded
 
 Publication-v2 actualnative: group296 one card+pinned+naturalEDIT; ordinaryevent/privateautomatic0 in independent3hour window, actualcapacityprivatequestion/result and realreport1985/group299 accepted.
 - [ ] Verify a naturally completed new research result in the group; code/atomicity tests do not substitute for an actual new research outcome.
+
+
+Independent evidence supplement: docs/production-audit/INDEPENDENT_RISK_20261111.md records exact frozen review fingerprints, one native owner pin296 and one capacity query1951/native2020. These support already-implemented publication-v2 tasks without checking the outstanding natural-research task or manufacturing a recovery message. Future trading candidate evidence is not a cloud deployment.
