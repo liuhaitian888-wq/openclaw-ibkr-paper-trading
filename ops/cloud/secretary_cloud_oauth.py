@@ -28,7 +28,11 @@ def main():
                 # Same held kernel owner and OAuth home; never concurrent token refresh.
                 from ops.cloud.secretary_cloud_api import policy
                 from reporting.engineering_tasks import run_once as engineering_once
-                state=engineering_once(root,config,policy(root,'cloud_oauth'),home=root/'secretary-oauth')
+                from reporting.engineering_development import run_once as development_once
+                current=policy(root,'cloud_oauth')
+                state=development_once(root,current,home=root/'secretary-oauth',config=config)
+                if state in ('DISABLED','IDLE','SCOPE_INACTIVE','STARTED_REQUIRES_RECONCILIATION','SANDBOX_UNAVAILABLE'):
+                    state=engineering_once(root,config,current,home=root/'secretary-oauth')
                 if state in ('DISABLED','IDLE','SCOPE_INACTIVE','STARTED_REQUIRES_RECONCILIATION'):
                     state=run_once(root,config,root/'secretary-oauth',owner='cloud_oauth',provider='codex_oauth',auth_check=oauth_ready,inference_backend=analyze)
             except Exception as exc:

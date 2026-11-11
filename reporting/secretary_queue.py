@@ -107,7 +107,7 @@ def enqueue_reply(archive, store, run, text, *, role='RESEARCH'):
         metadata=c.execute('SELECT payload FROM secretary_events WHERE occurrence=?',(run+':presentation',)).fetchone()
         result=c.execute('SELECT recorded_at,origin,kind,payload,occurrence FROM secretary_events WHERE occurrence=(SELECT result_event FROM secretary_runs WHERE occurrence=?)',(run,)).fetchone()
     with closing(archive.connect()) as c:
-        private_tool=c.execute("SELECT 1 FROM secretary_events WHERE origin='TOOL' AND occurrence LIKE ? AND json_extract(payload,'$.request.name') IN ('broker_query','broker_result','service_status','cloud_tasks','cloud_task_submit','cloud_task_status') LIMIT 1",(run+':tool:%',)).fetchone()
+        private_tool=c.execute("SELECT 1 FROM secretary_events WHERE origin='TOOL' AND occurrence LIKE ? AND json_extract(payload,'$.request.name') IN ('broker_query','broker_result','service_status','cloud_tasks','cloud_task_submit','cloud_task_status','engineering_development_context','engineering_development_submit') LIMIT 1",(run+':tool:%',)).fetchone()
         source=c.execute('''SELECT e.origin,e.kind FROM secretary_runs r
           JOIN secretary_events e ON e.occurrence=r.instruction WHERE r.occurrence=?''',(run,)).fetchone()
     private_metadata={'requires_response':True,'sensitivity':'PRIVATE_ACCOUNT_OPERATIONS'} if private_tool else {}

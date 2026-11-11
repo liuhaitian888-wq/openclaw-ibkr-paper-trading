@@ -26,6 +26,9 @@ def run(root,*,immediate=False):
     if (policy.get('approved') is not True or policy.get('environment')!='PAPER'
             or policy.get('public_research_readonly') is not True or policy.get('grants_trading_permission') is not False):
         raise PermissionError('Explicit research-only policy required')
+    from reporting.storage_policy import preflight
+    storage=preflight(root,'PUBLIC_SCREENING')
+    if not storage['allowed']:return dict(storage,grants_trading_permission=False)
     archive=SecretaryArchive(root/'agent_secretary.sqlite3');screening.initialize(archive);now=time.time()
     # This process owns the single kernel service lock. Any previous STARTED
     # run was interrupted; paid/non-idempotent work is never repeated here.

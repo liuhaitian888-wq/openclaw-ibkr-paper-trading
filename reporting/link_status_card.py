@@ -95,6 +95,62 @@ def _fresh(value, now, age):
     return type(value) in (int, float) and math.isfinite(value) and 0 <= now-value <= age
 
 
+def _observer_readback(root, state, now, expected_account):
+    """Independent closed probe, never a replacement for the current SDK epoch."""
+    handshake=False
+    try:
+        path=root/'runtime/paper-observer.latest.json'
+        if path.is_symlink() or path.stat().st_size>1_000_000:raise ValueError('Bounded observer required')
+        with path.open() as handle:o=json.load(handle)
+        at=datetime.fromisoformat(o['observed_at'].replace('Z','+00:00'))
+        if at.tzinfo is None:raise ValueError('Aware observer time required')
+        stamp=at.timestamp()
+        protocol_source=(o.get('source')=='REAL_IBKR' or o.get('source') is None
+            and o.get('status')=='AUTH_OR_CONNECTION_REQUIRED' and o.get('complete') is False
+            and o.get('failure_class') in ('IDENTITY_MISMATCH','AUTH_OR_CONNECTION_UNVERIFIED'))
+        handshake=bool(protocol_source and _fresh(stamp,now,300) and o.get('environment')=='PAPER' and o.get('gateway_api_handshake') is True)
+        resources=o.get('resources',{})
+        rows=[o.get(name) for name in ('positions','orders','executions')]
+        exact=(o.get('source')=='REAL_IBKR' and o.get('environment')=='PAPER'
+               and o.get('account_id')==expected_account
+               and o.get('account_fingerprint')==hashlib.sha256(expected_account.encode()).hexdigest()
+               and o.get('complete') is True and o.get('status')=='READBACK_COMPLETE'
+               and set(o.get('end_markers',[]))=={'summary','positions','orders','executions'}
+               and _fresh(o.get('server_time'),stamp,30)
+               and resources.get('connected_after_close') is False
+               and resources.get('reader_stopped') is True and resources.get('worker_stopped') is True
+               and all(isinstance(group,list) and len(group)<=1000
+                   and all(isinstance(row,dict) and row.get('account')==expected_account for row in group) for group in rows))
+        if not exact:return handshake,'未取得严格匹配的独立完整快照'
+        if not _fresh(stamp,now,600):return handshake,'独立快照已过期或时间异常；不证明当前状态'
+        if type(state.get('reset_at')) in (int,float) and stamp<state['reset_at']:
+            return handshake,'上轮独立快照；不用于当前会话'
+        if o.get('broker_epoch') is not None and o['broker_epoch']!=state.get('epoch'):
+            return handshake,'独立快照代际不匹配；不用于当前会话'
+        return handshake,'Paper完整快照已核验（'+at.astimezone(ZoneInfo('Europe/Berlin')).strftime('%H:%M')+'；不替代常驻会话凭证）'
+    except (OSError,ValueError,TypeError,KeyError,AttributeError):
+        return False,'独立回读证据不可用'
+
+
+def _registration(obs, modules, state, expected_account):
+    """Registration is an independent fact, not a native connection test."""
+    native=obs.get('NATIVE_BROKER_SESSION',{});account=obs.get('ACCOUNT',{})
+    if not native:session='原生登记缺失'
+    elif native.get('enabled') is False:session='原生登记未启用'
+    elif (native.get('account')!=expected_account or native.get('environment')!='PAPER'
+          or native.get('broker_epoch')!=state.get('epoch')):session='原生登记身份/代际待对齐'
+    elif modules.get('NATIVE_BROKER_SESSION',{}).get('state')=='HEALTHY' and modules['NATIVE_BROKER_SESSION'].get('freshness')=='FRESH':session='原生登记已核验'
+    else:session='原生登记待刷新'
+    if not account:account_status='账户登记缺失'
+    elif (account.get('account')!=expected_account or account.get('environment')!='PAPER'
+          or not isinstance(account.get('native_account_facts'),dict)
+          or account['native_account_facts'].get('broker_epoch')!=state.get('epoch')
+          or modules.get('ACCOUNT',{}).get('state')!='HEALTHY'
+          or modules.get('ACCOUNT',{}).get('freshness')!='FRESH'):account_status='账户登记陈旧/待刷新'
+    else:account_status='账户登记已核验'
+    return session+'；'+account_status+'（与实际回读分开）'
+
+
 def snapshot(store, root, now):
     """No sockets, model calls, systemctl, login, or broker requests."""
     root = Path(root)
@@ -105,6 +161,13 @@ def snapshot(store, root, now):
         from .automatic_notifications import persistence_clear
         persistence_ok = persistence_clear(store, c)
         obs = {k: json.loads(v) for k, v in c.execute('SELECT name,payload FROM module_observations LIMIT 100')} if 'module_observations' in tables else {}
+        sample=None
+        if 'paper_health_samples' in tables and isinstance(p.get('epoch'),str) and p['epoch']:
+            r=c.execute('SELECT epoch,observed,payload FROM paper_health_samples WHERE epoch=? ORDER BY minute_bucket DESC LIMIT 1',(p['epoch'],)).fetchone()
+            if r:
+                value=json.loads(r[2])
+                if isinstance(value,dict):sample=(r[0],r[1],value)
+    from .paper_readiness import ACCOUNT
     from .health import resolve_modules
     modules = resolve_modules(obs, now=datetime.fromtimestamp(now, timezone.utc))
     def module(name):
@@ -119,11 +182,30 @@ def snapshot(store, root, now):
         stamps=[row.get('reconciled_at') for row in bridge]
         reconciled=stamps[0] if (all(_fresh(stamp,now,30) for stamp in stamps)
             and len(set(stamps))==1 and p.get('epoch')
-            and all(row.get('broker_epoch')==p['epoch'] for row in bridge)) else None
+            and all(row.get('broker_epoch')==p['epoch'] and row.get('account')==ACCOUNT
+                    and row.get('environment')=='PAPER' for row in bridge)) else None
+    # The native owner's minute sample supplies explicit account/environment and
+    # epoch binding that the raw state itself intentionally doesn't duplicate.
+    exact_sample=bool(sample and sample[0]==p.get('epoch') and sample[2].get('account')==ACCOUNT
+        and sample[2].get('environment')=='PAPER' and type(sample[2].get('observed_at')) in (int,float)
+        and sample[2]['observed_at']==sample[1]
+        and sample[2].get('reconciliation_complete') is True
+        and sample[2].get('identity_verified') is True and sample[2].get('api_connected') is True
+        and sample[2].get('upstream_connected') is True
+        and _fresh(sample[2].get('server_reply_at'),sample[1],10))
+    sample_fresh=bool(exact_sample and _fresh(sample[1],now,90))
     business = (p.get('connected') is True and p.get('identity') is True
                 and p.get('upstream_connected') is True and p.get('dirty') is False
                 and set(p.get('ends', [])) == {'orders', 'completed_orders', 'executions', 'positions'}
-                and recent and persistence_ok and _fresh(reconciled,now,30))
+                and recent and persistence_ok and _fresh(reconciled,now,30) and sample_fresh
+                and type(p.get('reset_at')) in (int,float) and 0<=p['reset_at']<=reconciled)
+    account='新鲜完整账户回读已核验' if business else '未就绪；账户/完整回读证据未齐'
+    if not business and p.get('connected') is True and p.get('identity') is True and recent:
+        account='常驻会话有近期回执；完整账户证据待刷新'
+    if (not business and p.get('connected') is True and p.get('identity') is True
+            and exact_sample and _fresh(sample[1],now,600)):
+        account='本会话曾完整回读；当前新鲜度/刷新状态待核验'
+    if not persistence_ok:account+='；本地持久性校验未通过'
     codex = 'UNKNOWN；未见受限任务原生验收'
     path = root/'agent_secretary.sqlite3'
     if path.is_file():
@@ -137,19 +219,10 @@ def snapshot(store, root, now):
             pass
     gates = '暂停/维护中' if (root/'PAUSED').exists() or (root/'runtime/MAINTENANCE').exists() else '未取得自动交易放行证据'
     tcp='近期API回执已核验' if recent and p.get('connected') is True else '未就绪/UNKNOWN（端口不等于业务就绪）'
-    try:
-        observer=root/'runtime/paper-observer.latest.json'
-        if observer.is_symlink() or observer.stat().st_size>1_000_000:raise ValueError('Bounded local observer required')
-        with observer.open() as handle:evidence=json.load(handle)
-        at=datetime.fromisoformat(evidence['observed_at'].replace('Z','+00:00'))
-        if (at.tzinfo is not None and _fresh(at.timestamp(),now,300)
-                and evidence.get('environment')=='PAPER' and evidence.get('gateway_api_handshake') is True
-                and not (recent and p.get('connected') is True)):
-            tcp='近期协议握手已完成（observer）；账户另验'
-    except (OSError,ValueError,TypeError,KeyError,AttributeError):
-        pass
+    handshake,readback=_observer_readback(root,p,now,ACCOUNT)
+    if handshake and not (recent and p.get('connected') is True):tcp='近期协议握手已完成（observer）；账户另验'
     return dict(tcp=tcp,
-                account='新鲜完整账户回读已核验' if business else '未就绪；账户/完整回读证据未齐',
+                account=account, readback=readback, registry=_registration(obs,modules,p,ACCOUNT),
                 data=module('MARKET_DATA'), model=module('SECRETARY_MODEL'),
                 codex=codex, gates=gates)
 
@@ -203,9 +276,10 @@ def valid(store, item, config):
 
 def render(item):
     p = item['payload']; s = p['links']
-    labels = [('tcp', 'API/TCP'), ('account', '业务账户'), ('data', '行情新鲜度'),
+    labels = [('tcp', 'API/TCP'), ('account', '业务账户'), ('readback','独立回读'),
+              ('registry','健康登记'),('data', '行情新鲜度'),
               ('model', '模型链路'), ('codex', 'Codex'), ('gates', '交易门禁')]
-    return '当前 API 与各链路状态\n'+'\n'.join(label+'：'+s[key] for key, label in labels)+'\n核对时间（柏林）：'+datetime.fromtimestamp(p['observed_at'], ZoneInfo('Europe/Berlin')).strftime('%Y-%m-%d %H:%M:%S')+'\n普通事件后台存档；日报附件和研究成果发布到群。'
+    return '当前 API 与各链路状态\n'+'\n'.join(label+'：'+s.get(key,'未记录（旧版快照）') for key, label in labels)+'\n核对时间（柏林）：'+datetime.fromtimestamp(p['observed_at'], ZoneInfo('Europe/Berlin')).strftime('%Y-%m-%d %H:%M:%S')+'\n普通事件后台存档；日报附件和研究成果发布到群。'
 
 
 def message_id(store):

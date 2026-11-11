@@ -41,8 +41,22 @@ The system SHALL apply publication-v2: ordinary events remain archived without p
 - **WHEN** the existing inbox owner cannot poll Telegram
 - **THEN** its bounded local observation schedule still runs independently under the same owner, without creating a second daemon, changing business gates or invoking a model.
 
+### Requirement: Separate native facts from health registration
+The current-link card SHALL display native callback/readback evidence separately from health registration gaps. Current account claims MUST bind expected Paper identity, the current owner epoch and independent reconciliation freshness. Heartbeats and independent unbound observer snapshots MUST NOT refresh account proof or grant trading authority. Disabled/stale registry entries SHALL be labelled as registration gaps rather than assumed native disconnection.
+
+#### Scenario: Native recovered while health registration is disabled
+- **WHEN** fresh expected-account current-epoch native evidence is complete but the native health adapter is disabled and ACCOUNT is stale
+- **THEN** display the native result and the registration gap on separate lines, keep trading gates independent, and distinguish stale same-epoch history from a current complete claim.
+
+#### Scenario: Independent observer belongs to another or expired context
+- **WHEN** a saved observer has wrong source/account/environment, old/future time, incomplete end markers, an open reader, a pre-reset timestamp or an explicit mismatched epoch
+- **THEN** do not treat it as current verified account evidence; an unbound independent snapshot never substitutes for the resident owner epoch.
+
+
 ### Requirement: One authorized current-link card and independent pin result
 The system SHALL maintain one registered current-link card through the existing sender, checking source, target, exact payload and current facts before wire. Heartbeat MUST NOT imply business readiness or trading authority. Accepted receipts MUST prevent replacement SEND. Pin uncertainty MUST remain independent of accepted delivery and MUST NOT permit replay or expanded rights.
+
+
 
 #### Scenario: Pin permission missing after accepted card
 - **WHEN** the accepted status-card bot lacks existing pin rights

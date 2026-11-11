@@ -200,7 +200,10 @@ class PublicationTests(unittest.TestCase):
         from reporting.link_status_card import snapshot
         with closing(self.store.connect()) as c,c:
             c.execute('CREATE TABLE paper_safety_state(id INTEGER PRIMARY KEY,payload TEXT)')
-            c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps(dict(connected=True,identity=True,upstream_connected=True,dirty=False,ends=['orders','positions','completed_orders','executions'],last_server_reply=self.now,reconciled_at=1)),))
+            c.execute('INSERT INTO paper_safety_state VALUES(1,?)',(json.dumps(dict(connected=True,identity=True,upstream_connected=True,dirty=False,epoch='test-epoch',reset_at=0,ends=['orders','positions','completed_orders','executions'],last_server_reply=self.now,reconciled_at=1)),))
+            c.execute('CREATE TABLE paper_health_samples(epoch TEXT,minute_bucket INTEGER,observed REAL,payload TEXT,PRIMARY KEY(epoch,minute_bucket))')
+            sample=dict(account='DUQ503649',environment='PAPER',observed_at=self.now,api_connected=True,identity_verified=True,upstream_connected=True,server_reply_at=self.now,reconciliation_complete=True)
+            c.execute('INSERT INTO paper_health_samples VALUES(?,?,?,?)',('test-epoch',int(self.now//60),self.now,json.dumps(sample)))
         with patch('reporting.automatic_notifications.persistence_clear',return_value=True):
             self.assertNotIn('已核验',snapshot(self.store,self.root,self.now)['account'])
             with closing(self.store.connect()) as c,c:
@@ -221,7 +224,7 @@ class PublicationTests(unittest.TestCase):
         from reporting.link_status_card import snapshot
         from datetime import datetime,timezone
         p=self.root/'runtime/paper-observer.latest.json'
-        p.write_text(json.dumps(dict(environment='PAPER',gateway_api_handshake=True,observed_at=datetime.fromtimestamp(self.now,timezone.utc).isoformat(),complete=False,account_id='PRIVATE ACCOUNT')))
+        p.write_text(json.dumps(dict(environment='PAPER',gateway_api_handshake=True,observed_at=datetime.fromtimestamp(self.now,timezone.utc).isoformat(),complete=False,status='AUTH_OR_CONNECTION_REQUIRED',failure_class='AUTH_OR_CONNECTION_UNVERIFIED',account_id='PRIVATE ACCOUNT')))
         s=snapshot(self.store,self.root,self.now)
         self.assertIn('协议握手已完成',s['tcp']);self.assertIn('证据未齐',s['account'])
         self.assertNotIn('PRIVATE',str(s))

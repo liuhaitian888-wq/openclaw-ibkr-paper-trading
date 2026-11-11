@@ -114,7 +114,7 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
             saved=json.loads(prior[0])
             if saved['request']!=req:raise ValueError('Tool step reused with different content')
             return saved['result']
-        if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal'):
+        if request.get('response_mode')=='CHAT' and req.get('name') in ('research_universe','engineering_proposal','engineering_development_submit'):
             return {'state':'REFUSED','reason':'Conversation cannot create work'}
         # search_records.source selects a registered ledger, not an execution host.
         # Other tools retain the cloud/local-snapshot provenance boundary.
@@ -141,6 +141,9 @@ def dispatch(root,request,config,policy,*,caller='mac_bridge'):
             elif req.get('name') in ('engineering_proposal','engineering_updates'):
                 from reporting.engineering_relay import propose,proposals
                 result=propose(archive,req,instruction=instruction) if req['name']=='engineering_proposal' else proposals(archive)
+            elif req.get('name') in ('engineering_development_context','engineering_development_submit'):
+                from reporting.engineering_development import tool as development_tool
+                result=development_tool(archive,root,req,policy,instruction=instruction,run=request['run'])
             elif req.get('name')=='research_universe':
                 if policy.get('agent_news_selection_approved') is not True:raise PermissionError('Agent news selection not approved')
                 from reporting.research_universe import select

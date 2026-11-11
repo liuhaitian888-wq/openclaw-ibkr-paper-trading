@@ -103,6 +103,9 @@ def database_sample(root, relative):
         for suffix in ('wal', 'shm'):
             side = contained(root, relative+'-'+suffix)
             out[suffix+'_bytes'] = side.stat().st_size if side.is_file() else 0
+        if relative in AUXILIARY_DATABASES:
+            out['state']='STAT_ONLY_INTERNAL'
+            return out
         with closing(sqlite3.connect(path.as_uri()+'?mode=ro', uri=True, timeout=.01)) as c:
             c.execute('PRAGMA query_only=ON')
             deadline = time.monotonic()+.08
@@ -156,7 +159,7 @@ def growth(samples):
     for name, end in last['databases'].items():
         start = first['databases'].get(name, {})
         continuous = all(row['databases'].get(name, {}).get('identity') == end.get('identity')
-                         and row['databases'].get(name, {}).get('state') == 'OBSERVED' for row in valid)
+                         and row['databases'].get(name, {}).get('state') in ('OBSERVED','STAT_ONLY_INTERNAL') for row in valid)
         if not continuous or end.get('identity') != start.get('identity'):
             continue
         result['database_bytes_day'][name] = ((end['bytes']+end['wal_bytes'])-(start['bytes']+start['wal_bytes']))/span*86400
@@ -328,8 +331,14 @@ def tick(root, *, now=None):
         _reconcile_notification(root, result)
         from .recovery import RecoveryCoordinator
         complete = all(samples[-1]['databases'].get(name[0], {}).get('state') == 'OBSERVED' for name in DATABASES)
-        RecoveryCoordinator(contained(root, 'runtime/recovery.sqlite3')).observe('CAPACITY', 'HEALTHY' if risk['level'] == 0 and complete else 'DEGRADED',
+        coordinator=RecoveryCoordinator(contained(root, 'runtime/recovery.sqlite3'))
+        coordinator.observe('CAPACITY', 'HEALTHY' if risk['level'] == 0 and complete else 'DEGRADED',
             freshness='FRESH', enabled=True, reason='Passive bounded capacity observation', capacity_state=risk['state'])
+        from .storage_policy import observe as observe_budget
+        try:
+            observe_budget(root,coordinator)
+        except (OSError,ValueError,TimeoutError):
+            coordinator.observe('OPTIONAL_STORAGE_WRITES','DEGRADED',freshness='UNKNOWN',enabled=True,reason='Optional budget evidence unavailable; core capacity independent')
         return True
 
 
@@ -344,7 +353,9 @@ def read(root, *, now=None):
         return dict(state='NOT_OBSERVED', grants_trading_permission=False)
     latest = data['samples'][-1]
     age = now-latest['at']
-    return dict(state=data['risk']['state'] if 0 <= age <= STALE_AFTER else 'STALE',
+    from .storage_policy import read as read_optional
+    optional=read_optional(root)
+    return dict(optional_write_budget=optional,state=data['risk']['state'] if 0 <= age <= STALE_AFTER else 'STALE',
         observed_at=latest['at'], age_seconds=age, latest=latest, risk=data['risk'],
         inventory=data['inventory'], sample_count=len(data['samples']), thresholds=THRESHOLDS,
         threshold_status='PROVISIONAL; calibrate growth after continuous evidence',

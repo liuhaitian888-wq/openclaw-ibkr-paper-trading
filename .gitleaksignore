@@ -27,3 +27,14 @@
 # the inbox scheduling/private identity fix; these are not API credentials.
 .der/maintenance/diagram-dependencies.json:generic-api-key:67
 .der/maintenance/diagram-dependencies.json:generic-api-key:81
+
+# Exact false positives: secretary development diagram source SHA-256 receipts.
+# Independently recomputed from ops/cloud/secretary_cloud_oauth.py and secretary_rpc.py.
+.der/maintenance/diagram-dependencies.json:generic-api-key:68
+.der/maintenance/diagram-dependencies.json:generic-api-key:69
+
+# Exact independently recomputed combined development dispatcher source SHA-256 receipts, not credentials.
+.der/maintenance/diagram-dependencies.json:generic-api-key:35
+.der/maintenance/diagram-dependencies.json:generic-api-key:81
+.der/maintenance/diagram-dependencies.json:generic-api-key:115
+.der/maintenance/diagram-dependencies.json:generic-api-key:116

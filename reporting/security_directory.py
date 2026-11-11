@@ -103,6 +103,9 @@ def parse(data, name, *, now, minimum=1000):
 
 
 def refresh(archive, root, *, loader=fetch, now=None, minimum=1000):
+    from .storage_policy import preflight
+    storage=preflight(root,'PUBLIC_DIRECTORY')
+    if not storage['allowed']:return dict(storage,grants_trading_permission=False)
     now = time.time() if now is None else now
     initialize(archive)
     occurrence = str(uuid.uuid4())
@@ -115,13 +118,14 @@ def refresh(archive, root, *, loader=fetch, now=None, minimum=1000):
         records = []; sources = []
         for name in SOURCES:
             raw = loader(name)
-            (folder/(name+'.txt')).write_bytes(raw)
+            from .storage_policy import write_blob
+            write_blob(root,'PUBLIC_DIRECTORY',folder/(name+'.txt'),raw)
             rows, info = parse(raw, name, now=now, minimum=minimum)
             records.extend(rows); sources.append(info)
         revision = hashlib.sha256(json.dumps([(x['source'], x['sha256']) for x in sources]).encode()).hexdigest()
         payload = dict(revision=revision, sources=sources, count=len(records), collected_at=now,
                        snapshot=str(folder), permission_status='PENDING', grants_trading_permission=False)
-        (folder/'manifest.json').write_text(json.dumps(payload, sort_keys=True))
+        write_blob(root,'PUBLIC_DIRECTORY',folder/'manifest.json',json.dumps(payload, sort_keys=True).encode())
         with closing(archive.connect()) as c, c:
             c.execute('BEGIN IMMEDIATE')
             prior = c.execute('SELECT payload FROM security_master_current WHERE id=1').fetchone()
