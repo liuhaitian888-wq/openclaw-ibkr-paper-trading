@@ -10,6 +10,14 @@ import time
 
 
 def validate_config(config):
+    if config.get('automatic_notification_policy') not in (None,'grouped-v1'):
+        raise PermissionError('Unknown automatic notification policy')
+    if config.get('automatic_notification_policy')=='grouped-v1' and (
+            config.get('automatic_updates_to_group') is not True
+            or config.get('audience_mode')!='shared_group'
+            or config.get('notification_format')!='compact-v1'
+            or config.get('account_report_policy')!='shared_group'):
+        raise PermissionError('Grouped automatic policy requires verified group and existing complete report sharing')
     if config.get('account_report_policy') not in (None,'shared_group','private','hold'):
         raise PermissionError('Explicit account report recipient policy required')
     if config.get('audience_mode') not in (None,'shared_group'):
@@ -60,6 +68,18 @@ async def verify_audience(bot, config):
     return chat
 
 
+def report_filename(report):
+    """Public attachment name comes from verified report identity, never its path."""
+    if 'report_type' not in report and 'report_date' not in report:
+        return '买der_账户报告.png'  # Legacy evidence has no trustworthy dated name.
+    from datetime import date
+    labels={'DAILY':'日报','WEEKLY':'周报','MONTHLY':'月报'}
+    kind=report.get('report_type');day=report.get('report_date')
+    if kind not in labels or not isinstance(day,str) or date.fromisoformat(day).isoformat()!=day:
+        raise ValueError('Verified report type and canonical date required for attachment name')
+    return '买der_'+labels[kind]+'_'+day+'.png'
+
+
 def report_bytes(item,root):
     if item['kind'] not in ('REPORT_BUNDLE','REPORT_SUPPLEMENT'):
         return []
@@ -75,10 +95,10 @@ def report_bytes(item,root):
         data=path.read_bytes()
         if not data.startswith(b'\x89PNG\r\n\x1a\n') or hashlib.sha256(data).hexdigest()!=artifact['sha256']:
             raise ValueError('Report content differs from manifest')
-        result.append((path.name,data))
+        result.append(('买der_账户报告.png',data))
     manifests=item['payload'].get('report_manifests',[])
     if manifests and len(manifests)!=len(artifacts):raise ValueError('Frozen manifest/PNG count differs')
-    for manifest,artifact in zip(manifests,artifacts):
+    for index,(manifest,artifact) in enumerate(zip(manifests,artifacts)):
         path=Path(manifest['path']).resolve();path.relative_to(Path(root).resolve())
         if path.suffix!='.json' or not 0<path.stat().st_size<=10*1024*1024:raise ValueError('Bounded frozen manifest required')
         data=path.read_bytes()
@@ -87,6 +107,7 @@ def report_bytes(item,root):
         report=json.loads(data)
         if report.get('image_sha256')!=artifact['sha256'] or report.get('environment')!='PAPER' or report.get('source_validated') is not True:
             raise ValueError('Frozen manifest does not bind the selected PNG')
+        result[index]=(report_filename(report),result[index][1])
     return result
 
 
@@ -109,7 +130,11 @@ async def verify_destination(bot,config,item):
 
 async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_factory=None,clock=time.time,owned_bot=None,private_proof=None):
     validate_config(config)
-    item=claimed_item if claimed_item is not None else store.claim()
+    if claimed_item is None:
+        from .automatic_notifications import prepare
+        prepare(store,config)
+    from .automatic_notifications import enabled as grouped, batch_family
+    item=claimed_item if claimed_item is not None else store.claim(automatic_grouped=grouped(config))
     if item is None:return 'BLOCKED_UNKNOWN' if store.uncertain_notifications() else 'EMPTY'
     operation='notification:outbox:'+str(item['id'])
     # Never log HTTP URLs: Telegram embeds credentials in their path.
@@ -131,6 +156,19 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
             event(store,attempt,'SUPPRESSED',{'reason':'owner_preference'})
             store.suppress(item['id']);return 'SUPPRESSED'
         from .notification_center import recipient
+        from .automatic_notifications import valid
+        if item['kind']=='AUTOMATIC_STATUS' and not grouped(config):
+            event(store,attempt,'PREFLIGHT_FAILED',{'reason':'automatic_policy_not_active','transport_entered':False})
+            return store.defer_unsent(item['id'])
+        if grouped(config) and batch_family(item) is not None:
+            # A caller must not bypass the sender's pre-claim aggregation gate.
+            event(store,attempt,'PREFLIGHT_FAILED',{'reason':'automatic_source_requires_projection','transport_entered':False})
+            return store.defer_unsent(item['id'])
+        if not valid(store,item,clock()):
+            event(store,attempt,'SUPPRESSED',{'reason':'superseded_automatic_status_before_wire','transport_entered':False})
+            store.suppress(item['id'])
+            from .automatic_notifications import release_before_wire
+            release_before_wire(store,item,'superseded_automatic_status_before_wire');return 'SUPPRESSED'
         target=recipient(item,config)
         from .notification_disposition import validate_before_wire
         validate_before_wire(store,item,clock())
@@ -151,6 +189,11 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     if target==config.get('owner_private_chat_id') and private_proof is not None:
                         private_proof.clear();private_proof[proof_key]=(clock(),chat)
                 sending_at=clock()
+                if not valid(store,item,sending_at):
+                    event(store,attempt,'SUPPRESSED',{'reason':'automatic_state_changed_during_destination_proof','transport_entered':False})
+                    store.suppress(item['id'])
+                    from .automatic_notifications import release_before_wire
+                    release_before_wire(store,item,'automatic_state_changed_during_destination_proof');return 'SUPPRESSED'
                 caption=notification_text(item,sending_at,max_length=1024 if documents else 4000)
                 compact=config.get('notification_format')=='compact-v1'
                 if compact:
@@ -173,6 +216,11 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                     formatting['reply_markup']=InlineKeyboardMarkup([
                         [InlineKeyboardButton('编辑全部限额',web_app=WebAppInfo(url=url))],
                         [InlineKeyboardButton('门禁与风控的区别',web_app=WebAppInfo(url=url+'#help'))]])
+                if not valid(store,item,clock()):
+                    event(store,attempt,'SUPPRESSED',{'reason':'automatic_state_changed_before_reservation','transport_entered':False})
+                    store.suppress(item['id'])
+                    from .automatic_notifications import release_before_wire
+                    release_before_wire(store,item,'automatic_state_changed_before_reservation');return 'SUPPRESSED'
                 validate_before_wire(store,item,clock())
                 if not coordinator.begin_operation(operation,'delivery',dict(outbox_id=item['id'],transport='telegram',chat_id=chat.id)):
                     event(store,attempt,'BLOCKED',{'reason':'existing_operation_identity'})
@@ -210,8 +258,10 @@ async def send_one(store,coordinator,config,*,report_root,claimed_item=None,bot_
                 coordinator.observe('TELEGRAM','HEALTHY',freshness='FRESH',reason='Native report message acknowledgement verified',receipt=receipt)
                 coordinator.finish_operation(operation,'SENT_ACCEPTED')
                 if config.get('automatic_updates_to_group') is True:
-                    from .notification_reconciliation import activity_status
-                    activity_status(store,item)
+                    from .automatic_notifications import enabled as grouped
+                    if not grouped(config):
+                        from .notification_reconciliation import activity_status
+                        activity_status(store,item)
                 store.finish(item['id'],'TELEGRAM_ACCEPTED')
                 return 'TELEGRAM_ACCEPTED'
     except BaseException as exc:

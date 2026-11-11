@@ -192,6 +192,9 @@ Historical planning boundary (2026-11-10, before implementation): the owner-conf
 Implementation update (2026-11-10 observation): source91f7f64709c76aef1e55f65afa5c918cc5813397 registered and deployed model-selected broker query/result tools on the existing Python broker connection owner, registered read-only service observations, absolute paths for all four business databases, and an unarmed official CLI Cloud-task adapter. Four native database queries and a native engineering broker snapshot succeeded; the latter returned6 positions/6 orders/3 API-window executions/6 account-summary fields in1.226s. Returned summary fields do not establish complete per-currency or settled-cash coverage. The first aggregate-account rejection remains retained as a separate failed query. Full source integration passed1218 isolated offline tests; those tests do not prove native Telegram delivery. The OAuth dialogue loop has its separate verified stage below. Telegram model-selected live broker/private result timing, all development/operations write paths and the intended Codex executor remain incomplete. Owner clarification is pending between the server-hosted OAuth Codex executor, official hosted Codex Cloud, or both; no substitute executor is declared accepted.
 
 
+
+
+
 ### Requirement: Ledger domain is distinct from execution provenance
 The cloud Python dispatcher SHALL accept work and notifications only as registered search_records ledger domains, while retaining cloud-only execution provenance for all other tools. Local snapshot and Telegram live-source impersonation SHALL remain rejected.
 
@@ -202,6 +205,7 @@ The cloud Python dispatcher SHALL accept work and notifications only as register
 #### Scenario: Ledger values do not widen other tools
 - **WHEN** any other tool supplies source=notifications, or search_records supplies source=local_snapshot
 - **THEN** the dispatcher rejects the request without executing it.
+
 
 
 ### Requirement: Recorded automatic notification target and provenance
@@ -219,7 +223,50 @@ The project SHALL record the latest owner target separately from historical rout
 - **WHEN** another Codex chat reports observations through a cross-thread message following human collaboration authorization
 - **THEN** attribute the evidence to that engineering chat, distinguish it from independent verification and do not claim Telegram secretary-originated delivery or an accepted autonomous engineering consumer.
 
-Planning boundary2026-11-10: this target supersedes earlier automatic-private defaults as desired behavior only. Existing sensitivity-first routing, private supervisor notices and RECOVERY-only aggregation remain historical/current implementation until a separately evidenced change. No grouping interval or recurrence root cause is established by this specification update.
+Implementation boundary2026-11-10: automatic_notification_policy=grouped-v1 implements this target behind an explicit configuration switch; default/legacy policy remains unchanged until controlled activation. Earlier sensitivity-first/private-supervisor/RECOVERY-only descriptions above apply to legacy configurations. Source and offline checks do not prove deployment or native acceptance. The recurring fault root cause remains owned by the separate Paper persistence repair.
+
+
+
+
+### Requirement: Grouped automatic lifecycle under one sender
+With automatic_notification_policy=grouped-v1 enabled, the existing Telegram sender SHALL route all noninteractive automatic safe status to deehub and SHALL NOT automatically mirror details to owner private chat. Native owner query/control answers SHALL retain private provenance; model roles alone SHALL NOT establish that provenance. Full authorized report PNG/manifest delivery and validated public filings/calendars SHALL retain their existing content and identity.
+
+#### Scenario: One broker fault affects several symbols
+- **WHEN** new connection/protection fault occurrences arrive after the persisted cutover
+- **THEN** proven zero-wire pending source rows are retained as SUPPRESSED with content hashes and source links, a two-second window produces one broker summary, and ongoing faults update the same native group card no more often than once per900seconds unless a confirmed protection gap escalates.
+
+#### Scenario: Stable fresh recovery updates the existing card
+- **WHEN** a recovered member set and the remaining unresolved set have stayed stable for60seconds with same-epoch fresh native/persistence observations no more than5seconds apart and no intervening fault watermark, and the broker source is currently complete and free of the shared local-persistence marker/latch
+- **THEN** one registered recovery version updates the existing group card, retaining member occurrence references and existing uncertainty guards; bind exact id/key/generation/payload SHA and bounded counters at pre-wire checks, and invalidate recovery on stale evidence, epoch change, another fault or persistence latch before wire.
+
+#### Scenario: Partial recovery with a real remaining fault
+- **WHEN** some verified member occurrences recover while another real fault remains open
+- **THEN** after stable fresh observation the existing group card reports recovered checks and the remaining unresolved count with non-green severity; retain that real OPEN fault, do not oscillate without new facts, and allow a new critical escalation to update promptly without consuming the pending recovery evidence.
+
+#### Scenario: Historical queue and uncertain delivery survive activation
+- **WHEN** the policy is first activated or the sender restarts
+- **THEN** persist the cutover watermark, archive historical automatic pending rows only with positive zero-wire evidence and no operation reservation without public replay, preserve every original STARTED/UNKNOWN payload/outcome, and block unprojected original automatic sources from ordinary claims. An unknown aggregate cannot create another wire version. The old one-shot scope and budget remain unchanged; a separate trusted-operator grouped-current scope may retire only those exact three dependencies for registered new post-cutover stable current facts, never for old source replay or unrelated uncertainty.
+
+#### Scenario: Automatic versus direct secretary response
+- **WHEN** the host queues a secretary result or review notice
+- **THEN** archive-native user instruction provenance keeps genuine direct replies private, autonomous model labels cannot turn automatic results private, and automatic review/authentication/task status uses grouped safe templates with no credential, raw diagnostic or account-prose copy.
+
+
+
+### Requirement: Separately authorized exact grouped current continuation
+A grouped current-recovery dependency exception SHALL require independent trusted-operator authorization with exact human message provenance, a valid unchanged legacy three-occurrence disposition, and the installed grouped policy cutover. It SHALL NOT follow from configuration, a model label or the one-shot CURRENT_RISK_STATUS budget. Each new version SHALL retain its complete payload/source/state/nonce registration and original recovery member references.
+
+#### Scenario: Fresh new grouped facts pass the exact three historical barriers
+- **WHEN** an independently authorized registered broker RECOVERED version contains only new post-cutover source/member occurrences and passes continuous fresh/persistence/epoch proof
+- **THEN** only that current version may exclude exactly1270/1271/1272 from the recovery-member predecessor check, leaving original bytes/outcomes unchanged and retaining all other uncertainty and same-key aggregate barriers.
+
+#### Scenario: Scope, source or native proof changes
+- **WHEN** an original receives new evidence, a source hash/cutover/epoch/persistence latch changes or another protection outcome is uncertain
+- **THEN** claim and pre-wire revalidation refuse the grouped exception without replaying, clearing or relabeling any historical event.
+
+#### Scenario: A zero-wire recovery version is cancelled
+- **WHEN** the sender records a registered recovery version as SUPPRESSED before any operation reservation, delivery, receipt or wire stage
+- **THEN** append a projection-release audit event, retain the old source/version/attempt, restart health observation and permit a newly registered fresh version to update the same card; no uncertain or reserved version may release its mapping.
 
 
 ## Evidence boundary

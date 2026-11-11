@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
@@ -15,6 +16,8 @@ import test_notification_reconciliation as reconciliation_fixtures
 
 class DispositionTests(unittest.TestCase):
     def setUp(self):
+        guard=patch('reporting.automatic_notifications.persistence_clear',return_value=True)
+        guard.start();self.addCleanup(guard.stop)
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
         self.now=1000;self.store=IncidentStore(self.root/'runtime/recovery.sqlite3',clock=lambda:self.now);self.co=RecoveryCoordinator(self.store.path)
         self.expected={};self.auth=dict(action=ACTION,origin='USER',source_thread='risk',source_message='native-owner-instruction',user_text='Investigate three and resolve current delivery block',interpretation='Keep outcome unknown; no old send; fresh current status only')

@@ -57,6 +57,7 @@ class PresentationTests(unittest.TestCase):
   self.reserve();self.a.append('answer','der-secretary',origin='MODEL',kind='PUBLIC_RESEARCH_RESULT',parent=self.i,payload={'summary':'结果','response_mode':'RESEARCH'})
   self.a.finish_run(self.run,state='SUCCEEDED',result_event='answer')
   self.assertIn('回复等待发送',work_status(self.a,self.store))
+  self.assertNotIn('已回复',work_status(self.a,self.store))
   enqueue_reply(self.a,self.store,self.run,'结果')
   with closing(self.store.connect()) as c,c:
    c.execute("UPDATE notification_outbox SET status='TELEGRAM_ACCEPTED'")

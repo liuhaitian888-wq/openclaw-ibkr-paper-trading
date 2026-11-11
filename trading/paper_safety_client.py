@@ -2,6 +2,9 @@
 from datetime import datetime, timezone
 import time
 import math
+import uuid
+import sqlite3
+from functools import wraps
 from trading.tws_paper import TwsPaperClient
 
 
@@ -57,8 +60,13 @@ class PaperSafetyClient(TwsPaperClient):
             return self.monitor._complete() and self.monitor.state.get('api_protocol',{}).get('connection')==self.connection_generation
 
     def _observe_cashbook(self,state,reason,**metadata):
-        self.monitor.coordinator.observe('CURRENCY_BOOK',state,reason=reason,
-            freshness='FRESH' if state=='HEALTHY' else 'STALE',**metadata)
+        try:
+            self.monitor.coordinator.observe('CURRENCY_BOOK',state,reason=reason,
+                freshness='FRESH' if state=='HEALTHY' else 'STALE',**metadata)
+        except sqlite3.Error as exc:
+            # Do not let the generic collector translate a local journal error
+            # into poisoned transport and a whole-SDK reconnect.
+            self.monitor.persistence_circuit.block(exc,'cash_health_observation')
 
     def _reset_cashbook_collector(self):
         if self.cashbook_collector is not None:self.cashbook_collector.close()
@@ -98,7 +106,9 @@ class PaperSafetyClient(TwsPaperClient):
                 raise PnLFrameRejected('Current exact native PnL epoch and read ordering required')
             prior=self.monitor.state.get('native_pnl')
             self.monitor.state['native_pnl']=dict(receipt,broker_epoch=self.monitor.state['epoch'])
-            try:self.monitor._publish()
+            try:
+                self.monitor._publish()
+                if self.monitor.state.get('local_persistence_failure'):raise OSError('Native PnL publication did not commit')
             except Exception:
                 if prior is None:self.monitor.state.pop('native_pnl',None)
                 else:self.monitor.state['native_pnl']=prior
@@ -488,3 +498,29 @@ class PaperSafetyClient(TwsPaperClient):
         contract=Contract()
         contract.symbol,contract.secType,contract.exchange,contract.currency=symbol,'STK','SMART','USD'
         return contract
+
+
+def _isolate_local_callback_failure(callback):
+    @wraps(callback)
+    def guarded(self,*args,**kwargs):
+        try:return callback(self,*args,**kwargs)
+        except sqlite3.Error as exc:
+            if callback.__name__=='error':
+                values=args[1:]
+                code=values[1] if len(values)>1 and isinstance(values[0],int) and values[0]>10**10 else values[0] if values else None
+                if code in (1100,2110):
+                    with self.monitor.lock:
+                        self.upstream_reported_lost=True;self.monitor.state['upstream_connected']=False
+            self.monitor.persistence_circuit.capture_callback(exc,'native_callback:'+callback.__name__,args,kwargs)
+    return guarded
+
+
+# Preserve existing collector/monitor lock ordering: the boundary does not hold
+# monitor.lock while entering a collector. It catches only local SQLite errors.
+for _callback_name in ('error','currentTime','connectionClosed','nextValidId','openOrder','completedOrder',
+        'orderStatus','execDetails','commissionReport','commissionAndFeesReport','position','positionEnd',
+        'openOrderEnd','execDetailsEnd','completedOrdersEnd','marketDataType','tickPrice','tickString',
+        'tickGeneric','realtimeBar','historicalData','historicalDataUpdate','historicalDataEnd',
+        'historicalDataUpdateProtoBuf','realTimeBarTickProtoBuf','scannerData','scannerDataEnd',
+        'accountSummary','accountSummaryEnd','accountUpdateMulti','accountUpdateMultiEnd','pnl'):
+    setattr(PaperSafetyClient,_callback_name,_isolate_local_callback_failure(getattr(PaperSafetyClient,_callback_name)))

@@ -135,3 +135,21 @@ The system SHALL keep authenticated native transport evidence distinct from gene
 #### Scenario: Repeated parent loss while a child never recovered
 - **WHEN** a parent records distinct recovery and loss occurrences while its child remains in the same invalidated phase
 - **THEN** parent occurrences and latest child timestamps are retained without duplicating the unchanged child event payload
+
+### Requirement: Local persistence failure does not impersonate broker transport loss
+The system SHALL isolate local SQLite callback/snapshot failure from an authenticated SDK socket, retain failed source evidence, and close admission with a durable local fault marker and shared LOCAL_STATE latch. A known transient snapshot failure may recover only after committed local probe, a newly requested complete native readback and independently verified callback-row publication. Unknown canonical outcomes SHALL remain quarantined.
+
+#### Scenario: Snapshot write is locked while the broker callback remains healthy
+- **WHEN** a local snapshot transaction fails with SQLITE_BUSY
+- **THEN** it does not terminate the SDK decoder or permit cash admission, and old end markers cannot establish recovery
+
+#### Scenario: Recovery publication creates additional deferred callback rows
+- **WHEN** the recovery publish creates a new deferred row or evidence hold
+- **THEN** that row must commit and independently read back and all holds must resolve before marker archival or LOCAL_STATE recovery
+
+### Requirement: Explicit one-shot readonly recovery preserves connection history
+The system SHALL permit a separately reviewed, source-bound, five-minute one-shot readonly recovery scope without resetting the original four attempts, changing Gateway generation/listener state or granting financial authority. Claim SHALL commit after local preparation and before the sole new SDK connection. STARTED or UNKNOWN readonly recovery SHALL prevent a new identity from bypassing its occurrence.
+
+#### Scenario: The original connection circuit has four attempts
+- **WHEN** exact deployed identity, dual manifests, actual same Gateway, elapsed backoff and durable local dependencies satisfy an approved readonly scope
+- **THEN** one atomic readonly claim may authorize one connection; confirmed native publication retains the original count of four and does not enable trading

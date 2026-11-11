@@ -36,6 +36,16 @@ def initialize(store):
         keys={row[1]:row[5] for row in c.execute('PRAGMA table_info(notification_current_status)')}
         if keys.get('scope_id')!=0 or keys.get('notification_id')!=1:
             raise PermissionError('Current-version registry migration requires explicit review')
+    from .grouped_current import initialize as initialize_grouped
+    initialize_grouped(store)
+
+
+def _persistence_clear(c):
+    from pathlib import Path
+    from types import SimpleNamespace
+    from .automatic_notifications import persistence_clear
+    row=next((r for r in c.execute('PRAGMA database_list') if r[1]=='main'),None)
+    return bool(row and row[2] and persistence_clear(SimpleNamespace(path=Path(row[2])),c))
 
 
 def legacy_evidence(c,ident):
@@ -152,6 +162,7 @@ def queue_current(store,scope_id,*,refresh_unsent_reason=None):
         refresh=_refresh_evidence(c,scope_id,previous) if previous is not None else None
         if previous is None and refresh_unsent_reason is not None:raise PermissionError('No previous current report to refresh')
         now=store.clock();raw=c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()
+        if not _persistence_clear(c):raise PermissionError('Local persistence fault prevents current recovery report')
         state=json.loads(raw[0]) if raw else {};state_sha=proof(state,now)
         if now-state['reconciled_at']>20:raise PermissionError('Wait for next naturally completed broker readback')
         rows=inventory(state,verified=True)
@@ -180,8 +191,15 @@ def queue_current(store,scope_id,*,refresh_unsent_reason=None):
     return ident
 
 
-def claim_allowed(c,item):
+def claim_allowed(c,item,*,store=None,now=None):
+    if item['kind']=='AUTOMATIC_STATUS' and item['payload'].get('phase')=='RECOVERED':
+        row=c.execute('SELECT 1 FROM notification_grouped_current WHERE notification_id=?',(item['id'],)).fetchone()
+        if row:
+            from .grouped_current import grouped_current_valid
+            return bool(store is not None and now is not None and grouped_current_valid(store,c,item,now))
+        return True
     if item['kind']!='CURRENT_RISK_STATUS':return True
+    if not _persistence_clear(c):return False
     scope=item['payload'].get('current_risk_scope')
     row=c.execute('SELECT payload FROM notification_current_status WHERE scope_id=? AND notification_id=?',(scope,item['id'])).fetchone()
     if row is None or row[0]!=encoded(item['payload']) or not scope_valid(c,scope):return False
@@ -201,10 +219,26 @@ def claim_allowed(c,item):
 
 
 def validate_before_wire(store,item,now):
+    if item['kind']=='AUTOMATIC_STATUS' and item['payload'].get('family')=='broker' and item['payload'].get('phase')=='RECOVERED':
+        from .grouped_current import grouped_current_valid
+        with closing(store.connect()) as c:
+            registered=c.execute('SELECT 1 FROM notification_grouped_current WHERE notification_id=?',(item['id'],)).fetchone()
+            unresolved=c.execute('''SELECT 1 FROM json_each(?,'$.recovery_members') member
+              JOIN notification_outbox source ON source.id=json_extract(member.value,'$.notification_id')
+              JOIN notification_outbox earlier ON earlier.incident_key=source.incident_key AND earlier.id<source.id
+              WHERE earlier.status NOT IN ('SMTP_ACCEPTED','FEISHU_ACCEPTED','TELEGRAM_ACCEPTED','SUPERSEDED','NOT_SENT_EXHAUSTED','SUPPRESSED') LIMIT 1''',(encoded(item['payload']),)).fetchone()
+            if (registered or unresolved) and not grouped_current_valid(store,c,item,now):
+                raise PermissionError('Grouped current authorization or causal evidence changed')
+        return
     if item['kind']!='CURRENT_RISK_STATUS':return
     with closing(store.connect()) as c:
+        if not _persistence_clear(c):raise PermissionError('Local persistence fault prevents current recovery report')
         if not claim_allowed(c,item):raise PermissionError('Current-status administrative proof changed')
         row=c.execute('SELECT state_sha256,observed_at,expires_at FROM notification_current_status WHERE notification_id=?',(item['id'],)).fetchone()
         state=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
         if not 0<=now-row[1]<=30 or now>=row[2] or proof(state,now)!=row[0]:
             raise PermissionError('Current protection snapshot changed or expired')
+
+
+from .grouped_current import (GROUPED_ACTION,authorize_grouped_current,register_grouped_current,
+                             eligible_grouped_current_ids,grouped_current_valid)

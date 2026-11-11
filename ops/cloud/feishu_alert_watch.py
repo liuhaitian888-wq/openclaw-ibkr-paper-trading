@@ -48,7 +48,9 @@ def telegram_configuration(path, expected=None):
 
 def claim_telegram(store, path, expected):
     config=telegram_configuration(path,expected)
-    return store.claim(),config
+    from reporting.automatic_notifications import prepare, enabled
+    prepare(store,config)
+    return (store.claim(automatic_grouped=True) if enabled(config) else store.claim()),config
 
 
 def claimed_telegram_configuration(store,item,path):

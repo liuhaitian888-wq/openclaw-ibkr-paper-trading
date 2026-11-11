@@ -127,3 +127,9 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 
 - [x] Verify one real ownerTelegram/codex dbcheck→HetznerCodexAppServer native accept/complete→fixed four-DB report→existing private sender/native receipt (600875513,1834/413; noMac dependency).
 - [ ] Extend and independently verify scoped code-edit/test/operations tasks; this one-shot readonly success does not complete unrestricted development or HostedCloud acceptance.
+## Authorized grouped automatic lifecycle implementation
+- [x] Implement explicit grouped-v1 safe automatic routing, archive-native direct-reply provenance, durable500-row zero-wire projection and cutover retention.
+- [x] Implement2second coalescing,900second repeat cap, confirmed-gap escalation,60second stable fresh recovery, same native card updates, and pre-wire invalidation with unchanged uncertainty guards.
+- [ ] Complete full isolated suite/secret/spec checks and sole-owner integration; record the exact reviewed source/config activation.
+- [ ] Validate shared Paper persistence helper integration and retain fail-closed recovery if its required module/proof is unavailable.
+- [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.

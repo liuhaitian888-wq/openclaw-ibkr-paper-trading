@@ -39,7 +39,9 @@ class ExecutionFeeTests(unittest.TestCase):
         self.monitor.begin([ACCOUNT])
         with patch.object(self.monitor.audit,'record_execution_fee',side_effect=sqlite3.OperationalError('fixture database unavailable')):
             self.client.commissionAndFeesReport(NS(execId='known',currency='USD',commissionAndFees=1))
-        self.assertFalse(self.monitor.state['connected']);self.assertEqual(self.monitor.state['fault'],'AUDIT_FEE_PERSISTENCE_FAILED')
+        self.assertTrue(self.monitor.state['connected']);self.assertFalse(self.monitor._complete())
+        self.assertEqual(self.monitor.state['fault'],'LOCAL_PERSISTENCE_RECONCILIATION_REQUIRED')
+        self.assertTrue(self.monitor.persistence_circuit.failure['requires_operator'])
         self.assertFalse(self.monitor.snapshot()['entries_ready'])
 
     def test_missing_protobuf_fee_default_is_not_native_zero(self):

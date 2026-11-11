@@ -178,21 +178,35 @@ def main():
             if cashbook_publisher is None:raise PermissionError('Native account health requires the approved native ledger owner')
             native_health=NativeOwnerHealthBridge(root,monitor)
         else:disable_native_health_owner(monitor.coordinator)
+        from trading.paper_readonly_resume import claim_resume,confirm_resume,retain_failed_resume
         while not stopped.is_set():
-            if not monitor.admit_connection(gateway_generation(),api_listening=api_listener_ready()):
-                monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
-                stopped.wait(30)
-                continue
-            client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'),cashbook_publisher=cashbook_publisher,native_pnl_observation=monitoring.get('native_account_health_observation_approved') is True)
-            client.strategy_observer=observer
-            worker=None
+            explicit_resume=None
+            generation=gateway_generation();listening=api_listener_ready()
+            admitted=False if monitor.persistence_circuit.blocked else monitor.admit_connection(generation,api_listening=listening)
+            resume_candidate=None
+            if not admitted:
+                try:resume_candidate=claim_resume(monitor,root,monitoring,generation,api_listening=listening,claim=False)
+                except sqlite3.Error as exc:monitor.persistence_circuit.block(exc,'readonly_resume_claim')
+                if resume_candidate is None:
+                    if not monitor.persistence_circuit.blocked:
+                        try:monitor.invalidate('CONNECTION_BUDGET_OR_BACKOFF; independent readback continues')
+                        except sqlite3.Error as exc:monitor.persistence_circuit.block(exc,'connection_wait_publication')
+                    stopped.wait(30)
+                    continue
+            client=None;worker=None
             try:
+                client=PaperSafetyClient(monitor,cfg['symbols'],bar_wire_protocol=cfg.get('bar_wire_protocol','auto'),cashbook_publisher=cashbook_publisher,native_pnl_observation=monitoring.get('native_account_health_observation_approved') is True)
+                client.strategy_observer=observer
                 attach_research_scanner(client,root)
                 secretary_policy=root/'runtime/secretary-policy.json'
                 if secretary_policy.is_file() and json.loads(secretary_policy.read_text()).get('broker_queries_approved') is True:
                     from trading.secretary_broker_owner import SecretaryBrokerOwner
                     from reporting.agent_secretary import SecretaryArchive
                     client.secretary_broker=SecretaryBrokerOwner(client,SecretaryArchive(root/'agent_secretary.sqlite3'))
+                if not admitted:
+                    explicit_resume=claim_resume(monitor,root,monitoring,gateway_generation(),api_listening=api_listener_ready())
+                    if explicit_resume is None:raise RuntimeError('Explicit readonly recovery scope no longer admissible')
+                if explicit_resume is not None:explicit_resume['transport_started']=True
                 client.connect('127.0.0.1',4002,clientId=18770)
                 worker=threading.Thread(target=client.run_loop,name='paper-safety-api',daemon=True)
                 worker.start()
@@ -202,78 +216,99 @@ def main():
                 with monitor.lock:
                     monitor.begin(client.accounts,upstream_reported_lost=client.upstream_reported_lost)
                 client.reconcile()
-                client.subscribe()
+                initial_subscription_due=True
                 connected_since=monitor.clock()
                 last_sync=time.monotonic()
                 last_heartbeat=0
                 last_strategy=0
                 last_recovery_poll=0
                 while not stopped.wait(1):
-                    if not worker.is_alive() or not client.isConnected() or not monitor.state['connected']:
-                        raise RuntimeError('Order monitoring connection lost')
-                    if time.monotonic()-last_heartbeat>=5:
-                        client.reqCurrentTime()
-                        last_heartbeat=time.monotonic()
-                    if not api_heartbeat_fresh(monitor.state,monitor.clock()):
-                        raise RuntimeError('Broker callback heartbeat missing')
-                    with monitor.lock:
-                        monitor._publish()
-                        dirty=monitor.state['dirty']
-                        complete=set(monitor.state['ends'])==ENDS
-                    monitor.validate_connection(connected_since,connection_generation=client.connection_generation)
-                    if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
-                        raise RuntimeError('Incomplete readback; reconnect before another snapshot')
-                    if time.monotonic()-last_strategy>=5:
+                    try:
+                        if not worker.is_alive() or not client.isConnected() or not monitor.state['connected']:
+                            raise RuntimeError('Order monitoring connection lost')
+                        if time.monotonic()-last_heartbeat>=5:
+                            client.reqCurrentTime()
+                            last_heartbeat=time.monotonic()
+                        if not api_heartbeat_fresh(monitor.state,monitor.clock()):
+                            raise RuntimeError('Broker callback heartbeat missing')
+                        if monitor.persistence_circuit.blocked:
+                            monitor.persistence_circuit.poll(client)
+                            if native_health is not None:native_health.invalidate('Local snapshot journal requires verified reconciliation')
+                            continue
+                        if initial_subscription_due:
+                            client.subscribe()
+                            initial_subscription_due=False
                         with monitor.lock:
-                            snapshot=monitor.snapshot()
-                        with observer.lock:
-                            observer.evaluate_catalog({s:dict(client.fields.get(i,{})) for i,s in client.tickers.items()},
-                                snapshot,dict(monitor.state['positions']),monitor.clock())
-                        for req_id,symbol in client.tickers.items():
+                            monitor._publish()
+                            dirty=monitor.state['dirty']
+                            complete=set(monitor.state['ends'])==ENDS
+                        if monitor.persistence_circuit.blocked:continue
+                        if explicit_resume is None:monitor.validate_connection(connected_since,connection_generation=client.connection_generation)
+                        else:confirm_resume(monitor,explicit_resume,connected_since,gateway_generation())
+                        if monitor.persistence_circuit.blocked:continue
+                        if monitor.state['upstream_connected'] and not complete and time.monotonic()-last_sync>=30 and not client.read_only_completed_orders_blocked:
+                            raise RuntimeError('Incomplete readback; reconnect before another snapshot')
+                        if time.monotonic()-last_strategy>=5:
+                            with monitor.lock:
+                                snapshot=monitor.snapshot()
                             with observer.lock:
-                                observer.evaluate(symbol,dict(client.fields.get(req_id,{})),snapshot,monitor.clock())
-                        last_strategy=time.monotonic()
-                    if client.research_scanner is not None:
-                        with monitor.lock:
-                            scan_state=dict(monitor.state)
-                        scanner_admitted=(scan_state.get('identity') is True and scan_state.get('upstream_connected') is True
-                                          and scan_state.get('connected') is True and not scan_state.get('dirty',True)
-                                          and set(scan_state.get('ends',[]))==ENDS and 0<=monitor.clock()-scan_state.get('last_server_reply',0)<=10)
-                        client.research_scanner.poll(admitted=scanner_admitted)
-                    # Keep monitoring during 10197. Only bounded data subscription
-                    # retries; no Gateway process action, no account session takeover.
-                    if time.monotonic()-last_recovery_poll>=5:
-                        if monitor.state['upstream_connected']:client.retry_pending_initial()
-                        client.backfill_history_gaps()
-                        for action in monitor.poll_symbol_recovery():
-                            client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS',
-                                low_frequency=action.get('low_frequency',False))
-                        last_recovery_poll=time.monotonic()
-                    if client.secretary_broker is not None and client.secretary_broker.poll():
-                        last_sync=time.monotonic()
-                    if native_health is not None:native_health.poll()
-                    if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
-                        client.reconcile()
-                        last_sync=time.monotonic()
-                    client.poll_cashbook()
-                    client.poll_pnl()
+                                observer.evaluate_catalog({s:dict(client.fields.get(i,{})) for i,s in client.tickers.items()},
+                                    snapshot,dict(monitor.state['positions']),monitor.clock())
+                            for req_id,symbol in client.tickers.items():
+                                with observer.lock:
+                                    observer.evaluate(symbol,dict(client.fields.get(req_id,{})),snapshot,monitor.clock())
+                            last_strategy=time.monotonic()
+                        if client.research_scanner is not None:
+                            with monitor.lock:
+                                scan_state=dict(monitor.state)
+                            scanner_admitted=(scan_state.get('identity') is True and scan_state.get('upstream_connected') is True
+                                              and scan_state.get('connected') is True and not scan_state.get('dirty',True)
+                                              and set(scan_state.get('ends',[]))==ENDS and 0<=monitor.clock()-scan_state.get('last_server_reply',0)<=10)
+                            client.research_scanner.poll(admitted=scanner_admitted)
+                        # Keep monitoring during 10197. Only bounded data subscription
+                        # retries; no Gateway process action, no account session takeover.
+                        if time.monotonic()-last_recovery_poll>=5:
+                            if monitor.state['upstream_connected']:client.retry_pending_initial()
+                            client.backfill_history_gaps()
+                            for action in monitor.poll_symbol_recovery():
+                                client.retry_symbol_subscriptions(action['symbols'],bars_only=action['action']=='RESUBSCRIBE_BARS',
+                                    low_frequency=action.get('low_frequency',False))
+                            last_recovery_poll=time.monotonic()
+                        if client.secretary_broker is not None and client.secretary_broker.poll():
+                            last_sync=time.monotonic()
+                        if native_health is not None:native_health.poll()
+                        if monitor.state['upstream_connected'] and ((dirty and complete) or monitor.state['fault']=='RECONNECT_RECONCILIATION_REQUIRED' or time.monotonic()-last_sync>=30):
+                            client.reconcile()
+                            last_sync=time.monotonic()
+                        client.poll_cashbook()
+                        client.poll_pnl()
+                    except sqlite3.Error as exc:
+                        monitor.persistence_circuit.block(exc,'owned_monitor_loop')
+            except sqlite3.Error as exc:
+                monitor.persistence_circuit.block(exc,'local_client_preparation')
+                stopped.wait(5)
             except Exception as exc:
                 if native_health is not None:native_health.invalidate('Owned SDK readback unavailable: '+type(exc).__name__)
-                monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
+                try:monitor.invalidate('MONITOR_FAILURE_' + type(exc).__name__)
+                except sqlite3.Error as store_error:monitor.persistence_circuit.block(store_error,'owner_failure_publication')
                 from reporting.errors import redact
                 print(json.dumps({'state':'PAPER_SAFETY_BLOCKED','error_type':type(exc).__name__,
                     'message':redact(str(exc)[:400])}),flush=True)
             finally:
                 try:
+                    retain_failed_resume(monitor,explicit_resume)
+                except sqlite3.Error as exc:monitor.persistence_circuit.block(exc,'readonly_resume_outcome')
+                if client is not None:
                     try:
-                        if client.secretary_broker is not None:client.secretary_broker.close()
+                        try:
+                            if client.secretary_broker is not None:client.secretary_broker.close()
+                        finally:
+                            if client.research_scanner is not None:client.research_scanner.close()
                     finally:
-                        if client.research_scanner is not None:client.research_scanner.close()
-                finally:
-                    try:client.close_cashbook()
-                    finally:
-                        try:client.close_pnl()
-                        finally:_close_owned_client(client,worker)
+                        try:client.close_cashbook()
+                        finally:
+                            try:client.close_pnl()
+                            finally:_close_owned_client(client,worker)
         if native_health is not None:native_health.close()
         monitor.invalidate('MONITOR_STOPPED_RECONCILIATION_REQUIRED')
     return 0

@@ -58,6 +58,8 @@ def transport_facts(book, state, *, now):
 
 def account_facts(book, state, *, now, pnl_publication_blocked):
     """Receipt freshness is distinct from economic posting or tick freshness."""
+    if state.get('local_persistence_failure'):
+        raise PermissionError('Local native snapshot persistence requires reconciliation')
     if pnl_publication_blocked is not False:
         raise PermissionError('PnL publication failure must be reconciled locally')
     transport=transport_facts(book,state,now=now)

@@ -30,6 +30,7 @@ RETRY_POLICY={
  'report':{'idempotent':True,'backoff':10,'max_attempts':3},
  'order':{'idempotent':False,'backoff':None,'max_attempts':1},
  'delivery':{'idempotent':False,'backoff':None,'max_attempts':1},
+ 'read_only_connection':{'idempotent':False,'backoff':None,'max_attempts':1},
 }
 
 class RecoveryCoordinator:
@@ -83,12 +84,13 @@ class RecoveryCoordinator:
 
     def snapshot(self):return resolve_modules(self.observations(),now=datetime.fromtimestamp(self.clock(),timezone.utc))
     def begin_operation(self,identity,kind,payload):
-        if kind not in ('order','delivery'):raise ValueError('Unknown side effect')
+        if kind not in ('order','delivery','read_only_connection'):raise ValueError('Unknown side effect')
         # Commit BEFORE the caller is permitted to invoke transport. Unique across restarts.
         with closing(self.connect()) as c,c:
             # Serialize check-and-reserve across processes, not just one intent key.
             # An ACK lost for A must not be bypassed by generating a new key B.
             c.execute('BEGIN IMMEDIATE')
+            if kind=='read_only_connection' and c.execute("SELECT 1 FROM operation_attempts WHERE kind='read_only_connection' AND status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone():return False
             if kind=='order' and c.execute("SELECT 1 FROM operation_attempts WHERE kind='order' AND status IN ('STARTED','UNKNOWN') LIMIT 1").fetchone():
                 return False
             try:c.execute('INSERT INTO operation_attempts VALUES (?,?,?,?)',(identity,kind,'STARTED',json.dumps(payload,sort_keys=True)))

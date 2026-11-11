@@ -4,11 +4,13 @@ from decimal import Decimal
 from pathlib import Path
 import json,time
 from reporting.database_console import contained
+from reporting.local_persistence import has_local_persistence_fault
 
 
 def enforce(root,proposal,*,now=None):
     root=Path(root)
     if not (root/'runtime/FUNDING_POLICY_REQUIRED').exists() and not (root/'runtime/funding-policy.json').exists():return
+    if has_local_persistence_fault(root,marker_only=True):raise PermissionError('Paper local persistence requires verified reconciliation')
     now=time.time() if now is None else now
     try:
         def load(name):
@@ -54,6 +56,7 @@ def enforce(root,proposal,*,now=None):
         with closing(sqlite3.connect(contained(root,'runtime/recovery.sqlite3').as_uri()+'?mode=ro',uri=True,timeout=.2)) as c:
             c.execute('PRAGMA query_only=ON');deadline=time.monotonic()+.2;c.set_progress_handler(lambda:int(time.monotonic()>deadline),500)
             state=json.loads(c.execute('SELECT payload FROM paper_safety_state WHERE id=1').fetchone()[0])
+            if has_local_persistence_fault(root,connection=c):raise ValueError('Local journal recovery has not committed')
         if not (state.get('identity') is True and state.get('connected') is True and state.get('dirty') is False and state.get('upstream_connected') is True
                 and set(state.get('ends',[]))=={'positions','orders','completed_orders','executions'} and 0<=now-state.get('last_server_reply',0)<=10):raise ValueError('Fresh complete broker reservations required')
         if (not state.get('epoch') or book.get('broker_epoch')!=state['epoch']
