@@ -31,3 +31,8 @@
 - [ ] 5.4 Native partial-fill/restart/account-cache acceptance and exact formal release remain required.
 
 - [ ] 5.5 Publish actual ACCOUNT/EXECUTIONS/AUDIT dependency evidence through the existing owner, and scope broker uncertainty to order operations without replaying retained delivery UNKNOWN.
+
+## 6. Nov11 independent readiness audit
+- [x] 6.1 Record the actual one-shot recovery failure and preserve UNKNOWN/old four attempts without financial mutation or Gateway restart.
+- [x] 6.2 Separate deployed components, offline evidence and missing continuous execution/native acceptance; retain existing requirements and open release gates.
+- [ ] 6.3 After separately authorized Gateway recovery, obtain fresh exact-account readback, protection and settlement facts without replaying the consumed scope.
