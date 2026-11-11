@@ -212,7 +212,11 @@ class PublicationTests(unittest.TestCase):
     def test_old_pending_action_alert_is_archived_instead_of_private_dump(self):
         old=self.add('AUTH_SESSION_EVENT',key='gateway-session:old',phase='OPERATOR',source='existing Gateway owner journal',queued_at=self.now,observed_at=self.now)
         self.assertEqual(prepare(self.store,CONFIG),1);self.assertEqual(get_item(self.store,old['id'])['status'],'SUPPRESSED')
-        new=self.add('AUTH_SESSION_EVENT',key='gateway-session:new',phase='OPERATOR',source='existing Gateway owner journal',queued_at=self.now,observed_at=self.now)
+        from reporting.gateway_session_events import collect
+        collect(self.store,self.root,reader=lambda _:[])
+        collect(self.store,self.root,reader=lambda _:[dict(__CURSOR='new-auth',__REALTIME_TIMESTAMP=str(self.now*1000000),MESSAGE='START_RESULT SecurityDialogDetected')])
+        with closing(self.store.connect()) as c:ident=c.execute("select max(id) from notification_outbox where kind='AUTH_SESSION_EVENT'").fetchone()[0]
+        new=get_item(self.store,ident)
         self.assertTrue(validate(self.store,new,CONFIG))
         self.now+=181;self.assertFalse(validate(self.store,new,CONFIG))
     def test_external_unpin_is_observed_without_repin(self):

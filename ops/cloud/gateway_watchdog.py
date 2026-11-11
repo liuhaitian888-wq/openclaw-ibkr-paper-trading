@@ -13,7 +13,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from ops.cloud.paper_safety_watch import gateway_generation
 from trading.gateway_recovery import decide, ACCOUNT
-from trading.gateway_readiness import observe as observe_readiness, publish as publish_readiness
+from trading.gateway_readiness import observe as observe_readiness, publish as publish_readiness, read_terminal_service
 from reporting.recovery import RecoveryCoordinator
 from reporting.incidents import IncidentStore
 
@@ -84,10 +84,12 @@ def evidence(root, now):
     auth=any(x in text for x in ('2fa confirmation timeout','2fa maximum attempts','existing session detected','auto-restart token expired','auto-restart login failed','authenticationfailed','invalid username or password','twofactorconfirmationtimeout','securitydialogdetected','existingsessiondetected','loginfailed'))
     generation=gateway_generation();started=generation_started_at(generation)
     hint=operator_observation(p.stdout,generation,started,now)
+    service=unit().get('ActiveState')
     return dict(approved=approved,hold=(root/'runtime/GATEWAY_RECOVERY_HOLD').exists(),
                 generation=generation,generation_started_at=started,
                 operator_observation=hint,
-                service=unit().get('ActiveState'),native=native,readback=readback,
+                service=service,terminal_service=read_terminal_service(now) if service=='failed' and not generation else None,
+                native=native,readback=readback,
                 identity_mismatch=readback.get('failure_class')=='IDENTITY_MISMATCH',auth_required=auth or hint is not None)
 
 
@@ -110,7 +112,7 @@ def evaluate(root=ROOT, *, submit=False):
         attention=state.get('readiness_requires_operator') is True
         healthy=state['reason']=='API_RESPONSIVE' and not attention
         co.observe('GATEWAY_RECOVERY','HEALTHY' if healthy else 'RECOVERING' if state.get('operation') in ('STARTED','ACCEPTED') else 'DEGRADED',
-                   freshness='FRESH',reason='BUSINESS_READINESS_OPERATOR_REQUIRED' if attention else state['reason'],enabled=True,operation=state.get('operation'),
+                   freshness='FRESH',reason='GATEWAY_OPERATOR_REQUIRED' if attention else state['reason'],enabled=True,operation=state.get('operation'),
                    generation=e.get('generation'),grants_trading_permission=False,requires_operator=attention,
                    readiness_version=1,readiness_phase=state['readiness_phase'],
                    readiness_episode_id=state.get('readiness_episode',{}).get('id'))

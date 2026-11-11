@@ -201,3 +201,9 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Complete exact7e isolated1492 suite/20 focused/secret/spec checks.
 - [ ] Complete sole-publisher Git integration/actual load without Gateway/Paper/OAuth restart.
 - [ ] Verify natural live watchdog version/health/same pinned native message and preserved old operation/gate/UNKNOWN records; genuine manual/2FA event remains unverified until naturally observed.
+
+## Natural terminal-service/manual coalescing follow-up on6ad
+- [x] Reproduce actual no-Java failed-unit and duplicate canonical conflict-action gaps; preserve old archived events.
+- [x] Add current fixed-unit invocation-bound manual proof/prewire recheck and primary manual episode with full-readback cancellation;26focused cases pass.
+- [x] Complete exact6ad+A+delta1507 isolated suite,26focused, strictspec/scan/diff checks.
+- [ ] Sole-publisher load and one actual private action/same pinned state for natural existing failure, without login/restart.

@@ -376,6 +376,14 @@ The existing watchdog SHALL distinguish business readiness from transport handsh
 - **WHEN** a fresh canonical owner journal phase indicates operator action
 - **THEN** preserve observed and queued times for the existing private auth route, reject old-generation hints and keep authentication as a restart-negative gate; no second watchdog private mirror is created.
 
+#### Scenario: The fixed owned service is terminally failed without Java
+- **WHEN** a bounded current status query proves a failed fixed-unit invocation and the same invocation remains failed before wire
+- **THEN** register one fresh manual action from current service state, preserve old archived journal events and keep the no-Java restart gate held; stopped, replaced, stale or recovered service proof cannot authorize a prompt.
+
+#### Scenario: Repeated native authentication records describe one unresolved episode
+- **WHEN** multiple canonical operator or conflict records arrive before a newly verified full account readback
+- **THEN** retain every occurrence but publish only the primary manual action; full readback closes the episode and invalidates an obsolete pending prompt.
+
 ## Evidence boundary
 
 This specification records expected behavior, not production acceptance. Source 5df418d passed 1133 isolated offline tests and was deployed; native deehub identity/profile readback succeeded. Cloud API migration is blocked on credentials, Nov9 report1094 remains UNKNOWN, and new natural public-event delivery, phone display and full filing-body analysis remain unaccepted. The change stays active.
