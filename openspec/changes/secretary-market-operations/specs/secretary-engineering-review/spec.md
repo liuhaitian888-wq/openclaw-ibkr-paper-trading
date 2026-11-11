@@ -265,3 +265,13 @@ A grouped current-recovery dependency exception SHALL require independent truste
 #### Scenario: A zero-wire recovery version is cancelled
 - **WHEN** the sender records a registered recovery version as SUPPRESSED before any operation reservation, delivery, receipt or wire stage
 - **THEN** append a projection-release audit event, retain the old source/version/attempt, restart health observation and permit a newly registered fresh version to update the same card; no uncertain or reserved version may release its mapping.
+### Requirement: Scheduled report period correctness
+Report cache reuse and dispatch SHALL match the complete trading period required at the current scheduled time, retaining the existing New York20:00/calendar policy. Freshness alone SHALL NOT prove source coverage of a newly completed session. Older-period or pre-close source reports SHALL wait with an explicit missing reason; report date and trading period SHALL be separately labelled.
+
+#### Scenario: Winter preview crosses session close
+- **WHEN** a preview is prepared before20:00New York and dispatch occurs after the required session changes
+- **THEN** the older period is refused, unchanged pre-close source is not relabelled fresh, and only genuinely post-close complete source enables the new period and existing once-only supplement.
+
+#### Scenario: Cached report has the wrong period
+- **WHEN** the source timestamp is unchanged but cached trading-period identity differs from the current complete target
+- **THEN** the cache is invalidated without changing the source timestamp, historical receipts or prior frozen files.

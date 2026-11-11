@@ -111,7 +111,7 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Automatic notification flood clarification — planning scope
 - [x] Record independently observed screenshot event/private receipt evidence and distinguish source churn, RECOVERY-only grouping and wrong automatic destination.
 - [x] Record the owner target and separate Codex-to-Codex collaboration from unverified autonomous secretary-to-Codex delivery.
-- [ ] Implement and offline-verify all automatic safe status routing to deehub, shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private mirror within a separately authorized implementation turn.
+- [x] Implement and offline-verify all automatic safe status routing to deehub, shared-cause ALERT/escalation/RECOVERY grouping, bounded reminders, stable recovery and no automatic private mirror within a separately authorized implementation turn.
 - [ ] Establish the live recurrence root cause and verify callback/database lifecycle repair with fresh complete source evidence; do not infer protection-order loss from missing evidence.
 - [ ] Verify natural group delivery and absence of unwanted private mirrors with native receipts and user-visible messages; legacy disposition acceptance alone is insufficient.
 
@@ -130,6 +130,8 @@ The earlier API-key entry/access tasks are superseded by the owner OAuth choice,
 ## Authorized grouped automatic lifecycle implementation
 - [x] Implement explicit grouped-v1 safe automatic routing, archive-native direct-reply provenance, durable500-row zero-wire projection and cutover retention.
 - [x] Implement2second coalescing,900second repeat cap, confirmed-gap escalation,60second stable fresh recovery, same native card updates, and pre-wire invalidation with unchanged uncertainty guards.
-- [ ] Complete full isolated suite/secret/spec checks and sole-owner integration; record the exact reviewed source/config activation.
-- [ ] Validate shared Paper persistence helper integration and retain fail-closed recovery if its required module/proof is unavailable.
+- [x] Complete full isolated suite/secret/spec checks and sole-owner integration; record the exact reviewed source/config activation.
+- [x] Validate shared Paper persistence helper integration and retain fail-closed recovery if its required module/proof is unavailable.
 - [ ] Inspect native Telegram group/private observation windows after controlled deployment; verify natural fault/recovery cards and zero new automatic private alerts without synthetic broker faults.
+
+Actual acceptance2026-11-11: c457/grouped-v1 installed, date-only c1f now loaded. Natural fault1907/group295 and zero automatic private messages verified01:54:28–02:00:45Z. Recovery/EDIT remains open behind real Gateway session blockage and one-shot UNKNOWN; fresh broker menu/Nov11 complete supplement also remain unaccepted. Full report shared_group audience explicitly reconfirmed by the human.

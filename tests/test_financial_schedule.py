@@ -9,6 +9,7 @@ from unittest.mock import Mock
 from reporting.incidents import IncidentStore
 from reporting.recovery import RecoveryCoordinator
 from reporting.report_schedule import BJ, due_types, enqueue_reports
+from scripts.report_aggregation import period_for
 from reporting.incident_feishu import send_one
 from reporting.authentication_schedule import enqueue_authentication_notice
 
@@ -30,7 +31,7 @@ class ScheduleTests(unittest.TestCase):
             generated_at=now.isoformat(),report_date=now.date().isoformat(),report_type=kind,
             account_id=account,environment='PAPER',source_validated=True,image_key='img_offline',
             source_snapshot_at=now.isoformat(),
-            trading_period={'start_date':'2026-05-01','end_date_exclusive':'2026-06-01'},
+            trading_period=period_for(kind,now),
             account={},performance={})))
 
     def accept(self, store):
