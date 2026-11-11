@@ -194,3 +194,10 @@ Actual B native boundary: owner2039→MODEL proposal→native thread/turn accept
 - [x] Focused33 tests pass, preserving native uncertainty and private-result provenance; no native model call.
 - [x] Complete combined1494PASS/82.840s, focused33PASS, strictall12/12PASS, secrets/diff/receipt checks; prepare fixed-source publisher handoff.
 - [ ] Sole publisher constructs future minimal deployed tree and independently verifies it; no new native opportunity is authorized here.
+
+## Gateway Python attention on actual7e
+- [x] Split Python business-readiness/manual route from early2FA C# release, retaining original restart policy and held owner.
+- [x] Add durable host notice/current-condition validation, journal queued_at, auth negative gate and fixed existing-pin projection; cover real sender contracts offline.
+- [x] Complete exact7e isolated1492 suite/20 focused/secret/spec checks.
+- [ ] Complete sole-publisher Git integration/actual load without Gateway/Paper/OAuth restart.
+- [ ] Verify natural live watchdog version/health/same pinned native message and preserved old operation/gate/UNKNOWN records; genuine manual/2FA event remains unverified until naturally observed.

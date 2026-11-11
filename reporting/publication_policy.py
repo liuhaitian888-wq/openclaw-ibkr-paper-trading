@@ -25,6 +25,12 @@ def decision(item, config):
         # This is a candidate view, never authority: validate() MUST bind the
         # exact host registry before claim and twice before any wire operation.
         return route('group', 'registered_host_link_status', 'link_status_card')
+    if (kind=='GATEWAY_OPERATOR_ATTENTION' and key.startswith('gateway-readiness:')
+            and p.get('scope')=='GATEWAY_READINESS' and p.get('source')=='existing Gateway watchdog'
+            and p.get('severity')=='RED'
+            and p.get('requires_response') is True and p.get('private_notice') is True
+            and p.get('grants_trading_permission') is False):
+        return route('owner','host_gateway_requires_action','gateway_action')
     if (key == 'storage-capacity' and kind == 'ALERT' and p.get('scope') == 'CAPACITY'
             and p.get('severity') == 'RED' and p.get('private_notice') is True
             and p.get('requires_response') is True and isinstance(p.get('capacity'),dict)
@@ -47,7 +53,7 @@ def decision(item, config):
             return route('owner', 'native_owner_interaction')
         return route('archive', 'ordinary_automatic_activity')
     if (kind == 'AUTH_SESSION_EVENT' and key.startswith('gateway-session:')
-            and p.get('phase') == 'OPERATOR'
+            and p.get('phase') in ('OPERATOR','CONFLICT')
             and p.get('source') == 'existing Gateway owner journal'):
         return route('owner', 'native_gateway_requires_human_action')
     if (key.startswith('paper-safety:protection:') and kind in
@@ -101,6 +107,11 @@ def validate(store, item, config):
         return valid(store, item, config)
     if route['public_view'] == 'capacity_action':
         return capacity_valid(store, item)
+    if route['public_view']=='gateway_action':
+        with closing(store.connect()) as c:
+            cutover=c.execute("SELECT payload FROM incident_cursors WHERE source='publication-v2:installed'").fetchone()
+        from trading.gateway_readiness import valid_operator_notice
+        return bool(cutover and item['id']>json.loads(cutover[0])['cutover_id'] and valid_operator_notice(store,item))
     if route['reason'] in ('native_gateway_requires_human_action','confirmed_protection_gap_requires_action'):
         with closing(store.connect()) as c:
             cutover=c.execute("SELECT payload FROM incident_cursors WHERE source='publication-v2:installed'").fetchone()
@@ -183,7 +194,7 @@ def prepare(store, config):
         for ident, kind, key, raw in rows:
             item = dict(id=ident, kind=kind, incident_key=key, payload=json.loads(raw))
             route = decision(item, config)
-            old_action=(route['reason'] in ('native_gateway_requires_human_action','confirmed_protection_gap_requires_action') and ident<=installed['cutover_id'])
+            old_action=(route['reason'] in ('native_gateway_requires_human_action','confirmed_protection_gap_requires_action','host_gateway_requires_action') and ident<=installed['cutover_id'])
             if route['audience'] == 'archive' or old_action:
                 count += _archive(c, item, store.clock(), route['reason'], 'PENDING')
         if rows:

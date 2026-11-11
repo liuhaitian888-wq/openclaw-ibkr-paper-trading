@@ -1,0 +1,23 @@
+# Gateway Python-only detection and manual attention
+
+Current repair scope: actual7e plus a small Python package, independent from the C# early2FA release. The existing service's one-time owner restart was consumed; this package grants no new business-hang restart policy and creates no worker, broker client, sender or root permission.
+
+## Runtime behavior
+
+The existing watchdog still makes its recovery decision with trading.gateway_recovery. A fresh current-generation canonical operator phase may only tighten its auth negative gate. The old rule still requires a fully unresponsive local service. Its budget remains one reservation per twenty-four hours; HOLD and uncertain outcomes still block replay. A healthy primary with only a failed independent probe is not labelled business-dead. Handshake-only business unavailability produces a separate durable episode after900s of stable generation/fresh distinct failures and bounded polls. Known current auth/identity or expired prior recovery requires manual attention sooner. Unknown causes never become a password/2FA assertion.
+
+State is durable before incident ingestion. Immutable occurrence + private-notice registration share one SQLite transaction; repeating ingestion does not repeat sends. A new host-owned GATEWAY_OPERATOR_ATTENTION is routed through the existing publication-v2 sender to the verified owner only. Before wire it must match the private registration and exact payload/key/generation, a current open episode and checked_at<=90s; current clean complete native data blocks an obsolete business-failure notice immediately; a fresh explicit identity mismatch or unresolved recovery is not hidden by a disagreeing primary. The original episode time is retained, while a fresh ongoing condition can make a delayed pending notice actionable. UNKNOWN/STARTED never creates a replacement. Known AUTH journal events use their existing private route, not a second watchdog notice. Their missing queued_at is fixed so the existing180s event validation can actually pass.
+
+The existing pinned link card gains one fixed Gateway恢复/人工 line from readiness_version1 fresh health, never raw reason/account/log/credentials. Generic incident/recovery events continue archival. No extra group status or pin is created. Recovery closes an attention episode only after new complete exact-Paper native and independent data plus60s bounded positive sampling; generation changes, gaps, dirty/stale or wrong identity reset/refuse it. Closing does not authorize trading.
+
+## Publication and real acceptance
+
+The sole publisher must Git-integrate the exact tested package, prove Gateway launcher/dependencies remain unchanged, update both approved identities coherently and preserve all nonidentity permissions, release62c08a2, gates/scopes and old uncertain records. Original notifications/inbox imports require their controlled reload, after existing drains/rechecks; the existing watchdog timer loads the new script next tick. No Gateway/Paper/OAuth restart, new controller release, force tick or synthetic broker/auth fault.
+
+Acceptance is separate: actual source+dual identity, natural watchdog output/module version+fresh phase, preserved old operation budget, unchanged Gateway/Java generation and old uncertain hashes, and one native edit of the existing pinned message. In a healthy session, no urgent private notice is expected. Full real2FA/operator delivery cannot be claimed without a natural event; isolated sender tests prove code contracts only. Existing IB native authentication remains the only authentication flow.
+
+## Two packages
+
+Python includes watchdog/readiness, existing journal classification/queued time, publication binding, safe renderer and same-card projection. C# SafePhases/early Waiting for2FA plus its standalone real.NET smoke/publish is independent; it neither ships nor activates in this Python patch. Source/build readiness of that second package is not live2FA acceptance. New business-hang automatic action, if requested, needs a separately reviewed concrete policy including exact classifications, limits, expiry, HOLD, reconciliation and offline negatives before the coordinator's final approval.
+
+Validation:20 focused cases and final prescribed1492-test isolated suite in126.931s pass. Fixed runtime SHA256 f2622ab55019c2b25dbf7febf2dd0a23ef120692c3a4af1e0766234580d77f27. Native CONFLICT and OPERATOR use the same original private action route; required registered business actions are critical, not ordinary optional notifications. Main, C#, upstreamJava, systemd, polkit and the existing recovery classifier are unchanged by this package. Source acceptance is not a live delivery receipt.

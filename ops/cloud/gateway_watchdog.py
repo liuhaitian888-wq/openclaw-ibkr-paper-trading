@@ -13,11 +13,39 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from ops.cloud.monitoring_guard import monitoring_service
 from ops.cloud.paper_safety_watch import gateway_generation
 from trading.gateway_recovery import decide, ACCOUNT
+from trading.gateway_readiness import observe as observe_readiness, publish as publish_readiness
 from reporting.recovery import RecoveryCoordinator
 from reporting.incidents import IncidentStore
 
 ROOT=Path('/home/ibkr/.local/state/openclaw')
 UNIT='ibkr-gateway.service'
+
+
+def generation_started_at(generation):
+    try:
+        pid,ticks=map(int,generation.split(':'))
+        if pid<=0 or ticks<=0:return None
+        boot=next(int(line.split()[1]) for line in Path('/proc/stat').read_text().splitlines() if line.startswith('btime '))
+        return boot+ticks/os.sysconf('SC_CLK_TCK')
+    except (OSError,ValueError,TypeError,StopIteration,AttributeError):return None
+
+
+def operator_observation(text,generation,started_at,now):
+    """Only current-generation canonical owner phases, never raw error prose."""
+    from reporting.gateway_session_events import phase
+    if not generation or started_at is None:return None
+    for line in reversed(text.splitlines()):
+        event=phase(line)
+        if not event:continue
+        try:
+            date=datetime.fromisoformat(line.split(' ',1)[0].replace('Z','+00:00'))
+            if date.tzinfo is None:continue
+            stamp=date.timestamp()
+        except (ValueError,IndexError):continue
+        if not max(started_at-1,now-180)<=stamp<=now:continue
+        if event[0]=='INITIALIZED':return None
+        if event[0] in ('OPERATOR','CONFLICT'):return dict(generation=generation,phase=event[0],at=stamp)
+    return None
 
 
 def bounded_json(path):
@@ -54,9 +82,13 @@ def evidence(root, now):
     p=subprocess.run(['journalctl','-u',UNIT,'--since','-30min','-n','100','--no-pager','-o','cat'],capture_output=True,text=True,timeout=4,check=True)
     text=p.stdout.lower()
     auth=any(x in text for x in ('2fa confirmation timeout','2fa maximum attempts','existing session detected','auto-restart token expired','auto-restart login failed','authenticationfailed','invalid username or password','twofactorconfirmationtimeout','securitydialogdetected','existingsessiondetected','loginfailed'))
+    generation=gateway_generation();started=generation_started_at(generation)
+    hint=operator_observation(p.stdout,generation,started,now)
     return dict(approved=approved,hold=(root/'runtime/GATEWAY_RECOVERY_HOLD').exists(),
-                generation=gateway_generation(),service=unit().get('ActiveState'),native=native,readback=readback,
-                identity_mismatch=readback.get('failure_class')=='IDENTITY_MISMATCH',auth_required=auth)
+                generation=generation,generation_started_at=started,
+                operator_observation=hint,
+                service=unit().get('ActiveState'),native=native,readback=readback,
+                identity_mismatch=readback.get('failure_class')=='IDENTITY_MISMATCH',auth_required=auth or hint is not None)
 
 
 def require_service_user():
@@ -71,12 +103,17 @@ def evaluate(root=ROOT, *, submit=False):
         path=root/'runtime/gateway-recovery-state.json'
         before=bounded_json(path) if path.exists() else {}
         now=time.time();e=evidence(root,now);state,action=decide(before,e,now)
+        state=observe_readiness(state,e,now)
         atomically(path,state) # Reserve durably BEFORE returning any restart request.
+        if state.get('readiness_episode'):publish_readiness(IncidentStore(root/'runtime/recovery.sqlite3'),state)
         co=RecoveryCoordinator(root/'runtime/recovery.sqlite3')
-        healthy=state['reason']=='API_RESPONSIVE'
+        attention=state.get('readiness_requires_operator') is True
+        healthy=state['reason']=='API_RESPONSIVE' and not attention
         co.observe('GATEWAY_RECOVERY','HEALTHY' if healthy else 'RECOVERING' if state.get('operation') in ('STARTED','ACCEPTED') else 'DEGRADED',
-                   freshness='FRESH',reason=state['reason'],enabled=True,operation=state.get('operation'),
-                   generation=e.get('generation'),grants_trading_permission=False)
+                   freshness='FRESH',reason='BUSINESS_READINESS_OPERATOR_REQUIRED' if attention else state['reason'],enabled=True,operation=state.get('operation'),
+                   generation=e.get('generation'),grants_trading_permission=False,requires_operator=attention,
+                   readiness_version=1,readiness_phase=state['readiness_phase'],
+                   readiness_episode_id=state.get('readiness_episode',{}).get('id'))
         if state.get('operation') in ('STARTED','ACCEPTED','OPERATOR_REQUIRED','RECOVERED'):
             resolved=state['operation']=='RECOVERED'
             text=('Gateway卡死恢复已通过新进程、API心跳及独立账户/订单回读核验。' if resolved else
@@ -86,7 +123,8 @@ def evaluate(root=ROOT, *, submit=False):
                 IncidentStore(co.path).ingest('gateway-hang:'+state['request_id']+':'+state['operation'],'gateway-hang',
                     dict(severity='GREEN' if resolved else 'RED' if state['operation']=='OPERATOR_REQUIRED' else 'YELLOW',scope='GATEWAY_HANG',reason=text,
                          action_taken='仅操作既有ibkr-gateway.service；交易门禁与测试额度保持。',grants_trading_permission=False),resolved=resolved)
-        result=dict(action=action,generation=e.get('generation'),request_id=state.get('request_id'),reason=state['reason'])
+        result=dict(action=action,generation=e.get('generation'),request_id=state.get('request_id'),reason=state['reason'],
+                    readiness_version=1,readiness_phase=state['readiness_phase'],requires_operator=attention)
         # Keep the same kernel lock through reservation, recheck and submission.
         return submit_restart(result,root) if submit else result
 
