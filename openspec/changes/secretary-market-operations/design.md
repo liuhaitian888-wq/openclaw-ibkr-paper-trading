@@ -3,6 +3,8 @@
 ## Context
 Existing cloud inbox is the sole Telegram input owner and notification outbox is the sole delivery path. Trading remains independently gated. See proposal.md for motivation.
 
+Nov11 owner continuation: `docs/engineering/RELIABILITY_RESEARCH_DECISIONS_20261111.md` compares official orchestration/execution/research designs and defines the next bounded discovery-to-Codex handoff. Reuse current proposals/task ledger, native provenance, one model owner and sole sender; do not treat all-project digests, MODEL suggestions or results as USER permission. The `77711e2` one-task development class still needs actual deployment/scope/native acceptance before broader continuous improvement. This planning clarification adds no service, credential access, model budget, trading/deployment grant or new publication route. Routine events remain archived under the current publication-v2 policy.
+
 ## Goals / Non-Goals
 **Goals:** Lightweight, durable market awareness and private engineering review without new broker subscriptions or a second Telegram sender.
 **Non-Goals:** Enabling full trading, changing stops, or treating scheduled closures as outages. Large-scale extreme-event execution remains deferred.

@@ -149,7 +149,6 @@ Publication-v2 actualnative: group296 one card+pinned+naturalEDIT; ordinaryevent
 
 Independent evidence supplement: docs/production-audit/INDEPENDENT_RISK_20261111.md records exact frozen review fingerprints, one native owner pin296 and one capacity query1951/native2020. These support already-implemented publication-v2 tasks without checking the outstanding natural-research task or manufacturing a recovery message. Future trading candidate evidence is not a cloud deployment.
 
-- [ ] Publish through the existing sole owner and independently read native card/pin/private/group results; never equate offline success with acceptance.
 
 
 ## Native versus registry card projection — 2026-11-11
@@ -162,5 +161,21 @@ Independent evidence supplement: docs/production-audit/INDEPENDENT_RISK_20261111
 - [x] Implement source snapshot/independent repo+linkedworktree, constrained guard AST and protected independent test profiles.
 - [x] Observe actual kernel denial canaries and reference-only baseline/patch/isolated tests; do not claim real model task acceptance.
 - [x] Complete final isolated full suite, secret/spec/diagram/context checks and immutable sole-publisher handoff (77711e2;1407/104.793s; native new-scope acceptance remains open).
-- [ ] Sole publisher loads exact candidate and independently arms a new one-task scope after its existing priority wave.
+- [x] Exact933 source loaded after A; real kernel9/9 and fresh independent max1 scope armed; original dbcheck preserved.
 - [ ] Verify one real secretary MODEL proposal→native Codex patch→isolated tests/artifact→owner-private native result; preserve all old UNKNOWN and consumed dbcheck.
+
+## Nov11 Gateway business readiness notice
+- [x] Explain handshake-only business failure without widening automatic restart conditions.
+- [x] Implement durable independent attention, immutable incident retries and health requires_operator through existing owners; retain latest shared pinned/archival presentation policy.
+- [x] Complete exact-source isolated1405-test suite, C# phase smoke/linux build, strict8spec and stagedsecret scan.
+- [ ] Complete exact-source publisher/main integration and compatible routing/release activation.
+- [x] Independently verify new one-time human authorization and one existing-service recovery with two real complete Paper sources and stablewatchdogRECOVERED; retain originalUNKNOWN/gates.
+- [ ] Deploy candidate readiness/early2FA phases with compatible sharedpublisher; observe real manual-attention/2FA presentation without fault injection.
+
+Gateway actual acceptance2026-11-11: running409e255/oldrelease62c only; once06:09:47Z→newJava3186637:163137691→independentcomplete06:13:42Z→stableRECOVERED. Originalbuilder1985/group299 supplement independently accepted bypublisher; originalscopeUNKNOWN/old5unchanged. Sourcecandidate252b notactivated; pinprojection/baseadapter/fees/tradingrelease remain separate. See docs/production-audit/GATEWAY_RECOVERY_20261111.md.
+
+## Recovery coverage follow-up
+- [x] Independently recheck actual deployed recovery policy/release, distinguish known failure from unknown Java trigger, and record exact auto/manual coverage and a minimal offline successor test plan.
+- [ ] Any additional business-readiness automatic action needs explicit policy review, exact-source combination tests and separate deployment/native acceptance; this item grants no new restart or trading authority.
+
+Actual B native boundary: owner2039→MODEL proposal→native thread/turn accepted; TimeoutError yields UNKNOWN07:08:05, no acknowledged patch/result. Native private UNKNOWN2043 verified; final PATCH_READY/tests task remains unchecked. No replay/new scope; see STORAGE_DEVELOPMENT_20261111.md.

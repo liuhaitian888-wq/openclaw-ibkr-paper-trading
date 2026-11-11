@@ -1,0 +1,37 @@
+# Storage governance and constrained development — Nov11 actual evidence
+
+This records source, offline validation, deployment and native acceptance separately. Dates below are UTC unless labelled. Full account reports remain shared_group, explicitly reconfirmed by the owner: every group member may view the full account report. This was already configured; no new recipient or message was created for that decision.
+
+## A: actual storage gate and existing status card
+
+- Minimal cloud base409e255 → `58f33b3dc6ea97af0eb6ff8e0ea47af5cdb6cee6`, combining d61 storage and268 projection. Prescribed linked suite1438/58.098s OK; strict specs and all-files gitleaks PASS.
+- Exact storage policy template SHA256935729ea1d812b8325eebcb782534679a5a45266252c9210a1cc8a8824c33ca8, mode0600. Two public classes only; floor8GiB/28percent and quotas/reserves unchanged. Order/risk/task/receipt/UNKNOWN state and historical sources are protected.
+- Existing broad-screening and directory oneshots returned DEFERRED_CAPACITY06:51:31, before DB creation, task claim or network intake. Available6490390528/6490386432 of39956590592 bytes; class use35322676/2676327 bytes, reserves67108864/8388608. Natural later timers also defer; no second observer or worker.
+- Same group card296 naturally EDITed06:51:48, remains pinned296. Independent native history verified separate resident account, independent observer, health registration and PAUSED facts. No new card/pin or Gateway restart.
+- One new native owner query2036 → archived run600875533 SUCCEEDED → real capacity tool with recorded two-class budget → outbox2004 TELEGRAM_ACCEPTED/private46706:52:52 → independent native2038. The reply distinguishes capacity snapshot06:46:58 from budget06:51:31 and labels the linear forecast provisional.
+- Earlier261185-byte two-batch public-artifact copy/byte reconstruction remains limited acceptance: source retained, cloud reclaim0, no financial/big-database disaster recovery claim. No deletion or automatic archive job was added.
+
+## B: source/isolated tests and real partial native acceptance
+
+- Independent minimal source `933de79051668ffd88a3310e9df6eba1fc9393d1` on58, combining777/621 and a host-provenance compatibility fix. Publication-v2 itself remains unchanged. Development notices trace persisted task→requesting run→native USER/received receipt, exact currently configured private owner and original scope/time; MODEL labels and external standing authority alone remain internal. Existing uncertain/suppressed notice bytes are never rewritten.
+- Frozen prescribed linked suite1451/63.677s OK. Three added integration cases cover real accept_update/private sender, negative provenance and original uncertain-row preservation. Runtime336Python fingerprint0d6c5b21cbb3749bc8ae9f057a99aab16ebafdd1816ad5947358961e76f87345. Strict11/11 and all-filessecret PASS; exact diagram source-hash false positives independently recomputed/documented.
+- Actual exact-published-source kernel canary: LandlockABI4/seccomp,9/9 denial/RW checks PASS, no model/task ledger/scope use. Snapshot14786560bytes/1024members/max2294513bytes. Actual task independently repeated the canary successfully. Fixed7-case baseline reproduced3AttributeError+2TypeError; patched regression and patch suite were NOT reached.
+- New independent engineering-types-20261111-v1 scope armed07:04:49, expires10:04:49, exact933 source/class engineering-policy-types-v1, max1, no trading/deployment. All original policy fields and consumed dbcheck scope preserved. Original human authorization01a1c855-b112-7351-a5b1-0f9173f49ea5/message01a1c85c-9911-7cf0-a5f2-8c8840382068 was read directly.
+- One native owner task2039@07:05:43 → original run600875534 SUCCEEDED → MODEL proposal12f69ea190a7218491589eb7 → SYSTEM taskc81b6ee5de9729a64b08693b1dfebc67c01d99562ce1eb59a6ca767626e959f1, distinct from USER external standing authorization.
+- Actual native thread `01a1c96e-49f7-7731-8494-fe747211da69` / turn `01a1c96e-4d0c-7403-a7af-b5738f924e71` accepted. Waiting for native output raised TimeoutError; task/run UNKNOWN07:08:05 with last native stageTURN_ACCEPTED. No native-result.json, patch.diff, patched regression/tests receipt or result.json was observed. This does not prove the remote model never completed; no completion was acknowledged or reconciled.
+- Native-accept notice2014 TELEGRAM_ACCEPTED → independent private2042; UNKNOWN notice2015 TELEGRAM_ACCEPTED → independent private2043@07:08:06 explicitly says pending reconciliation/no automatic redo. The private result route works for observed status; PATCH_READY/final patch delivery remains UNVERIFIED. Scope opportunity is consumed; no replay, new version or second model task.
+- Retain original independent source/repository/worktree/canary/baseline/native IDs and all prior UNKNOWN. Read-only metadata reconciliation is saved privately as secretary-development-reconciliation.json. A new attempt requires diagnosis, a concrete reviewed change/validation plan and a separate explicit human opportunity. No such new authorization is inferred here.
+
+## Natural capacity escalation and limits
+
+Existing sampler naturally recorded CRITICAL07:09:07:6205931520 available/39956590592 total,15.53percent free. Cause is DISK_WARNING plus FORECAST_CRITICAL;4.02-hour linear window estimates1.54days at4.02GB/day filesystem growth. This is a provisional estimate including release-copy bursts, not a certain exhaustion date or proven database leak. Registered current database growth is much smaller; inventory is incomplete and does not explain all filesystem growth.
+
+Real alert2016 TELEGRAM_ACCEPTED → independent native private2044@07:09:09. This is an authorized actionable critical notice, separate from ordinary automatic events, not manufactured threshold pressure. Optional public producers remain deferred. Historical copies were not deleted; expanding archive/deleting backups or claiming a complete space-attribution audit is outside this acceptance.
+
+## Deployment, main and remaining boundaries
+
+Both cloud manifests identify933 source/approved branch with identity-only changes. Notification/inbox/OAuth existing owners3204953/54/55 loaded. Paper3094254 and Gateway3186610 unchanged; PAUSED/MAINTENANCE, production/risk/expired-scope hashes and old five uncertain notification payload hashes match the pre-wave snapshot. Owned model drain released; no second worker, Gateway restart, trade/FX or execution manifest activation.
+
+Main integration on454 passed1473/64.636s in a linked worktree;338Python fingerprintb2d3d99ceccbc858dfa77b43ef445455b60c7f38162da2d02ff3de1967c171f5. The larger main tree preserves earlier source work and is not the cloud runtime. Research/Gateway owner documents are integrated separately as dated documentation;252 runtime and P0bd20 remain unactivated. Figures for storage/development are author-rendered with verified artifact/source receipts; reviewed dispatch/provenance changes fit existing actors/edges. Unrelated stale diagram dependencies remain REVIEW_REQUIRED. No empty proposal or premature archive.
+
+Remaining: B native completion/patch/tests/private final result; original ephemeral-thread outcome may be unrecoverable. Capacity inventory/calibration and big-database/offsite restore remain incomplete. New natural research-result publication and trading/session/settlement/order-history acceptance remain separate. Five-project refresh, final secret/spec checks, quick main smoke and Git publication are recorded in task-closeout after execution.
